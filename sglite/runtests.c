@@ -387,10 +387,6 @@ static int TestAll(int Range)
           XS_Name[ixXS(MGC)], MG_Names[ixPG(MGC)]);
         fflush(stdout);
 	
-	/* deb testing */
-	if (nGoodComb > 10)
-	  return IE(0);
-
 #ifdef JUNK
         i = GetSpaceGroupType(SgOps, NULL, NULL);
         printf("SgNumber = %d\n", i);
