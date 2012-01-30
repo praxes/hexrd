@@ -60,6 +60,7 @@ class UNames(object):
     meter = 'meter'
     angstrom = 'angstrom'
 
+    keV = 'keV'
     J = 'J'
     
     pass
@@ -83,7 +84,9 @@ cv_dict = {
     (UNames.angstrom, UNames.m):  1.0e-10,
     (UNames.angstrom, UNames.meter):  1.0e-10,
     (UNames.angstrom, UNames.mm):  1.0e-7,
-    
+
+    (UNames.keV, UNames.J): 1.60217646e-16,
+    (UNames.J, UNames.keV): (1/1.60217646e-16)
     }
 
 class valWUnit(object):
@@ -153,7 +156,8 @@ class valWUnit(object):
             new = valWUnit(self.name, self.uT, self.value - other, self.unit)
             return new
         elif isinstance(other, valWUnit):
-            new = valWUnit(self.name, self.uT, self.value - other.getVal(self.unit), self.unit)
+            new = valWUnit(self.name, self.uT, self.value
+                           - other.getVal(self.unit), self.unit)
             return new
         else:
             raise RuntimeError("add with unsupported operand")
@@ -165,10 +169,12 @@ class valWUnit(object):
         #
         #  Needs conversion
         #
+        from_to = (self.unit, toUnit)
         try:
-            return cv_dict[(self.unit, toUnit)]*self.value
+            return cv_dict[from_to]*self.value
         except:
-            raise RuntimeError("Unit conversion not recognized")
+            msg = "Unit conversion not recognized\n   from %s to %s" % from_to
+            raise RuntimeError(msg)
         
     def isLength(self):
         """Return true if quantity is a length"""
