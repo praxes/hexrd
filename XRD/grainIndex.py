@@ -297,10 +297,8 @@ class GrainIndexerDTO(GrainIndexer):
     '''brute force approach:
     compute distances from fibers to a host of trial orientations'''
     def __init__(self, *args, **keyArgs):
-        ...
         return
-    def __call__(self, ...):
-        ...
+    def __call__(self):
         return
 
 class GrainIndexerFS(GrainIndexer):
