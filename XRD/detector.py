@@ -677,6 +677,10 @@ class ReadGE(Reader):
                 thisframe = thisframe[::-1, :]
             elif self.flipArg == 'vh' or self.flipArg == 'hv':
                 thisframe = thisframe[::-1, ::-1]
+            elif self.flipArg == 'cw90':
+                thisframe = thisframe.T[:, ::-1]
+            elif self.flipArg == 'ccw90':
+                thisframe = thisframe.T[::-1, :]
             else:
                 raise RuntimeError, "unrecognized flip token."
         return thisframe
