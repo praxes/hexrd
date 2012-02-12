@@ -1,7 +1,5 @@
 #! /usr/bin/env python
 #
-#  $Id$
-#
 """Panel for reading frames from GE detector
 """
 import os, sys
@@ -278,8 +276,8 @@ class geReaderPanel(wx.Panel):
 
         self.fgsizer.Add(self.files_lab,      0, wx.ALIGN_RIGHT)
         self.fgsizer.AddSpacer(1)
-        self.fgsizer.Add(self.img_but,        0, wx.ALIGN_RIGHT)
         self.fgsizer.Add(self.dir_but,        0, wx.ALIGN_RIGHT)
+        self.fgsizer.Add(self.img_but,        0, wx.ALIGN_RIGHT)
 
         self.fgsizer.Add(wx.Window(self, -1), 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.fgsizer.Add(self.read_lab,       0, wx.ALIGN_RIGHT)
