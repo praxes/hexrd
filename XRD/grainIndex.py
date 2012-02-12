@@ -380,11 +380,11 @@ class GrainIndexerFS(GrainIndexer):
         ' get reciprocal vectors or whatever for Friedel pairs '
         #friedelRecip = num.zeros([nFriedel,3])
         # ... something like:?
-        ...*** # is the following correct? put in higher level data structure?
+        # ...*** # is the following correct? put in higher level data structure?
         friedelRecip = spotRecip[friedelMasterI,:] - \
             0.5 * (spotRecip[friedelMasterI,:] + spotRecip[friedelPair[friedelMasterI],:])
         
-        ...*** # what should be doing here?
+        #...*** # what should be doing here?
         twoTheta = calcTwoTheta(friedelRecip) # ... need self.wavelength, see lparm.latticePlanes
         
         import copy
@@ -593,7 +593,8 @@ def main(argv=[]):
     elif indexerType == 'FS':
         indexer = gI.GrainIndexerFS(planeData, stepSize=0.02)
     elif indexerType == 'DTO':
-        indexer = gI.GrainIndexerDTO(planeData)...
+        raise NotImplementedError('in grainIndex')
+        #indexer = gI.GrainIndexerDTO(planeData)...
     else:
         raise RuntimeError, 'unknown indexerType : '+str(indexerType)
     print 'indexer will index using lattice vectors : \n'+str(indexer.getLatPlnNmrls())
@@ -604,7 +605,7 @@ def main(argv=[]):
     latVecsAll = lparm.PlaneData(hklsAll, planeData)
     print 'will generate spots using lattice vectors : \n'+str(latVecsAll)
     #
-    ...*** # need to do something that includes 2-theta information
+    #...*** # need to do something that includes 2-theta information
     spotRecip = gI.makeSpots(grainQuats.T, latVecsAll.T, scramble=True)
     
     grainList = indexer(spotRecip, 3, 200, 0.05)
