@@ -580,7 +580,8 @@ class Grain(object):
         
         # make all theoretical scattering vectors
         predQvec, predQAng0, predQAng1 = \
-                  self.planeData._PlaneData__makeScatteringVectors(self.rMat, bMat=self.bMat)
+                  self.planeData._PlaneData__makeScatteringVectors(self.rMat, bMat=self.bMat,
+                                                                   chiTilt=self.detectorGeom.chiTilt)
         
         # for control of tolerancing
         symHKLs   = self.planeData.getSymHKLs()
@@ -597,32 +598,7 @@ class Grain(object):
         reflInfoList = []
         dummySpotInfo = num.nan * num.ones(3)
         for iHKL, tThTol in enumerate(tThTols):            
-            # old # #  work with generated spots for iHKL
-            # old # allPredAng = zip(predQAng0[iHKL], predQAng1[iHKL])
-            # old # 
-            # old # # filter using omega range
-            # old # reflInRange0 = num.zeros(allPredAng[2][0].shape, dtype=bool)
-            # old # reflInRange1 = num.zeros(allPredAng[2][1].shape, dtype=bool)
-            # old # for iOme in range(len(omeMin)):
-            # old #     limVecMin = num.r_[num.cos(omeMin[iOme]), num.sin(omeMin[iOme])]
-            # old #     limVecMax = num.r_[num.cos(omeMax[iOme]), num.sin(omeMax[iOme])]
-            # old #     #
-            # old #     wedgeAngle = num.arccos( num.dot( limVecMin, limVecMax ) )
-            # old #     #
-            # old #     omeVec0 = num.c_[ num.cos(allPredAng[2][0]), num.sin(allPredAng[2][0]) ]
-            # old #     omeVec1 = num.c_[ num.cos(allPredAng[2][1]), num.sin(allPredAng[2][1]) ]
-            # old #     #
-            # old #     dp0 = num.arccos( num.dot(omeVec0, limVecMin) ) + num.arccos( num.dot(omeVec0, limVecMax) )
-            # old #     dp1 = num.arccos( num.dot(omeVec1, limVecMin) ) + num.arccos( num.dot(omeVec1, limVecMax) )
-            # old #     #
-            # old #     reflInRange0 = reflInRange0 | ( abs(dp0 - wedgeAngle) <= num.sqrt(rot.tinyRotAng) )
-            # old #     reflInRange1 = reflInRange1 | ( abs(dp1 - wedgeAngle) <= num.sqrt(rot.tinyRotAng) )
-            # old # 
-            # old # # get culled angle and hkl lists for predicted spots
-            # old # culledTTh = num.r_[ allPredAng[0][0][reflInRange0], allPredAng[0][1][reflInRange1] ]
-            # old # culledEta = num.r_[ allPredAng[1][0][reflInRange0], allPredAng[1][1][reflInRange1] ]
-            # old # culledOme = num.r_[ allPredAng[2][0][reflInRange0], allPredAng[2][1][reflInRange1] ]
-                
+            
             # filter using ome ranges
             reflInRange0 = validateQVecAngles(predQAng0[iHKL][2, :], omeMin, omeMax)
             reflInRange1 = validateQVecAngles(predQAng1[iHKL][2, :], omeMin, omeMax)
@@ -800,8 +776,8 @@ class Grain(object):
         ##
         ## grab Friedel pairs here off of hkls
         ##
-        ## *) may eventually move FP markings to planeData rather than having to search for them
-        ##    here
+        ## *) may eventually move FP markings to planeData rather than
+        ##    having to search for them here
         #
         # index to valid reflections
         reducedIRefl = num.where(reflInfo['iRefl'] >= 0)[0]
@@ -816,7 +792,8 @@ class Grain(object):
             # 'daughter' angles
             dOme, dEta = xtl.getFriedelPair(pTTh[reducedIRefl],
                                             pEta[reducedIRefl],
-                                            pOme[reducedIRefl], units='radians')
+                                            pOme[reducedIRefl],
+                                            units='radians', chiTilt=self.detectorGeom.chiTilt)
             
             # lump into arrays of [eta, ome] vectors
             #   - must make deepcoopy of slice into reflInfo, cuz we're gonna chop it
@@ -904,7 +881,6 @@ class Grain(object):
                               measXYOString
                                                      
         return reflInfo, fPairs, completeness #, (nMeasRefl, nPredRefl)
-    
     def getValidSpotIdx(self, ignoreClaims=False):
         masterReflInfo = self.grainSpots
         if ignoreClaims:
@@ -913,6 +889,36 @@ class Grain(object):
             hitReflId      = num.where(masterReflInfo['iRefl'] >= 0)[0]
         validSpotIdx   = masterReflInfo['iRefl'][hitReflId]
         return validSpotIdx, hitReflId
+    def updateGVecs(self, rMat=None, bMat=None, chiTilt=None):
+        """
+        special routine for updating the predicted G-vector angles for subsequent fitting
+        *) need to do this after updating chiTilt, or fixed bMat, etc...
+        *) assumption is that the changes are SMALL so that the existing list of
+           valid reflection is still valid...
+        """
+        if rMat is None:
+            rMat = self.rMat
+        if bMat is None:
+            bMat = self.bMat
+        if chiTilt is None:
+            chiTilt = self.detectorGeom.chiTilt
+        wavelength = self.planeData.wavelength
+
+        for ihkl, hkl in enumerate(self.grainSpots['hkl']):
+            predQvec, predQAng0, predQAng1 = \
+                      self.planeData.makeScatteringVectors(hkl.reshape(3, 1),
+                                                           rMat, bMat,
+                                                           wavelength,
+                                                           chiTilt=chiTilt)
+            diff0 = self.grainSpots['predAngles'][ihkl, :].reshape(3, 1) - predQAng0
+            diff1 = self.grainSpots['predAngles'][ihkl, :].reshape(3, 1) - predQAng1
+            if sum(diff0**2) < sum(diff1**2):
+                angles = predQAng0.flatten()
+            else:
+                angles = predQAng1.flatten()
+            self.grainSpots['predAngles'][ihkl, :] = angles
+            self.grainSpots['predQvec']   = predQvec.flatten()
+        return
     def checkClaims(self):
         """
         useful if have not done claims yet and want to check and see if spots 

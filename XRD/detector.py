@@ -58,14 +58,6 @@ try:
 except:
     havePlotWrap = False
 
-# havePylab = False
-# if not havePlotWrap:
-#     try: 
-#         import pylab
-#         havePylab = True
-#     except:
-#         havePylab = False
-
 def angToXYIdeal(tTh, eta, workDist):
     rho = num.tan(tTh) * workDist
     x   = rho * num.cos(eta)
@@ -2664,6 +2656,8 @@ class Detector2DRC(DetectorBase):
     __pixelPitchUnit = 'mm'
     
     tilt = num.zeros(3)   # must initialize tilt to ndarray
+
+    chiTilt = None
     
     def __init__(self, ncols, nrows, pixelPitch, readerClass, *args, **kwargs):
         
@@ -2808,7 +2802,7 @@ class Detector2DRC(DetectorBase):
     def __updateFromPList(self, plist):
         self.xc, self.yc, self.workDist, self.xTilt, self.yTilt, self.zTilt = plist[0:6]
         if hasattr(plist[6],'__len__'):
-            assert len(plist) == 7, 'plist of wrong length : '+str(plist)
+            assert len(plist) == 6, 'plist of wrong length : '+str(plist)
             self.dparms = plist[6]
         else:
             self.dparms = plist[6:]
@@ -4383,13 +4377,10 @@ class DetectorGeomGE(Detector2DRC):
     __idim           = ReadGE._ReadGE__idim
     __nrows          = ReadGE._ReadGE__nrows
     __ncols          = ReadGE._ReadGE__ncols
-    # new model # __dParamDflt     = [-4.09673644e-04,  -7.69495474e-05, 0.0, 0.0, 0.0, 0.0]
-    # new model # __dParamScalings = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-    # new model # __dParamRefineDflt = (True,  True, False, False, False, False)
-    __dParamDflt     = [-7.29999194e-05,  -4.93935260e-04,   4.0, 2.0, 4.0]
-    __dParamZero     = [0.0, 0.0, 4.0, 2.0, 4.0]
-    __dParamScalings = [1.0, 1.0, 1.0, 1.0, 1.0]
-    __dParamRefineDflt = (True,  True, False, False, False)
+    __dParamDflt     = [1.0e-4, -3.0e-04,     0.0,      2.0,      2.0,      2.0]
+    __dParamZero     = [   0.0,      0.0,     0.0,      2.0,      2.0,      2.0]
+    __dParamScalings = [   1.0,      1.0,     1.0,      1.0,      1.0,      1.0]
+    __dParamRefineDflt = (True,     True,    True,    False,    False,    False)
     
     def __init__(self, *args, **kwargs):
         
@@ -4431,10 +4422,7 @@ class DetectorGeomGE(Detector2DRC):
         #   - this is the radius that gets rescaled
         rho0 = num.sqrt( x0*x0 + y0*y0 )
         eta0 = num.arctan2( y0, x0 )
-        
-        # etaP = 2.                       # for GE2
-        # etaP = 4.                       # for GE RAD
-        
+                
         if invert:
             # in here must do nonlinear solve for distortion
             from scipy.optimize import fsolve
@@ -4448,7 +4436,9 @@ class DetectorGeomGE(Detector2DRC):
             eta0   = num.atleast_1d(eta0).flatten()
             
             rhoSclFunc = lambda ri, ni, ro, p=self.dparms, rx=rhoMax: \
-                (1 + p[0]*(ri/rx)**p[2] * num.cos(p[4] * ni) + p[1]*(ri/rx)**p[3])*ri - ro 
+                (p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
+                 p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
+                 p[2]*(ri/rx)**p[5] + 1)*ri - ro 
             
             for iRho in range(len(rho0)):
                 rhoOut[iRho] = fsolve(rhoSclFunc, rho0[iRho], args=(eta0[iRho], rho0[iRho]))
@@ -4456,8 +4446,11 @@ class DetectorGeomGE(Detector2DRC):
             rhoOut = rhoOut.reshape(rShape)            
         else:
             # usual case: calculate scaling to take you from image to detector plane
+            # 1 + p[0]*(ri/rx)**p[2] * num.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
             rhoSclFunc = lambda ri, p=self.dparms, rx=rhoMax, ni=eta0: \
-                1 + p[0]*(ri/rx)**p[2] * num.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
+                         p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
+                         p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
+                         p[2]*(ri/rx)**p[5] + 1
             
             rhoOut = num.squeeze( rho0 * rhoSclFunc(rho0) )
             
@@ -4465,95 +4458,6 @@ class DetectorGeomGE(Detector2DRC):
         yout = rhoOut * num.sin(eta0) + rhoMax - self.yc
         
         return xout, yout
-    # new model # def radialDistortion(self, xin, yin, invert=False):
-    # new model #     """    
-    # new model #     Apply radial distortion to polar coordinates on GE detector
-    # new model # 
-    # new model #     xin, yin are 1D arrays or scalars, assumed to be relative to self.xc, self.yc
-    # new model #     Units are [mm, radians].
-    # new model # 
-    # new model #     Available Keyword Arguments :
-    # new model # 
-    # new model #     invert = True or >False< :: apply inverse warping
-    # new model #     
-    # new model #     radial parameters: k1, k2
-    # new model #     decentering parameters: p1, p2 
-    # new model #     prism parameters: s1, s2
-    # new model #     
-    # new model #     delta_x(x0, y0) = k1 * x0*(x0**2 + y0**2) + k2 * x0*(x0**2 + y0**2)**2
-    # new model #                         + (p1 * (3*x0**2 + y0**2) + 2*p2 * x0*y0)
-    # new model #                           + s1 * (x0**2 + y0**2)
-    # new model #     delta_y(x0, y0) = k1 * y0*(x0**2 + y0**2) + k2 * y0*(x0**2 + y0**2)**2
-    # new model #                         + (2*p1 * x0*y0 + p2 * (x0**2 + 3*y0**2) + )
-    # new model #                           + s2 * (x0**2 + y0**2)
-    # new model #     """
-    # new model #     
-    # new model #     # canonical max raidus based on perfectly centered beam
-    # new model #     #   - 204.8 in mm or 1024 in pixel indices
-    # new model #     #   - a.k.a. 'true' detector center in x and y
-    # new model #     rhoMax = max(self.__nrows, self.__ncols) * self.pixelPitch / 2 
-    # new model #             
-    # new model #     # make points relative to 'true' detector center
-    # new model #     x0 = (xin + self.xc)/rhoMax - 1
-    # new model #     y0 = (yin + self.yc)/rhoMax - 1
-    # new model #             
-    # new model #     # self.dparms = (k1, k2, p1, p2, s1, s2)
-    # new model #     if not invert:
-    # new model #         x02  = x0*x0
-    # new model #         y02  = y0*y0
-    # new model #         x0y0 = x0*y0
-    # new model #         qsumXY1 = x02 + y02 
-    # new model #         qsumXY2 = qsumXY1*qsumXY1
-    # new model #         qsum3XY = 3*x02 + y02
-    # new model #         qsumX3Y = 3*y02 + x02
-    # new model #         
-    # new model #         delta_x0 = self.dparms[0]*x0*qsumXY1 + self.dparms[1]*x0*qsumXY2 \
-    # new model #                    + self.dparms[2]*qsum3XY + 2*self.dparms[3]*x0y0 \
-    # new model #                    + self.dparms[4]*qsumXY1
-    # new model #         
-    # new model #         delta_y0 = self.dparms[0]*y0*qsumXY1 + self.dparms[1]*y0*qsumXY2 \
-    # new model #                    + self.dparms[3]*qsumX3Y + 2*self.dparms[2]*x0y0 \
-    # new model #                    + self.dparms[5]*qsumXY1
-    # new model #         
-    # new model #         xout = ( (x0 + delta_x0) + 1) * rhoMax - self.xc
-    # new model #         yout = ( (y0 + delta_y0) + 1) * rhoMax - self.yc
-    # new model #     else:
-    # new model #         from scipy.optimize import fsolve
-    # new model #         def inverseDistortion(xi, xu, yu, p=self.dparms):
-    # new model #             """
-    # new model #             function for computing the inverse radial distortion
-    # new model #             """
-    # new model #             x02  = xi[0]*xi[0]
-    # new model #             y02  = xi[1]*xi[1]
-    # new model #             x0y0 = xi[0]*xi[1]
-    # new model #             qsumXY1 = x02 + y02 
-    # new model #             qsumXY2 = qsumXY1*qsumXY1
-    # new model #             qsum3XY = 3*x02 + y02
-    # new model #             qsumX3Y = 3*y02 + x02
-    # new model #             
-    # new model #             delta_x0 = p[0]*xi[0]*qsumXY1 + p[1]*xi[0]*qsumXY2 \
-    # new model #                        + p[2]*qsum3XY + 2*p[3]*x0y0 \
-    # new model #                        + p[4]*qsumXY1
-    # new model #             
-    # new model #             delta_y0 = p[0]*xi[1]*qsumXY1 + p[1]*xi[1]*qsumXY2 \
-    # new model #                        + p[3]*qsumX3Y + 2*p[2]*x0y0 \
-    # new model #                        + p[5]*qsumXY1
-    # new model #             
-    # new model #             xout = (xi[0] + delta_x0) - xu
-    # new model #             yout = (xi[1] + delta_y0) - yu
-    # new model #             return num.vstack([xout, yout]).flatten()
-    # new model #         
-    # new model #         pShape = num.atleast_1d(x0).shape # need this for reshaping later
-    # new model #         x0     = num.atleast_1d(x0).flatten()
-    # new model #         y0     = num.atleast_1d(y0).flatten()
-    # new model #         xyIn   = num.vstack([x0, y0])
-    # new model #         xout   = num.empty(len(x0), dtype=float)
-    # new model #         yout   = num.empty(len(y0), dtype=float)
-    # new model #         for iP in range(len(x0)):
-    # new model #             # import pdb;pdb.set_trace()
-    # new model #             xyOut = fsolve( inverseDistortion, xyIn[:,iP], args=(x0[iP], y0[iP]) )
-    # new model #             xout[iP] = ( xyOut[0] + 1) * rhoMax - self.xc
-    # new model #             yout[iP] = ( xyOut[1] + 1) * rhoMax - self.yc
 
 class DetectorGeomQuadGE(DetectorBase):
     """
@@ -4720,8 +4624,13 @@ class DetectorGeomQuadGE(DetectorBase):
         """
         display all sub-detectors on an idealized detector plane
         
-        If matplotlib gets around to enabling the transform argument to imshow, that might be a much faster approach than what is currently done here, although what is done here is nice in that it takes account of all of the distortions, not just the in-plane rotation. The idea would be that the in-plane rotation would be, by far, the biggest effect. 
-        import matplotlib.transforms as mtransforms
+        If matplotlib gets around to enabling the transform argument
+        to imshow, that might be a much faster approach than what is
+        currently done here, although what is done here is nice in
+        that it takes account of all of the distortions, not just the
+        in-plane rotation. The idea would be that the in-plane
+        rotation would be, by far, the biggest effect.  import
+        matplotlib.transforms as mtransforms
         tr = mtransforms.Affine2D()
         tr.rotate(self.zTilt)
         imshow( , transform=tr)
@@ -4890,11 +4799,12 @@ def newDetector(detectorType):
                        0.00000000e+00,  # yTilt ( ROTX from fit2d)
                        0.00000000e+00,  # zTilt (can't refine with powder; leave 0 unless you know otherwise)
                        ]
-        dParams    = [ 1.55626624e-04,
-                      -4.04455147e-04,
-                       2.00000000e+00,
-                       2.00000000e+00,
-                       2.00000000e+00,
+        dParams    = [ 1.0e-04,
+                      -3.0e-04,
+                       0.0e+00,
+                       2.0e+00,
+                       2.0e+00,
+                       2.0e+00,
                        ]
         #
         #  For now, use default distortion parameters

@@ -134,31 +134,40 @@ class detectorPanel(wx.Panel):
         self.float_zt.SetValue(det.yTilt)
         #
         #  Distortion parameters
-        #  
-        name = 'distortion 1'
+        #
+        #  *) NOTE THAT THESE ARE SPECIFIC FOR THE GE
+        #  *) must break these out into a subpanel, as the 
+        #     number (if any at all) will change for each
+        #     detector type.
+        name = 'p0'
         self.cbox_d1  = wx.CheckBox(self, wx.NewId(), name)
         self.float_d1 = FloatControl(self, wx.NewId())
         self.float_d1.SetValue(det.dparms[0])
-
-        name = 'distortion 2'
+        
+        name = 'p1'
         self.cbox_d2  = wx.CheckBox(self, wx.NewId(), name)
         self.float_d2 = FloatControl(self, wx.NewId())
         self.float_d2.SetValue(det.dparms[1])
-
-        name = 'distortion 3'
+        
+        name = 'p2'
         self.cbox_d3  = wx.CheckBox(self, wx.NewId(), name)
         self.float_d3 = FloatControl(self, wx.NewId())
         self.float_d3.SetValue(det.dparms[2])
-
-        name = 'distortion 4'
+        
+        name = 'n0'
         self.cbox_d4  = wx.CheckBox(self, wx.NewId(), name)
         self.float_d4 = FloatControl(self, wx.NewId())
         self.float_d4.SetValue(det.dparms[3])
-
-        name = 'eta period'
+        
+        name = 'n1'
         self.cbox_d5  = wx.CheckBox(self, wx.NewId(), name)
         self.float_d5 = FloatControl(self, wx.NewId())
         self.float_d5.SetValue(det.dparms[4])
+        
+        name = 'n2'
+        self.cbox_d6  = wx.CheckBox(self, wx.NewId(), name)
+        self.float_d6 = FloatControl(self, wx.NewId())
+        self.float_d6.SetValue(det.dparms[5])
         #
         #  Fitting method
         # 
@@ -206,6 +215,7 @@ class detectorPanel(wx.Panel):
         self.Bind(EVT_FLOAT_CTRL, self.OnFloatd3, self.float_d3)
         self.Bind(EVT_FLOAT_CTRL, self.OnFloatd4, self.float_d4)
         self.Bind(EVT_FLOAT_CTRL, self.OnFloatd5, self.float_d5)
+        self.Bind(EVT_FLOAT_CTRL, self.OnFloatd6, self.float_d6)
 
         # checkboxes
         self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_xc, self.cbox_xc)
@@ -220,6 +230,7 @@ class detectorPanel(wx.Panel):
         self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_d3, self.cbox_d3)
         self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_d4, self.cbox_d4)
         self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_d5, self.cbox_d5)
+        self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_d6, self.cbox_d6)
         
         # fitting section
         self.Bind(wx.EVT_RADIOBUTTON, self.OnFitDir, self.fitDir_rb)
@@ -278,6 +289,9 @@ class detectorPanel(wx.Panel):
         #
         self.geoSizer.Add( self.cbox_d5,  1, wx.EXPAND)
         self.geoSizer.Add(self.float_d5, 1, wx.EXPAND)
+        #
+        self.geoSizer.Add( self.cbox_d6,  1, wx.EXPAND)
+        self.geoSizer.Add(self.float_d6, 1, wx.EXPAND)
         #
         #  Radio buttons
         #
@@ -344,6 +358,7 @@ class detectorPanel(wx.Panel):
         self.float_d3.SetValue(det.dparms[2])
         self.float_d4.SetValue(det.dparms[3])
         self.float_d5.SetValue(det.dparms[4])
+        self.float_d5.SetValue(det.dparms[5])
 
         self.__showCbox(self.cbox_xc, self.float_xc, det.refineFlags[0])
         self.__showCbox(self.cbox_yc, self.float_yc, det.refineFlags[1])
@@ -356,6 +371,7 @@ class detectorPanel(wx.Panel):
         self.__showCbox(self.cbox_d3, self.float_d3, det.refineFlags[8])
         self.__showCbox(self.cbox_d4, self.float_d4, det.refineFlags[9])
         self.__showCbox(self.cbox_d5, self.float_d5, det.refineFlags[10])
+        self.__showCbox(self.cbox_d6, self.float_d6, det.refineFlags[11])
         
         return
 
@@ -612,6 +628,20 @@ class detectorPanel(wx.Panel):
 
         return
 
+    def OnFloatd6(self, evt):
+        """Callback for float_d6 choice"""
+        try:
+            a = wx.GetApp()
+            a.ws.detector.dparms[5] = evt.floatValue
+            a.getCanvas().update()
+
+        except Exception as e:
+            msg = 'Failed to set distortion parameter 6: \n%s' % str(e)
+            wx.MessageBox(msg)
+            pass
+
+        return
+
 
     def OnNumRho(self, e):
         """Number of rho bins has changed"""
@@ -776,6 +806,18 @@ class detectorPanel(wx.Panel):
 
         return
 
+    def OnCheck_d6(self, e):
+        """xc box is checked"""
+        ind  = 11
+        fc   = self.float_d6
+
+        exp  = wx.GetApp().ws
+        stat = e.IsChecked()
+
+        exp.refineFlags[ind] = stat
+        fc.Enable(stat)
+
+        return
     pass # end class
 #
 # -----------------------------------------------END CLASS:  plotPanel

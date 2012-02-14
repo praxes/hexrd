@@ -882,9 +882,9 @@ class DetectorInfo(object):
     """detectorInfo"""
     # refinement-specific things
     #  ---------------> (   xc,    yc,     D,    xt,    yt,    zt,   
-    #                      dp1,   dp2,   dp3,   dp4,   dp5)
+    #                      dp1,   dp2,   dp3,   dp4,   dp5,   dp6)
     DFLT_REFINE_FLAGS = ( True,  True,  True,  True,  True, False, 
-                          True,  True, False, False, False)
+                          True,  True,  True, False, False, False)
     def __init__(self):
         """Constructor for detectorInfo"""
         #

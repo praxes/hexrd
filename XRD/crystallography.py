@@ -998,34 +998,38 @@ class PlaneData(object):
         
         return rIs
     
-    def makeTheseScatteringVectors(self, hklList, rMat, bMat=None, wavelength=None):
+    def makeTheseScatteringVectors(self, hklList, rMat, bMat=None, wavelength=None, chiTilt=None):
         iHKLList = num.atleast_1d(self.getHKLID(hklList))
         fHKLs = num.hstack(self.getSymHKLs(indices=iHKLList))
         if bMat is None:
             bMat = self.__latVecOps['B']
         if wavelength is None:
             wavelength = self.__wavelength
-        retval = PlaneData.makeScatteringVectors(fHKLs, rMat, bMat, wavelength)
+        retval = PlaneData.makeScatteringVectors(fHKLs, rMat, bMat, wavelength, chiTilt=chiTilt)
         return retval
-    def makeAllScatteringVectors(self, rMat, bMat=None, wavelength=None):
+    def makeAllScatteringVectors(self, rMat, bMat=None, wavelength=None, chiTilt=None):
         fHKLs = num.hstack(self.getSymHKLs())
         if bMat is None:
             bMat = self.__latVecOps['B']
         if wavelength is None:
             wavelength = self.__wavelength
-        retval = PlaneData.makeScatteringVectors(fHKLs, rMat, bMat, wavelength)
+        retval = PlaneData.makeScatteringVectors(fHKLs, rMat, bMat, wavelength, chiTilt=chiTilt)
         return retval
     @staticmethod
-    def makeScatteringVectors(hkls, rMat, bMat, wavelength):
+    def makeScatteringVectors(hkls, rMat, bMat, wavelength, chiTilt=None):
         """
         modeled after QFromU.m
         """
         from Rotations import angleAxisOfRotMat, rotMatOfExpMap, arccosSafe, mapAngle
-        
+
         # basis vectors
         Xl = num.vstack([1, 0, 0])          # X in the lab frame
         Yl = num.vstack([0, 1, 0])          # Y in the lab frame
         Zl = num.vstack([0, 0, 1])          # Z in the lab frame
+        
+        chiRotMat = num.eye(3)
+        if chiTilt is not None:
+            chiRotMat = rotMatOfExpMap(chiTilt*Yl)
         
         # projection operators
         Pxy = num.eye(3) - num.dot(Zl, Zl.T)    # xy-plane 
@@ -1054,17 +1058,17 @@ class PlaneData(object):
         tht      = num.arcsin( wavelength / 2. / dSpacing  )
         
         # move to sample frame
-        Qs_hat = num.dot(rMat.squeeze(), Qc_hat)
+        Qs_hat = num.dot(chiRotMat, num.dot(rMat.squeeze(), Qc_hat))
         
         # first find Q's that can satisfy the bragg condition
         dtplus  = num.dot( Yl.T, Qs_hat)
         dtminus = num.dot(-Yl.T, Qs_hat)
         
-        keepers = ( (dtplus <= (num.cos(tht) - zTol)) & (dtplus >= 0.0) ) \
-                  | ( (dtminus <= (num.cos(tht) - zTol)) & (dtminus >= 0.0) )
-        
-        bangOn  = ( (dtplus > (num.cos(tht) - zTol)) & (dtplus <= (num.cos(tht) + zTol)) ) \
-                  | ( (dtminus > (num.cos(tht) - zTol)) & (dtminus <= (num.cos(tht) + zTol)) )
+        keepers = ( (dtplus  <= (num.cos(tht) - zTol)) & (dtplus  >= 0.0) ) | \
+                  ( (dtminus <= (num.cos(tht) - zTol)) & (dtminus >= 0.0) )
+         
+        bangOn  = ( (dtplus  > (num.cos(tht) - zTol)) & (dtplus  <= (num.cos(tht) + zTol)) ) | \
+                  ( (dtminus > (num.cos(tht) - zTol)) & (dtminus <= (num.cos(tht) + zTol)) )
         
         if nRefl == 1:
             keepers = keepers.reshape(1) # these guys can diffract
@@ -1072,6 +1076,7 @@ class PlaneData(object):
         else:
             keepers = keepers.squeeze()  # these guys can diffract
             bangOn  = bangOn.squeeze()   # these guys are tangent to the cone
+            pass
         
         ############################################################################# 
         # MUST CALCULATE CORRESPONDING ANGULAR COORDINATES
@@ -1082,16 +1087,34 @@ class PlaneData(object):
         #
         # which has two unique solutions UNLESS Qs happens to be tangent to the cone.
         # In that case, x is a double root.
+        cphi = num.cos(phi)
+        sphi = num.sin(phi)
+        if chiTilt is None:
+            cchi = 1.
+            schi = 0.
+        else:
+            cchi = num.cos(chiTilt)
+            schi = num.sin(chiTilt)
+            pass
+        nchi = num.c_[0, cchi, schi].T
+        Pchi = num.eye(3) - num.dot(nchi, nchi.T)
         
-        a = ( -n[0]**2 - num.cos(phi)*(1 - n[0]**2) ) * Qc_hat[0, :] \
-            + ( n[0]*n[1]*(num.cos(phi) - 1) + num.sin(phi)*n[2] ) * Qc_hat[1, :] \
-            + ( n[0]*n[2]*(num.cos(phi) - 1) - num.sin(phi)*n[1] ) * Qc_hat[2, :]
+        # a = cchi * ( n[0]**2   * (cphi - 1) - cphi      ) * Qc_hat[0, :] \
+        #          + ( n[0]*n[1] * (cphi - 1) + sphi*n[2] ) * Qc_hat[1, :] \
+        #          + ( n[0]*n[2] * (cphi - 1) - sphi*n[1] ) * Qc_hat[2, :]
+        #     
+        # b = cchi * ( n[0]*n[2] * (1 - cphi) - sphi*n[1] ) * Qc_hat[0, :] \
+        #          + ( n[1]*n[2] * (1 - cphi) + sphi*n[0] ) * Qc_hat[1, :] \
+        #          + ( n[2]**2   * (1 - cphi) + cphi      ) * Qc_hat[2, :]
+        #     
+        # c = num.sin(tht) \
+        #         - schi * ( ( (1 - cphi)*n[0]*n[1] + sphi*n[2] ) * Qc_hat[0, :] \
+        #                  + ( (1 - cphi)*n[1]**2   + cphi      ) * Qc_hat[1, :] \
+        #                  + ( (1 - cphi)*n[1]*n[2] - sphi*n[0] ) * Qc_hat[2, :] )
         
-        b = ( n[0]*n[2]*(1 - num.cos(phi)) - num.sin(phi)*n[1] ) * Qc_hat[0, :] \
-            + ( n[1]*n[2]*(1 - num.cos(phi)) + num.sin(phi)*n[0] ) * Qc_hat[1, :] \
-            + ( n[2]**2 + num.cos(phi)*(1 - n[2]**2) ) * Qc_hat[2, :]
-        
-        c = num.sin(tht)
+        a = -cchi * Qs_hat[0, :]
+        b =  cchi * Qs_hat[2, :]
+        c =  num.sin(tht) - schi * Qs_hat[1, :]
         
         onesNRefl = num.ones(nRefl)
         
@@ -1108,50 +1131,55 @@ class PlaneData(object):
                 ome0[iRefl] = float( mapAngle( cdAngl - abAngl, units='radians' ) )
                 ome1[iRefl] = float( mapAngle( num.pi - cdAngl - abAngl, units='radians' ) )
             elif bangOn[iRefl]:
-                qxz = unitVector( num.dot( Pxz, num.c_[Qs_hat[:, iRefl]] ) ) 
-                
-                if abs(qxz[0]) > zTol:
-                    tmp = qxz[0] / abs(qxz[0]) * arccosSafe(num.dot(Zl.T, qxz))
+                # ... needs checking
+                if chiTilt is not None and chiTilt !=0:
+                    qxz_p = unitVector( num.dot(Pchi, Qs_hat[:,iRefl]).reshape(3, 1) )
+                    Zl_p  = unitVector( num.dot(Pchi, Zl).reshape(3, 1) )
+                    if abs(qxz_p[0] > zTol):
+                        tmp = -qxz_p[0] / abs(qxz_p[0]) * arccosSafe(qxz_p[-1])
+                    else:
+                        tmp = arccosSafe(qxz_p[-1])
                 else:
-                    tmp = arccosSafe(num.dot(Zl.T, qxz))
-                    
+                    qxz = unitVector( Qs_hat[[0,2],iRefl].reshape(2, 1) )
+                    if abs(qxz[0]) > zTol:
+                        tmp = -qxz[0] / abs(qxz[0]) * arccosSafe(qxz[1])
+                    else:
+                        tmp = arccosSafe(qxz[1])
+                        pass
+                    pass
+                
                 tmp = float( mapAngle( tmp, units='radians' ) )
                 
                 # trick ome range filter into selecting just one...
                 ome0[iRefl] = tmp
                 ome1[iRefl] = tmp + 2*num.pi
-                
+                pass # close conditional on bangOn reflections
             if not num.isnan(ome0[iRefl]):
                 # MUST NORMALIZE projected vectors to use arccosSafe!
-                ## qxy0 = unitVector( \
-                ##     num.dot( Pxy, num.dot( \
-                ##              rotMatOfExpMap(ome0[iRefl]*Yl), num.c_[Qs_hat[:, iRefl]] ) ) )
-                ## 
-                ## qxy1 = unitVector( \
-                ##     num.dot( Pxy, num.dot( \
-                ##              rotMatOfExpMap(ome1[iRefl]*Yl), num.c_[Qs_hat[:, iRefl]] ) ) )
                 cOme0 = num.cos(ome0[iRefl])
                 sOme0 = num.sin(ome0[iRefl])
                 cOme1 = num.cos(ome1[iRefl])
                 sOme1 = num.sin(ome1[iRefl])
-                qxy0 = num.c_[cOme0 * Qs_hat[0,iRefl] + sOme0 * Qs_hat[2,iRefl], Qs_hat[1,iRefl]].T
-                qxy1 = num.c_[cOme1 * Qs_hat[0,iRefl] + sOme1 * Qs_hat[2,iRefl], Qs_hat[1,iRefl]].T
-                qxy0 = qxy0 / num.sqrt(num.sum(qxy0 * qxy0))
-                qxy1 = qxy1 / num.sqrt(num.sum(qxy1 * qxy1))
+
+                # get X-Y projections in lab frame
+                qxy0 = unitVector( num.vstack([
+                    cOme0*Qs_hat[0,iRefl] + sOme0*Qs_hat[2,iRefl],
+                    schi*sOme0*Qs_hat[0,iRefl] + cchi*Qs_hat[1,iRefl] - schi*cOme0*Qs_hat[2,iRefl]]
+                                              ) )
+                qxy1 = unitVector( num.vstack([
+                    cOme1*Qs_hat[0,iRefl] + sOme1*Qs_hat[2,iRefl],
+                    schi*sOme1*Qs_hat[0,iRefl] + cchi*Qs_hat[1,iRefl] - schi*cOme1*Qs_hat[2,iRefl]]
+                                              ) )
                 # eta0
                 if abs(qxy0[1]) > zTol:
-                    ## eta0[iRefl] = qxy0[1] / abs(qxy0[1]) * arccosSafe(num.dot(Xl.T, qxy0))
                     eta0[iRefl] = qxy0[1] / abs(qxy0[1]) * arccosSafe(qxy0[0])
                 else:
-                    ## eta0[iRefl] = arccosSafe(num.dot(Xl.T, qxy0))
                     eta0[iRefl] = arccosSafe(qxy0[0])
                     pass
                 # eta1
                 if abs(qxy1[1]) > zTol:
-                    ## eta1[iRefl] = qxy1[1] / abs(qxy1[1]) * arccosSafe(num.dot(Xl.T, qxy1))
                     eta1[iRefl] = qxy1[1] / abs(qxy1[1]) * arccosSafe(qxy1[0])
                 else:
-                    ## eta1[iRefl] = arccosSafe(num.dot(Xl.T, qxy1))
                     eta1[iRefl] = arccosSafe(qxy1[0])
                     pass
                 pass # close conditional on ome0
@@ -1162,7 +1190,7 @@ class PlaneData(object):
         
         return Qs_vec, Qs_ang0, Qs_ang1
 
-    def __makeScatteringVectors(self, rMat, bMat=None):
+    def __makeScatteringVectors(self, rMat, bMat=None, chiTilt=None):
         """
         modeled after QFromU.m
         """
@@ -1178,7 +1206,8 @@ class PlaneData(object):
             if not self.__thisHKL(iHKLr): continue
             
             thisQs, thisAng0, thisAng1 = \
-                    PlaneData.makeScatteringVectors(hklData['symHKLs'], rMat, bMat, self.__wavelength)
+                    PlaneData.makeScatteringVectors(hklData['symHKLs'], rMat, bMat,
+                                                    self.__wavelength, chiTilt=chiTilt)
 
             Qs_vec.append( thisQs )
             Qs_ang0.append( thisAng0 )
@@ -1222,6 +1251,8 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     'units'             'radians'|{'degrees'}   sets units for input angles
     'convention'        'risoe'|{'aps'}         sets conventions defining
                                                 the angles (see below) 
+    'chiTilt'           None                    the inclination (about Xlab) of
+                                                the oscillation axis
     
     OUTPUTS:
     
@@ -1255,10 +1286,11 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
         to Deformed In Situ'', J. Eng. Mater. Technol. (2008). 130. 
         DOI:10.1115/1.2870234 
     """
-    from Rotations import mapAngle
+    from Rotations import arccosSafe, mapAngle, rotMatOfExpMap
     
     dispFlag  = False
     risoeFlag = False
+    chiTilt   = None
     c1        = 1.
     c2        = pi/180.
     zTol      = 1.e-7
@@ -1303,8 +1335,9 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
             raise RuntimeError('your oscialltion angle input is inconsistent; ' \
                                + 'it has length %d while it should be %d' % (len(ome0), npts) )
     
-    ome1 = num.zeros(npts)
-
+    ome1 = num.nan*num.ones(npts)
+    eta1 = num.nan*num.ones(npts)
+    
     # keyword args processing
     kwarglen = len(kwargs)
     if kwarglen > 0:
@@ -1319,6 +1352,9 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
                 if kwargs[argkeys[i]] == 'radians':
                     c1 = 180./pi
                     c2 = 1.
+            elif argkeys[i] == 'chiTilt':
+                if kwargs[argkeys[i]] is not None:
+                    chiTilt = kwargs[argkeys[i]]
     
     # a little talkback...
     if dispFlag:
@@ -1338,12 +1374,14 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     #   - the others are in whatever was entered, hence c2
     eta0  = d2r*eta0
     tht0  = c2*tth0/2
+    if chiTilt is not None:
+        chiTilt = c2*chiTilt
     
     # ---------------------
     # SYSTEM SOLVE
     # 
     #
-    # cos(eta)cos(theta)sin(x) - sin(theta)cos(x) = sin(theta)
+    # cos(chi)cos(eta)cos(theta)sin(x) - cos(chi)sin(theta)cos(x) = sin(theta) - sin(chi)sin(eta)cos(theta)
     #
     #
     # Identity: a sin x + b cos x = sqrt(a**2 + b**2) sin (x + alfa)
@@ -1358,30 +1396,65 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     #
     # must use both branches for sin(x) = n: x = u (+ 2k*pi) | x = pi - u (+ 2k*pi)
     #
+    cEta0 = num.cos(eta0)
+    sEta0 = num.sin(eta0)
+    cTht0 = num.cos(tht0)
+    sTht0 = num.sin(tht0)
+    if chiTilt is None or chiTilt == 0:
+        cChi  = 1.
+        cChi2 = 1.
+        sChi  = 0.
+        sChi2 = 0.
+        s2Chi = 0.
+    else:
+        cChi  = num.cos(chiTilt)
+        cChi2 = cChi**2
+        sChi  = num.sin(chiTilt)
+        sChi2 = sChi**2
+        s2Chi = num.sin(2*chiTilt)
+        pass
     
-    a =  num.cos(eta0)*num.cos(tht0)
-    b = -num.sin(tht0)
-    c =  num.sin(tht0)
+    a = cChi*cEta0*cTht0
+    b = (0.5*s2Chi*sEta0*cTht0 - cChi2*sTht0)
+    c = (1 + sChi2)*sTht0 + 0.5*s2Chi*sEta0*cTht0
     
-    agt0 = a > (0 + zTol)
-    alt0 = a < (0 - zTol)
-    azro = abs(a) <= zTol
+    agt0 = a >= 0 
+    alt0 = a <  0
     
-    ome1[agt0] = num.arcsin( c[agt0] / num.sqrt(a[agt0]**2 + b[agt0]**2) ) - num.arctan2(b[agt0], a[agt0])
+    ome1[agt0] =      num.arcsin( c[agt0] / num.sqrt(a[agt0]**2 + b[agt0]**2) ) - num.arctan2(b[agt0], a[agt0])
     ome1[alt0] = pi - num.arcsin( c[alt0] / num.sqrt(a[alt0]**2 + b[alt0]**2) ) - num.arctan2(b[alt0], a[alt0])
-    ome1[azro] = pi
+    
+    # if chiTilt isn't 0 (None) then the solution for eta1 is not trivial
+    if chiTilt is not None and chiTilt != 0:
+        cOme1 = num.cos(ome1)
+        sOme1 = num.sin(ome1)
+        qxy = unitVector( -num.vstack( 
+            [ cTht0*cEta0*cOme1 - cTht0*sEta0*sOme1*sChi + sTht0*sOme1*cChi,
+              cTht0*cEta0*sOme1*sChi + cTht0*sEta0*(cChi2 + cOme1*sChi2) + sTht0*(1 - cOme1)*sChi*cChi ] ) )
+
+        eta1 = qxy[1, :] / abs(qxy[1, :]) * arccosSafe(qxy[0, :]) * r2d
+        
+        if risoeFlag:
+            eta1  =  90 - eta1
+            pass
+    else:
+        eta1 = r2d*eta0
+        if risoeFlag:
+            eta1  = 270 - eta1
+        else:
+            eta1  = 180 + eta1
+            pass
+        pass
 
     # everybody back to DEGREES!
     #     - ome1 is in RADIANS here
     #     - convert and put into [-180, 180]
-    ome1 = mapAngle(r2d*ome1, [-180, 180], units='degrees') + c1*ome0
-    eta1 = r2d*eta0
+    ome1 = mapAngle( mapAngle(r2d*ome1, [-180, 180], units='degrees') + c1*ome0, [-180, 180], units='degrees')
 
-    if risoeFlag:
-        eta1  = 270 - eta1
-    else:
-        eta1  = 180 + eta1
-
+    # DEBUGGING # qfs = num.vstack([num.cos(d2r*eta1)*cTht0, num.sin(d2r*eta1)*cTht0, sTht0])
+    # DEBUGGING # rsd = num.dot(qfs.T, num.c_[0,0,1].T) - sTht0
+    # DEBUGGING # print rsd, num.min(rsd[-num.isnan(rsd)])
+    
     # put eta1 in [-180, 180]
     eta1 = mapAngle(eta1, [-180, 180], units='degrees')
 
@@ -1477,3 +1550,17 @@ def getDparms(lp, lpTag, radians=True):
 #     end
 # end
 #     
+
+"""
+UNIT TESTS
+"""
+# from az31 import planeData as mgData
+# for friedel pairs...  a start
+# rMat = rot.rotMatOfQuat(mUtil.unitVector(num.random.randn(4, 1)))
+# qv = mgData._PlaneData__makeScatteringVectors(rMat, chiTilt=0.25)
+# xtal.getFriedelPair(qv[1][0][0, 0], qv[1][0][1, 0], qv[1][0][2, 0], chiTilt=0.25, units='radians')
+# xtal.getFriedelPair(qv[2][0][0, 0], qv[2][0][1, 0], qv[2][0][2, 0], chiTilt=0.25, units='radians')
+# qv[1][0][:, [0, 3]], qv[2][0][:, [0, 3]]
+# rMat = rot.rotMatOfExpMap(0.5*mgData.getTTh()[0]*mUtil.unitVector(num.c_[1,0,1].T))
+# qv = mgData._PlaneData__makeScatteringVectors(rMat, chiTilt=0.)
+# qv[1][0][:, 1], qv[2][0][:, 1]
