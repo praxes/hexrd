@@ -719,38 +719,39 @@ class Grain(object):
                 update spot position in case it has changed
                 """
                 iSpot = thisSpotInfo[0]
-                if iSpot >= 0 and doFit:
-                    spotIsOkay = True
-                    try:
-                        if self.uncertainties:
-                            angCOM, angCOM_unc = self.spots.fitSpots(iSpot,
-                                                                     uncertainties=self.uncertainties, 
-                                                                     confidence_level=self.confidence_level)
-                            thisSpotInfo[8] = angCOM_unc
-                        else:
-                            angCOM = self.spots.fitSpots(iSpot)
-                    except:
-                        print 'fit failed badly, spot is suspect'
-                        spotIsOkay = False
+                if iSpot >= 0:
+                    if doFit:
+                        spotIsOkay = True
+                        try:
+                            if self.uncertainties:
+                                angCOM, angCOM_unc = self.spots.fitSpots(iSpot,
+                                                                         uncertainties=self.uncertainties, 
+                                                                         confidence_level=self.confidence_level)
+                                thisSpotInfo[8] = angCOM_unc
+                            else:
+                                angCOM = self.spots.fitSpots(iSpot)
+                        except:
+                            print 'fit failed badly, spot is suspect'
+                            spotIsOkay = False
+                            pass
                         pass
-                    pass
-                    if spotIsOkay:
-                        """
-                        have xyo coords in spots, updated from fit; use those here to get angCOM
-                        in case have local pvec
-                        """
-                        thisSpotInfo[7] = self.spots.getXYOCoords( iSpot )
-                        thisSpotInfo[4] = self.detectorGeom.xyoToAng( *thisSpotInfo[7].flatten().tolist() )
-                        thisSpotInfo[5] = rot.angularDifference(thisSpotInfo[4], thisSpotInfo[3])
-                    else:
+                        if spotIsOkay:
+                            """
+                            have xyo coords in spots, updated from fit; use those here to get angCOM
+                            in case have local pvec
+                            """
+                            thisSpotInfo[7] = self.spots.getXYOCoords( iSpot )
+                            thisSpotInfo[4] = self.detectorGeom.xyoToAng( *thisSpotInfo[7].flatten().tolist() )
+                            thisSpotInfo[5] = rot.angularDifference(thisSpotInfo[4], thisSpotInfo[3])
+                        else:
+                            """mark as bad"""
+                            thisSpotInfo[0] = self.__faildIdxSpotM
+                            pass
+                        pass
+                    elif self.spots.fitHasFailed(iSpot, subSpotOnly=True):
                         """mark as bad"""
                         thisSpotInfo[0] = self.__faildIdxSpotM
                         pass
-                    pass
-                elif self.spots.fitHasFailed(iSpot, subSpotOnly=True):
-                    """mark as bad"""
-                    thisSpotInfo[0] = self.__faildIdxSpotM
-                    pass
                 reflInfoList.append(thisSpotInfo)
             # close predicted spot loop for iHKL
         # close loop over HKLs

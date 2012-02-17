@@ -106,17 +106,19 @@ class detectorPanel(wx.Panel):
         self.cbox_xc  = wx.CheckBox(self, wx.NewId(), name)
         self.float_xc = FloatControl(self, wx.NewId())
         self.float_xc.SetValue(det.xc)
-
+        self.float_xc.SetDelta(0.5*det.pixelPitch)
+        
         name = 'y Center'
         self.cbox_yc  = wx.CheckBox(self, wx.NewId(), name)
         self.float_yc = FloatControl(self, wx.NewId())
         self.float_yc.SetValue(det.yc)
+        self.float_yc.SetDelta(0.5*det.pixelPitch)
 
         name = 'Distance'
         self.cbox_D  = wx.CheckBox(self, wx.NewId(), name)
         self.float_D = FloatControl(self, wx.NewId())
         self.float_D.SetValue(det.workDist)
-        self.float_D.SetDelta(10.0)
+        self.float_D.SetDelta(10*det.pixelPitch)
 
         name = 'x Tilt'
         self.cbox_xt  = wx.CheckBox(self, wx.NewId(), name)
@@ -358,7 +360,7 @@ class detectorPanel(wx.Panel):
         self.float_d3.SetValue(det.dparms[2])
         self.float_d4.SetValue(det.dparms[3])
         self.float_d5.SetValue(det.dparms[4])
-        self.float_d5.SetValue(det.dparms[5])
+        self.float_d6.SetValue(det.dparms[5])
 
         self.__showCbox(self.cbox_xc, self.float_xc, det.refineFlags[0])
         self.__showCbox(self.cbox_yc, self.float_yc, det.refineFlags[1])
