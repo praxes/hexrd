@@ -120,8 +120,7 @@ def callJoel(p):
 
     msg = r"""<html>
 <body>
-<h1> Complaints should be directed to:
-Joel Bernier, LLNL, 607-...
+<h1> NOT YET IMPLEMENTED
 </body>
 </html>
 """
