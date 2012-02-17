@@ -58,7 +58,7 @@ class xrdMainFrame(wx.Frame):
         #
         self.updateFromExp()
         #
-        self.Show(True)
+        self.Show(False)
 
 	return
 

@@ -1,7 +1,5 @@
 #! /usr/bin/env python
 #
-#  $Id: mainApp.py 907 2011-07-22 22:27:02Z boyce6 $
-#
 """Main application file
 """
 import os, sys
@@ -36,7 +34,9 @@ class xrdApp(wx.PySimpleApp):
         #    pass
 
         self.__makeData(f)
-	#
+
+	self.mFrame = None
+        #
 	return
 
     def __makeData(self, inpFile):
@@ -92,6 +92,8 @@ if __name__ == '__main__':
     #  Run program stand-alone.
     #
     app = xrdApp(*sys.argv[1:])
+    app.mFrame = xrdMainFrame(None, wx.NewId())
+    app.SetTopWindow(app.mFrame)
 
     #if len(sys.argv) == 1:
     #    app = xrdApp()
@@ -102,9 +104,23 @@ if __name__ == '__main__':
     #  The main window cannot be imported until after the app 
     #  is instantiated due to the wx.ColourDatabase() call.
     #
-    mFrame = xrdMainFrame(None, wx.NewId())
-    app.SetTopWindow(mFrame)
-
+    #
+    # Splash screen.
+    #
+    splashFile = 'hexrd.png'
+    splashDir = os.path.dirname(__file__)
+    print 'splash:  ', os.path.join(splashDir, splashFile)
+    splashImage = wx.Bitmap(os.path.join(splashDir, splashFile))
+    #
+    wx.SplashScreen(splashImage, wx.SPLASH_CENTRE_ON_PARENT|wx.SPLASH_TIMEOUT,
+                    1000, app.mFrame)
+    #
+    # Main frame
+    #
+    app.mFrame.Show(True)
+    #
+    # GUI main loop
+    #
     app.MainLoop()
 
     pass
