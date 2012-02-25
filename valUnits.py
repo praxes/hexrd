@@ -89,7 +89,7 @@ cv_dict = {
     (UNames.J, UNames.keV): (1/1.60217646e-16)
     }
 
-class valWUnit(object):
+class valWUnit:
     "Value with units"""
     def __init__(self, name, unitType, value, unit):
         """Initialization
