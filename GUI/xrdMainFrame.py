@@ -11,7 +11,7 @@ from ConfigParser import SafeConfigParser as Parser
 import wx
 from wx.lib.wordwrap import wordwrap
 
-import mdef
+import copyright
 
 from XRD.Experiment import *
 
@@ -624,7 +624,7 @@ class xrdMainFrame(wx.Frame):
         ref_sglite = r"""sglite provided by Ralf W. Grosse-Kunstleve
 (copyright included in source)        
 """
-        aboutMsg = aboutMsg % (mdef.__doc__, ref_sglite)
+        aboutMsg = aboutMsg % (copyright.COPYRIGHT_TEXT, ref_sglite)
 
         wx.MessageBox(aboutMsg)
         

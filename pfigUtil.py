@@ -22,8 +22,6 @@
 #   <http://www.gnu.org/licenses/>.
 #
 # DO-NOT-DELETE revisionify.end() 
-import mdef
-
 import arrayUtil
 from arrayUtil import getMem
 from arrayUtil import num # import numpy as num

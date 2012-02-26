@@ -23,7 +23,6 @@
 #   <http://www.gnu.org/licenses/>.
 #
 # DO-NOT-DELETE revisionify.end() 
-import mdef
 import valUnits
 import numpy as num
 from matplotlib import cm

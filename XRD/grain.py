@@ -24,7 +24,6 @@
 #
 # DO-NOT-DELETE revisionify.end()
 import copy
-import mdef
 import valUnits
 
 import numpy as num

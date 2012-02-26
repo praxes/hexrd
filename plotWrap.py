@@ -22,8 +22,6 @@
 #   <http://www.gnu.org/licenses/>.
 #
 # DO-NOT-DELETE revisionify.end()
-import mdef
-
 '''
 ***
 For now, plotWrap is hardwired for TkAgg

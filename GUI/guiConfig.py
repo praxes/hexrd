@@ -20,7 +20,6 @@ print 'system:  ', sysName
 #
 class FilesAndPaths:
     """File and path names"""
-    MDEF_ROOT = ''
     DATA_ROOT = ''
     pass
 

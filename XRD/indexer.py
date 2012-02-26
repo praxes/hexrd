@@ -23,7 +23,6 @@
 #   <http://www.gnu.org/licenses/>.
 #
 # DO-NOT-DELETE revisionify.end()
-import mdef
 import numpy as num
 import sys, os
 import copy

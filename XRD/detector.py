@@ -28,8 +28,6 @@ import math
 
 import numpy as num
 
-import mdef
-
 try:
     import XRD
     # sys.path.append(XRD.getPath()[0]) # should not be necessary
