@@ -1,7 +1,10 @@
 """License information
 
-This just reads the COPYRIGHT file in the same directory
-as this file.  
+This module provides two variables:
+
+COPYRIGHT_FILE - the name of the file with copyright information
+COPYRIGHT_TEXT - the text of that file
+
 """
 import os
 
