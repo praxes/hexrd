@@ -119,6 +119,10 @@ if __name__ == '__main__':
     #
     app.mFrame.Show(True)
     #
+    # Autload data
+    #
+    app.mFrame.loadProject()
+    #
     # GUI main loop
     #
     app.MainLoop()

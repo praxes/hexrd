@@ -50,8 +50,6 @@ class xrdMainFrame(wx.Frame):
 	#  Sizing.
 	#
 	self.__makeSizers()
-	#
-        self.__loadProject()
         #
 	self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
@@ -261,8 +259,8 @@ class xrdMainFrame(wx.Frame):
         dPage = self.nBook.getPage_Detector()
         return
 
-    def __loadProject(self):
-        """Load any project data to initialize
+    def loadProject(self):
+        """Load any project data to initialize (in development)
 
         This should implemented and documented somewhere else,
         but for now, let's start it here.
@@ -293,6 +291,7 @@ class xrdMainFrame(wx.Frame):
                     exp.loadMaterialList(fname)
                     print 'loaded materials list from "%s"\n' % fname
                 except:
+                    wx.MessageBox('failed to autoload materials list')
                     pass
 
                 opt = 'reader-list'
@@ -301,6 +300,7 @@ class xrdMainFrame(wx.Frame):
                     exp.loadReaderList(fname)
                     print 'loaded readers list from "%s"\n' % fname
                 except:
+                    wx.MessageBox('failed to autoload readers list')
                     pass
                 
                 opt = 'detector'
@@ -309,6 +309,7 @@ class xrdMainFrame(wx.Frame):
                     exp.loadDetector(fname)
                     print 'loaded detector from "%s"\n' % fname
                 except:
+                    wx.MessageBox('failed to autoload detector list')
                     pass
                 pass
 
