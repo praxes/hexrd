@@ -69,8 +69,6 @@ Run this module as main to generate all space groups and test
 the HKL evaluation.
 """
 #
-__version__ = "$Id: SpaceGroup.py 838 2011-05-13 13:51:11Z boyce6 $"
-#
 from math import sqrt, floor
 
 import hexrd.XRD.sglite as sglite

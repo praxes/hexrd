@@ -24,9 +24,40 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
-import detector
+import sys
+import copy
+import time
+import math
+from math import pi
+import shelve
 
 import numpy as num
+from scipy import sparse
+from scipy.linalg import svd
+from scipy import ndimage
+    
+import matplotlib
+from matplotlib.widgets import Slider, Button, RadioButtons
+from matplotlib import cm, colors
+import matplotlib.collections as collections
+
+from hexrd import plotWrap
+from hexrd import tens
+from hexrd import matrixUtils
+from hexrd import pfigUtil
+from hexrd.valUnits import toFloat
+import hexrd.orientations as ors
+from hexrd.XRD import crystallography
+from hexrd.XRD.crystallography import latticeParameters, latticeVectors
+from hexrd.XRD import detector
+from hexrd.XRD.detector import Reader
+from hexrd.XRD.detector import getCMap
+from hexrd.XRD import xrdBase
+from hexrd.XRD.xrdBase import dataToFrame
+from hexrd.XRD.xrdBase import multiprocessing
+from hexrd.XRD import Rotations as rot
+from hexrd.XRD.Rotations import mapAngle
+from hexrd.XRD import spotFinder
 
 'quadr1d of 8 is probably overkill, but we are in 1d so it is inexpensive'
 quadr1dDflt = 8
@@ -35,8 +66,6 @@ debugDflt = False
 
 d2r = piby180 = num.pi/180.
 r2d = 1.0/d2r
-
-from xrdBase import dataToFrame
 
 class FormatEtaOme:
     'for plotting data as a matrix, with ijAsXY=True'
@@ -76,10 +105,6 @@ def fitLParm(data, detectorGeom, planeData,
     input planeData is not changed
     
     """
-    import detector
-    import copy
-    # import crystallography
-    
     frame = dataToFrame(data)
     
     if funcXVecList is None:
@@ -253,8 +278,6 @@ def textureToSpots(texture,
     
     #
     fMatRef = planeData.latVecOps['F']
-    import tens
-    import Rotations as rot
     if stretches is not None:
         bMats = num.zeros([nGrains,3,3])
         for iGrain, stretch in enumerate(stretches):
@@ -272,10 +295,8 @@ def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom, omeMin, omeMax,
     """
     make synthetic spots
     """
-    from valUnits import toFloat
     if beamSize is not None:
         "the beam size shoud by [width (X), hieght (Y)]"
-        import Rotations as rot
         omeAxis = num.c_[0, 1, 0].T     # ... may need to grab this from some global to be same!
         pass
     nGrains = rMats.shape[0]
@@ -396,7 +417,6 @@ def displayPathVariants(data, rMatRef, fromPhase,
                         hklIDs=None, pw=None):
     '''
     '''
-    import plotWrap
     pw, local = plotWrap.argToPW(pw)
     if local and data is not None:
         frame = dataToFrame(data, sumImg=num.maximum)
@@ -469,9 +489,9 @@ def findGrainsNewSpots(grainList0, spots, doFitting=True, minCompleteness=None, 
     grainList0 are not modified;
     spots should be a Spots instance
     """
-    import grain
-    import crystallography # supercedes lparm
-    
+    # this import here because of circular reference
+    from hexrd.XRD import grain
+
     newGrainList = [None for iGrain in range(len(grainList))]
 
     interactive = debug > 1
@@ -548,7 +568,6 @@ def findGrainsNewSpots(grainList0, spots, doFitting=True, minCompleteness=None, 
                     # lp needs to be for 'triclinic', so need to convert
                     lp = crystallography.getDparms(lpAtP, lpTag)
                 except NotImplementedError:
-                    import sys
                     print >> sys.stderr, "WARNING: lparms_of_ve not implemented"
                     # lp = None # already done above
             for iRMat, rMatTransf in enumerate(rMatTransfList):
@@ -721,8 +740,6 @@ def stretchToLV(V, fMat):
     
     V = B + I, where B is the Biot strain
     """
-    from crystallography import latticeParameters, latticeVectors
-    
     # Finit = latticeVectors(initLP, 'triclinic' )['F']
     Fnew  = num.dot(V, fMat)
     lp    = latticeParameters(Fnew)
@@ -733,9 +750,6 @@ def stretchToLV(V, fMat):
 def calculateBiotStrain(initLP, finalLP, display=False):
     """
     """
-    from scipy.linalg import svd
-    from crystallography import latticeParameters, latticeVectors
-    
     Finit = latticeVectors(initLP, 'triclinic' )['F']
     Fref  = latticeVectors(finalLP, 'triclinic' )['F']
     
@@ -792,7 +806,6 @@ def makeMNConn(m,n,tri=True):
     return retval
 
 def makeNVecs(tth, etaIn, omeIn, asGrid=False):
-    import matrixUtils
     if asGrid:
         eta, ome = num.meshgrid(etaIn, omeIn)
     else:
@@ -811,7 +824,6 @@ def omeEtaGridToNVecs(tTh, omegas, etas):
     nVecs = makeNVecs(tThGrid, etaGrid, omeGrid)
     return nVecs
 
-import orientations as ors
 rMat_y90 = ors.RotInv(num.pi/2.0, [0,1,0]).toMatrix()
 def roty90(v):
     v_r = num.dot(rMat_y90, v)
@@ -833,8 +845,6 @@ class OmeEtaPfig(object):
                  pointLists = [],
                  drawColorbar = True,
                  ):
-        from detector import getCMap
-        
         self.cmap = cmap
         if self.cmap is None:
             self.cmap = getCMap(False)
@@ -880,10 +890,6 @@ class OmeEtaPfig(object):
             raise RuntimeError, 'do not know what to do with nP of '+str(nP)
         return retval
     def __display(self, omeEdges, etaEdges, data, nVecs, nP, opacity, rangeVV_w):
-        import pfigUtil
-        import matplotlib
-        import matplotlib.cm as cm
-        import matplotlib.collections as collections
         
         if self.allNorthern:
             """all points above the equator, so safe to use QuadMesh 
@@ -895,9 +901,6 @@ class OmeEtaPfig(object):
                 vals = data.flatten()
                 pfigR = pfigUtil.renderEAProj(nVecs, vals, nP)
                 if opacity is not None:
-                    import matplotlib 
-                    from matplotlib import cm
-                    from detector import Reader
                     norm = matplotlib.colors.Normalize(vmin=self.vmin, vmax=self.vmax)
                     wData = pfigUtil.renderEAProj(nVecs, opacity.flatten(), nP)
                     vMM_w = Reader.getVMM(wData, range=rangeVV_w)
@@ -978,9 +981,6 @@ class OmeEtaPfig(object):
                 #
                 if opacity is not None:
                     
-                    import matplotlib 
-                    from matplotlib import cm
-                    from detector import Reader
                     opacity = opacity.flatten()
                     norm = matplotlib.colors.Normalize(vmin=self.vmin, vmax=self.vmax)
                     wDataN = pfigUtil.renderEAProj(nVecsN, opacity[northern], nP)
@@ -1088,8 +1088,6 @@ class OmeEtaPfig(object):
         has some triangulation and interpolation stuff, but have
         not sorted that out yet
         """
-        import plotWrap
-
         # bkgCirc = matplotlib.patches.Circle(xy=(0,0), radius=1, fill=True,
         #                                     facecolor='0.5',
         #                                     edgecolor='black')
@@ -1234,8 +1232,6 @@ class OmeEtaPfig(object):
         return
     def drawLines(self, nP, rMat=None, pointLists=None):
         """if specify a pointLists argument then it replaces self.pointLists"""
-        import pfigUtil
-        
         if pointLists is not None:
             self.pointLists = pointLists
         
@@ -1323,8 +1319,6 @@ class CollapseOmeEta(object):
                  debug=debugDflt,
                  computeMeanTwoTheta=False,
                  ):
-        import time
-        import detector
         
         location = '  '+self.__class__.__name__+'.__init__'
         
@@ -1423,8 +1417,6 @@ class CollapseOmeEta(object):
                         is a better (and still easy) way to do this,
                         but I have not found it yet
                         '''
-                        from scipy import sparse
-                        
                         tThsThese = twoTheta[indices]
                         iEtaBin = iEtaBinHKL[iData]
                         if keepThese is not None:
@@ -1498,8 +1490,6 @@ class CollapseOmeEta(object):
         weights; so far this only works for pfig=False
         
         """
-        import plotWrap
-        #import detector
 
         if tTh:
             assert self.storeTTh is not None, 'do not have tThs stored'
@@ -1543,12 +1533,8 @@ class CollapseOmeEta(object):
                                                  data)
             retval = pw            
             if cmap is None:
-                from detector import getCMap
                 cmap = getCMap(True)
             if tTh == 'withOpacity':
-                import matplotlib 
-                from matplotlib import cm
-                
                 norm = matplotlib.colors.Normalize(vmin=vMM[0], vmax=vMM[1])
                 # data.T here instead of ijAsXY=True
                 cData = cmap(norm(data.T,clip=True))
@@ -1590,8 +1576,6 @@ def makeMeasuredScatteringVectors(tTh, eta, ome, convention='LLNL', frame='sampl
 
     http://sourceforge.net/apps/trac/fable/attachment/wiki/WikiStart/Geometry_version_1.0.8.pdf
     """
-    # import Rotations as R
-    
     ome = num.atleast_1d(ome)
     
     rIndex = None
@@ -1656,7 +1640,6 @@ func_MP = None
 nPerChunk_MP = None
 debug_MP = True
 def doItMP(nSkip):
-    import time
     location = '  doItMP'
     
     global reader_MP, func_MP, debug_MP
@@ -1684,11 +1667,8 @@ def readFrameStack_multiproc(reader, func, nPerChunk=None, nCPUs=None, debug=Fal
     use makeNew for each chunk; if reader.dark is a shared memory
     array then it remains so
     """
-    import time
-    import xrdBase
     assert xrdBase.haveMultiProc, \
         'do not have multiprocessing available'
-    from xrdBase import multiprocessing
     
     nFrames = reader.getNFrames()
     nCPUs = nCPUs or xrdBase.dfltNCPU
@@ -1738,7 +1718,6 @@ def thresholdStackDisplay(data, threshold, cmap=None, pw=None,
     '''
     thisframe = dataToFrame(data, sumImg=num.maximum)
     if cmap is None:
-        from matplotlib import cm
         cmap = cm.bone
         cmap.set_over('red')
     if detectorGeom is None:
@@ -1758,7 +1737,6 @@ class GrainPoles:
         self.omeEtaPfigs = omeEtaPfigs
         
         self.refPointsLists = []
-        import copy
         for omeEtaPfig in self.omeEtaPfigs:
             self.refPointsLists.append(copy.deepcopy(omeEtaPfig.pointLists))
             # refPointsList = []
@@ -1770,7 +1748,6 @@ class GrainPoles:
         
         return
     def __call__(self, skew):
-        import copy
         self.__skew = num.copy(skew)
         mat = self.getMat()
         for omeEtaPfig, refPointsList in zip(self.omeEtaPfigs, self.refPointsLists):
@@ -1785,7 +1762,6 @@ class GrainPoles:
             omeEtaPfig.show()
         return
     def getMat(self):
-        import orientations as ors
         mat  = ors.RotInv(self.__skew).toMatrix()
         return mat
 
@@ -1795,13 +1771,7 @@ def grainPolesGUI(omeEtaPfigs):
     
     execfile('examples/feSynthSpotsPfig.py')
     gui = xrdUtils.grainPolesGUI([pwSB])
-    """
-    
-    import plotWrap
-    import matplotlib
-    from matplotlib.widgets import Slider, Button, RadioButtons
-    from math import pi
-    
+    """    
     win = plotWrap.PlotWin(-1,
                            title='rotation sliders', 
                            relfigsize=(8,2),
@@ -1852,7 +1822,6 @@ class MultiSlopeFunc:
             retval = 0. 
         return retval
     def __call__(self,x):
-        import math
         xa = math.fabs(x)
         f1 = self._f1(xa)
         f2 = self._f2(xa)
@@ -1885,7 +1854,6 @@ class MultiSlopeFuncSmooth:
         retval = x * self.m2
         return retval
     def __call__(self,x):
-        import math
         xa = math.fabs(x)
         f1 = self._f1(xa)
         f2 = self._f2(xa)
@@ -1906,8 +1874,6 @@ def darkFromStack(reader, nFrames=0, nChunk=4,
     If medianSize is specified then a median filter of the given size is used to find
     dead pixels, with pixels outside of medianRange marked as dead.
     """
-    import sys
-    
     nChop = 1
     nRow, nCol = reader.getSize()
     if nFrames == 0:
@@ -1963,7 +1929,6 @@ def darkFromStack(reader, nFrames=0, nChunk=4,
     print >> sys.stdout, 'number of dead pixels with 0 std : %d' % (num.sum(deadPixels))
     
     if medianSize is not None:
-        from scipy import ndimage
         darkFrameMF = ndimage.median_filter(darkFrame, size=medianSize)
         darkDiff = darkFrame - darkFrameMF
         print >> sys.stdout, 'number of dead pixels with below median filter by %g : %d' % \
@@ -1987,7 +1952,6 @@ def tryFromShelf(shelfFileName, thingName):
     """
     try to pull the thing from the shelf and return None if it does not work
     """
-    import shelve
     try:
         shelf = shelve.open(shelfFileName, 'r')
         retval = shelf[thingName]
@@ -1997,7 +1961,6 @@ def tryFromShelf(shelfFileName, thingName):
     return retval
 
 def putInShelf(shelfFileName, thingName, thing):
-    import shelve
     shelf = shelve.open(shelfFileName, 'c')
     shelf[thingName] = thing
     shelf.close()
@@ -2011,9 +1974,6 @@ def pullFromStack(reader, detectorGeom, tThMM, angWidth, angCen,
     """
     angWidth is distance from angCen, so actually half-width
     """
-    import spotFinder
-    from scipy import ndimage
-    
     omeStep = reader.getDeltaOmega()
     etaStep = getEtaResolution(detectorGeom, angCen[0])
     dr_Eta, dr_Ome, dA = drEtaOme(angCen, etaStep, omeStep)
@@ -2094,8 +2054,6 @@ def spotFromStack(reader, detectorGeom, tThMM, angWidth, angCen, threshold,
     if asFrame, then omegas come out as frame indices; note that
     angCen should still be specified as omega, not a frame index
     '''
-    import spotFinder
-    
     iSpot, labels, objs, pixelData, xyfBBox = pullFromStack(reader, detectorGeom, tThMM, angWidth, angCen,
                                                             threshold=threshold,
                                                             distInAng=distInAng, exitOnFail=exitOnFail)
@@ -2160,8 +2118,6 @@ def collapse(vAll, eta, ome,
              weightedList=[], averagedList=[], auxList=[],
              debug=False,
              ):
-    from scipy import sparse
-
     """
     Returns a sparse matrix, with zeros where no intensity falls;
     
@@ -2271,8 +2227,6 @@ def displaySparse(a,
                   colorUnder = None,
                   ijNZ = None, 
                   **kwargs):
-    import plotWrap
-    from scipy import sparse
     
     cmap   = cmap or detector.getCMap(False)
     
@@ -2319,8 +2273,6 @@ def displaySparse(a,
 def displayEtaOme(eta, ome, vAll, 
                   nEta = None, nOme = None,
                   **kwargs):
-    from scipy import sparse
-    import plotWrap
     
     vCollapsed, etas, omes = collapse(vAll, eta, ome, nEta=nEta, nOme=nOme)
     fmt = FormatEtaOme(etas, omes, None)
@@ -2441,8 +2393,6 @@ def pfigFromSpots(spots, iHKL, phaseID=None,
     
     can use tThTol to tighten down the two-theta tolerance
     """
-    from Rotations import mapAngle
-    
     nEta = nEta or -3
     plot = plot or plotPrefix is not None
     
@@ -2515,11 +2465,9 @@ def pfigFromSpots(spots, iHKL, phaseID=None,
                      )
         
         if plot:
-            #import plotWrap
             fmt = FormatEtaOme(etasCen, omesCen, intensVals.todense())
             #pw = plotWrap.PlotWrap()
             #pw(intensVals.todense())
-            from matplotlib import cm, colors
             pw = displaySparse(intensVals, fmt=fmt, colorUnder=(0.5,0.5,0.5), cmap=cm.jet)
             if plotPrefix is not None:
                 pw.save(filename=str(plotPrefix)+'_omeEtaIntensVals_iHKL_%d_%d.png'%(iHKL,iRange))

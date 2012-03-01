@@ -24,12 +24,26 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
-import numpy as num
-import sys, os
+import sys
+import os
 import copy
-import xrdBase
+import ctypes
+import tempfile
+import glob
+import time
+
+import numpy as num
+
+import hexrd.matrixUtils as mUtil
+import hexrd.XRD.grain
+from hexrd.XRD.grain import makeMeasuredScatteringVectors
+import hexrd.XRD.Rotations
+from hexrd.XRD.Rotations import mapAngle
+from hexrd.XRD.Symmetry import toFundamentalRegion
+from hexrd.XRD import xrdBase
+
 if xrdBase.haveMultiProc:
-    from xrdBase import multiprocessing
+    multiprocessing = xrdBase.multiprocessing # formerly import
 
 # module vars
 piby2 = num.pi * 0.5
@@ -58,8 +72,6 @@ class GrainSpotter:
     """
     __execName = 'grainspotter'
     def __init__(self):
-        import os
-        
         self.__tempFNameList = []
         
         if (os.system('which '+self.__execName) != 0):
@@ -72,14 +84,6 @@ class GrainSpotter:
         """
         A word on spacegroup numbers: it appears that grainspotter is using the 'VolA' tag for calls to SgInfo
         """
-        import tempfile
-        import os
-        import glob
-        import time
-
-        from grain import makeMeasuredScatteringVectors
-        from Rotations import mapAngle
-        
         location = self.__class__.__name__
         tic = time.time()
         
@@ -280,7 +284,6 @@ class GrainSpotter:
         self.cleanup()
         return
     def cleanup(self):
-        import os
         for fname in self.__tempFNameList:
             os.remove(fname)
         return
@@ -296,8 +299,7 @@ def convertUToRotMat(Urows, U0, symTag='Oh'):
     Urows comes from grainspotter's gff output
     U0 comes from XRD.crystallography.latticeVectors.U0
     """
-    import Rotations as R
-    from Symmetry import toFundamentalRegion
+    R = hexrd.XRD.Rotations
     
     numU, testDim = Urows.shape
     assert testDim == 9, "Your input must have 9 columns; yours has %d" % (testDim)
@@ -329,8 +331,7 @@ def convertRotMatToRisoeU(rMats, U0, symTag='Oh'):
     Urows comes from grainspotter's gff output
     U0 comes from XRD.crystallography.latticeVectors.U0
     """
-    import Rotations as R
-    from Symmetry import toFundamentalRegion
+    R = hexrd.XRD.Rotations # formerly import
     
     numU = num.shape(num.atleast_3d(rMats))[0]
     
@@ -358,10 +359,7 @@ multiprocessing has a hard time pickling a function defined in the local scope o
 so stuck putting the function out here;
 """
 debugMultiproc = 1
-import xrdBase
 if xrdBase.haveMultiProc:
-    from xrdBase import multiprocessing
-    import ctypes
     foundFlagShared = multiprocessing.Value(ctypes.c_bool)
     foundFlagShared.value = False
 multiProcMode_MP   = None
@@ -377,8 +375,8 @@ def testThisQ(thisQ):
     (*) doFit is not done here -- in multiprocessing, that would end up happening on a remote process
     and then different processes would have different data, unless spotsArray were made to be fancier
     """
-    import grain as G
-    import Rotations as R
+    G = hexrd.XRD.grain
+    R = hexrd.XRD.Rotations
     
     """
     kludge stuff so that this function is outside of fiberSearch
@@ -408,7 +406,6 @@ def testThisQ(thisQ):
     
     ppfx = ''
     if multiProcMode:
-        from xrdBase import multiprocessing
         proc = multiprocessing.current_process()
         ppfx = str(proc.name)+' : '
         if multiProcMode and foundFlagShared.value:
@@ -536,12 +533,8 @@ def fiberSearch(spotsArray, hklList,
 
     the output is a concatenated list of orientation matrices ((n, 3, 3) numpy.ndarray).
     """
-    import matrixUtils as mUtil
-    import grain as G
-    import Rotations as R
-    import time
-    import copy
-    
+    G = hexrd.XRD.grain
+    R = hexrd.XRD.Rotations
     assert hasattr(hklList, '__len__'), "the HKL list must have length, and len(hklList) > 0."
 
     nHKLs = len(hklList)
@@ -578,7 +571,6 @@ def fiberSearch(spotsArray, hklList,
     set up for shared memory multiprocessing
     """
     if multiProcMode:
-        from xrdBase import multiprocessing
         nCPUs = nCPUs or xrdBase.dfltNCPU
         spotsArray.multiprocMode = True
         pool = multiprocessing.Pool(nCPUs)
@@ -768,7 +760,7 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
        
     ...make a new function that gets called by grain to do the g-vec angle computation?
     """
-    import Rotations as rot
+    rot = hexrd.XRD.Rotations
     
     quats = num.atleast_2d(quats)
     if quats.size == 4:
@@ -824,7 +816,6 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
     multiProcMode = xrdBase.haveMultiProc and doMultiProc
     
     if multiProcMode:
-        from xrdBase import multiprocessing
         nCPUs = nCPUs or xrdBase.dfltNCPU
         print "INFO: using multiprocessing with %d processes\n" % (nCPUs)
     else:

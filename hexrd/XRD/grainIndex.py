@@ -23,15 +23,21 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
+import copy
+from math import sqrt
+
 import numpy as num
 from numpy import dot,sqrt
-
-import Vector_funcs as vf
-import Diffraction_Analysis_10 as da
-from Vector_funcs import Rodrigues3,e1func,e2func,e3func,Unit,Mag
 from scipy.linalg import eig
-#import getting_started1 as g
-#import Vector_Data_Structures as VDS
+
+import hexrd.Vector_funcs as vf
+import hexrd.Diffraction_Analysis_10 as da
+from hexrd.Vector_funcs import Rodrigues3,e1func,e2func,e3func,Unit,Mag
+import hexrd.orientations as ors
+from hexrd.XRD.Rotations import rotMatOfQuat
+import hexrd.arrayUtil
+from hexrd import plotWrap
+
 debug = True
 
 ######################################################################
@@ -59,7 +65,6 @@ makeSpots should spit out a spotData instance?
 
 '''
 def makeSpots(quats, latVecs, scramble=False):
-    from Rotations import rotMatOfQuat
     Rs   = rotMatOfQuat(quats)
     temp = num.dot(Rs,latVecs)
     nRs = Rs.shape[0]
@@ -67,7 +72,6 @@ def makeSpots(quats, latVecs, scramble=False):
     spots = temp.swapaxes(1,2).reshape(nRs*nVs,3)
     if scramble:
         ns = nRs * nVs
-        import arrayUtil
         order = num.random.random(len(spots))
         spots = arrayUtil.structuredSort(order, spots)
         # dtype = [('rand', float), ('v0', float), ('v1', float), ('v2', float)]
@@ -115,7 +119,6 @@ def calcTwoTheta(recipVec,wavelength,tol=10**-4):
 
 def findClumpInPlane(angles):
     if debug:
-        import plotWrap
         pw = plotWrap.PlotWrap()
         pw(num.cos(angles), num.sin(angles), style='bo')
         #import pylab as p
@@ -131,12 +134,12 @@ class MakeFiber:
     attributes: .e1,.e2, the basis vectors in R4 which span the plane containing the fiber traversal geodesic on S3
     
 example usage:
-from grainIndex import MakeFiber
+from hexrd.grainIndex import MakeFiber
 import numpy
 from numpy import dot
 a1 = numpy.array([4,5,3])
 
-from Vector_funcs import *
+from hexrd.Vector_funcs import *
 R = Rodrigues3(e3func(),.3) #angle axis
 
 a2 = dot(R,a1)
@@ -157,7 +160,6 @@ dist_,Closest_Rotation = f1-f2 #== f2-f1
         this ors stuff in here because it gets used in constructOrientation,
         but ultimately it will probably go away
         '''
-        import orientations as ors
         self.latVec   = latVec
         self.recipVec = recipVec
         self.qBase  = q1  = ors.Quat(ors.RotInv('align', Unit(latVec), Unit(recipVec)))
@@ -223,7 +225,6 @@ output: (max_eigenvalue, Rotation at max_eigenvalue), intersecting fibers would 
         return max_eval,R_min_dist
 
     def constructOrientation(self, angle):
-        import orientations as ors
         qAxis = ors.Quat(ors.RotInv(angle, self.latVec))
         qCur  = self.qBase * qAxis
         return qCur.q
@@ -241,8 +242,6 @@ class GrainIndexer:
         planeData : instance of lparm.PlaneData
         friedelToler : tolerance for identifying Friedel pairs
         '''
-        import Symmetry as S
-        
         self.planeData  = planeData
 
         self.friedelToler = friedelToler
@@ -412,7 +411,6 @@ class GrainIndexerFS(GrainIndexer):
         #...*** # what should be doing here?
         twoTheta = calcTwoTheta(friedelRecip) # ... need self.wavelength, see lparm.latticePlanes
         
-        import copy
         hklDataList = copy.deepcopy(self.hklDataList)
         for hklData in hklDataList:
             ' determine boolean for whether spot might be in 2-theta range to be considered '
@@ -517,7 +515,6 @@ class GrainIndexerDBF(GrainIndexer):
         
         twoTheta = calcTwoTheta(friedelRecip) # ... need self.wavelength, see lparm.latticePlanes
         
-        import copy
         hklDataList = copy.deepcopy(self.hklDataList)
         for hklData in hklDataList:
             ' determine boolean for whether spot might be in 2-theta range to be considered '
@@ -591,14 +588,6 @@ class GrainIndexerDBF(GrainIndexer):
 ######################################################################
 
 def main(argv=[]): 
-    from math import sqrt
-    import numpy as num
-    import orientations as ors
-    try:
-        import XRD.grainIndex as gI
-    except:
-        import grainIndex as gI
-    
     nGrains = 10
     
     indexerType = 'DBF'
@@ -614,12 +603,12 @@ def main(argv=[]):
 
     planeData = lparm.PlaneData(hkls, lparms, laueGroup, wavelength, strainMag)
     if indexerType == 'DBF':
-        indexer = gI.GrainIndexerDBF(planeData)
+        indexer = GrainIndexerDBF(planeData)
     elif indexerType == 'FS':
-        indexer = gI.GrainIndexerFS(planeData, stepSize=0.02)
+        indexer = GrainIndexerFS(planeData, stepSize=0.02)
     elif indexerType == 'DTO':
         raise NotImplementedError('in grainIndex')
-        #indexer = gI.GrainIndexerDTO(planeData)...
+        #indexer = GrainIndexerDTO(planeData)...
     else:
         raise RuntimeError, 'unknown indexerType : '+str(indexerType)
     print 'indexer will index using lattice vectors : \n'+str(indexer.getLatPlnNmrls())
@@ -631,7 +620,7 @@ def main(argv=[]):
     print 'will generate spots using lattice vectors : \n'+str(latVecsAll)
     #
     #...*** # need to do something that includes 2-theta information
-    spotRecip = gI.makeSpots(grainQuats.T, latVecsAll.T, scramble=True)
+    spotRecip = makeSpots(grainQuats.T, latVecsAll.T, scramble=True)
     
     grainList = indexer(spotRecip, 3, 200, 0.05)
     
@@ -639,8 +628,7 @@ def main(argv=[]):
 
 # or to run under pdb:
 # import pdb
-# import XRD.grainIndex as gI
-# pdb.run('gI.main()')
+# pdb.run('main()')
 # b 50 # set breakpoint at line 50
 ######################################################################
 

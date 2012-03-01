@@ -24,16 +24,24 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
+from math import sqrt, log
+
 import numpy as num
 
 try:
     import multiprocessing
     haveMultiProc = True
+except:
+    haveMultiProc = False
+
+if haveMultiProc:
     dfltNCPU = int(multiprocessing.cpu_count()/2)
     if dfltNCPU > 3: 
         dfltNCPU = dfltNCPU/2
-except:
-    haveMultiProc = False
+else:
+    #
+    dfltNCPU = 1
+
 
 def dataToFrame(data, sumImg=True):
     """
@@ -56,7 +64,6 @@ def dataToFrame(data, sumImg=True):
     return frame
 
 def getGaussNDParams(xList, w=None, v=None):
-    from math import sqrt, log
     
     nDim = len(xList)
     

@@ -25,11 +25,13 @@
 # ============================================================
 import numpy as num
 from numpy import dot,sqrt
-
-import Vector_funcs as vf
-import Diffraction_Analysis_10 as da
-from Vector_funcs import Rodrigues3,e1func,e2func,e3func,Unit,Mag,From_Rodrigues_Vector,Proj_func
 from scipy.linalg import eig
+
+import hexrd.Vector_funcs as vf
+import hexrd.Diffraction_Analysis_10 as da
+from hexrd.Vector_funcs import Rodrigues3,e1func,e2func,e3func,Unit,Mag,\
+    From_Rodrigues_Vector,Proj_func
+import hexrd.orientations as ors
 
 def dist_to_fiber_alternate(a1,a2,b1,b2):    
     """distance to fiber in Rodrigues space/straight line closest distance"""
@@ -83,7 +85,6 @@ dist_,Closest_Rotation = f1-f2 #== f2-f1
         this ors stuff in here because it gets used in constructOrientation,
         but ultimately it will probably go away
         '''
-        import orientations as ors
         self.latVec   = latVec
         self.recipVec = recipVec
         self.qBase  = q1  = ors.Quat(ors.RotInv('align', Unit(latVec), Unit(recipVec)))
@@ -150,7 +151,6 @@ output: (max_eigenvalue, Rotation at max_eigenvalue), intersecting fibers would 
         return max_eval,R_min_dist
 
     def constructOrientation(self, angle):
-        import orientations as ors
         qAxis = ors.Quat(ors.RotInv(angle, self.latVec))
         qCur  = self.qBase * qAxis
         return qCur.q

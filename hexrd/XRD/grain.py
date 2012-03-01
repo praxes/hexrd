@@ -24,27 +24,22 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
+import sys, os
 import copy
-import valUnits
 
 import numpy as num
-import matrixUtils as mUtil
-import Rotations as rot
-import Symmetry as sym
-import crystallography as xtl # latticeParameters, latticeVectors, getFriedelPair
-
 from scipy import optimize
 from scipy.linalg import inv, qr, svd
 
-import sys, os
-try:
-    import XRD
-    # sys.path.append(XRD.getPath()[0]) # should not be necessary
-except:
-    # probably running from XRD directory; put ".." in path just in case
-    sys.path.append(os.path.join(os.getcwd(),os.path.pardir))
-    import XRD
-from XRD.xrdUtils import calculateBiotStrain, makeMeasuredScatteringVectors
+import hexrd.matrixUtils as mUtil
+from hexrd import valUnits
+import hexrd.XRD.Rotations as rot
+import hexrd.XRD.Symmetry as sym
+import hexrd.XRD.crystallography as xtl # latticeParameters, latticeVectors, getFriedelPair
+from hexrd import XRD
+from hexrd.XRD.xrdUtils import calculateBiotStrain, makeMeasuredScatteringVectors
+from hexrd.matrixUtils import columnNorm
+from hexrd.XRD import uncertainty_analysis
 
 # constants
 r2d = 180./num.pi
@@ -184,7 +179,6 @@ class Grain(object):
                 self.friedelPairs = None
                 self.completeness = None
         else:
-            import copy
             assert self.rMat is None,\
                 'if specify grainData, do not also specify rMat'
             if grainData.has_key('pVec'):
@@ -230,7 +224,6 @@ class Grain(object):
         retval += ")"
         return retval
     def getGrainData(self):
-        import copy
         grainData = {}
         grainData['rMat'        ] = copy.deepcopy(self.rMat)
         grainData['vMat'        ] = copy.deepcopy(self.vMat)
@@ -242,7 +235,6 @@ class Grain(object):
         grainData['etaTol'      ] = self.etaTol
         return grainData
     def setGrainData(self, grainData):
-        import copy
         self.rMat         = copy.deepcopy(grainData['rMat'        ])
         self.grainSpots   = copy.deepcopy(grainData['grainSpots'  ])
         self.friedelPairs = copy.deepcopy(grainData['friedelPairs'])
@@ -273,8 +265,6 @@ class Grain(object):
         
         phaseID and rMatTransf are useful for twins or phase transformations
         """
-        import copy
-        
         # get defaults from __inParmDict and self
         inParmDict = {}
         inParmDict.update(self.__inParmDict)
@@ -477,8 +467,6 @@ class Grain(object):
                     filename=None,
                     ):
         
-        from matrixUtils import columnNorm
-        import copy
         
         writeOutput=False
         
@@ -1089,7 +1077,6 @@ class Grain(object):
                 mu_uncs = num.hstack(angCOM_0_unc, angCOM_1_unc).flatten()
                 extraArgs = (tmpDG, xyoCOM_0, xyoCOM_1) 
                 try:
-                    import uncertainty_analysis
                     uf = uncertainty_analysis.propagateUncertainty(
                         __fitPrecession_model_func, mu_uncs, 1e-8, mus, *extraArgs)
                     #ufs.append(uf)
@@ -1116,7 +1103,6 @@ class Grain(object):
         """
         Fit the Center-Of-Mass coordinates of the grain in the sample frame
         """
-        import sys
         fout = fout or sys.stdout
         
         if self.centered:
@@ -1129,7 +1115,6 @@ class Grain(object):
                 pVec0 = self.detectorGeom.pVec
         
         if self.uncertainties:
-            import uncertainty_analysis
             #the cov_matrix is huge... giving large uncertainty, in progress
             optResults = optimize.leastsq(self._fitPrecessionWeighting_objFunc,
                                           pVec0,
@@ -1249,7 +1234,6 @@ class Grain(object):
         symmetric positive-definite; i.e. the right polar decomposition factors.
         """
         # quit if there aren't enough parameters to have it over determined
-        import sys
         fout = fout or sys.stdout
 
         if len(num.where(self.grainSpots['iRefl'] >= 0)[0]) < 14:

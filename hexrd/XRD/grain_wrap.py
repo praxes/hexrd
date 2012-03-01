@@ -26,12 +26,18 @@
 """friend functions for grain.py's Grain class"""
 
 import numpy as num
-import Rotations 
+from numpy import dot,sqrt
 from scipy import optimize
 from scipy.linalg import inv
-from Vector_Data_Structures_LLNL import Get_Pixel_Polar_Coords, alphabeta_polar_to_etatheta, Get_LLNL_Angles,mapOme
-from Vector_funcs import Mag
+from scipy.linalg import eig
 
+from hexrd.XRD import Rotations 
+from hexrd.Vector_Data_Structures_LLNL import Get_Pixel_Polar_Coords,\
+    alphabeta_polar_to_etatheta, Get_LLNL_Angles, mapOme
+from hexrd.Vector_funcs import Mag
+from hexrd.Vector_funcs import Unit,Star,Inner_Prod
+from hexrd.Vector_funcs import polarDecomposition
+from hexrd.XRD import uncertainty_analysis
 
 def vec_to_sym(UV_vec):
     UV_vec = UV_vec.flatten()
@@ -244,7 +250,6 @@ class grainStrainAnalysis:
         if self.vecs_associated_w_uncertainty == True and forceReRead == False:
             return self.gI_rIs_u_rIs
         'else do the association'
-        import uncertainty_analysis
         self.fitGrainSpotUncertainties()
         wavelength = self.planeData.wavelength
         
@@ -367,9 +372,6 @@ class grainStrainAnalysis:
         else:
             Uparams = Uparams
 
-        from Vector_funcs import Unit,Star,Inner_Prod
-        from numpy import dot,sqrt
-        
         def _fitRotation_lsq(Rparams, vecs, U):
             out = []
             Rmat = Rotations.rotMatOfExpMap(Rparams)
@@ -405,11 +407,6 @@ class grainStrainAnalysis:
         """
         uses F*N = \alpha n to refine rotation
         """
-        
-        from Vector_funcs import Unit,Star,Inner_Prod
-        from numpy import dot,sqrt
-        import uncertainty_analysis
-        
         def _fitR_residual(angles, r0, Fmat, wavelength):
             Cmat = dot(Fmat.T,Fmat)
             rI = makeARecipVector(angles,wavelength)
@@ -470,7 +467,6 @@ class grainStrainAnalysis:
         """
         iteratively calls fitRotation(), fitC(), computes the difference in the results F in a two norm sense, and stops when this difference goes below the specified tolerance, or when max iterations is reached.
         """
-        from Vector_funcs import Mag
         gI_rIs = self.associateRecipVectors()
         fMat0 = self.computeF()        
         fMat0 = fMat0.flatten()
@@ -499,7 +495,6 @@ class grainStrainAnalysis:
         """
         iteratively calls fitRotation(), fitC(), computes the difference in the results F in a two norm sense, and stops when this difference goes below the specified tolerance, or when max iterations is reached.
         """
-        from Vector_funcs import Mag
         gI_rIs = self.associateRecipVectors()
         fMat0 = self.computeF()        
         fMat0 = fMat0.flatten()
@@ -527,8 +522,6 @@ class grainStrainAnalysis:
         """
         iteratively calls fitRotation(), fitC(), computes the difference in the results F in a two norm sense, and stops when this difference goes below the specified tolerance, or when max iterations is reached.
         """
-        from Vector_funcs import Mag
-        
         fMat0 = self.computeF()        
         fMat0 = fMat0.flatten()
         ct = 0
@@ -555,8 +548,6 @@ class grainStrainAnalysis:
         """
         iteratively calls fitRotation(), fitC(), computes the difference in the results F in a two norm sense, and stops when this difference goes below the specified tolerance, or when max iterations is reached.
         """
-        from Vector_funcs import Mag
-        
         fMat0 = self.computeF()        
         fMat0 = fMat0.flatten()
         ct = 0
@@ -581,9 +572,6 @@ class grainStrainAnalysis:
             
 
     def fitF(self):
-        from Vector_funcs import Mag
-        from numpy import dot, sqrt
-        
         def _fitF(FParams, vecs):
             Rparams = FParams[0:3]
             Uparams = FParams[3:9]
@@ -619,7 +607,6 @@ class grainStrainAnalysis:
         print 'finalF'
         print F
         
-        from Vector_funcs import polarDecomposition
         R_,U = polarDecomposition(F)
         print R_,'\n',U
         return optResults
@@ -629,9 +616,6 @@ class grainStrainAnalysis:
         alternate fitting approach for U, uses no Rotation information.
         Cparams: [C11,C22,C33,C12,C23,C13]
         """
-        from Vector_funcs import Mag
-        from numpy import dot,sqrt
-
         'internal objective function'
         def _fitC(Cparams,vecs):
             Cmat = vec_to_sym(Cparams)
@@ -660,7 +644,6 @@ class grainStrainAnalysis:
         Cparams = optResults[0]
 
         C = vec_to_sym(Cparams)
-        from scipy.linalg import eig
         'spectral decomposition to get U'
         eval,evec = eig(C)
         l1_sqr,l2_sqr,l3_sqr = num.asarray(eval,dtype = 'float')
@@ -678,9 +661,6 @@ class grainStrainAnalysis:
         alternate fitting approach for U, uses no Rotation information.
         Cparams: [C11,C22,C33,C12,C23,C13]
         """
-        from Vector_funcs import Mag
-        from numpy import dot,sqrt
-        import uncertainty_analysis
         'internal objective function'
         def _fitC_residual(angles, r0, invCmat, wavelength):
             rI = makeARecipVector(angles, wavelength)
@@ -727,7 +707,6 @@ class grainStrainAnalysis:
         Cparams = optResults[0]
 
         C = vec_to_sym(Cparams)
-        from scipy.linalg import eig
         'spectral decomposition to get U'
         eval,evec = eig(C)
         l1_sqr,l2_sqr,l3_sqr = num.asarray(eval,dtype = 'float')

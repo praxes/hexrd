@@ -42,10 +42,10 @@ from hexrd.XRD import detector
 from hexrd.XRD import spotFinder
 from hexrd.XRD import crystallography
 from hexrd.XRD import grain as G
-from hexrd.XRD import grainSpotter as indexer
+from hexrd.XRD import indexer
 
-from hexrdXRD.hydra    import Hydra
-from hexrdXRD.Material import Material, loadMaterialList
+from hexrd.XRD.hydra    import Hydra
+from hexrd.XRD.Material import Material, loadMaterialList
 
 
 from hexrd import valUnits

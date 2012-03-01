@@ -24,23 +24,46 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
-import valUnits
+import sys
+import os
+import copy
+import time
+import math
+import shelve
+import exceptions
+import StringIO
+import ctypes
+    
+
 import numpy as num
 from matplotlib import cm
-import exceptions
-import matrixUtils as mUtil
-
-import sys, os
+from scipy import ndimage
+from scipy import optimize
+from scipy import sparse
 try:
-    import XRD
-    # sys.path.append(XRD.getPath()[0]) # should not be necessary
+    import scikits.image
+    haveSciKits = True
 except:
-    # probably running from XRD directory; put ".." in path just in case
-    sys.path.append(os.path.join(os.getcwd(),os.path.pardir))
-    import XRD
-from XRD import detector
-from valUnits import toFloat
-from XRD.xrdBase import getGaussNDParams
+    haveSciKits = False
+
+from hexrd import arrayUtil
+from hexrd.quadrature import q3db, q2db
+from hexrd import tens
+from hexrd import valUnits
+from hexrd.valUnits import toFloat
+from hexrd import matrixUtils as mUtil
+from hexrd.matrixUtils import rowNorm
+from hexrd import plotWrap
+        
+from hexrd import XRD
+from hexrd.XRD import crystallography
+from hexrd.XRD import detector
+from hexrd.XRD import xrdBase
+from hexrd.XRD.xrdBase import getGaussNDParams
+from hexrd.XRD import Rotations
+from hexrd.XRD.Rotations import mapAngle
+from hexrd.XRD import uncertainty_analysis
+        
 
 debugDflt = False
 debugMulti = True
@@ -63,9 +86,6 @@ structureNDI_dilate = num.array([
 spotFitFuncDflt = 'gauss'
 
 def getBin(thisframe, threshold, padSpot):
-    from scipy import ndimage
-    import numpy as num
-    
     bin = num.zeros(thisframe.shape, dtype=bool)
     bin[thisframe > threshold] = True
     if hasattr(thisframe, 'mask'):
@@ -105,7 +125,6 @@ def emptyBox(inpt, obj, dtype=None):
         )
     return vbox
 def copyBox(inpt, obj):
-    import copy
     'deepcopy does not seem to do what we want with masked arrays'
     # vbox   = copy.deepcopy(inpt[useObj])
     vbox = emptyBox(inpt, obj, dtype=inpt.dtype)
@@ -117,7 +136,6 @@ def getSpot(inpt, labels, objs, index, keepWithinBBox, padSpot):
     labels is from ndimage.label;
     objs is from ndimage.find_objects
     """
-    import copy
     
     spot = {}
     
@@ -136,7 +154,6 @@ def getSpot(inpt, labels, objs, index, keepWithinBBox, padSpot):
     useLabels = copy.deepcopy(labels[useObj]) # do not want to modify original labels!
     
     if padSpot:
-        from scipy import ndimage
         dilatedBool = ndimage.morphology.binary_dilation(useLabels, structure=structureNDI_dilate)
         useLabels[dilatedBool] = index
         
@@ -197,7 +214,6 @@ def getValuesOnly(inpt, labels, objs, index):
     labels is from ndimage.label;
     objs is from ndimage.find_objects
     """
-    import copy
     iSpot = index - 1
     obj = objs[iSpot]
     
@@ -208,7 +224,6 @@ def getValuesOnly(inpt, labels, objs, index):
     return v
 
 def getIndices(inpt, labels, obj, index, mode='default', minlabel=0):
-    import copy
 
     if obj is None:
         obj = tuple([slice(0,labels.shape[iDim]) for iDim in range(len(labels.shape))])
@@ -262,7 +277,6 @@ def getImCOM(inpt, labels, objs, index, floor=None, getVSum=False):
             v[v < floor] = floor
     vSum = float(num.sum(v))
     if vSum <= 0:
-        import sys
         print 'vSum is %g, from v array %s' % (vSum, str(v))
         raise RuntimeError, 'vSum <= 0'
     
@@ -305,8 +319,6 @@ def spotFinderSingle(
     weightedCOM is true to use thisframe data for weighting center-of-mass position;
     if pw is present, it is used for plotting (assumed to be plotWrap.PlotWrap instance)
     """
-    from scipy import ndimage
-    import numpy as num
     
     needCOM = debug or pw is not None
 
@@ -400,7 +412,6 @@ class IntensityFuncGauss3D(IntensityFunc3D):
     """
     __nParams = 8
     def __init__(self):
-        import math
         self.expFact  = -4.0 * math.log(2.0)
         return
     def guessXVec(self, x, y, z, w=None, v=None, noBkg=False): 
@@ -428,7 +439,6 @@ class IntensityFuncGauss3D(IntensityFunc3D):
         instance = IntensityFuncGauss2D()
         return instance
     def eval(self, xVec, x, y, z, w=None, vSub=None, diff=False, noBkg=False, minWidth=None):
-        import numpy as num
         
         if w is not None:
              assert x.shape == w.shape,\
@@ -535,7 +545,6 @@ class IntensityFuncGauss3DGenEll(IntensityFunc3D):
     """
     __nParams = 11
     def __init__(self):
-        import math
         self.expFact  = -4.0 * math.log(2.0)
         return
     def guessXVec(self, x, y, z, w=None, v=None, noBkg=False): 
@@ -574,8 +583,6 @@ class IntensityFuncGauss3DGenEll(IntensityFunc3D):
         instance = IntensityFuncGauss2D()
         return instance
     def eval(self, xVec, x, y, z, w=None, vSub=None, diff=False, noBkg=False):
-        import numpy as num
-        import tens
         
         if w is not None:
              assert x.shape == w.shape,\
@@ -595,7 +602,6 @@ class IntensityFuncGauss3DGenEll(IntensityFunc3D):
         try:
             dMatx = num.linalg.inv(wMatx)
         except:
-            # import sys
             # (etype, eobj, etb) = sys.exc_info()
             raise RuntimeError, 'upon exception from inv, xVec is '+str(xVec)
         
@@ -692,8 +698,11 @@ class IntensityFuncGauss3DGenEll(IntensityFunc3D):
 
 def getWtrShd(inp, threshold, gaussFilterSigma=None, footPrint=None, fpi=5, numPeaks=None):
     "fpi only used if footPrint is None"
-    from scikits.image import morphology
-    from scipy import ndimage
+    if haveSciKits:
+        morphology = scikits.image.morphology
+    else:
+        msg = 'scikits package has not been loaded and is needed for this function'
+        raise NameError(msg)
     
     if gaussFilterSigma is not None:
         inpUse = ndimage.filters.gaussian_filter(inp, gaussFilterSigma)
@@ -743,7 +752,6 @@ class IntensityFuncMulti3D(IntensityFunc3D):
     combination of multiple overlapped functions
     """
     def __init__(self, subFuncClass, nSubFuncs, minWidth=None ):
-        import copy
         self.funcs = [ subFuncClass() for iSubFunc in range(nSubFuncs) ]
         self.minWidth = copy.deepcopy(minWidth)
         return
@@ -795,7 +803,6 @@ class IntensityFuncMulti3D(IntensityFunc3D):
             'have only coded for case in which pxl are given'
         assert len(pxlCenterList) == len(self.funcs), \
             'must have len(pxlCenterList) == len(self.funcs)'
-        from scipy import ndimage
         
         if not len(x.shape) == 1:
             raise RuntimeError, 'have not coded case of x.shape != 1 -- too messy'
@@ -882,9 +889,9 @@ class IntensityFuncMulti3D(IntensityFunc3D):
         retval = num.hstack( xVecLists )
         return retval
     def guessXVec(self, x, y, z, pxlCenterList, w=None, v=None, pxl=None, gaussFilterSigma=None, noBkg=False, wtrshd=None): 
-        import scikits.image
-        import copy
-        from scipy import ndimage
+        if not haveSciKits:
+            msg = 'scikits package has not been loaded and is needed for this function'
+            raise NameError(msg)
 
         assert pxl is not None,\
             'have only coded for case in which pxl are given'
@@ -1081,7 +1088,6 @@ class IntensityFuncGauss2D(IntensityFunc2D):
     """
     __nParams = 6
     def __init__(self):
-        import math
         self.expFact  = -4.0 * math.log(2.0)
         return
     def guessXVec(self, x, y, w=None, v=None, noBkg=False):
@@ -1105,7 +1111,6 @@ class IntensityFuncGauss2D(IntensityFunc2D):
             retval -= 1
         return retval
     def eval(self, xVec, x, y, w=None, vSub=None, diff=False, noBkg=False):
-        import numpy as num
         
         if w is not None:
              assert x.shape == w.shape,\
@@ -1205,7 +1210,6 @@ class IntensityFuncMulti2D(IntensityFunc2D):
             'have only coded for case in which pxl are given'
         assert len(pxlCenterList) == len(self.funcs), \
             'must have len(pxlCenterList) == len(self.funcs)'
-        from scipy import ndimage
         
         if not len(x.shape) == 1:
             raise RuntimeError, 'have not coded case of x.shape != 1 -- too messy'
@@ -1423,7 +1427,6 @@ class Spot(object):
                 assert iFrame is None, 'should not spedify iFrame'
                 if isinstance(data, num.ndarray): # hasattr(data, 'dtype')
                     'data from another spot'
-                    import copy
                     # spotFinder.Spot._Spot__dtype
                     assert data.dtype == self.__dtype, \
                         'data has bad dtype'
@@ -1452,7 +1455,6 @@ class Spot(object):
         """
         for now, rely on candidate centers having been provided; probably want to do a fit
         """
-        import copy
         self.__split = True
         self.__xyoCOMList = copy.deepcopy(xyoList)
         self.__wtrshd = wtrshd
@@ -1691,7 +1693,6 @@ class Spot(object):
                 'not necessarily okay to have such a nasty spot'
                 raise
         except:
-            import sys
             (etype, eobj, etb) = sys.exc_info()
             self.cleanFit()
             self.__fitFailed = (1001, str(eobj))
@@ -1780,7 +1781,6 @@ class Spot(object):
         self.__fitNDim = fit_results[2]
         self.__fitFunc = fit_results[3]
         if uncertainties:
-            import uncertainty_analysis
             params = fit_results[0]
             cov_x = fit_results[4]
             u_is = uncertainty_analysis.computeAllparameterUncertainties(params, cov_x, confidence_level)
@@ -1827,10 +1827,6 @@ class Spot(object):
                        checkForValley=False,
                        fout=sys.stdout,
                        ):
-        from scipy import optimize
-        import sys
-        from quadrature import q3db, q2db
-        
         debug1 = self.debug > 1 or debugMulti
         
         quadrMesgForm = 'quadrature rule %s not available, peak is perhaps too tight for fitting; pixel widths : %s; requested quad points : %s'
@@ -1932,7 +1928,6 @@ class Spot(object):
                 print >> fout,  'message from UnfitableError : %d %s' % (e.err, e.msg)
             raise e
         except:
-            import sys
             (etype, eobj, etb) = sys.exc_info()
             if debugMulti :
                 print >> fout,  'message from exception : %s' % (eobj.message)
@@ -2121,9 +2116,6 @@ class Spot(object):
                   quadr, 
                   full_output, 
                   fout=sys.stdout):
-        from scipy import optimize
-        import sys
-        from quadrature import q3db, q2db
         
         quadrMesgForm = 'quadrature rule %s not available, peak is perhaps too tight for fitting; pixel widths : %s; requested quad points : %s'
         
@@ -2177,7 +2169,6 @@ class Spot(object):
                         newFunc = intensityFunc.get2DFunc()
                     else:
                         mesg = 'q1D_invAll : '+str(q1D_invAll)
-                        import sys
                         print >> fout,  mesg
                         raise UnfitableError(1, mesg)
                 else:
@@ -2211,7 +2202,6 @@ class Spot(object):
                 iargmin = nPx_FWHM.argmin()
                 if nPx_FWHM[iargmin] == 0.:
                     mesg = 'no measurable width in direction '+str(iargmin)
-                    import sys
                     print >> fout,  mesg
                     raise UnfitableError(1, mesg)
                 q1D_all = self.nQP_FWHM / nPx_FWHM
@@ -2226,7 +2216,6 @@ class Spot(object):
                     xi, w = q2db.qLoc(qRule)
                 except:
                     mesg = quadrMesgForm % (str(qRule), str(nPx_FWHM), str(q1D_all)) 
-                    import sys
                     print >> fout,  mesg
                     raise UnfitableError(1, mesg)
             if self.debug > 1:
@@ -2348,7 +2337,6 @@ class Spot(object):
         xAng, yAng, zAng, dvQP = xyoToAng(xQP, yQP, oQP, outputDV=True)
         
         #wQP = num.dot(dvQP, num.diag(w)) # correct, but do with sparse instead
-        from scipy import sparse
         wD = sparse.lil_matrix((nQP,nQP)); wD.setdiag(self.__q_w);
         wQP = num.array(num.matrix(dvQP) * wD.tocsr())
         
@@ -2463,9 +2451,8 @@ class Spot(object):
         more elaborate if detectorGeom is already set without a pVec, but
         that is probably asking for trouble
         """
-        from Rotations import mapAngle
-        from math import pi
-        
+        pi = math.pi
+
         if self.__split:
             assert not getUncertainties, \
                 'getUncertainties for split spot'
@@ -2584,9 +2571,6 @@ class Spot(object):
         """
         Flatten in Omega for display, no loss of x-y resolution
         """
-        import plotWrap
-        from scipy import sparse
-        
         if vAll is None:
             vAll = self.vAll
         'make vAll into float data so that summing does not overrun int storage'
@@ -2630,10 +2614,6 @@ class Spot(object):
         vAll, if present, is used instead of self.vAll;
         useful for results from fitting
         """
-        
-        import plotWrap
-        from scipy import sparse
-        import matplotlib.colors as mcolors
         
         angCOMList = []
         comMec = 'r'
@@ -2725,7 +2705,6 @@ class Spot(object):
                         self.delta_omega_abs,
                         )
                 if abs(omega - angCOM[2]) <= 0.5*self.delta_omega_abs:
-                    import copy
                     """
                     plot on this omega frame;
                     may eventually want to somehow show distance from angCOM relative to uncertainty;
@@ -2816,7 +2795,6 @@ class Spot(object):
         f.close()
         """
         if isinstance(f, str):
-            import shelve
             shelf = shelve.open(f,'c',protocol=2)
         elif hasattr(f,'keys'):
             shelf = f
@@ -2826,7 +2804,6 @@ class Spot(object):
         
         storedDG = False
         if shelf.has_key('nSpots'):
-            import sys
             print 'WARNING: working with existing shelf'
         if shelf.has_key('detectorGeom'):
             del shelf['detectorGeom'] # just in case
@@ -2856,7 +2833,6 @@ class Spot(object):
         all spots loaded here will have it attached to them
         """
         if isinstance(f, str):
-            import shelve
             shelf = shelve.open(f)
         elif hasattr(f,'keys'):
             shelf = f
@@ -2890,10 +2866,6 @@ thresMulti_MP = None
 #
 def doSpotThis(iSpot):
     "meant for use with multiprocessing"
-    import time
-    import StringIO
-    import sys
-    
     global spots_MP
     global args_fitWrap_MP
     global kwargs_fitWrap_MP
@@ -3046,7 +3018,6 @@ class Spots(object):
         self.__initBase(planeData, omegaMM, **kwargs)
         return
     def __initBase(self, planeData, omegaMM, **kwargs):
-        import crystallography
         
         if hasattr(omegaMM[0], '__len__'):
             'assume omegaMM is list of tuples already'
@@ -3195,11 +3166,8 @@ class Spots(object):
             if not self.__keepMarks: 
                 self.__marks = None
         else:
-            import xrdBase
             assert xrdBase.haveMultiProc, \
                 'do not have multiprocessing module available'
-            from xrdBase import multiprocessing
-            import ctypes
             
             'put marks in shared memory, and mostly use marks instead of claimedBy'
             self.__marks = multiprocessing.Array(ctypes.c_int, len(self))
@@ -3353,7 +3321,6 @@ class Spots(object):
         
         set claimsBased if want to base method on spots that have been claimed
         """
-        import time
         
         if self.__multiprocMode:
             raise RuntimeError, 'do not fit spots when in multiprocessing mode'
@@ -3570,7 +3537,6 @@ class Spots(object):
         """
         like fitSpots, but consider splitting up spots with multiple peaks
         """
-        import time
         
         if self.__multiprocMode:
             raise RuntimeError, 'do not fit spots when in multiprocessing mode'
@@ -3700,9 +3666,7 @@ class Spots(object):
         """
         like fitSpots, but consider splitting up spots with multiple peaks
         """
-        import time
-        from XRD import xrdBase
-        from xrdBase import multiprocessing
+        multiprocessing = xrdBase.multiprocessing # former import
         
         if self.__multiprocMode:
             raise RuntimeError, 'do not fit spots when in multiprocessing mode'
@@ -3747,8 +3711,7 @@ class Spots(object):
         thresMulti_MP = threshold
         #
         if multiProcMode:
-            from XRD import xrdBase
-            from xrdBase import multiprocessing
+            multiprocessing = xrdBase.multiprocessing # former import
             nCPUs = nCPUs or xrdBase.dfltNCPU
             pool = multiprocessing.Pool(nCPUs)
             if debug : 
@@ -4078,7 +4041,6 @@ class Spots(object):
         return nSpotsTThAll, nSpotsTThClaimed, numClaimed, numMultiClaimed # self.hklIDListAll
 
     def __markFriedel(self, iSpot, jSpot):
-        import sys
         if self.friedelPair[iSpot] == -1 and self.friedelPair[jSpot] == -1:
             self.friedelPair[iSpot] = jSpot
             self.friedelPair[jSpot] = iSpot
@@ -4091,10 +4053,9 @@ class Spots(object):
                             etaTol=valUnits.valWUnit('etaTol', 'angle', 0.25, 'degrees'),
                             omeTol=valUnits.valWUnit('etaTol', 'angle', 1.00, 'degrees')):
 
-        from crystallography import getFriedelPair
-        from Rotations import angularDifference
-        from matrixUtils import rowNorm
-        
+        getFriedelPair = crystallography.getFriedelPair
+        angularDifference = Rotations.angularDifference
+
         if hasattr(etaTol, 'getVal'):
             etaTol = etaTol.getVal('radians')
         
@@ -4220,10 +4181,6 @@ class Spots(object):
         
         if go to parallel processing, perhaps return first and last lables for doing merges
         """
-        from scipy import ndimage
-        import time
-        import copy
-        import sys
         location = '  findSpotsOmegaStack'
         
         if overlapPixelDistance:
@@ -4617,18 +4574,6 @@ class SpotsIterator:
 ######################################################################
 
 def testSingle(fileInfo):
-    import numpy as num
-    try:
-        from XRD import detector
-        from XRD import spotFinder
-    except:
-        # probably running from XRD directory; put ".." in path just in case
-        import sys, os
-        sys.path.append(os.path.join(os.getcwd(),os.path.pardir))
-        import detector
-        import spotFinder
-    import plotWrap
-    
     pw = plotWrap.PlotWrap()
     
     reader = detector.ReadGE(fileInfo, subtractDark=True)
@@ -4643,18 +4588,6 @@ def testSingle(fileInfo):
     return reader, pw, labels, objs, spotDataList, thisframe
     
 def testSpotFinder(fileInfo, delta_omega, omega_low, howMuch=0.1):
-    import time
-    import numpy as num
-    try:
-        from XRD import detector
-        from XRD import spotFinder
-    except:
-        # probably running from XRD directory; put ".." in path just in case
-        import sys, os
-        sys.path.append(os.path.join(os.getcwd(),os.path.pardir))
-        import detector
-        import spotFinder
-    import plotWrap
     
     tic = time.time()
     
@@ -4691,17 +4624,6 @@ def testSpotFinder(fileInfo, delta_omega, omega_low, howMuch=0.1):
     return spots
 
 def main(argv=[]):
-    import numpy as num
-    try:
-        from XRD import detector
-        from XRD import spotFinder
-    except:
-        # probably running from XRD directory; put ".." in path just in case
-        import sys, os
-        sys.path.append(os.path.join(os.getcwd(),os.path.pardir))
-        import detector
-        import spotFinder
-    import plotWrap
     
     #fileInfo = 'RUBY_4537.raw' 
     # ... need to check nempty values!
@@ -4722,7 +4644,6 @@ def main(argv=[]):
         ]
     culledSpots = spotFinder.Spot.cullSpots(spots, tests)
     #
-    import arrayUtil
     sortedSpots = arrayUtil.structuredSort( map(len, culledSpots), culledSpots )
 
     plotSpots = False
@@ -4737,7 +4658,6 @@ def main(argv=[]):
 
     spot = sortedSpots[-1] # biggest spot
     # win = spot.display(cmap=None)
-    import valUnits
     workDist = valUnits.valWUnit('workDist', 'length', 1.9365, 'meter')
     detectorGeom = detector.DetectorGeomGE(1024, 1024, workDist)
     fitX, vCalc = spot.fit(detectorGeom=detectorGeom)
@@ -4750,7 +4670,6 @@ def main(argv=[]):
     return spots
 
 if __name__ == '__main__':
-    import sys
     import cProfile as profile # profile
     pr = profile.Profile()
     pr.run('spots = main(sys.argv[1:])') #  filename='main.cprof'
@@ -4759,7 +4678,6 @@ if __name__ == '__main__':
     #stats = pstats.Stats('spotFinder_main.cprof')
     print 'Profiler stats : '
     pr.print_stats(sort=1) # stats.print_stats(sort=1)
-    import shelve
     shelf = shelve.open('spots.py_shelf')
     shelf['spots'] = spots
     shelf.close()

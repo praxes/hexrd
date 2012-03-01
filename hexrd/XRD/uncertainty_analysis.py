@@ -26,11 +26,16 @@
 """
 follows Nonlinear parameter estimation, Bard.
 """
+import random
+
 import numpy as num
+import numpy.random
 from scipy.linalg import inv,eig
 import scipy.optimize
-import numpy.random
 import scipy.stats
+
+from hexrd.File_funcs import write_lines
+from hexrd.Vector_funcs import Mag
 
 def findChisqr(conf_level, df, x0 = 16.):
     """
@@ -146,8 +151,6 @@ def scan_initial_condition_3space(estimator, kwname, seedpt, delta, nsteps, file
     all_params_ = num.array(all_params)
     meansolution = num.mean(all_params_, 0)
     cov_ = num.cov(all_params_, rowvar = 0)
-    from File_funcs import write_lines
-    from Vector_funcs import Mag
     f = open(filename,'w')
     for key in all_params_dict.keys():
         p1,p2,p3 = key
@@ -217,8 +220,6 @@ def scan_initial_condition_12space(estimator, kwname, seedpt, delta, nsteps, fil
     all_params_ = num.array(all_params)
     meansolution = num.mean(all_params_, 0)
     cov_ = num.cov(all_params_, rowvar = 0)
-    from File_funcs import write_lines
-    from Vector_funcs import Mag
     f = open(filename,'w')
     for key in all_params_dict.keys():
         p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12 = key
@@ -274,8 +275,6 @@ def scan_initial_condition_6space(estimator, kwname, seedpt, delta, nsteps, file
     all_params_ = num.array(all_params)
     meansolution = num.mean(all_params_, 0)
     cov_ = num.cov(all_params_, rowvar = 0)
-    from File_funcs import write_lines
-    from Vector_funcs import Mag
     f = open(filename,'w')
     for key in all_params_dict.keys():
         p1,p2,p3,p4,p5,p6 = key
@@ -320,7 +319,6 @@ def scalar_model_function_leastsq(parameters,model,x,y):
     return difference
 
 def scalar_model_function_data_noise(model,parameters, x_array, noisefactor = .1):
-    import random
     y_array = num.zeros(len(x_array))
     for i in range(len(x_array)):
         x = x_array[i]

@@ -26,20 +26,6 @@
 """Tools or X-ray diffraction analysis
 """
 
-__all__ = [
-    'XRD' ]
-
-try:
-  from pkgutil import extend_path
-  __path__ = extend_path(__path__, __name__)
-  XRDPath = __path__ # __path__[-1]
-except: # ignore all exceptions
-  pass
-
-def getPath():
-    return XRDPath
-
-
 
 
 

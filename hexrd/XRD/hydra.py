@@ -25,9 +25,10 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 #
-#  Copyright-Info-Goes-Here
-#
-"""Hydra detector tools.
+"""Hydra detector tools
+
+This is just a first pass at laying out a class for the hydra reader. 
+Needs much more development.
 """
 #
 # ---------------------------------------------------CLASS:  Hydra
