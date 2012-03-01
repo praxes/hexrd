@@ -28,9 +28,15 @@
 
 import tempfile
 import os
+import sys
 
-from arrayUtil import getMem
-from arrayUtil import num
+from hexrd.arrayUtil import getMem
+from hexrd.arrayUtil import num
+from hexrd.fileUtil import rmDirF
+
+import hexrd.femODFUtil as femODFUtil
+from hexrd.femODFUtil import dxWrap
+import hexrd.femODF.ElemType as femODF_ElemType
 
 dxLines = '"lines"'
 dxCubes = '"cubes"'
@@ -39,31 +45,30 @@ dxTris  = '"triangles"'
 dxQuads = '"quads"'
 
 def getElMap(elemType, quality=1):
-    import femODF.ElemType
-    if elemType == femODF.ElemType.stdL2:
+    if elemType == femODF_ElemType.stdL2:
         npMap     = num.array([1,2]) - 1
         dxEtype   = dxLines
         nelemMult = 1
         dxNnpe    = 2
-    elif elemType == femODF.ElemType.stdL3:
+    elif elemType == femODF_ElemType.stdL3:
         npMap = num.array([1,2,2,3]) - 1
         dxEtype   = dxLines
         nelemMult = 2
         dxNnpe    = 2
         
-    elif elemType == femODF.ElemType.stdB8:
+    elif elemType == femODF_ElemType.stdB8:
         npMap = num.array([1, 4, 2, 3, 5, 8, 6, 7]) - 1
         dxEtype   = dxCubes
         nelemMult = 1
         dxNnpe    = 8
 
-    elif elemType == femODF.ElemType.stdE4:
+    elif elemType == femODF_ElemType.stdE4:
         npMap = num.array([1, 2, 3, 4]) - 1
         dxEtype   = dxTets
         nelemMult = 1
         dxNnpe    = 4
     
-    elif elemType == femODF.ElemType.stdE10:
+    elif elemType == femODF_ElemType.stdE10:
         if quality > 0:
             npMap = num.array([
                     2, 3, 4, 8, 
@@ -83,12 +88,12 @@ def getElMap(elemType, quality=1):
             nelemMult = 1
             dxNnpe    = 4
 
-    elif elemType == femODF.ElemType.stdT3:
+    elif elemType == femODF_ElemType.stdT3:
             npMap = num.array([1, 2, 3]) - 1
             dxEtype   = dxTris
             nelemMult = 1
             dxNnpe    = 3
-    elif elemType == femODF.ElemType.stdT6:
+    elif elemType == femODF_ElemType.stdT6:
         if quality > 0:
             npMap = num.array([
                     1, 2, 6,
@@ -104,12 +109,12 @@ def getElMap(elemType, quality=1):
             nelemMult = 4
             dxNnpe    = 3
 
-    elif elemType == femODF.ElemType.stdQ4:
+    elif elemType == femODF_ElemType.stdQ4:
         npMap = num.array([1, 4, 2, 3]) - 1
         dxEtype   = dxQuads
         nelemMult = 1
         dxNnpe    = 4
-    elif elemType == femODF.ElemType.stdQ9:
+    elif elemType == femODF_ElemType.stdQ9:
         if quality > 0:
             npMap = num.array([
                     1, 8, 2, 9,
@@ -133,7 +138,6 @@ class DxFS:
     'for writing dx files to the file system'
     def __init__(self, prefix=None, overWrite=False, clobber=None):
         'set clobber to True or False to override default'
-        from fileUtil import rmDirF
         self.fo = None
         self.fnameList = []
         self.prefix = prefix
@@ -271,7 +275,6 @@ attribute "dep" string "positions"
         return (self.fo, self.fnameList[0], self.dataDir)
     def __del__(self):
         "cleanup temporary file(s)"
-        from fileUtil import rmDirF
         if self.clobber:
             self.fo.close()
             for fn in self.fnameList:
@@ -279,7 +282,6 @@ attribute "dep" string "positions"
             rmDirF(self.dataDir)
             
 def getFromPipe(command):
-    import os
     pipe = os.popen(command)
     val = pipe.readline()[:-1] # [:-1] drops end-of-line character
     pipe.close()
@@ -289,11 +291,9 @@ class DxCL:
     '''interface through the command line and file system'''
     def __init__(self):
         if (os.system('which dx') != 0):
-            import sys
             print >> sys.stderr, "need dx to be in the path"
             raise RuntimeError, "unrecoverable error"
         self.dxExec = getFromPipe('which dx')
-        import femODFUtil
         self.path = femODFUtil.getPath()[0]
         return
     def pfig(self, dxInFile, 
@@ -306,7 +306,6 @@ class DxCL:
         '''
         can call with nautoNetName = 'pfigInv_nauto.net' for inverse pole figures
         '''
-        import os
         (fd, scriptFName) = tempfile.mkstemp(suffix='.dx_script', text=True)
         #os.write(fd, 'include "%s/%s"' % (self.path, nautoNetName))
         imageFileName = imageNamePrefix + '.' + imageFormat
@@ -341,7 +340,6 @@ class DxCL:
             minVal=None,
             maxVal=None,
             ):
-        import os
         nautoNetName = 'odf_nauto.net'
         (fd, scriptFName) = tempfile.mkstemp(suffix='.dx_script', text=True)
         #os.write(fd, 'include "%s/%s"' % (self.path, nautoNetName))
@@ -372,8 +370,6 @@ class DxCL:
 
 def plotPfigs(vals, mPfig, plotList=None, dataFilePrefix=None, names=None, **args):
     'vals can be list of values or [nPoleFigures, nMeshNodes] array'
-    from femODFUtil import dxWrap
-    import sys
 
     nPF = len(vals)
     
@@ -413,8 +409,6 @@ def plotPfigs(vals, mPfig, plotList=None, dataFilePrefix=None, names=None, **arg
 
 def plotODF(v, mRodr, dataFilePrefix=None, name=None, **args):
     'all-in-one utility function'
-    from femODFUtil import dxWrap
-    import sys
     #
     if dataFilePrefix is None:
         dxFS = dxWrap.DxFS() #  prefix='testPfig', overWrite=True

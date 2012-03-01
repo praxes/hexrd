@@ -23,30 +23,36 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
-import sys, os
+import sys
+import os
+import shelve
 
 try:
-    from arrayUtil import num
-    from arrayUtil import getMem
+    from hexrd.arrayUtil import num
+    from hexrd.arrayUtil import getMem
 except:
   print >> sys.stderr, 'error doing imports; need python tools in PYTHONPATH'
   sys.exit(1)
 
 try:
   import sidl.RuntimeException
-  import femODF.FemMesh
-  import femODF.FemRodrigues
-  import femODF.ElemType
+  import hexrd.femODF.FemMesh
+  import hexrd.femODF.FemRodrigues
+  import hexrd.femODF.ElemType
 except:
   print >> sys.stderr, 'error doing imports; try sourcing /usr/apps/dlsmm/bin/setup.sh or the like'
   sys.exit(1)
 
-from femODFUtil.mRodrUtil import makeRodrMeshBall, getStorageDir
-import femODFUtil, arrayUtil
+from hexrd.femODFUtil.mRodrUtil import makeRodrMeshBall, getStorageDir
+from hexrd.femODFUtil.mRodrUtil import mFromCC
+from hexrd import femODFUtil
+from hexrd import arrayUtil
+from hexrd import fileUtil
+from hexrd.femODFUtil.mRodrUtil import refineTetMesh
+from hexrd.arrayUtil import num
 
 shelfFilename = 'meshODFBall.py_shelf'
 def cleanStorage(storageDir=None):
-    import fileUtil, os
     storageDirThis = getStorageDir(storageDir)
     storageFile = os.path.join(storageDirThis, shelfFilename)
     os.remove(storageFile)
@@ -55,7 +61,6 @@ def cleanStorage(storageDir=None):
 ##############################
 
 def getM(inFix='base'):
-    from femODFUtil.mRodrUtil import mFromCC
     
     path     = femODFUtil.getPath()[0]
     rsFile   = os.path.join(path, 'p3_%s_unitRodr.rodr' % (inFix))
@@ -76,7 +81,6 @@ class MBallStorage:
     __quadRule = arrayUtil.toArray([32015, 22004]) # 15-pt quadrature in volume, 4-pt quadrature on surfaces
     __baseMeshList = ['base','10x']
     def __init__(self, storageDir=None, m0Name='base'):
-        import shelve
         self.storageDir = getStorageDir(storageDir)
         self.meshFilename = os.path.join(self.storageDir, 
                                          shelfFilename)
@@ -97,7 +101,6 @@ class MBallStorage:
     def __call__(self, meshName):
         return self.getMesh(meshName)
     def __retrieveMesh(self, meshDir):
-        import shelve
         self.s = shelve.open(self.meshFilename)
         m = self.s[meshDir]
         self.s.close()
@@ -112,7 +115,6 @@ class MBallStorage:
         print >> sys.stdout, 'pulled mesh designated '+str(meshName)
         return m
     def __storeMesh(self, m, meshDir):
-        import shelve
         self.s = shelve.open(self.meshFilename)
         self.s[meshDir] = m
         self.s.close()
@@ -120,9 +122,6 @@ class MBallStorage:
     def getMesh(self, meshName):
         '''get a mesh with a specified level of mesh refinement; 
         may call itself recursively'''
-        import shelve
-        from femODFUtil.mRodrUtil import refineTetMesh
-        from arrayUtil import num
         
         self.s = shelve.open(self.meshFilename)
         
@@ -165,7 +164,6 @@ class MBallStorage:
 __meshes = {}
 #
 def getMeshes(**keyArgs):
-    import sys
     storageDir = None
     if keyArgs.has_key('storageDir'):
         storageDir = keyArgs['storageDir']

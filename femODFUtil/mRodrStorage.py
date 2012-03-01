@@ -23,25 +23,30 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
-import sys, os
+import sys
+import os
 
 try:
-    from arrayUtil import num
-    from arrayUtil import getMem
+    from hexrd.arrayUtil import num
+    from hexrd.arrayUtil import getMem
 except:
     print >> sys.stderr, 'error doing imports; need python tools in PYTHONPATH'
     sys.exit(1)
 
 try:
-    import femODF.FemMesh
-    import femODF.FemRodrigues
-    import femODF.ElemType
+    import hexrd.femODF.FemMesh
+    import hexrd.femODF.FemRodrigues
+    import hexrd.femODF.ElemType
     import sidl.RuntimeException
 except:
     print >> sys.stderr, 'error doing imports; try sourcing /usr/apps/dlsmm/bin/setup.sh or the like'
     sys.exit(1)
 
-from femODFUtil.mRodrUtil import makeRodrMesh, getStorageDir
+from hexrd.femODFUtil.mRodrUtil import makeRodrMesh, getStorageDir
+from hexrd import fileUtil
+from hexrd import femODFUtil
+import utilIO.InMemOrFSPack
+        
 
 symmGroupString_cub = 'cub'
 symmGroupString_hex = 'hex'
@@ -52,7 +57,6 @@ nnpe = 4
 
 shelfFilenameFormat = 'meshODF_%s_utilIO'
 def cleanStorage(storageDir=None):
-    import fileUtil, os
     storageDirThis = getStorageDir(storageDir)
     storageFilesWild = os.path.join(storageDirThis, shelfFilenameFormat % ('*'))
     fileUtil.rmWild(storageFilesWild)
@@ -3521,9 +3525,6 @@ class MRodrStorage:
     # __quadRule = num.array([32011, 22004]) # 11-pt quadrature in volume, 4-pt quadrature on surfaces
     __quadRule = num.array([32015, 22004]) # 15-pt quadrature in volume, 4-pt quadrature on surfaces
     def __init__(self, symmGroupString, storageDir=None):
-        import femODFUtil, os
-        import utilIO.InMemOrFSPack
-        
         self.symmGroupString = symmGroupString
         
         self.quadRule = getMem([2],typeInt=True)
