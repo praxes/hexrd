@@ -26,12 +26,17 @@
 # ============================================================
 # orientation space stuff: orientations.py
 
-from numpy import *
-import numpy as num
 import sys
 import copy
 import math
-from matrixUtils import normvec3, normalized, cross, normvec
+from math import sqrt
+
+from numpy import *
+import numpy as num
+import scipy.linalg
+
+import hexrd.matrixUtils as mU
+from hexrd.matrixUtils import normvec3, normalized, cross, normvec
 
 if __name__ != '__main__':
     debug = 0
@@ -48,7 +53,6 @@ piby3 = pi / 3.0
 I3 = eye(3, dtype='float64')
 
 def arccosSafe(temp):
-    import math
     # protect against numbers slightly larger than 1 in magnitude 
     # due to round-off
     if temp > 1.00001:
@@ -66,9 +70,7 @@ def arccosSafe(temp):
     return ang
 
 def orthogonalize(rMatIn):
-    import numpy as num
     UU = num.matrix(num.dot(rMatIn.T, rMatIn))
-    import scipy.linalg
     U = scipy.linalg.sqrtm(UU).real
     rMat = num.array(scipy.linalg.solve(U.T, rMatIn.T), dtype=float).T
     return rMat
@@ -94,7 +96,6 @@ def matToCanova(r):
 
 def invToRodr(inv):
     'do not check for divide-by-zero'
-    import numpy as num
     vect = False
     if hasattr(inv, 'shape'):
         if len(inv.shape) == 2: vect = True
@@ -108,7 +109,6 @@ def invToRodr(inv):
 
 def rodrToInv(rodr): 
     'do not check for divide-by-zero'
-    import numpy as num
     vect = False
     sqr3i = 1./sqrt(3.)
     if hasattr(rodr, 'shape'):
@@ -136,7 +136,6 @@ def rodrToQuat(rodr):
     return invToQuat(rodrToInv(rodr))
 
 def invToQuat(inv):
-    import numpy as num
     vect = False
     if hasattr(inv, 'shape'):
         if len(inv.shape) == 2: vect = True
@@ -437,7 +436,6 @@ def sampleToLatticeT2(A_sm, C):
                         T
     [A_sm]=[C][A_lat][C]
     '''
-    import numpy as num
     A_lat = num.matrix(C).T * num.matrix(A_sm) * num.matrix(C)
     return A_lat
 
@@ -446,12 +444,10 @@ def latticeToSampleT2(A_lat, C):
                         T
     [A_sm]=[C][A_lat][C]
     '''
-    import numpy as num
     A_sm = num.matrix(C) * num.matrix(A_lat) * num.matrix(C).T
     return A_sm
 
 def latticeToSampleV(V_lat, C):
-    import numpy as num
     V_sm = num.dot(C, V_lat)
     return V_sm
 
@@ -542,7 +538,6 @@ class RotInv(RotationParameterization):
                     self.n     = newInv.n
                     self.theta = newInv.theta
             elif a == 'align':
-                import numpy as num
                 # align given crystal vector with given sample vector
                 vl = num.array(args[1])
                 vs = num.array(args[2])
@@ -573,7 +568,6 @@ class RotInv(RotationParameterization):
                 "from 3x3 matrix of components"
                 (self.theta, self.n) = matToThetaN(a.toMatrix())
             else:
-                import numpy as num
                 a = num.atleast_1d(args[0])
                 if size(shape(a)) == 2:
                     "from 3x3 matrix of components"
@@ -1144,7 +1138,6 @@ class SymmGroup:
         retval = num.array(map(lambda x:x.q, self.qSymm))
         return retval 
     def checkForBinary(self, qList):
-        import math
         binaryRelatedTo = zeros((len(qList),len(qList)), dtype=bool)
         for iQ, q_i in enumerate(qList):
             for jQ in range(iQ+1,len(qList)):
@@ -1196,8 +1189,6 @@ def makeQuatsBall(qRef, thetaScale, n):
 
 didSeedSet = False
 def makeQuatsComponents(nGrain, scale=None):
-    import numpy as num
-    import math
     global didSeedSet
     if not didSeedSet:
         num.random.seed(0) # for reproducable results
@@ -1228,9 +1219,6 @@ def millerBravais2Normal(invec, *args):
     returns a (3, n) array of horizontally concatenated
     unit vectors
     """
-    import math
-    import numpy as num
-    
     aspect = 1.
     if len(args) > 0:
         aspect = args[0]
@@ -1249,19 +1237,17 @@ class Fiber:
     Like John Edmiston's MakeFiber class, but with the implementation more tightly coupled to the rest of the code base
     """
     def __init__(self, latVec, recipVec):
-        import orientations as ors
-        import matrixUtils as mU
         
         self.latVec   = mU.normalized(latVec)
         self.recipVec = mU.normalized(recipVec)
 
-        self.qBase  = q1  = ors.Quat(ors.RotInv('align', 
+        self.qBase  = q1  = Quat(RotInv('align', 
                                                 self.latVec,
                                                 self.recipVec)
                                      )
         e1 = q1.q
-        rFiber = ors.RotInv(0.5, self.recipVec) # 0.5 is a very arbitary distance along the fiber
-        q2 = ors.Quat(rFiber)
+        rFiber = RotInv(0.5, self.recipVec) # 0.5 is a very arbitary distance along the fiber
+        q2 = Quat(rFiber)
         q12 = (q2*q1).q
         e2 = mU.normalized(q12 - num.dot(q12,e1) * e1)
         #
@@ -1277,9 +1263,6 @@ Compute the distance between two fibers using the polar decomposition of the pro
 input: instance of MakeFiber class
 output: (max_eigenvalue, Rotation at max_eigenvalue), intersecting fibers would have max_eigenvalue ~ 1. Rotation at max_eigenvalue would be the 'closest' Rotation which would relate the two fibers.
         """
-        import matrixUtils as mU
-        import orientations as ors
-        from math import sqrt
         
         e1,e2 = self.e1,self.e2
         e1_,e2_ = other.e1,other.e2
@@ -1323,12 +1306,11 @@ output: (max_eigenvalue, Rotation at max_eigenvalue), intersecting fibers would 
         if(abs(sqrt(q1_*q1_+q2_*q2_) - mU.normvec(q_min_dist))>1.0e-3 and max_eigval>=.9999):
             raise Exception, 'min dist quaternion is not in both planes'
            
-        R_min_dist = ors.Quat(q_min_dist) # da.quaternion_map(q_min_dist)
+        R_min_dist = Quat(q_min_dist) # da.quaternion_map(q_min_dist)
         return max_eigval,R_min_dist
 
     def constructOrientation(self, angle):
-        import orientations as ors
-        qAxis = ors.Quat(ors.RotInv(angle, self.latVec))
+        qAxis = Quat(ors.RotInv(angle, self.latVec))
         qCur  = self.qBase * qAxis
         return qCur.q
 

@@ -23,7 +23,8 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
-# -*-python-*-
+
+import math
 
 from scipy import \
      array, asarray, ndarray, \
@@ -635,14 +636,11 @@ def findDuplicateVectors(vec, tol=vTol, equivPM=False):
     return eqv, uid
 
 def normvec(v):
-    import math
-    import numpy as num
     #mag = math.sqrt(num.sum(v[:]*v[:]))
     mag = num.linalg.norm(v)
     return mag
 
 def normvec3(v):
-    import math
     mag = math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])
     return mag
 

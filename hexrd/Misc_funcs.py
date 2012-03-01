@@ -25,6 +25,8 @@
 # ============================================================
 import decimal
 import math
+import time
+
 def Int_Map(arg,rounding = 'ROUND_HALF_DOWN'):
     tmp = decimal.Decimal(arg.__str__())
     int_arg = int(tmp.to_integral(rounding = rounding))
@@ -60,7 +62,6 @@ def list_map_inv(alist,val):
 
 
 def timeit(afunc,*args):
-    import time
     #print args
     tinit = time.time()
     afunc(*args)

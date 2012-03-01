@@ -26,11 +26,11 @@
 import re
 import sys
 import os
+import subprocess
 import time
 import string
-import time
+import re
 
-# from math import *
 
 class Log:
     """for logging"""
@@ -272,9 +272,7 @@ def archiveFile(fileName):
     return
 
 def getFromPipe(command, werr=False):
-    import os
     if werr:
-        import subprocess
         # pipei, pipeo = os.popen4(command)
         p = subprocess.Popen(command,
                              shell=True,
@@ -293,7 +291,6 @@ def getFromPipe(command, werr=False):
     return val
 
 def getSysType():
-    import os
     if (os.environ.has_key('SYS_TYPE')):
         sysType = os.environ['SYS_TYPE']
     else:
@@ -302,7 +299,6 @@ def getSysType():
     return sysType
 
 def getNCorePerNode():
-    import os, string
     sysType = getSysType()
     if sysType == 'aix_5_64_fed':
        return 8
@@ -314,7 +310,6 @@ def getNCorePerNode():
        return nCores
 
 def getHostName():
-    import re, os
     return re.split('[0-9]', os.environ['HOSTNAME'])[0]
 
 def getBankNames():
@@ -330,12 +325,10 @@ def getBankNames():
     return bankNames
 
 def rmSafe(fileName):
-    import os
     if os.access(fileName, os.F_OK) : os.remove(fileName)
     return
 
 def rmDirF(dirName):
-    import os
     for root, dirs, files in os.walk(dirName, topdown=False):
         for file in files: os.remove(os.path.join(root,file)) # os.remove(file)
         for dir  in dirs:  os.rmdir(os.path.join(root,dir))
@@ -349,14 +342,12 @@ def rmWorkDir(workdir):
 
 def listFiles(filename):
     'most useful if filename contains a wildcard'
-    import os
     pLs = os.popen('ls '+filename)
     files = pLs.readlines()
     pLs.close()
     return [fTemp.split()[0] for fTemp in files]
     
 def rmWild(filename):
-    import os
     p = os.popen('ls %s*' % (filename))
     line = p.readline()
     while line:

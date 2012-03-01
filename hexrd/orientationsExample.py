@@ -23,7 +23,7 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
-from orientations import *
+from hexrd.orientations import *
 
 kocks = KocksEuler(0., 0., 0.)
 quat = Quat(kocks) # quat = kocks.toQuat()
