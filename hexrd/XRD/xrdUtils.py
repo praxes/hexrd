@@ -2442,7 +2442,6 @@ def pfigFromSpots(spots, iHKL, phaseID=None,
     can use tThTol to tighten down the two-theta tolerance
     """
     from Rotations import mapAngle
-    from femODFUtil import pfig as pfigPkg
     
     nEta = nEta or -3
     plot = plot or plotPrefix is not None
@@ -2539,7 +2538,6 @@ def pfigFromSpots(spots, iHKL, phaseID=None,
         if debug:
             print 'making pfig dict with pVals nVecs shape %s and pVals size %s' % (str(nVecs.shape), str(pVals.size))
         retval.append( (
-                pfigPkg.makePfigDict(hklTuple, crystalVector=crystalVector, nVecs=nVecs, pVals=pVals), 
                 omeEdges, 
                 etaEdges, 
                 intensVals,
