@@ -33,10 +33,10 @@ materials are defined by name in materialDict.
 from ConfigParser import SafeConfigParser as Parser
 import numpy
 
-from XRD.crystallography import PlaneData as PData
-from XRD.SpaceGroup      import SpaceGroup as SG
+from hexrd.XRD.crystallography import PlaneData as PData
+from hexrd.XRD.SpaceGroup      import SpaceGroup as SG
 
-from valUnits   import valWUnit
+from hexrd.valUnits   import valWUnit
 #
 __all__ = ['Material', 'loadMaterialList']
 #

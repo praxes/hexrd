@@ -25,8 +25,6 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 #
-#  Copyright-Info-Goes-Here
-#
 """Interface with sglite for hkl generation and Laue group determination
 
 This module contains mappings from space group number to either
@@ -75,7 +73,7 @@ __version__ = "$Id: SpaceGroup.py 838 2011-05-13 13:51:11Z boyce6 $"
 #
 from math import sqrt, floor
 
-import sglite
+import hexrd.XRD.sglite as sglite
 #
 __all__ = ['SpaceGroup']
 #

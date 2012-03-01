@@ -24,11 +24,17 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 # -*-python-*-
-from matrixUtils import *
-import warnings
+import re
+import copy
 from math import pi
+import warnings
+
 import numpy as num
-from valUnits import toFloat
+from scipy import constants as C
+
+from hexrd.matrixUtils import *
+from hexrd import valUnits
+from hexrd.valUnits import toFloat
 
 # module vars
 r2d = 180./pi 
@@ -40,7 +46,6 @@ outputDegrees = False
 outputDegrees_bak = outputDegrees
 
 def hklToStr(x):
-    import re
     return re.sub('\[|\]|\(|\)','',str(x))
 
 def tempSetOutputDegrees(val):
@@ -77,9 +82,7 @@ def processWavelength(arg):
         if arg.isLength():
             retval = arg.getVal(dUnit)
         elif arg.isEnergy():
-            import valUnits
             try:
-                from scipy import constants as C
                 speed  = C.c
                 planck = C.h
             except:
@@ -91,8 +94,6 @@ def processWavelength(arg):
         else:
             raise RuntimeError, 'do not know what to do with '+str(arg)
     else:
-        from scipy import constants as C
-        import valUnits
         keV2J = 1.e3*C.e
         e = keV2J * arg
         retval = valUnits.valWUnit('wavelength', 'length', C.h*C.c/e, 'm').getVal(dUnit)
@@ -490,7 +491,6 @@ class PlaneData(object):
                  *args,
                  **kwargs):
         import Symmetry as S
-        import copy
         
         self.phaseID = None
         self.__doTThSort = True
@@ -918,9 +918,6 @@ class PlaneData(object):
         """
         new function that returns all symmetric hkls
         """
-        if asStr:
-            import re
-        
         retval = []
         iRetval = 0
         if indices is not None:

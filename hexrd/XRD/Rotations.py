@@ -28,7 +28,6 @@
 # Module containing functions relevant to rotations
 #
 import numpy
-
 from numpy import \
      arange, array, asarray, atleast_1d, ndarray, diag, empty, ones, zeros, \
      cross, dot, pi, arccos, arcsin, cos, sin, \
@@ -38,7 +37,7 @@ from numpy import \
 from numpy import float_ as nFloat
 from numpy import int_ as nInt
 
-from matrixUtils import columnNorm, unitVector, skewMatrixOfVector, \
+from hexrd.matrixUtils import columnNorm, unitVector, skewMatrixOfVector, \
     multMatArray, nullSpace
 #
 #  Module Data

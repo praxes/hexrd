@@ -30,7 +30,7 @@
 from numpy import cos, sin, sqrt, pi, \
      vstack, hstack, c_, r_, ix_, tile, dot, \
      sort, argmin, argmax, argsort
-from matrixUtils import multMatArray, unitVector, findDuplicateVectors
+from hexrd.matrixUtils import multMatArray, unitVector, findDuplicateVectors
 
 sq3by2 = sqrt(3.)/2.
 piby2  = pi/2.

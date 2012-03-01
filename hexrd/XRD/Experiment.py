@@ -38,18 +38,18 @@ import cPickle
 
 import numpy
 
-from XRD import detector
-from XRD import spotFinder
-from XRD import crystallography
-from XRD import grain as G
-from XRD import grainSpotter as indexer
+from hexrd.XRD import detector
+from hexrd.XRD import spotFinder
+from hexrd.XRD import crystallography
+from hexrd.XRD import grain as G
+from hexrd.XRD import grainSpotter as indexer
 
-from XRD.hydra    import Hydra
-from XRD.Material import Material, loadMaterialList
+from hexrdXRD.hydra    import Hydra
+from hexrdXRD.Material import Material, loadMaterialList
 
 
-import valUnits
-from XRD import xrdUtils
+from hexrd import valUnits
+from hexrd.XRD import xrdUtils
 
 #
 #  Defaults (will eventually make to a config file)
@@ -138,24 +138,6 @@ class Experiment(object):
         #
         self._hydra = Hydra()
 
-        ## ==================== Preload stuff for quick startup/debugging
-
-        if False:
-            import cPickle
-
-            preloadDir = 'C:\\Users\\deb14\\Scratch\\CU-data\\Pickle'
-            os.chdir(preloadDir)
-        
-            matFile='materials-lab6-cu.pickle' 
-            with file(matFile, 'r') as f: self.matList = cPickle.load(f)
-        
-            #self.loadReaderList('readers.pickle')
-            self.loadReaderList('read-cal-sweep-1.pickle')
-            self.loadDetector('detector-fitted.pickle')
-            pass
-        
-        #self.readImage() # image window not yet instantiated
-        
         return
 
     def __str__(self):

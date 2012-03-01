@@ -26,37 +26,47 @@
 # ============================================================
 
 import math
+import copy
+import os
+import time
+import sys
+import Image
+haveThreading = True
+try:
+    import threading
+except:
+    haveThreading = False
 
 import numpy as num
-
+from scipy import sparse
+from scipy.optimize import fsolve
+from scipy.optimize import leastsq
+import matplotlib
+from matplotlib import cm, colors
+from matplotlib import mlab
+from matplotlib.widgets import Slider, Button, RadioButtons
+    
+from hexrd import XRD
+from hexrd.XRD.xrdBase import getGaussNDParams
+from hexrd.XRD.Rotations import mapAngle
+from hexrd.XRD.Rotations import rotMatOfExpMap
+from hexrd.XRD.Rotations import rotMatOfExpMap, arccosSafe
+from hexrd.quadrature import q1db
+from hexrd.quadrature import q2db
+from hexrd.matrixUtils import unitVector
+from hexrd import valUnits
+        
+havePlotWrap = True
 try:
-    import XRD
-    # sys.path.append(XRD.getPath()[0]) # should not be necessary
+    from hexrd import plotWrap
 except:
-    # probably running from XRD directory; put ".." in path just in case
-    sys.path.append(os.path.join(os.getcwd(),os.path.pardir))
-    import XRD
-
-from XRD.xrdBase import getGaussNDParams
+    havePlotWrap = False
 
 d2r = piby180 = num.pi/180.
 r2d = 1.0/d2r
 
 bsize = 25000
         
-haveThreading = True
-try:
-    import threading
-except:
-    haveThreading = False
-    
-havePlotWrap = True
-try:
-    import plotWrap
-    havePlotWrap = True
-except:
-    havePlotWrap = False
-
 def angToXYIdeal(tTh, eta, workDist):
     rho = num.tan(tTh) * workDist
     x   = rho * num.cos(eta)
@@ -64,7 +74,6 @@ def angToXYIdeal(tTh, eta, workDist):
     return x, y
     
 def mapAngs(eta):
-    from Rotations import mapAngle
     if num.all(num.cos(eta) < 0.):
         eta = mapAngle(eta, (0, 2*num.pi), units='radians')
     return eta
@@ -76,7 +85,6 @@ class FmtCoordIdeal:
         self.dataList  = []
         return
     def addDetectorData(self, iDetector, *data):
-        import copy
         self.dataList.append((iDetector,copy.deepcopy(data)))
     def __call__(self, x, y):
         rho = num.sqrt(x*x + y*y)
@@ -134,7 +142,6 @@ def getCentered(vmin, vmax):
     centered = bool(-vmin > 0.4*vmax) # vmin < 0
     return centered
 def getCMap(spec):
-    from matplotlib import cm, colors
     if isinstance(spec, bool):
         if spec:
             cmap = cm.RdBu
@@ -571,7 +578,6 @@ class ReadGE(Reader):
             raise RuntimeError, 'file size not correctly calculated'
         return nFrames
     def __nextFile(self):
-        import os
         
         # close in case already have a file going
         self.close()
@@ -613,7 +619,6 @@ class ReadGE(Reader):
         elif hasattr(fileInfo,'__len__'):
             assert len(fileInfo) > 0, 'length zero'
             if hasattr(fileInfo[0],'__iter__'): # checking __len__ bad because has len attribute
-                import copy
                 fileList = copy.copy(fileInfo)
             else:
                 assert len(fileInfo) == 2, 'bad file info'
@@ -630,7 +635,6 @@ class ReadGE(Reader):
         potentially flipped; can set it to a reader instance to pull
         the doFlip value from that instance
         """
-        import copy
 
         if raw:
             if hasattr(doFlip,'doFlip'):
@@ -750,7 +754,6 @@ class ReadGE(Reader):
             print self.__location+' : '+message
         return
     def __thWait(self):
-        import time
         if self.__useThreading:
             if self.th is not None:
                 if self.th.isAlive():
@@ -840,7 +843,6 @@ class ReadGE(Reader):
         return maxInt
     @classmethod
     def getNFramesFromFileInfo(cls, fileInfo, lessEmpty=True):
-        import os
         fileList = cls.__convertFileInfo(fileInfo)
         nFramesTot = 0
         for fname, nempty in fileList:
@@ -878,7 +880,6 @@ class ReadMar165(Reader):
         self.__idim = mar165IDim(mode)
         return
     def __call__(self, filename):
-        import Image
         i = Image.open(filename, mode='r')
         a = num.array(i, dtype=self.__frame_dtype_read)
         frame = num.array(a, dtype=self.__frame_dtype_dflt)
@@ -934,7 +935,6 @@ class Peak1DAtLoc:
     self.setXVecDflt(xVecDflt)
     return
   def setXVecDflt(self, xVecDflt):
-      import copy
       if hasattr(xVecDflt, '__len__'):
           assert len(xVecDflt) == self.getNParams(),\
               'xVecDflt wrong length'
@@ -989,8 +989,6 @@ class Peak1DAtLoc:
       actually change the centers of the function you need to call
       setCenters(cFit) after calling this function
       '''
-      from scipy.optimize import leastsq
-      import copy
       
       func = self
 
@@ -1001,7 +999,6 @@ class Peak1DAtLoc:
           assert len(tThVals.shape) == 1,\
               'tThVals wrong shape : '+str(tThVals.shape)
           quadr = weights
-          from quadrature import q1db
           xi1d, w1d = q1db.qLoc(quadr)
           'xi are in [0,1], so need to be centered'
           xi1d = xi1d - 0.5
@@ -1063,7 +1060,6 @@ class Peak1DAtLoc:
       x, ier = \
           leastsq(_f_leastsq, xVec0, Dfun=_df_leastsq)
       if not [1,2,3,4].count(ier):
-          import sys
           print >> sys.stderr, \
               'error code %d from leastsq' % (ier)
           raise RuntimeError, 'error from leastsq'
@@ -1089,7 +1085,6 @@ class PeakPV1DAtLoc(Peak1DAtLoc):
     """
     def __init__(self, *args, **kwargs):
         Peak1DAtLoc.__init__(self, *args, **kwargs)
-        import math
         self.C0 = 4.0*math.log(2.0)
         self.C1 = 4.0
         self.Al = num.sqrt(self.C1)/num.pi
@@ -1121,7 +1116,6 @@ class PeakPV1DAtLoc(Peak1DAtLoc):
                 xVec[2+iPeak*3+2] = 0.0 # xn
         return xVec
     def eval(self, xVec, p):
-        import math
         B  = xVec[0]
         dB = xVec[1]
         retval =  num.tile(B, num.shape(p))
@@ -1238,7 +1232,6 @@ class PeakPV1DAtLoc(Peak1DAtLoc):
 
 class PeakLorentzian1DAtLoc(Peak1DAtLoc):
     def __init__(self, *args, **kwargs):
-        import math
         Peak1DAtLoc.__init__(self, *args, **kwargs)
         return
     def getNParams(self):
@@ -1325,7 +1318,6 @@ class PeakLorentzian1DAtLoc(Peak1DAtLoc):
 class PeakGauss1DAtLoc(Peak1DAtLoc):
     
     def __init__(self, *args, **kwargs):
-        import math
         linBG=True
         if kwargs.has_key('linBG'):
             linBG = kwargs.pop('linBG')
@@ -1486,9 +1478,6 @@ class MultiRingBinned:
                  distortionFreeRefDG = False,
                  log=None
                  ):
-        import copy
-        import time
-        from quadrature import q1db
 
         if log is not None: self.logfile = log
         
@@ -1868,8 +1857,8 @@ class MultiRingBinned:
         if self.__print:
             self.__log(' norm : '+str(num.linalg.norm(retval)))
         return retval
+
     def makePlotWin(self, sqrtIntensity=True, plotTitlePrefix=''):
-        import plotWrap
         plotWinRadial = plotWrap.PlotWin(2,1, relfigsize=(8,3), 
                                          title=plotTitlePrefix+'ring evaluation results')
         'using twinx() might be better, but not plumbed for that'
@@ -1927,8 +1916,6 @@ class MultiRingBinned:
         """
         lsKWArgs can have things like ftol and xtol for leastsq
         """
-        import time
-        from scipy.optimize import leastsq
         
         if xVec0 is None:
             xVec0 = self.guessXVec()
@@ -1996,7 +1983,6 @@ class MultiRingBinned:
                 'assume is a PlotWrap instance or the like'
                 pwTThE = plot
             else:
-                import plotWrap
                 pwTThE = plotWrap.PlotWrap(title='line position errors', xlabel='eta index', ylabel=ylabel)
                 retval = [errs, pwTThE]
             
@@ -2044,8 +2030,6 @@ class MultiRingEval:
   
       if copyFrame is True, then data in dataFrame is copied
       """
-      import copy
-      from quadrature import q2db
   
       refineParamsXVec = funcXVecList is None
       
@@ -2164,7 +2148,6 @@ class MultiRingEval:
       self.iHKLLists    = iHKLLists
       
       if self.nParam == 0:
-          import sys
           print >> sys.stderr, 'WARNING: have 0 free parameters in '+str(self.__class__.__name__)
     
       self.useDFun = True
@@ -2224,7 +2207,6 @@ class MultiRingEval:
       return self.nParam
     def __dgfd(self, xVec, dGScalings, iQP, jQP):
         # J is 3D, b/c tThQP_ref is 2D
-        import copy
         assert self.nParamDG > 0,\
             'do not have detector geometry parameter degrees of freedom'
         xVecDG = xVec[self.xIndDG]
@@ -2250,7 +2232,6 @@ class MultiRingEval:
       
       retvalShape = (self.nPoints,len(xVec))
       if self.__dSparse:
-          from scipy import sparse
           # retval = sparse.dok_matrix(retvalShape)
           # retval = sparse.lil_matrix(retvalShape)
           retval = sparse.coo_matrix(retvalShape)
@@ -2371,7 +2352,6 @@ class MultiRingEval:
       return retval
     def __call__(self, xVec, makePlots=False, plotTitlePrefix=''):
         'meant for call in leastsq type algorithm'
-        import plotWrap
         
         assert self.setupForCall, 'not setup for call'
         
@@ -2449,9 +2429,6 @@ class MultiRingEval:
         """
         lsKWArgs can have things like ftol and xtol for leastsq
         """
-        import time
-        from scipy.optimize import leastsq
-        
         if xVec0 is None:
             xVec0 = self.guessXVec()
         tic = time.time()
@@ -2468,7 +2445,6 @@ class MultiRingEval:
         return num.atleast_1d(x)
     def radialPlotData(self, dataFrame=None, plotTitlePrefix=''):
         'for simple radial plotting, useful if other things are mysteriously breaking'
-        import plotWrap
         if dataFrame is None:
             dataFrame = self.dataFrame
         assert dataFrame is not None, 'need data to work with'
@@ -2761,7 +2737,6 @@ class Detector2DRC(DetectorBase):
         eventually, may want to have this be able to determine
         geometric parameters from other input data
         """
-        import copy
         
         if hasattr(xc, 'getVal'):
             self.xc        = xc.getVal(self.pixelPitchUnit)
@@ -2860,14 +2835,12 @@ class Detector2DRC(DetectorBase):
         
         return
     def __initFromDG(self, detectorGeomOther, pVec=None):
-        import copy
         self.__initFromParams( *detectorGeomOther.__makePList(flatten=False) )
         self.refineFlags = copy.deepcopy(detectorGeomOther.refineFlags)
         self.pVec = copy.deepcopy(pVec)
         return
 
     def setTilt(self, tilt):
-        from Rotations import rotMatOfExpMap
         self.tilt = num.array(tilt)
         
         # tilt angles
@@ -2986,7 +2959,6 @@ class Detector2DRC(DetectorBase):
         """
         opposite of xyoToAng
         """
-        from Rotations import rotMatOfExpMap, arccosSafe
         
         outputDV              = False
         outputForGve          = False
@@ -3292,8 +3264,6 @@ class Detector2DRC(DetectorBase):
         data corresponding to the input `xydata'.
         
         """
-        from Rotations import rotMatOfExpMap, arccosSafe
-        from matrixUtils import unitVector
 
         outputDV              = False
         tthRange              = ()
@@ -3644,7 +3614,6 @@ class Detector2DRC(DetectorBase):
         """
         given either angBBox or angCOM (angular center) and angPM (+-values), compute the bounding box on the image frame
         """
-        import math
         
         units  = kwargs.setdefault('units', 'pixels')
         # reader = kwargs.get('reader', None)
@@ -3706,8 +3675,6 @@ class Detector2DRC(DetectorBase):
         
         if pass ideal, then display rings on an ideal detector with the working distance taken from the value of the ideal argument
         """
-        import math
-        import plotWrap
         nEta = self.nEta
         dEta = 2*math.pi/nEta
         
@@ -3780,7 +3747,6 @@ class Detector2DRC(DetectorBase):
         suitable for use with pcolormesh(xim, yim, zi), with xim, yim = num.meshgrid(xi, yi);
         note that pcolormesh is used instead of pcolor because zi may be a masked array
         """
-        from matplotlib import mlab
         
         nlump = nlump or 4
         workDist = workDist or self.workDist
@@ -3824,7 +3790,6 @@ class Detector2DRC(DetectorBase):
         render and display frame on ideal detector plane;
         if workDist is not specified, then use self.workDist
         """
-        import matplotlib
 
         h, xedges, yedges, mask = self.renderIdeal(thisframe, workDist=workDist, nlump=nlump)
         workDist = workDist or self.workDist
@@ -3893,11 +3858,6 @@ class Detector2DRC(DetectorBase):
         """
         a simple GUI
         """
-        import plotWrap
-        import matplotlib
-        from matplotlib.widgets import Slider, Button, RadioButtons
-        import copy
-        
         doDragging = True
         sliderYArea = 0.18+0.03
         buttonsXArea = 0.15
@@ -4076,7 +4036,6 @@ class Detector2DRC(DetectorBase):
         return
     def fitRings(self, thisframe, planeData, xVec0=None,
                  funcType=funcTypeDflt, quadr=1, makePlots=False):
-      import copy
       
       # 'free up memory'
       # self.fitRingsFunc = None
@@ -4105,7 +4064,6 @@ class Detector2DRC(DetectorBase):
       return 
     
     def pixelToPolar(self, rowInd, colInd, corrected=False, startEta=None):
-        from Rotations import mapAngle
 
         # WTF?! # if ROI is None:
         # WTF?! #     ROI = [0, 0, self.nrows, self.ncols]  # integer pixels indices
@@ -4192,8 +4150,6 @@ class Detector2DRC(DetectorBase):
         verbose=True,
                    
         """
-        from Rotations import mapAngle
-        from scipy import sparse
 
         startEta = etaRange[0] 
         stopEta  = etaRange[1]
@@ -4424,7 +4380,6 @@ class DetectorGeomGE(Detector2DRC):
                 
         if invert:
             # in here must do nonlinear solve for distortion
-            from scipy.optimize import fsolve
             
             # must loop to call fsolve individually for each point
             rho0   = num.atleast_1d(rho0)
@@ -4480,7 +4435,6 @@ class DetectorGeomQuadGE(DetectorBase):
     __quadHydraIYShift  = [ 0,  1,  0,  1 ]
     
     def __init__(self, *args, **kwargs):
-        import valUnits
         
         'pass ReadGE as the readerClass for now; perhaps make a ReadQuadGE class later if it turns out to be needed'
         DetectorBase.__init__(self, ReadGE)
@@ -4576,7 +4530,6 @@ class DetectorGeomQuadGE(DetectorBase):
 
     def setCentersFromRef(self, iRefQuad=0):
         'this assumes all of the tilts are the same'
-        import copy
         lQuad = copy.copy(self.lQuad)
         lQuad.remove(iRefQuad)
         dRef = self.detectors[iRefQuad]
@@ -4589,7 +4542,6 @@ class DetectorGeomQuadGE(DetectorBase):
     
     def setQuadOffsets(self, iRefQuad=0):
         'this assumes all of the tilts are the same'
-        import copy
         lQuad = copy.copy(self.lQuad)
         lQuad.remove(iRefQuad)
         dRef = self.detectors[iRefQuad]
@@ -4634,10 +4586,6 @@ class DetectorGeomQuadGE(DetectorBase):
         tr.rotate(self.zTilt)
         imshow( , transform=tr)
         """
-        import matplotlib        
-        import plotWrap
-        import copy
-        
         pwKWArgs = plotWrap.PlotWrap.popKeyArgs(kwargs)
         pw = plotWrap.PlotWrap(**pwKWArgs)
         pw.a.set_axis_bgcolor('white')        
@@ -4697,7 +4645,7 @@ class DetectorGeomQuadGE(DetectorBase):
         If want to just refine detector geometry and not the functional forms for the rings,
         pass funcXVecList as True or as something like a list of arrays from MultiRingEval.getFuncXVecList() 
         """
-        from xrdBase import dataToFrame
+        from xrdBase import dataToFrame # move to beginning of module
         
         assert len(framesQuad) == 4,\
             'need len(framesQuad) to be 4'
@@ -4712,7 +4660,6 @@ class DetectorGeomQuadGE(DetectorBase):
         assert len(funcXVecListList) == len(self.lQuad), \
             'funcXVecListList wrong length'
 
-        import copy
         lQuad = copy.copy(self.lQuad)
         lQuad.remove(iRefQuad)
         #dRef = self.detectors[iRefQuad]
