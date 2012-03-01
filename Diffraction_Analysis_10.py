@@ -23,18 +23,20 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
+from math import cos,sin,atan,sqrt,tan,asin,acos
+import math
+import random
 
 import numpy
-from Vector_funcs import *
 from numpy import dot
 from scipy.linalg import det,inv,eig
 from scipy.optimize import fmin
 import scipy.optimize
-from math import cos,sin,atan,sqrt,tan,asin,acos
-import math
-from data_class import inv_dict
-import random
-from Misc_funcs import *
+
+from hexrd.data_class import inv_dict
+from hexrd.Misc_funcs import *
+from hexrd.Vector_funcs import *
+
 def deg(x):
     return x*180./math.pi
 def rad(x):

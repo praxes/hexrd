@@ -178,7 +178,7 @@ def histoFit(data, nBins, plot=False):
   dataHist = dataHist[notNan]
 
   if plot:
-    import plotWrap
+    import hexrd.plotWrap as plotWrap
     pw = plotWrap.PlotWrap()
     pw(data[:,0],data[:,1],style='rx')
     pw(xCen, dataHist, style='k-')
