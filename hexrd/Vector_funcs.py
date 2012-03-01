@@ -24,14 +24,19 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 import warnings
-import numpy
-from numpy import dot,sqrt
-from scipy.linalg import det,inv,eig
-from data_class import inv_dict
 from math import cos,sin,acos,asin,atan
 import math
 import decimal
-from Misc_funcs import *
+
+import numpy
+from numpy import dot,sqrt
+from scipy.linalg import det,inv,eig
+
+from hexrd.data_class import inv_dict
+from hexrd.Misc_funcs import *
+import hexrd.XRD.grain_wrap_precession as gw
+from hexrd.Diffraction_Analysis_10 import permutation as perm
+
 def Rod_param(a,b,t=0):
     a_ = Unit(a)
     b_ = Unit(b)
@@ -310,7 +315,6 @@ def dRdtheta(p,theta):
     return w*cos(theta)+dot(w,w)*sin(theta)
 
 def dRdn(p,theta):
-    from Diffraction_Analysis_10 import permutation as perm
     px,py,pz = p
     dRij = num.zeros([3,3,3])
     def perm_loop1(i1,i2,i3,n):
@@ -556,7 +560,6 @@ def unit_vector(length_, index):
     a[index]=1
     return a
 def spot_to_vec(spot, tmpdg,wavelength):
-    import grain_wrap_precession as gw
     #angCOM, angCOM_unc = spot.angCOM(useFit=True, getUncertainties=True)
     angCOM= spot.angCOM(useFit=True)
     xyoCOM = num.array(spot.detectorGeom.angToXYO(*angCOM)).flatten()

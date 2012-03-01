@@ -23,10 +23,12 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
-from data_class import inv_dict
-from Vector_funcs import * 
-from Misc_funcs import *
 from math import asin,acos,cos,sin
+
+from hexrd.data_class import inv_dict
+from hexrd.data_class import layered_data
+from hexrd.Vector_funcs import * 
+from hexrd.Misc_funcs import *
 
 def Get_Cartesian(vector,b1,b2,b3):
     x = dot(vector,b1)
@@ -876,9 +878,7 @@ def Query_Orientation(gIs, rIs, Rtrial,search_radius = 'default'):
 def Query_Orientation_Unique(gIs,rIs,Rtrial,search_radius = 'default'):
     """gIs: indexing_hkls_struct
     rIs: Vector_Data_Structure
-    """
-    from data_class import layered_data
-    
+    """    
     num_hkls = len(gIs.keys())
     slots = inv_dict()
     allids = {}

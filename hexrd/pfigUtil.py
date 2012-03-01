@@ -23,9 +23,14 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
-import arrayUtil
-from arrayUtil import getMem
-from arrayUtil import num # import numpy as num
+from math import atan2, sqrt
+import copy
+
+from hexrd import arrayUtil
+from hexrd.arrayUtil import getMem
+from hexrd.arrayUtil import num # import numpy as num
+from hexrd import matrixUtils
+import hexrd.orientations as ors
 
 def sph2n(coords_sph):
     '''convert from chi/eta spherical coordinates to normal vectors;
@@ -48,7 +53,6 @@ def sph2n(coords_sph):
     return nVectors
 
 def n2sph(nVectors):
-    from math import atan2, sqrt
     assert nVectors.shape[0] == 3, 'shape[0] not 3'
     sph = arrayUtil.getMem((2,nVectors.shape[1]))
     for iVector in range(nVectors.shape[1]):
@@ -64,7 +68,6 @@ def n2eap(nVectors, flip=True):
     """
     unit vectors to equal-area projection
     """
-    import copy
     nVecs = copy.deepcopy(nVectors)
     nPnts = nVectors.shape[1]
     retval = getMem((2,nPnts))
@@ -146,8 +149,6 @@ def drawLines(pw, pointLists=[],
               netStyle = None, netNDiv = 12, netAlpha = 0.5, rMat=None, 
               southern=False, invertFromSouthern=True,
               origin=(0.,0.), r=1.0):
-    import matrixUtils
-    import orientations as ors
     
     x0, y0 = origin
     

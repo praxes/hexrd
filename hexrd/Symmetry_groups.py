@@ -23,10 +23,13 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
-import numpy
 from math import pi,sin,cos
-from Vector_funcs import *
-from Diffraction_Analysis_10 import quaternion_map,Unit_Quaternion
+
+import numpy
+
+from hexrd.Vector_funcs import *
+from hexrd.Diffraction_Analysis_10 import quaternion_map,Unit_Quaternion
+
 def Sym_Group(schoenfliesTag):
     
     """ QUATOFLAUEGROUP - Generate quaternion representation for the specified """

@@ -25,11 +25,13 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 # stuff for representations of tensor components: tens.py
+import sys
+from math import sqrt
 
 from numpy import *
 import numpy as num
 
-from constants import *
+from hexrd.constants import *
 
 def vecdvToVecds(vecdv):
     """convert from [t1,...,t5,v] to vecds[:] representation,
@@ -332,7 +334,6 @@ class T2Vecds(T2Symm):
     def toVecds(self):
         return self # self.vecds
     def toUnit(self):
-        from math import sqrt
         mag = sqrt(num.sum(self.vecds[:] * self.vecds[:]))
         return T2Vecds(self.vecds / mag)
 
@@ -349,7 +350,6 @@ class T2Svec(T2Symm):
             elif len(val.shape) == 2:
                 self.svec = matxToSvec(val)
             else:
-                import sys
                 print >> sys.stderr, "bad size "+str(val)
                 raise RuntimeError, "unrecoverable error"
         else:

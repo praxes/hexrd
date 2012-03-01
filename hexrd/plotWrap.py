@@ -38,9 +38,10 @@ what we need is something to make the figure and the canvas without the figure m
 
 
 '''
-
+import numpy as num
 import matplotlib
 matplotlib.use('TkAgg')
+import math
 
 # from matplotlib.backend_bases import Event
 # class MyResizeEvent(Event):
@@ -51,7 +52,6 @@ matplotlib.use('TkAgg')
 #         return
 
 def autoTicks(x, n, format='%0.2e'):
-    import numpy as num
     xmin = num.array(x).min()
     xmax = num.array(x).max()
     delta = (xmax-xmin)/n
@@ -149,7 +149,6 @@ class PlotWin:
 
         return
     def __autoNRC(self, n, resizeFig=False):
-        import math
         self.nc = int(math.ceil(math.sqrt(float(n))))
         self.nr = int(math.ceil(float(n)/self.nc))
         if resizeFig and hasattr(self.root, 'wm_geometry'):
@@ -700,7 +699,7 @@ class PlotWrap(object):
             'export data'
             if len(self.x_store[0]) > 0:
                 dataFilename = prefix+'.data'
-                import arrayUtil
+                from hexrd import arrayUtil
                 try:
                     arrayUtil.writeArray(dataFilename, num.array(self.x_store))
                 except:
@@ -1022,6 +1021,7 @@ def makeHist2D(xVals, yVals, bins, hRange = None, weights = None):
     return xedges, yedges, H
     
 def main():
+    # self referential import ??? Is this necessary?
     import plotWrap
     import numpy as num
     import math
