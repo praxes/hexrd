@@ -29,12 +29,12 @@
 """
 import wx
 
-from XRD.Experiment  import PolarRebinOpts as prOpts
+from hexrd.XRD.Experiment  import PolarRebinOpts as prOpts
 
-from guiConfig    import WindowParameters as WP
-from guiUtilities import makeTitleBar
+from hexrd.XRD.guiConfig    import WindowParameters as WP
+from hexrd.XRD.guiUtilities import makeTitleBar
 
-from canvasUtilities import *
+from hexrd.XRD.canvasUtilities import *
 #
 # ---------------------------------------------------CLASS:  cakeCanvas
 #

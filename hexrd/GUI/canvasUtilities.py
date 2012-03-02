@@ -46,8 +46,8 @@ from matplotlib.figure                 import Figure
 from matplotlib                        import pyplot
 from matplotlib                        import cm
 
-from guiConfig    import WindowParameters as WP
-from guiUtilities import makeTitleBar
+from hexrd.GUI.guiConfig    import WindowParameters as WP
+from hexrd.GUI.guiUtilities import makeTitleBar
 
 __all__ = ['matplotlib',
            'FigureCanvas',

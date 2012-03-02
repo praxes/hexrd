@@ -31,19 +31,18 @@ import wx
 
 import numpy
 
-from XRD import detector
-from XRD.Experiment  import PolarRebinOpts as prOpts
-from XRD.xrdUtils    import CollapseOmeEta
-from canvasUtilities import *
+from hexrd.XRD import detector
+from hexrd.XRD.Experiment  import PolarRebinOpts as prOpts
+from hexrd.XRD.xrdUtils    import CollapseOmeEta
 
-from guiConfig    import WindowParameters as WP
-from guiUtilities import makeTitleBar
-
-from ringSubPanel import ringPanel
-from selectHKLs   import selectHKLsDialog as hklsDlg
-from LogWindows   import logWindow
-from FloatControl import *
-from cakingCanvas import cakeDisplay
+from hexrd.GUI.canvasUtilities import *
+from hexrd.GUI.guiConfig    import WindowParameters as WP
+from hexrd.GUI.guiUtilities import makeTitleBar
+from hexrd.GUI.ringSubPanel import ringPanel
+from hexrd.GUI.selectHKLs   import selectHKLsDialog as hklsDlg
+from hexrd.GUI.LogWindows   import logWindow
+from hexrd.GUI.FloatControl import *
+from hexrd.GUI.cakingCanvas import cakeDisplay
 #
 #  Module Data
 #

@@ -36,11 +36,11 @@ import numpy
 #
 #  XRD package
 #
-from   guiConfig     import WindowParameters as WP
-from guiUtilities    import ResetChoice,makeTitleBar
-from canvasUtilities import *
+from hexrd.GUI.guiConfig import WindowParameters as WP
+from hexrd.GUI.guiUtilities import ResetChoice,makeTitleBar
+from hexrd.GUI.canvasUtilities import *
 
-from FloatControl import *
+from hexrd.GUI.FloatControl import *
 #
 #  Data
 #

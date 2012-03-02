@@ -43,23 +43,23 @@ import os
 import wx
 import numpy
 #
+#  XRD Modules
+#
+from hexrd.XRD            import detector
+from hexrd.XRD.Material   import *
+from hexrd.XRD.Experiment import FitModes
+
+from hexrd.XRD.crystallography import dUnit as WAVELENGTH_UNIT
+from hexrd.XRD.crystallography import processWavelength
+#
 #  GUI Modules
 #
-from guiConfig    import WindowParameters as WP
-from guiUtilities import ResetChoice, AddSpacer, EmptyWindow, makeTitleBar
-from FloatControl import *
-from LogWindows   import logWindow
-from ringSubPanel import ringPanel
-from selectHKLs   import selectHKLsDialog as hklsDlg #TBR
-#
-#  mdef Modules
-#
-from XRD            import detector
-from XRD.Material   import *
-from XRD.Experiment import FitModes
-
-from XRD.crystallography import dUnit as WAVELENGTH_UNIT
-from XRD.crystallography import processWavelength
+from hexrd.GUI.guiConfig    import WindowParameters as WP
+from hexrd.GUI.guiUtilities import ResetChoice, AddSpacer, EmptyWindow, makeTitleBar
+from hexrd.GUI.FloatControl import *
+from hexrd.GUI.LogWindows   import logWindow
+from hexrd.GUI.ringSubPanel import ringPanel
+from hexrd.GUI.selectHKLs   import selectHKLsDialog as hklsDlg #TBR
 
 # AngstromTimesKev = 12.39854 # from APS site (lose digits accuracy this way)
 AngstromTimesKev = processWavelength(1.0)
