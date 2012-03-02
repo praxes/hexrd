@@ -31,14 +31,14 @@ import os, sys
 
 import wx
 
-import guiConfig
-from xrdMainFrame import xrdMainFrame
+from hexrd.GUI import guiConfig
+from hexrd.GUI.xrdMainFrame import xrdMainFrame
 #
 #  mdef Modules
 #
-from XRD import detector as detectorModule
+from hexrd.XRD import detector as detectorModule
 
-from XRD.Experiment import loadExp, ImageModes
+from hexrd.XRD.Experiment import loadExp, ImageModes
 #
 # ---------------------------------------------------CLASS:  xrdApp
 #

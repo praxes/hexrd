@@ -25,8 +25,6 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 #
-#  Copyright-Info-Goes-Here
-#
 """Window used for selecting HKLs.
 """
 import sys
@@ -35,7 +33,7 @@ import math
 import wx
 #import wx.lib.mixins.listctrl  as  listMixins
 
-from guiConfig import WindowParameters as WP
+from hexrd.GUI.guiConfig import WindowParameters as WP
 #
 # ---------------------------------------------------CLASS:  selectHKLsPanel.py
 #

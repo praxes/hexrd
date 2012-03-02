@@ -25,8 +25,6 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 #
-#  $Id: planeDataEditor.py 819 2011-04-25 16:30:55Z boyce6 $
-#
 """Frame for editing plane data/calibrants
 
 OBSOLETE:  due to be removed, but currently saving for reference 
@@ -35,7 +33,7 @@ OBSOLETE:  due to be removed, but currently saving for reference
 import wx
 import numpy
 
-from guiConfig   import WindowParameters as WP
+from hexrd.GUI.guiConfig import WindowParameters as WP
 #
 #  Module data
 #

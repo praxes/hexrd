@@ -25,16 +25,14 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 #
-#  $Id$
-#
 """Panel for selecting image reader
 """
 import wx
 
-from guiConfig    import WindowParameters as WP
-from guiUtilities import makeTitleBar
+from hexrd.GUI.guiConfig    import WindowParameters as WP
+from hexrd.GUI.guiUtilities import makeTitleBar
 
-from geReader import geReaderPanel
+from hexrd.GUI.geReader import geReaderPanel
 
 DET_GE      = 'ge'
 DET_CHOICES = [DET_GE]

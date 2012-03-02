@@ -32,10 +32,10 @@
 #
 import wx
 
-from XRD.Material import Material
+from hexrd.XRD.Material import Material
 
-from guiConfig    import WindowParameters as WP
-from guiUtilities import ResetChoice, AddSpacer
+from hexrd.GUI.guiConfig    import WindowParameters as WP
+from hexrd.GUI.guiUtilities import ResetChoice, AddSpacer
 #
 # ---------------------------------------------------CLASS:  matPanel
 #
