@@ -29,10 +29,10 @@
 """
 import wx
 
-from guiConfig    import WindowParameters as WP
-from guiUtilities import makeTitleBar
+from hexrd.GUI.guiConfig    import WindowParameters as WP
+from hexrd.GUI.guiUtilities import makeTitleBar
 
-from XRD.crystallography    import processWavelength
+from hexrd.XRD.crystallography    import processWavelength
 #
 # ---------------------------------------------------CLASS:  spotsPanel
 #

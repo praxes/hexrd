@@ -36,18 +36,16 @@ from ConfigParser import SafeConfigParser as Parser
 import wx
 from wx.lib.wordwrap import wordwrap
 
-import copyright
+from hexrd import copyright
+from hexrd.XRD.Experiment import *
 
-from XRD.Experiment import *
-
-from guiConfig    import WindowParameters as WP
-from guiUtilities import makeTitleBar
-from xrdNoteBook  import xrdNoteBook
-from canvasPanel  import CanvasPanel
-
-from ListEditor      import ListEditDlg
-from hydraInterface  import HydraControlFrame
-from caking          import cakingDialog
+from hexrd.GUI.guiConfig    import WindowParameters as WP
+from hexrd.GUI.guiUtilities import makeTitleBar
+from hexrd.GUI.xrdNoteBook  import xrdNoteBook
+from hexrd.GUI.canvasPanel  import CanvasPanel
+from hexrd.GUI.ListEditor      import ListEditDlg
+from hexrd.GUI.hydraInterface  import HydraControlFrame
+from hexrd.GUI.caking          import cakingDialog
 #
 # ---------------------------------------------------CLASS:  xrdMainFrame
 #

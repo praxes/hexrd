@@ -46,15 +46,13 @@ EVT_NOTEBOOK_PAGE_CHANGING
 """
 import wx
 
-from guiConfig import WindowParameters as WP
-
-from materialsPanel import matPanel
-from readerPanel    import readerPanel
-
-from detectorPanel import detectorPanel
-from spotsPanel    import spotsPanel
-from indexPanel    import indexPanel
-from grainPanel    import grainPanel
+from hexrd.GUI.guiConfig import WindowParameters as WP
+from hexrd.GUI.materialsPanel import matPanel
+from hexrd.GUI.readerPanel    import readerPanel
+from hexrd.GUI.detectorPanel import detectorPanel
+from hexrd.GUI.spotsPanel    import spotsPanel
+from hexrd.GUI.indexPanel    import indexPanel
+from hexrd.GUI.grainPanel    import grainPanel
 #
 # ---------------------------------------------------CLASS:  xrdNoteBook
 #
