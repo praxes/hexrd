@@ -41,10 +41,10 @@ from matplotlib                        import cm
 #
 #  XRD package
 #
-from   guiConfig  import WindowParameters as WP
-from guiUtilities import ResetChoice
+from hexrd.GUI.guiConfig  import WindowParameters as WP
+from hexrd.GUI.guiUtilities import ResetChoice
 
-from FloatControl import *
+from hexrd.GUI.FloatControl import *
 #
 # ---------------------------------------------------CLASS:  hydraCanvasPanel
 #

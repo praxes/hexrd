@@ -29,7 +29,7 @@
 """
 import wx
 
-from guiConfig import WindowParameters as WP
+from hexrd.GUI.guiConfig import WindowParameters as WP
 #
 # ---------------------------------------------------CLASS:  HydraSchematicPanel
 #

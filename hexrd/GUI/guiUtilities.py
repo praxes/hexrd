@@ -29,7 +29,7 @@
 """
 import wx.html
 #
-from guiConfig import WindowParameters as WP, onLinux
+from hexrd.GUI.guiConfig import WindowParameters as WP, onLinux
 #
 def ResetChoice(cho, names, sname):
     """Reset the choice interactor. 

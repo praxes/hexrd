@@ -29,9 +29,9 @@
 """
 import wx
 
-from guiConfig import WindowParameters as WP
+from hexrd.GUI.guiConfig import WindowParameters as WP
 
-from hydraCanvas import hydraCanvasFrame
+from hexrd.GUI.hydraCanvas import hydraCanvasFrame
 #
 # ---------------------------------------------------CLASS:  HydraControlPanel
 #

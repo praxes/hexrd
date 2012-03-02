@@ -34,9 +34,9 @@ import copy
 
 import wx
 
-from guiConfig import WindowParameters as WP
+from hexrd.GUI.guiConfig import WindowParameters as WP
 
-from XRD.Experiment import newName  # need better place for newName function
+from hexrd.XRD.Experiment import newName  # need better place for newName function
 #
 # ---------------------------------------------------CLASS:  ListEditor
 #

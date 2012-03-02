@@ -25,14 +25,13 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 #
-#  Copyright-Info-Goes-Here
-#
 """Log management and display
 """
 import thread
 
 import wx
-from guiUtilities import makeTitleBar
+
+from hexrd.GUI.guiUtilities import makeTitleBar
 #
 # ---------------------------------------------------CLASS:  logWindow
 #
