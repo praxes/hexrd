@@ -30,9 +30,9 @@ srclist = ['sgglobal.c','sgcb.c','sgcharmx.c','sgfile.c',
            'sggen.c','sghall.c','sghkl.c','sgltr.c','sgmath.c','sgmetric.c',
            'sgnorm.c','sgprop.c','sgss.c','sgstr.c','sgsymbols.c',
            'sgtidy.c','sgtype.c','sgutil.c','runtests.c','sglitemodule.c']
-srclist = [os.path.join('sglite', f) for f in srclist]
+srclist = [os.path.join('hexrd/sglite', f) for f in srclist]
 
-sglite_mod = Extension('XRD.sglite', sources=srclist,
+sglite_mod = Extension('hexrd.XRD.sglite', sources=srclist,
                    define_macros = [('PythonTypes', 1)])
 
 ext_modules = [sglite_mod]
@@ -58,3 +58,4 @@ setup(
         'wxpython (>= 2.8)',
         ),
 )
+

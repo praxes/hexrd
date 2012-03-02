@@ -30,7 +30,13 @@ import copy
 import os
 import time
 import sys
-import Image
+
+try:
+    import Image
+    haveImageModule = True
+except:
+    haveImageModule = False
+
 haveThreading = True
 try:
     import threading
@@ -880,6 +886,11 @@ class ReadMar165(Reader):
         self.__idim = mar165IDim(mode)
         return
     def __call__(self, filename):
+        if not haveImageModule:
+            msg = "PIL Image module is required for this operation, "\
+                "but not loaded\n"
+            raise NameError(msg)
+        
         i = Image.open(filename, mode='r')
         a = num.array(i, dtype=self.__frame_dtype_read)
         frame = num.array(a, dtype=self.__frame_dtype_dflt)

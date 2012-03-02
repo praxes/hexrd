@@ -32,7 +32,12 @@ import numpy as num
 import numpy.random
 from scipy.linalg import inv,eig
 import scipy.optimize
-import scipy.stats
+
+try:    
+    import scipy.stats
+    haveSciPyStats = True
+except:
+    haveSciPyStats = False
 
 from hexrd.File_funcs import write_lines
 from hexrd.Vector_funcs import Mag
@@ -42,6 +47,9 @@ def findChisqr(conf_level, df, x0 = 16.):
     uses scipy.optimize.fsolve to find the chisquared value for a particular level of confidence.
     """
     def _chisqrdiff(chisq, df, target):
+        if not haveSciPyStats:
+            msg = "scipy.stats module is required to use this function, but failed to import "
+            raise NameError(msg)
         return scipy.stats.chisqprob(chisq,df) - target
     target_chisqr = 1 - conf_level
     chisqr = scipy.optimize.fsolve(_chisqrdiff, x0 = x0, args = (df, target_chisqr))
