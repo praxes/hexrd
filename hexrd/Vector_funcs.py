@@ -34,7 +34,6 @@ from scipy.linalg import det,inv,eig
 
 from hexrd.data_class import inv_dict
 from hexrd.Misc_funcs import *
-import hexrd.XRD.grain_wrap_precession as gw
 from hexrd.Diffraction_Analysis_10 import permutation as perm
 
 def Rod_param(a,b,t=0):
@@ -560,6 +559,8 @@ def unit_vector(length_, index):
     a[index]=1
     return a
 def spot_to_vec(spot, tmpdg,wavelength):
+    # circular import below
+    import hexrd.XRD.grain_wrap_precession as gw
     #angCOM, angCOM_unc = spot.angCOM(useFit=True, getUncertainties=True)
     angCOM= spot.angCOM(useFit=True)
     xyoCOM = num.array(spot.detectorGeom.angToXYO(*angCOM)).flatten()
