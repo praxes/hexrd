@@ -29,8 +29,8 @@
 """
 import wx
 
-from guiConfig import WindowParameters as WP
-from guiUtilities import makeTitleBar, callJoel
+from hexrd.GUI.guiConfig import WindowParameters as WP
+from hexrd.GUI.guiUtilities import makeTitleBar, callJoel
 #
 # ---------------------------------------------------CLASS:  grainPanel
 #

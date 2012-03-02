@@ -31,12 +31,12 @@ import os, sys
 import wx
 import wx.lib.mixins.listctrl  as  listMixins
 
-from XRD import detector
-from XRD.Experiment import *
+from hexrd.XRD import detector
+from hexrd.XRD.Experiment import *
 
-from guiConfig    import WindowParameters as WP
-from guiUtilities import ResetChoice, makeTitleBar
-from canvasPanel  import CanvasPanel
+from hexrd.GUI.guiConfig    import WindowParameters as WP
+from hexrd.GUI.guiUtilities import ResetChoice, makeTitleBar
+from hexrd.GUI.canvasPanel  import CanvasPanel
 #
 #  DATA
 #

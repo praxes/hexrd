@@ -25,15 +25,13 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 #
-#  $Id: fitParamPanel.py 557 2010-04-30 18:18:06Z boyce6 $
-#
 """Panel for fit parameters
 
 Includes EVT_FIT_PARAM as new event.
 """
 import wx
 
-from guiConfig import WindowParameters as WP
+from hexrd.GUI.guiConfig import WindowParameters as WP
 #
 #  Module Data
 #

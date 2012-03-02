@@ -31,7 +31,9 @@ import platform
 
 import wx
 
-import matplotlib;  matplotlib.use('WXAgg')
+import matplotlib
+
+matplotlib.use('WXAgg')
 #  
 #  * PLATFORM 
 #

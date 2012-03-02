@@ -25,8 +25,6 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 #
-#  $Id: fitParams.py 532 2010-04-27 16:40:03Z boyce6 $
-#
 """Module for handling fit parameters
 """
 # ---------------------------------------------------CLASS:  FitParams

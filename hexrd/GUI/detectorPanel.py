@@ -36,10 +36,8 @@ TO DO
 * Panel for modifying plane-data (in progress)
 
 """
-#
-#  Python packages
-#
 import os
+
 import wx
 import numpy
 #

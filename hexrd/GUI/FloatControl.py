@@ -25,8 +25,6 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 #
-#  $Id$
-#
 """Control for Reading in floats
 
 NOTE:  new syntax for custom events
