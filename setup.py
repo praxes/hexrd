@@ -45,11 +45,13 @@ for dirpath, dirnames, filenames in os.walk('.'):
         del(dirnames[:])
 
 setup(
+    name = 'hexrd',
+    version = '0.0.0',
     author = 'Joel Bernier, et al.',
     author_email = 'bernier2@llnl.gov',
     description = 'High energy diffraction microscopy',
+    license = 'LGPL',
     ext_modules = ext_modules,
-    name = 'hexrd',
     packages = packages,
     requires = (
         'python (>=2.6)',

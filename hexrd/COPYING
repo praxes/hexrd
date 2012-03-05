@@ -1,10 +1,22 @@
+The HEXRD package can be downloaded from the Python Package Index at:
+    http://pypi.python.org/pypi/hexrd
+or from GitHub at:
+    https://github.com/praxes/hexrd/downloads
+
+Please review the copyright notice below.
+
+The SGLITE package has been provided by Ralf W. Grosse-Kunstleve.
+See the file LICENSE in the sglite directory for more information.
+
+================================================================================
 Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
 Produced at the Lawrence Livermore National Laboratory. 
 Written by Joel Bernier <bernier2@llnl.gov> and others. 
 LLNL-CODE-529294. 
 All rights reserved.
 
-This file is part of HEXRD. For details, see https://github.com/joelvbernier/hexrd.
+This file is part of HEXRD. For details on dowloading the source,
+see the file COPYING.
 
 Please also see the file LICENSE.
 
