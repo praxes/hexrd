@@ -1,11 +1,12 @@
 # ============================================================
-# Copyright (c) 2007-2012, Lawrence Livermore National Security, LLC. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
 # Produced at the Lawrence Livermore National Laboratory. 
 # Written by Joel Bernier <bernier2@llnl.gov> and others. 
 # LLNL-CODE-529294. 
 # All rights reserved.
 # 
-# This file is part of HEXRD. For details, see https://github.com/joelvbernier/hexrd.
+# This file is part of HEXRD. For details on dowloading the source,
+# see the file COPYING.
 # 
 # Please also see the file LICENSE.
 # 

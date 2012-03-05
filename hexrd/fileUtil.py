@@ -5,7 +5,8 @@
 # LLNL-CODE-529294. 
 # All rights reserved.
 # 
-# This file is part of HEXRD. For details, see https://github.com/joelvbernier/hexrd.
+# This file is part of HEXRD. For details on dowloading the source,
+# see the file COPYING.
 # 
 # Please also see the file LICENSE.
 # 
