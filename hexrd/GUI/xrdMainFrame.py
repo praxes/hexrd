@@ -639,16 +639,10 @@ class xrdMainFrame(wx.Frame):
 
         aboutMsg = r"""heXRD Package for x-ray
 
-========================================
+==================================
 %s
-========================================
-%s
-
 """
-        ref_sglite = r"""sglite provided by Ralf W. Grosse-Kunstleve
-(copyright included in source)        
-"""
-        aboutMsg = aboutMsg % (copyright.COPYRIGHT_TEXT, ref_sglite)
+        aboutMsg = aboutMsg % (copyright.COPYRIGHT_TEXT)
 
         wx.MessageBox(aboutMsg)
         
