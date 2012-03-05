@@ -34,6 +34,6 @@ COPYRIGHT_TEXT - the text of that file
 """
 import os
 
-COPYRIGHT_FILE = 'COPYRIGHT'
+COPYRIGHT_FILE = 'COPYING'
 with open(os.path.join(os.path.dirname(__file__), COPYRIGHT_FILE), 'r') as f:
      COPYRIGHT_TEXT = f.read()
