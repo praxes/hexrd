@@ -63,7 +63,6 @@ from hexrd.XRD import xrdBase
 from hexrd.XRD.xrdBase import getGaussNDParams
 from hexrd.XRD import Rotations
 from hexrd.XRD.Rotations import mapAngle
-from hexrd.XRD import uncertainty_analysis
         
 
 debugDflt = False
@@ -1782,9 +1781,10 @@ class Spot(object):
         self.__fitNDim = fit_results[2]
         self.__fitFunc = fit_results[3]
         if uncertainties:
+            raise NotImplementedError('uncertainty not implemented')
             params = fit_results[0]
             cov_x = fit_results[4]
-            u_is = uncertainty_analysis.computeAllparameterUncertainties(params, cov_x, confidence_level)
+            #u_is = uncertainty_analysis.computeAllparameterUncertainties(params, cov_x, confidence_level)
             self.__fitUncertainties = u_is
             self.__fitCov_X         = cov_x
             self.__fitConf_level    = confidence_level
