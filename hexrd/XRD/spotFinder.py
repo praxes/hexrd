@@ -34,7 +34,7 @@ import shelve
 import exceptions
 import StringIO
 import ctypes
-    
+import multiprocessing
 
 import numpy as num
 from matplotlib import cm
