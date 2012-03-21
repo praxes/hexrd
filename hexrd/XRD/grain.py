@@ -40,7 +40,6 @@ import hexrd.XRD.crystallography as xtl # latticeParameters, latticeVectors, get
 from hexrd import XRD
 from hexrd.XRD.xrdUtils import calculateBiotStrain, makeMeasuredScatteringVectors
 from hexrd.matrixUtils import columnNorm
-from hexrd.XRD import uncertainty_analysis
 
 # constants
 r2d = 180./num.pi
@@ -1078,8 +1077,9 @@ class Grain(object):
                 mu_uncs = num.hstack(angCOM_0_unc, angCOM_1_unc).flatten()
                 extraArgs = (tmpDG, xyoCOM_0, xyoCOM_1) 
                 try:
-                    uf = uncertainty_analysis.propagateUncertainty(
-                        __fitPrecession_model_func, mu_uncs, 1e-8, mus, *extraArgs)
+                    raise NotImplementedError('uncertainties not implemented')
+                    #uf = uncertainty_analysis.propagateUncertainty(
+                    #    __fitPrecession_model_func, mu_uncs, 1e-8, mus, *extraArgs)
                     #ufs.append(uf)
                     #print 'uf',uf
                 except AssertionError:
@@ -1126,7 +1126,8 @@ class Grain(object):
             pVec1 = optResults[0]
             cov_x = optResults[1]
             print >> fout, 'cov,solution',cov_x,pVec1
-            u_is = uncertainty_analysis.computeAllparameterUncertainties(pVec1, cov_x, confidence_level)
+            raise NotImplementedError('uncertainties not implemented')
+            #u_is = uncertainty_analysis.computeAllparameterUncertainties(pVec1, cov_x, confidence_level)
             self.detectorGeom.pVecUncertainties = u_is
             
             pVec1 = optResults[0]
