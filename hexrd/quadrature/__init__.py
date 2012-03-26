@@ -27,18 +27,7 @@
 """For numerical quadrature
 """
 
-__all__ = [
-    'quadrature' ]
-
-try:
-  from pkgutil import extend_path
-  __path__ = extend_path(__path__, __name__)
-  quadraturePath = __path__ # __path__[-1]
-except: # ignore all exceptions
-  pass
-
-def getPath():
-    return quadraturePath
+__all__ = ['quadrature' ]
 
 
 

@@ -26,7 +26,7 @@
 # ============================================================
 import numpy as num
 
-from qloc1dData import *
+from .qloc1dData import *
 
 def qloc1():
     nqpt = 1
