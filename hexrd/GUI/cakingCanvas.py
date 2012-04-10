@@ -30,6 +30,8 @@
 """
 import wx
 
+import numpy
+
 from hexrd.XRD.Experiment  import PolarRebinOpts as prOpts
 
 from hexrd.GUI.guiConfig import WindowParameters as WP
@@ -301,8 +303,8 @@ class rngOpts(wx.Panel):
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Show(self.tbarSizer, False)
-        self.sizer.Add(self. unit_cho, wx.EXPAND|wx.ALIGN_CENTER)
-        self.sizer.Add(self.exp_but,  0, wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 5)
+        self.sizer.Add(self.unit_cho, 0, wx.ALIGN_LEFT)
+        self.sizer.Add(self.exp_but,  0, wx.ALIGN_LEFT|wx.TOP, 5)
         
 	return
     #
@@ -341,12 +343,12 @@ class rngOpts(wx.Panel):
         if dlg.ShowModal() == wx.ID_OK:
             f = dlg.GetPath()
             try:
-                wx.MessageBox('would save to file:  %s' % f)
-                #exp.saveDetector(f)
+                numpy.savetxt(f, self.errs)
             except:
                 wx.MessageBox('failed to save file:  %s' % f)
                 pass
             pass
+
 
         dlg.Destroy()
 
