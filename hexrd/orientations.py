@@ -136,6 +136,22 @@ def rodrToInv(rodr):
 def rodrToQuat(rodr): 
     return invToQuat(rodrToInv(rodr))
 
+def invToM(theta, n0, n1, n2):
+    mat = zeros([3,3], dtype='float64')
+    a = cos(theta)
+    b = sin(theta)
+    am1 = (1. - a)
+    mat[0,0] = am1 * n0 * n0 + a
+    mat[0,1] = am1 * n0 * n1 - n2 * b
+    mat[0,2] = am1 * n0 * n2 + n1 * b
+    mat[1,0] = am1 * n0 * n1 + n2 * b
+    mat[1,1] = am1 * n1 * n1 + a  
+    mat[1,2] = am1 * n1 * n2 - n0 * b
+    mat[2,0] = am1 * n0 * n2 - n1 * b
+    mat[2,1] = am1 * n1 * n2 + n0 * b
+    mat[2,2] = am1 * n2 * n2 + a
+    return mat
+
 def invToQuat(inv):
     vect = False
     if hasattr(inv, 'shape'):
@@ -540,8 +556,8 @@ class RotInv(RotationParameterization):
                     self.theta = newInv.theta
             elif a == 'align':
                 # align given crystal vector with given sample vector
-                vl = num.array(args[1])
-                vs = num.array(args[2])
+                vl = num.array(args[1],dtype=float)
+                vs = num.array(args[2],dtype=float)
                 # normalize
                 mag = normvec3(vl)
                 vl /= mag
@@ -613,19 +629,7 @@ class RotInv(RotationParameterization):
         if debug > 1: print "q:", q
         return q
     def toMatrix(self):
-        mat = zeros([3,3], dtype='float64')
-        a = cos(self.theta)
-        b = sin(self.theta)
-        am1 = (1. - a)
-        mat[0,0] = am1 * self.n[0] * self.n[0] + a
-        mat[0,1] = am1 * self.n[0] * self.n[1] - self.n[2] * b
-        mat[0,2] = am1 * self.n[0] * self.n[2] + self.n[1] * b
-        mat[1,0] = am1 * self.n[0] * self.n[1] + self.n[2] * b
-        mat[1,1] = am1 * self.n[1] * self.n[1] + a  
-        mat[1,2] = am1 * self.n[1] * self.n[2] - self.n[0] * b
-        mat[2,0] = am1 * self.n[0] * self.n[2] - self.n[1] * b
-        mat[2,1] = am1 * self.n[1] * self.n[2] + self.n[0] * b
-        mat[2,2] = am1 * self.n[2] * self.n[2] + a
+        mat = invToM(self.theta, *self.n)
         return mat
 
 class CanovaEuler(RotationParameterization):

@@ -32,7 +32,6 @@ import time
 import string
 import re
 
-
 class Log:
     """for logging"""
     def __init__(self,logFileName=None,toScreen=True):
@@ -371,8 +370,13 @@ def getScratchBaseDir():
         else:
             raise RuntimeError, 'unknown HOSTNAME environment variable  '
     elif sysType == 'chaos_3_x86_64_ib' or sysType == 'chaos_4_x86_64_ib':
-        scratchBaseDir = '/p/lscratchb/' + os.environ['USER']
-        resourceName = 'lscratchb'
+        hostName = getHostName()
+        if hostName[0:2] == 'rz':
+            scratchBaseDir = '/nfs/tmp2/' + os.environ['USER']
+            resourceName = 'tmp2'
+        else:
+            scratchBaseDir = '/p/lscratchb/' + os.environ['USER']
+            resourceName = 'lscratchb'
     elif sysType == 'aix_5_64_fed':
         scratchBaseDir = '/p/gscratcha/' + os.environ['USER']
         resourceName = 'gscratcha'

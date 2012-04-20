@@ -73,15 +73,16 @@ def n2eap(nVectors, flip=True):
     nPnts = nVectors.shape[1]
     retval = getMem((2,nPnts))
     
-    belowEquator = num.where(nVecs[2,:] < -1e-4)
-    if flip:
-        nVecs[:,belowEquator] = -nVecs[:,belowEquator]
-    else:
-        'put on the equator'
-        nVecs[2,belowEquator] = 0.
-        # num.apply_along_axis(num.linalg.norm, 0, nVecs[0:2,belowEquator])
-        norms = num.sqrt( nVecs[0,belowEquator]*nVecs[0,belowEquator] + nVecs[1,belowEquator]*nVecs[1,belowEquator] )
-        nVecs[0:2,belowEquator] = nVecs[0:2,belowEquator] / norms
+    belowEquator, = num.where(nVecs[2,:] < -1e-4)
+    if len(belowEquator) > 0:
+        if flip:
+            nVecs[:,belowEquator] = -nVecs[:,belowEquator]
+        else:
+            'put on the equator'
+            nVecs[2,belowEquator] = 0.
+            # num.apply_along_axis(num.linalg.norm, 0, nVecs[0:2,belowEquator])
+            norms = num.sqrt( nVecs[0,belowEquator]*nVecs[0,belowEquator] + nVecs[1,belowEquator]*nVecs[1,belowEquator] )
+            nVecs[0:2,belowEquator] = nVecs[0:2,belowEquator] / norms
     
     r2    = nVecs[0,:]*nVecs[0,:] + nVecs[1,:]*nVecs[1,:]
     r2pos = num.where(r2 > 0.)

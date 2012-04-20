@@ -132,6 +132,12 @@ def writeArray(fid, *args, **dargs):
   f.close()
   return
 
+def arrayToString(a):
+  import StringIO
+  s = StringIO.StringIO()
+  num.savetxt(s, a)
+  return s.getvalue().replace('\n',' ')
+
 def structuredSort(order, things):
   '''
   sort things by order, return sorted things

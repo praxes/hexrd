@@ -59,6 +59,11 @@ from hexrd.XRD.xrdBase import multiprocessing
 from hexrd.XRD import Rotations as rot
 from hexrd.XRD.Rotations import mapAngle
 from hexrd.XRD import spotFinder
+try:
+    from femODFUtil import pfig as pfigPkg
+    havePfigPkg = True
+except:
+    havePfigPkg = False
 
 'quadr1d of 8 is probably overkill, but we are in 1d so it is inexpensive'
 quadr1dDflt = 8
@@ -1099,6 +1104,8 @@ class OmeEtaPfig(object):
             p.destroy()
         self.pList = []
         
+        self.__nP_cur = nP
+        
         if self.doRot is True:
             'rotate to get "x" into "z" so that projection along 3 direction works well'
             rMat = rMat_y90
@@ -1111,6 +1118,7 @@ class OmeEtaPfig(object):
             rMat = None
         else:
             raise RuntimeError, 'do not know what to do with doRot of '+str(self.doRot)
+        self.__rMat_cur = rMat
 
         forColorBar = None
         
@@ -1266,6 +1274,7 @@ class OmeEtaPfig(object):
                  cmap=None, pointLists=None, netStyle=None,
                  title=None,
                  doShow=True,
+                 logNorm=None,
                  kwArgs={},
                  ):
         didChange = False
@@ -1275,6 +1284,23 @@ class OmeEtaPfig(object):
             for col in self.colList:
                 col.set_clim(vmin=self.vmin, vmax=self.vmax)
             didChange = True
+        if logNorm is not None:
+            didChange = True
+            if logNorm:
+                """
+                may want to do something like:
+                cmap = cm.bone
+                cmap.set_under([0.,0.,0.])
+                cmap.set_over([1.,1.,1.])
+                cmap.set_bad([0.,0.,0.])
+                """
+                assert self.vmin is not None, 'need vmin to have been set for logNorm'
+                norm = matplotlib.colors.LogNorm(vmin=self.vmin, vmax=self.vmax, clip=False)
+                for col in self.colList:
+                    col.set_norm(norm)
+            else:
+                for col in self.colList:
+                    col.set_norm(None)
         if title is not None:
             self.p.f.suptitle(title, **kwArgs)
             didChange = True
@@ -1288,10 +1314,15 @@ class OmeEtaPfig(object):
                 self.pointLists = pointLists
             if netStyle is not None:
                 self.netStyle = netStyle
-            self.drawLines()
+            self.drawLines(self.__nP_cur, rMat=self.__rMat_cur)
             didChange = True
-        if doShow and didChange:
-            self.p.show()
+        if didChange:
+            if self.drawColorbar:
+                aCur = self.p.f.axes[-1]
+                forColorBar = self.colList[0]
+                self.cbar = self.p.f.colorbar(forColorBar, cax=aCur)
+            if doShow:
+                self.p.show()
         return
 
     def save(self, *args, **kwargs):
@@ -2045,6 +2076,56 @@ def pullFromStack(reader, detectorGeom, tThMM, angWidth, angCen,
 
     return iSpot, labels, objs, pixelData, xyfBBox
 
+def grainSpotsFromStack(g, 
+                        reader, detectorGeom, angWidth, threshold,
+                        **kwargs):
+    """
+    wrapper around spotFromStack; takes a grain and 
+    returns a dictionary of spots for the grain, with 
+    keys (hklID, iThisHKL)
+    
+    angWidth is for orientation spread; for 2-theta, g.planeData 
+    2-theta ranges are used 
+    
+    can specify hklIDs to look for just a subset of spots
+    
+    set distInAng=False if want the spots to have to contain the predicted angles,
+    otherwise, the closest spots in the bounding boxes will be returned
+    """
+    
+    fout   = kwargs.pop('fout', sys.stdout)
+    hklIDs = kwargs.pop('hklIDs', num.arange(len(g.planeData.getHKLs())))
+    #
+    debug  = kwargs.setdefault('debug',True)
+    #
+    kwargs.setdefault('fullBackground',False)
+    kwargs.setdefault('asFrame',False)
+    kwargs.setdefault('exitOnFail',True)
+    kwargs.setdefault('distInAng',True)
+
+    deltaOmega = reader.getDeltaOmega()
+    
+    retval = {}
+    #
+    for hklID in hklIDs:
+        tThMM = g.planeData.getTThRanges()[hklID]
+        predAnglesHKL = g.getPredAngles(iHKL=hklID)
+        for iThisHKL, predAngs in enumerate(predAnglesHKL):
+            if not detectorGeom.angOnDetector(*predAngs):
+                if debug: print >> fout, 'spot %d for hklID %d has its center off the detector, skipping' % (iThisHKL, hklID)
+                continue
+            key = (hklID, iThisHKL)
+            
+            spotData = spotFromStack(reader, detectorGeom, tThMM, angWidth, predAngs, threshold, **kwargs)
+            
+            if spotData is None:
+                if debug: print >> fout, 'spot %d for hklID %d got no data from spotFromStack' % (iThisHKL, hklID)
+            else:
+                retval[key] = spotFinder.Spot(key, deltaOmega, spotData, detectorGeom=detectorGeom)
+                if debug: print >> fout, 'made spot %d for hklID %d' % (iThisHKL, hklID)
+    
+    return retval
+
 def spotFromStack(reader, detectorGeom, tThMM, angWidth, angCen, threshold,
                   fullBackground=False, 
                   asFrame=False, exitOnFail=True,
@@ -2486,7 +2567,13 @@ def pfigFromSpots(spots, iHKL, phaseID=None,
             etasCen, omesCen, asGrid=True)
         if debug:
             print 'making pfig dict with pVals nVecs shape %s and pVals size %s' % (str(nVecs.shape), str(pVals.size))
+        if havePfigPkg:
+            pfigDict = pfigPkg.makePfigDict(hklTuple, crystalVector=crystalVector, nVecs=nVecs, pVals=pVals)
+        else:
+            pfigDict = None
+            print >> sys.stderr, "WARNING: do not have pfigPkg, returned results are incomplete"
         retval.append( (
+                pfigDict,
                 omeEdges, 
                 etaEdges, 
                 intensVals,

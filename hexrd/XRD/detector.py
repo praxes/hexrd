@@ -54,7 +54,7 @@ from matplotlib import mlab
 from matplotlib.widgets import Slider, Button, RadioButtons
     
 from hexrd import XRD
-from hexrd.XRD.xrdBase import getGaussNDParams
+from hexrd.XRD.xrdBase import getGaussNDParams, dataToFrame
 from hexrd.XRD.Rotations import mapAngle
 from hexrd.XRD.Rotations import rotMatOfExpMap
 from hexrd.XRD.Rotations import rotMatOfExpMap, arccosSafe
@@ -200,6 +200,24 @@ class Reader(object):
         return maxInt
     def getOmegaMinMax(self):
         raise NotImplementedError
+    def getDeltaOmega(self):
+        'needed in findSpotsOmegaStack'
+        raise NotImplementedError
+    def getNFrames(self):
+        """
+        number of total frames with real data, not number remaining
+        needed in findSpotsOmegaStack
+        """
+        raise NotImplementedError
+    def read(self, nskip=0, nframes=1, sumImg=False):
+        'needed in findSpotsOmegaStack'
+        raise NotImplementedError
+    def getDark(self):
+        'needed in findSpotsOmegaStack'
+        raise NotImplementedError
+    def getFrameOmega(self, iFrame=None):
+        'needed in findSpotsOmegaStack'
+        raise NotImplementedError
     @classmethod
     def getSize(cls):
         raise NotImplementedError
@@ -281,6 +299,15 @@ class Reader(object):
         retval = p
         return retval
 
+def omeToFrameRange(omega, omegas, omegaDelta):
+    """
+    check omega range for the frames instead of omega center;
+    result can be a pair of frames if the specified omega is
+    exactly on the border
+    """
+    retval = num.where(num.abs(omegas - omega) <= omegaDelta*0.5)[0]
+    return retval
+
 class ReadGE(Reader):
     """
     Read in raw GE files; this is the class version of the foregoing functions
@@ -313,7 +340,7 @@ class ReadGE(Reader):
     __frame_dtype_read = 'uint16'
     __frame_dtype_float = 'float64'
     __nbytes_frame     = num.nbytes[num.uint16]*__nrows*__ncols # = 2*__nrows*__ncols
-    __debug = True
+    __debug = False
     __useThreading = True and haveThreading
     __location = '  ReadGE'
     __readArgs = {
@@ -511,10 +538,10 @@ class ReadGE(Reader):
         """number of total frames with real data, not number remaining"""
         nFramesTot = self.getNFramesFromFileInfo(self.fileInfo)
         return nFramesTot
-    def getDeltaOmega(self, nframes=1):
+    def getDeltaOmega(self):
         assert self.omegas is not None,\
             """instance does not have omega information"""
-        return self.omegaDelta * nframes
+        return self.omegaDelta
     def getOmegaMinMax(self):
         assert self.omegas is not None,\
             """instance does not have omega information"""
@@ -542,16 +569,11 @@ class ReadGE(Reader):
             retval = self.omegas[iFrame]
         return retval
     def omegaToFrameRange(self, omega):
-        """
-        check omega range for the frames instead of omega center;
-        result can be a pair of frames if the specified omega is
-        exactly on the border
-        """
         assert self.omegas is not None,\
             'instance does not have omega information'
         assert self.omegaDelta is not None,\
             'instance does not have omega information'
-        retval = num.where(num.abs(self.omegas - omega) <= self.omegaDelta*0.5)[0]
+        retval = omeToFrameRange(omega, self.omegas, self.omegaDelta)
         return retval
     def omegaToFrame(self, omega, float=False):
         assert self.omegas is not None,\
@@ -686,6 +708,10 @@ class ReadGE(Reader):
             else:
                 raise RuntimeError, "unrecognized flip token."
         return thisframe
+    def getDark(self):
+        if self.dark is None:
+            raise RuntimeError, 'getDark called but reader does not have dark set'
+        return self.dark
     def read(self, nskip=0, nframes=1, sumImg=False):
         """
         sumImg can be set to True or to something like numpy.maximum
@@ -1474,6 +1500,7 @@ class MultiRingBinned:
 
     """
 
+    __debug = True
     __print = True
     __location = '  MultiRingBinned'
     def __init__(self, detectorGeom, planeData,
@@ -1612,6 +1639,8 @@ class MultiRingBinned:
                 self.__log('  single polar rebin call keyword arguments : %s' % (str(prbkwThis)))
             tic = time.time()
             polImgSingle = self.refDG.polarRebin(dataFrame, **prbkwThis)
+            if num.any(num.isnan(polImgSingle['intensity'])):
+                raise RuntimeError, 'got NaNs in rebinned image'
             toc = time.time(); dt = toc - tic;
             if self.__print:
                 self.__log(' single polar rebin call took %g seconds' % (dt))
@@ -1646,6 +1675,8 @@ class MultiRingBinned:
                     self.__log('  polar rebin call keyword arguments : %s' % (str(prbkwThis)))
                 tic = time.time()
                 polImg = self.refDG.polarRebin(dataFrame, **prbkwThis)
+                if num.any(num.isnan(polImg['intensity'])):
+                    raise RuntimeError, 'got NaNs in rebinned image'
                 toc = time.time(); dt = toc - tic; dtPRTot += dt; 
                 if self.__print:
                     self.__log(' polar rebin call took %g seconds' % (dt))
@@ -2634,6 +2665,11 @@ class DetectorBase(object):
         retval = None
         raise NotImplementedError
         return retval
+    def getPVecScaling(self):
+        'scaling, suitable for scaling perturbations for finite differencing'
+        retval = None
+        raise NotImplementedError
+        return retval
 
 class Detector2DRC(DetectorBase):
     """
@@ -2646,12 +2682,17 @@ class Detector2DRC(DetectorBase):
 
     chiTilt = None
     
-    def __init__(self, ncols, nrows, pixelPitch, readerClass, *args, **kwargs):
+    def __init__(self, 
+                 ncols, nrows, pixelPitch, 
+                 vFactorUnc, vDark, 
+                 readerClass, *args, **kwargs):
         
         DetectorBase.__init__(self, readerClass)
         
         self.__ncols = ncols
         self.__nrows = nrows
+        self.__vFactorUnc = vFactorUnc
+        self.__vDark = vDark
         self.__pixelPitch = pixelPitch
         
         if len(args) == 0:
@@ -2819,7 +2860,8 @@ class Detector2DRC(DetectorBase):
                 1.0, 1.0, 1.0,          # self.xTilt, self.yTilt, self.zTilt
                 ] + list(self.getDParamScalings()) )
         return plistScalings[num.array(self.refineFlags)]
-
+    def getPVecScaling(self):
+        return 0.01
     def __initBase(self):
         
         ' no precession by default init'
@@ -2905,6 +2947,21 @@ class Detector2DRC(DetectorBase):
         self.setTilt(self.tilt)
         return
     zTilt = property(getZTilt, setZTilt, None)
+
+    def getVDark(self):
+        return self.__vDark
+    
+    def getVScale(self, vThese):
+        """
+        get scale factors for use in uncertainty quantification
+        """
+        vScale      = self.__vFactorUnc * (vThese)
+        vScaleFloor = 0.1 * (vScale[vScale > 0].mean())
+        assert vScaleFloor > 0, \
+            'vScaleFloor <= 0'
+        vScale[vScale < vScaleFloor] = vScaleFloor
+        vScale = 1.0 / vScale
+        return vScale
 
     def getAngPixelSize(self, xyo, delta_omega):
         'get pixel size in angular coordinates at a given cartesian coordinate position'
@@ -3625,13 +3682,27 @@ class Detector2DRC(DetectorBase):
     def angToXYOBBox(self, *args, **kwargs):
         """
         given either angBBox or angCOM (angular center) and angPM (+-values), compute the bounding box on the image frame
+        
+        if forSlice=True, then returned bbox is appropriate for use in array slicing
         """
         
-        units  = kwargs.setdefault('units', 'pixels')
+        units    = kwargs.setdefault('units', 'pixels')
+        #
         # reader = kwargs.get('reader', None)
         reader = None
         if kwargs.has_key('reader'):
             reader = kwargs.pop('reader')
+        #
+        omegas = None
+        if kwargs.has_key('omegas'):
+            omegas = kwargs.pop('omegas')
+        #
+        forSlice = True
+        if kwargs.has_key('forSlice'):
+            forSlice = kwargs.pop('forSlice')
+        slicePad = 0
+        if forSlice:
+            slicePad = 1
         
         if len(args) == 1:
             angBBox = args[0]
@@ -3660,16 +3731,25 @@ class Detector2DRC(DetectorBase):
         if units == 'pixels':
             'make into integers'
             xyoBBox[0] = ( max(int(math.floor(xyoBBox[0][0])), 0), 
-                           min(int(math.floor(xyoBBox[0][1])), self.nrows-1),
+                           min(int(math.floor(xyoBBox[0][1])), self.nrows-1)+slicePad,
                            )
             xyoBBox[1] = ( max(int(math.floor(xyoBBox[1][0])), 0), 
-                           min(int(math.floor(xyoBBox[1][1])), self.ncols-1),
+                           min(int(math.floor(xyoBBox[1][1])), self.ncols-1)+slicePad,
                            )
         if reader is not None:
             'convert bounding box from omegas to frames'
             xyoBBox[2] = ( num.hstack( (reader.omegaToFrameRange(xyoBBox[2][0]), 0) )[0],
-                           num.hstack( (reader.getNFrames()-1, reader.omegaToFrameRange(xyoBBox[2][1]) ) )[-1]
+                           num.hstack( (reader.getNFrames()-1, reader.omegaToFrameRange(xyoBBox[2][1]) ) )[-1] + slicePad,
                            )
+        elif omegas is not None:
+            'convert bounding box from omegas to frames'
+            omegaDelta = num.mean(omegas[1:]-omegas[:-1])
+            nFrames = len(omegas)
+            xyoBBox[2] = ( 
+                num.hstack( (omeToFrameRange(xyoBBox[2][0], omegas, omegaDelta), 0) )[0],
+                num.hstack( (nFrames-1, omeToFrameRange(xyoBBox[2][1], omegas, omegaDelta) ) )[-1] + slicePad,
+                )
+
         return xyoBBox
     
     def drawRings(self, drawOn, planeData, withRanges=False, legendLoc=(0.05,0.5), legendMaxLen=10,
@@ -4288,7 +4368,11 @@ class Detector2DRC(DetectorBase):
                 ( num.ones(nSubpixelsIn), (binId, num.arange(nSubpixelsIn)) ), shape=(numRho, nSubpixelsIn) )
                 
             # Normalized contribution to the ith sector's radial bins
-            polImg['intensity'][i, :] = (tmpI.sum(1) / binId.sum(1)).T
+            binIdSum = binId.sum(1)
+            if num.any(binIdSum <= 0):
+                import string
+                raise RuntimeError, 'got binId sum of '+string.join(num.array(binIdSum).flatten().astype(str), ',')
+            polImg['intensity'][i, :] = (tmpI.sum(1) / binIdSum).T
             
         return polImg
 
@@ -4300,7 +4384,8 @@ def mar165IDim(mode):
     return idim
 
 class DetectorGeomMar165(Detector2DRC):
-    __idimMax = 4096
+    __vfu = 0.2 # value found based on repeated measurements (ruby, GE detector), but is rough guess
+    __vdk = 1800 # made up
     def __init__(self, *args, **kwargs):
         
         mode = 1
@@ -4314,7 +4399,8 @@ class DetectorGeomMar165(Detector2DRC):
         self.mode = mode
         
         Detector2DRC.__init__(self, 
-                              nrows, ncols, pixelPitch,
+                              nrows, ncols, pixelPitch, 
+                              self.__vfu, self.__vdk,
                               readerClass,
                               *args, **kwargs)
         return
@@ -4339,6 +4425,8 @@ class DetectorGeomGE(Detector2DRC):
     pixels are numbered from (0,0);
     """
     
+    __vfu            = 0.2 # value found based on repeated measurements (ruby, GE detector), but is rough guess; NOT pixelPitch
+    __vdk            = 1800 # made up
     # 200 x 200 micron pixels
     __pixelPitch     = 0.2      # in mm
     __idim           = ReadGE._ReadGE__idim
@@ -4352,7 +4440,8 @@ class DetectorGeomGE(Detector2DRC):
     def __init__(self, *args, **kwargs):
         
         Detector2DRC.__init__(self, 
-                              self.__nrows, self.__ncols, self.__pixelPitch,
+                              self.__nrows, self.__ncols, self.__pixelPitch, 
+                              self.__vfu, self.__vdk,
                               ReadGE,
                               *args, **kwargs)
         return
@@ -4647,7 +4736,7 @@ class DetectorGeomQuadGE(DetectorBase):
     
     def fitProcedureA(self, planeData, framesQuad, iRefQuad=0, 
                       funcType=funcTypeDflt, funcXVecList = None, quadr=1, 
-                      doGUI=2):
+                      doGUI=0, doMRingPlot=False):
         """
         A procedure for fitting the set of detectors;
         do not need to click 'fit' button in GUI -- done inside the procedure.
@@ -4657,7 +4746,6 @@ class DetectorGeomQuadGE(DetectorBase):
         If want to just refine detector geometry and not the functional forms for the rings,
         pass funcXVecList as True or as something like a list of arrays from MultiRingEval.getFuncXVecList() 
         """
-        from xrdBase import dataToFrame # move to beginning of module
         
         assert len(framesQuad) == 4,\
             'need len(framesQuad) to be 4'
@@ -4686,6 +4774,7 @@ class DetectorGeomQuadGE(DetectorBase):
             'offer GUI to let the user twiddle parameters'
             displayKWArgs={'winTitle':'detector %d'%(iQuad+1)}
             pw    = dg.drawRingsGUI(frame, planeData, displayKWArgs=displayKWArgs)
+            raw_input('Enter to continue (will destroy GUI and proceed with fit)')
             pw.destroy()
             del pw
         #
@@ -4693,8 +4782,10 @@ class DetectorGeomQuadGE(DetectorBase):
         mRing  = MultiRingEval(dg, planeData, frame, funcType=funcType, 
                                funcXVecList=funcXVecListList[iQuad])
         xFit   = mRing.doFit()
-        if doGUI > 1:
+        if doGUI > 1 or doMingPlot:
             mRing(xFit, makePlots=True)
+            if doGUI > 1:
+                raw_input('Enter to continue (close mRing windows manually)')
         # params = dg.getParams(allParams=True)
         del mRing, frame
         #
@@ -4709,6 +4800,7 @@ class DetectorGeomQuadGE(DetectorBase):
                 'offer GUI to let the user twiddle parameters'
                 displayKWArgs={'winTitle':'detector %d'%(iQuad+1)}
                 pw    = dg.drawRingsGUI(frame, planeData, displayKWArgs=displayKWArgs)
+                raw_input('Enter to continue (will destroy GUI and proceed with fit)')
                 pw.destroy()
                 del pw
             #
@@ -4716,8 +4808,10 @@ class DetectorGeomQuadGE(DetectorBase):
             mRing  = MultiRingEval(dg, planeData, frame, funcType=funcType,
                                    funcXVecList=funcXVecListList[iQuad])
             xFit   = mRing.doFit()
-            if doGUI > 1:
+            if doGUI > 1 or doMRingPlot:
                 mRing(xFit, makePlots=True)
+                if doGUI > 1:
+                    raw_input('Enter to continue (close mRing windows manually)')
             # params = dg.getParams(allParams=True)
             del mRing, frame
 
@@ -4779,4 +4873,7 @@ def newDetector(detectorType):
         pass
 
 
+    return d
+
+def genericDetector(...NRB):
     return d

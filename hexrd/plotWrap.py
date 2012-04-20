@@ -58,7 +58,8 @@ def autoTicks(x, n, format='%0.2e'):
     delta = (xmax-xmin)/n
     xticks = num.arange(xmin, xmax+delta*0.5, delta)
     if format is not None:
-        xticksFormatted = num.array(map(lambda x: float(format % (x)), xticks))
+        # xticksFormatted = num.array(map(lambda x: float(format % (x)), xticks))
+        xticksFormatted = map(lambda x: float(format % (x)), xticks)
         return xticksFormatted
     return xticks
 
@@ -266,6 +267,12 @@ class PlotWin:
                 self.pwList = []
             if hasattr(self.root,'destroy'):
                 self.root.destroy()
+    def savePWList(self, prefix, suff='png', **keyArgs):
+        for iPW, pw in enumerate(self.pwList):
+            filename = prefix+'_%02d.'%(iPW)+suff
+            extent = pw.a.get_window_extent().transformed(pw.f.dpi_scale_trans.inverted())
+            self.f.savefig(filename, bbox_inches=extent, **keyArgs)
+        return
     def save(self, **keyArgs):
         if keyArgs.has_key('filename'):
             filename = keyArgs.pop('filename')
@@ -715,7 +722,8 @@ class PlotWrap(object):
             self.__checkCanvas()
             if filename is None:
                 raise RuntimeError, 'need filename or prefix entry in keyArgs'
-            #self.canvas.print_figure(filename, **keyArgs)
+            #dpi = self.f.get_dpi()
+            #self.canvas.print_figure(filename, dpi=dpi, **keyArgs)
             self.f.savefig(filename, **keyArgs)
         
         return
@@ -796,7 +804,7 @@ class PlotWrap(object):
         if clear: 
             self.clear()
         self.a.axis('off')
-        self.a.set_autoscale_on(True)
+        # self.a.set_autoscale_on(True)
         if ijAsXY:
             self.asImIJ = False
             'imshow does not yet really support transform'
@@ -832,7 +840,7 @@ class PlotWrap(object):
         pp.update(keyArgs) # plotProps
         #cont = self.a.contourf(X, Y, data, 200, **keyArgs)
         'imshow does not yet really support transform'
-        self.a.set_autoscale_on(True)
+        # self.a.set_autoscale_on(True)
         cont = self.a.imshow(data, origin='lower',
                              extent=(X[0,0],X[0,-1],Y[0,0],Y[-1,0]), 
                              interpolation=interpolation,
@@ -931,10 +939,10 @@ class PlotWrap(object):
             else:
                 raise RuntimeError, 'do not know what to colobar, pass in a thing'
         if rect is None:
-            self.__colorbar = f.colorbar(thing, ax=self.a)
+            self.__colorbar = f.colorbar(thing, cax=self.a, **kwargs)
         else:
             cax = w.getNextAxes(rect=rect)
-            self.__colorbar = f.colorbar(thing, cax=cax)
+            self.__colorbar = f.colorbar(thing, cax=cax, **kwargs)
             if adjustPos:
                 'adjust existing position to make room for colorbar'
                 bbox = self.a.get_position().get_points()
@@ -1022,8 +1030,6 @@ def makeHist2D(xVals, yVals, bins, hRange = None, weights = None):
     return xedges, yedges, H
     
 def main():
-    # self referential import ??? Is this necessary?
-    import plotWrap
     import numpy as num
     import math
     inBits = True
@@ -1035,14 +1041,14 @@ def main():
     c = num.cos(2*math.pi*t)
 
     if withPoints:
-        pw = plotWrap.PlotWrap(style='ro',aging=0.75)
+        pw = PlotWrap(style='ro',aging=0.75)
         if inBits:
             for iSub in range(len(t)):
                 pw([t[iSub]],[s[iSub]])
         else:
             pw(t, s)
     else:
-        pw = plotWrap.PlotWrap(style='r-',aging=0.75,alphaMin=0.2,agingCull=False,bball='ro')
+        pw = PlotWrap(style='r-',aging=0.75,alphaMin=0.2,agingCull=False,bball='ro')
         if inBits:
             #for iSub in range(len(t)-1):
                 #pw(t[iSub:iSub+2],s[iSub:iSub+2])
@@ -1051,9 +1057,9 @@ def main():
         else:
             pw(t, s)
     
-    pWin = plotWrap.PlotWin(2,1,title='test PlotWin')
-    p1 = plotWrap.PlotWrap(window=pWin,ylabel='s')
-    p2 = plotWrap.PlotWrap(window=pWin,ylabel='c')
+    pWin = PlotWin(2,1,title='test PlotWin')
+    p1 = PlotWrap(window=pWin,ylabel='s')
+    p2 = PlotWrap(window=pWin,ylabel='c')
     p1(t,s,label='sin')
     p2(t,c,label='cos')
     

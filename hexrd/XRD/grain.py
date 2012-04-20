@@ -70,6 +70,7 @@ class Grain(object):
     """
     __dummyIdxSpotM = -999
     __faildIdxSpotM = -888
+    __rejctIdxSpotM = -777
     __conflIdxSpotM = -666
     __etaMinDflt = None
     __etaMaxDflt = None
@@ -161,9 +162,6 @@ class Grain(object):
         
         self.debug = self.__debugDflt
         
-        self.vecs_associated   = False
-        self.gI_rIs            = None
-        
         if grainData is None:
             if self.rMat is not None:
                 reflInfo, fPairs, completeness = self.findMatches(
@@ -197,6 +195,14 @@ class Grain(object):
             
         self.didRefinement = False
         
+        """
+        # coding associated with uncertainty analysis that is not fully integrated
+        self.vecs_spots_associated = False
+        self.gI_spots = []
+        #if this bmat is not the reference unit cell parameters (e.g. fixed!) there will be problems in the uncertainty analysis branch
+        self.init_bmat = self.__latticeOperators['B'].copy()
+        """
+
         return
     def __repr__(self):
         format = "%20s = %s\n"
@@ -873,9 +879,10 @@ class Grain(object):
     def getValidSpotIdx(self, ignoreClaims=False):
         masterReflInfo = self.grainSpots
         if ignoreClaims:
-            hitReflId      = num.where(masterReflInfo['iRefl'] >= self.__conflIdxSpotM)[0]
+            forWhere = num.logical_or(masterReflInfo['iRefl'] >= 0, masterReflInfo['iRefl'] == self.__conflIdxSpotM)
         else:
-            hitReflId      = num.where(masterReflInfo['iRefl'] >= 0)[0]
+            forWhere = masterReflInfo['iRefl'] >= 0
+        hitReflId, = num.where(forWhere)
         validSpotIdx   = masterReflInfo['iRefl'][hitReflId]
         return validSpotIdx, hitReflId
     def updateGVecs(self, rMat=None, bMat=None, chiTilt=None):
@@ -1229,11 +1236,288 @@ class Grain(object):
         retVal = ( measQvec - predQvec ).T.flatten()
         
         return retVal
-    def fit(self, xtol=1e-12, ftol=1e-12, fitPVec=True, display=True, fout=None):
+    def __fitGetX0(self, fitPVec=True):
+        angl, axxx = rot.angleAxisOfRotMat(self.rMat)
+        R0 = angl * axxx
+        E0 = mUtil.symmToVecMV(self.vMat) - [1,1,1,0,0,0] # num.zeros(6)
+        if self.detectorGeom.pVec is None:
+            p0 = num.zeros(3)
+        else:
+            p0 = self.detectorGeom.pVec
+        if fitPVec:
+            x0 = num.r_[R0.flatten(), E0, p0]
+        else:
+            x0 = num.r_[R0.flatten(), E0]
+        return x0
+
+    """
+    
+    # coding associated with uncertainty analysis that is not fully merged in
+    
+    def associateRecipVector_Spots(self,reread=False):
+        '''for each spot associated to the grain, try to fit the local intensity distribution from fitWrap with uncertainty information. Find the associated reference reciprocal vector for the spot using bMat. Simple example usage:
+        gI_spots = grainobj.associateRecipVector_Spots() # gives list of [gI_1, spot(gI_1)],[gI_2, spot(gI_2)],...
+        e.g. 
+        gI_spots[0] is equivalent to [num.dot(grainobj.bMat,(h,k,l)), spot] such that spot is the indexed peak with indices h,k,l. 
+        '''
+        if self.vecs_spots_associated == True and reread == False:
+            return self.gI_spots
+        
+        masterReflInfo = self.grainSpots
+        hitRelfId = num.where(masterReflInfo['iRefl'] >= 0)[0]
+        measHKLs = masterReflInfo['hkl'][hitRelfId, :]
+        measAngs = masterReflInfo['measAngles'][hitRelfId, :]
+        gI_spots=[]
+        errors = 0
+        gIs = num.dot(self.init_bmat, measHKLs.T)
+        for i in range(len(hitRelfId)):
+            Id = hitRelfId[i]
+            spotId = masterReflInfo['iRefl'][Id]
+            spot = self.spots._Spots__spots[spotId]
+            'some spots will have problems trying to get uncertainty, any problem spots will not be kept in the final data list'
+            try:
+                spot.fitWrap(uncertainties = True, confidence_level = self.confidence_level);
+            except:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_exception(exc_type, exc_value, exc_traceback, limit = 2, file=sys.stdout)
+                print "exception caught in Spot.fitWrap(uncertainties=True), continuing to try use spot"
+            try:
+                angCOM, angCOM_unc = spot.angCOM(useFit=True, getUncertainties=True)
+            except:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_exception(exc_type, exc_value, exc_traceback, limit = 2, file=sys.stdout)
+                print "exception caught in Spot.angCOM(useFit=True,getUncertainties=True), skipping this spot"
+                continue
+            gI = gIs[:,i]
+            gI_spots.append([gI,spot])
+            
+            pass
+        self.gI_spots = gI_spots
+        self.vecs_spots_associated = True
+        return gI_spots
+    def fit_weighted_objFunc_single(self, (gI,angcom,angcomunc), FinvT,  tmpDG, wavelength, weighting):
+        
+        rI = num.dot(FinvT, gI)
+        '''
+        from Vector_Data_Structures_LLNL import Get_LLNL_Angles ...UNC
+        '''
+        rI_angle_sol = Get_LLNL_Angles(rI, wavelength)
+        xyo0 = self.detectorGeom.angToXYO(*angcom)
+        tth,eta,ome = tmpDG.xyoToAng(*xyo0)
+        meas_angles = num.array((tth,eta,ome))
+        
+
+        'rI_angle_sol has two solutions, generally. Find the one closest to angcom_final'
+        retval = []
+        dists = []
+        preds = []
+        for key in rI_angle_sol.keys():
+            tth,eta,ome = rI_angle_sol[key]
+            pred_angles = num.array((tth,eta,ome))
+            #angular distance is like the Euclidian distance in the complex plane
+            from Vector_funcs import angular_distance ...UNC
+            dist = angular_distance(pred_angles[1:],meas_angles[1:])
+            dists.append(dist)
+            preds.append(pred_angles)
+            pass
+        #pick the predicted angles closest to the data point
+        if dists[0]<dists[1]:
+            pred_angles = preds[0]
+        else:
+            pred_angles = preds[1]
+            pass
+        
+        diff = self.get_angular_residual(meas_angles, pred_angles, angcomunc, weighting)
+        return diff
+
+    def get_angular_residual(self, meas_angles, pred_angles, angcomunc, weighting):
+        '''basic form is simply
+        diff = meas_angles - pred_angles
+        if weighting:
+            diff = diff/angcomunc
+            pass
+        but need some adjustments due to possible angular remappings (e.g. -pi/3 = 5pi/3 but taking the direct difference would be bad there.
+        We want direct differences of pred - meas angles here so that the uncertainty can just be divided, e.g. if we used the form cos(pred) - cos(meas) uncertainty = dcos/dang . uang would be singular at e.g. ang = 0,pi
+        '''
+        PI=num.pi
+        tth,eta,ome = meas_angles
+        ptth,peta,pome = pred_angles
+        angltol = num.pi/2
+        if(abs(abs(ome)-PI)<angltol):
+            remap_omemin = 0;
+            remap_omemax = 2*PI
+        else:
+            remap_omemin = -PI
+            remap_omemax = PI
+        if(abs(abs(eta)-PI)<angltol):
+            remap_etamin = 0
+            remap_etamax = 2*PI
+        else:
+            remap_etamin = -PI
+            remap_etamax = PI
+            pass
+
+        from Misc_funcs import mapOme ...UNC
+        ome = mapOme(ome, -remap_omemin,remap_omemax)
+        eta = mapOme(eta, -remap_etamin,remap_etamax)
+        pome = mapOme(pome, -remap_omemin,remap_omemax)
+        peta = mapOme(peta, -remap_etamin,remap_etamax)
+        diff = num.array((tth-ptth,eta-peta,ome-pome))
+        if weighting:
+            diff = diff/angcomunc
+        return diff
+        
+    def fit_weighted_objFunc(self, x0, ngIspots, weighting,  *args):
+        report = args[-1]
+        dt = args[-2] #reserved for the finite difference increment in dlsq_func_wrap
+        rvec = x0[0:3]
+        uvec = x0[3:9]
+        pvec = x0[9:12]
+        tmpDG = self.detectorGeom.makeNew()
+        if len(pvec)==0:
+            tmpDG.pVec = self.detectorGeom.pVec
+        else:
+            tmpDG.pVec = pvec
+        #print "uvec", uvec
+        Umat = tens.svecToSymm(uvec)
+        #print "Umat", Umat
+        Rmat = rot.rotMatOfExpMap(num.c_[rvec[:3]])
+        Fmat = num.dot(Rmat,Umat)
+        FinvT = inv(Fmat).T
+        wavelength = self.planeData.wavelength 
+        matchedangles = []
+        #funcset is used in order to use the parallel 
+        def funcset(*arg):
+            return self.fit_weighted_objFunc_single(*(list(arg)+[FinvT,tmpDG,wavelength,weighting]))
+        #resid = parmap(funcset,ngIspots) #multiprocessing function
+        resid = map(funcset,ngIspots)
+        resid = num.array(resid).flatten()
+        if report:
+            print "Mag", num.norm(resid)
+            pass
+        return resid
+    
+
+    def fit_weighted(self,ngIs=False,fitPVec = True,xtol=1e-9,ftol=1e-3,tol=1e-6,cutspots=3,weighting=True,maxiter=50,report=False,dt=1e-8):
+        '''dt: finite difference step size. 
+        cutspots: number of standard deviation to determine problem spots to be removed after a fit. It is recommended to set this to 3. 
+        weighting: whether to use angular uncertainties in the residual (needed for uncertainty)
+        maxiter: max number of iterations to go through the cutting of bad spots
+        fits Fmat +  precession in the parameter order (r1,r2,r3,U11,U22,U33,U23,U13,U12,p1,p2,p3), r1,r2,r3 are angle axis parameters, Uij are Umat components, with F=RU. 
+        p1,p2,p3 are precession. '''
+        
+        def lsq_func_wrap(x0,func,*args):
+            out = func(x0,*args)
+            return out
+        
+        #first get the initial guess for the parameters from the grain
+        angl, axxx = rot.angleAxisOfRotMat(self.rMat)
+        Rparams = (angl * axxx).flatten()
+        'Uparams is 1d array U11,U22,U33,U23,U13,U12'
+        Uparams = tens.symmToSvec(self.uMat) 
+        p0 = self.detectorGeom.pVec
+        if p0 is None:
+            p0 = num.zeros(3)        
+            pass
+        if fitPVec==True:
+            Allparams = num.hstack((Rparams, Uparams, p0))
+        else:
+            Allparams = num.hstack((Rparams, Uparams))
+            pass
+
+        gI_spots = self.associateRecipVector_Spots()
+        'here, set up the input data matrix by pulling spot angles through current settings on detector geometry. self.associateRecipVector_Spots should have already filtered out problem spots so no exception handling should be needed'
+        ngIspots = []
+        for gI,spot in gI_spots:
+            nangCOM0,angcom_unc = spot.angCOM(useFit=True,getUncertainties=True)
+            xyoCOM = spot.detectorGeom.angToXYO(*nangCOM0)
+            nangCOM = num.array(self.detectorGeom.xyoToAng(*xyoCOM),dtype=float)
+            ngIspots.append([gI.copy(),nangCOM.copy(),angcom_unc.copy()])
+            pass
+        ngIspots = num.array(ngIspots)
+        
+        lsqfunc = self.fit_weighted_objFunc
+        fargslsq = [lsqfunc,ngIspots,weighting,dt,report]
+        'this needs to be a tuple when using lsq_func_wrap in scipy.optimize'
+        fargslsq = tuple(fargslsq)
+        
+        gargs = [Allparams,lsqfunc,ngIspots,weighting,dt,report]
+        weightindex = -3
+        reportindex = -1
+        weightval = False
+        gargs[weightindex]=weightval 
+        gargs[reportindex]=False
+        gargs = tuple(gargs)
+        mag1 = num.sqrt((lsq_func_wrap(*gargs)**2).sum())
+        'try to do the fitting. Then check the residual for high values, remove those spots, and continue until converged'
+        for i in range(maxiter):
+            optResults = x1, cov_x, infodict, mesg, ierr = optimize.leastsq(lsq_func_wrap, x0=Allparams, args = fargslsq, Dfun=dlsq_func_wrap,full_output=1,xtol=xtol,ftol=ftol)
+            Allparams = optResults[0]
+            fargs = [Allparams,lsqfunc,ngIspots,weighting,dt,report]
+            fargslsq = tuple(fargs[1:])
+            fargs[weightindex]=weightval   #turn off weighting to determine spots to cut. 
+            fargs[reportindex]=False
+            fargs = tuple(fargs)
+            outsol = lsq_func_wrap(*fargs)
+            fmag = num.sqrt((outsol**2).sum())
+            diff = abs(fmag-mag1)
+            mag1 = fmag
+            print "objective func diff", diff
+            if diff<tol:
+                print 'needed %s tests' % i
+                if cutspots is not None:
+                    stdev = num.std(outsol,ddof=1)
+                    zvals = (outsol - num.mean(outsol))/stdev
+                    indexes = num.where(abs(zvals)>cutspots)[0]
+                    nentries = len(outsol)/len(ngIspots)
+                    slots = indexes/nentries
+                    assert(nentries==3) #3 is the number of equations in the residual per reflection. if this is not three then there is a problem in the least square function itself. fit_weighted_objFunc
+                    slots = list(slots)
+                    ngIspots_ = []
+                    for i in range(len(ngIspots)):
+                        if slots.__contains__(i):
+                            continue
+                        else:
+                            ngIspots_.append(ngIspots[i])
+                            pass
+                        pass
+                    oldlen = len(ngIspots)
+                    ngIspots = ngIspots_[:]
+                    fargs = [Allparams,lsqfunc,ngIspots,weighting,dt,report]
+                    fargslsq = tuple(fargs[1:])
+                    fargs[weightindex]=weightval
+                    fargs[reportindex]=False
+                    fargs = tuple(fargs)
+                    if len(slots)>0:
+                        print "cutting %s spots. newlen = %s" % (len(slots),len(ngIspots))
+                        'raise exception if too many points are cut'
+                        assert(len(ngIspots)>=5) #3 equations per reflection, 12 dof
+                        mag1 = num.sqrt((lsq_func_wrap(*fargs)**2).sum())
+                        continue
+                    else:
+                        break
+                    pass
+                else:
+                    break
+                pass
+            pass
+        if ngIs:
+            return ngIspots, optResults, outsol
+        return optResults
+    """    
+    def fit(self, xtol=1e-12, ftol=1e-12, fitPVec=True, display=True, fout=None, 
+            withuncertainty=False, uncertainty_kwargs={}, returning_solution=0):
         """
         Fits the cell distortion and orientation with respect to the reference in terms
         of the deformation gradient F = R * U where R is proper orthogonal and U is
         symmetric positive-definite; i.e. the right polar decomposition factors.
+        """
+
+        """
+        uncertainty branch usage:
+        agrain.fit(ftol=1e-3,xtol=1e-9,withuncertainty=True,uncertainty_kwargs=dict(cutspots=3,weighting=True,report=True))
+        ngIspots, optRes, outsol = agrain.fit(ftol=1e-3,xtol=1e-9,withuncertainty=True,uncertainty_kwargs=dict(cutspots=3,weighting=True,report=True,ngIs=True))
+        optRes = agrain.fit(returning_solution=1,ftol=1e-3,xtol=1e-9,withuncertainty=True,uncertainty_kwargs=dict(cutspots=3,weighting=True,report=True))
         """
         # quit if there aren't enough parameters to have it over determined
         fout = fout or sys.stdout
@@ -1242,37 +1526,61 @@ class Grain(object):
             print >> fout, 'Not enough data for fit, exiting...'
             return
         
-        # for initial guess
-        angl, axxx = rot.angleAxisOfRotMat(self.rMat)
-        R0 = angl * axxx
-        E0 = mUtil.symmToVecMV(self.vMat) - [1,1,1,0,0,0] # num.zeros(6)
-        if self.detectorGeom.pVec is None:
-            p0 = num.zeros(3)
-        else:
-            p0 = self.detectorGeom.pVec
-        
+        x0 = self.__fitGetX0(fitPVec=fitPVec)
         if fitPVec:
-            x0 = num.r_[R0.flatten(), E0, p0]
             lsArgs = ()
         else:
-            x0 = num.r_[R0.flatten(), E0]
             lsArgs = (False)
         
         # do least squares
-        x1, cov_x, infodict, mesg, ierr = \
-            optimize.leastsq(self._fitF_objFunc, 
-                             x0, args=lsArgs,
-                             xtol=xtol,
-                             ftol=ftol,
-                             full_output=1)
+
+        if withuncertainty:
+            if uncertainty_kwargs.has_key('xtol')==False:
+                uncertainty_kwargs['xtol']=xtol
+            if uncertainty_kwargs.has_key('ftol')==False:
+                uncertainty_kwargs['ftol']=ftol
                 
+            out = self.fit_weighted(fitPVec=fitPVec,**uncertainty_kwargs)
+            if uncertainty_kwargs.has_key('ngIs'):
+                if uncertainty_kwargs['ngIs']==True:
+                    ngIspots, optRes, outsol = out
+                    returning_solution=1
+                    pass
+                pass
+            else:
+                optRes = out
+                pass
+            
+            x1, cov_x, infodict, mesg, ierr = optRes
+            u_is = uncertainty_analysis.computeAllparameterUncertainties(x1,cov_x,self.confidence_level)
+            
+            rvec = x1[0:3]
+            uvec = x1[3:9]
+            p1 = pvec = x1[9:12]
+            Umat = tens.svecToSymm(uvec)
+            Rmat = rot.rotMatOfExpMap(num.c_[rvec[:3]])
+            q1 = rot.quatOfExpMap(x1[:3].reshape(3, 1))
+            #uncertainties on components of Umat
+            self.fituncertainties = u_is
+            Vmat = num.dot(num.dot(Rmat,Umat),Rmat.T)
+            #vvec = mUtil.symmToVecMV(Vmat)
+            #self.vMat = vvec#mUtil.vecMVToSymm(vvec)
+            E1 = Vmat - num.eye(3)
+        else:
+            x1, cov_x, infodict, mesg, ierr =      out=          optimize.leastsq(self._fitF_objFunc, 
+                                                                                  x0, args=lsArgs,
+                                                                                  xtol=xtol,
+                                                                                  ftol=ftol,
+                                                                                  full_output=1)
+            E1 = mUtil.vecMVToSymm(x1[3:9])
+            pass
         
         # strip results
         #   - map rotation to fundamental region... necessary?
         q1 = rot.quatOfExpMap(x1[:3].reshape(3, 1))
         # q1 = sym.toFundamentalRegion(q1, crysSym=self.planeData.getLaueGroup() )
         R1 = rot.rotMatOfQuat( q1 )
-        E1 = mUtil.vecMVToSymm(x1[3:9])
+
         if fitPVec:
             p1 = x1[9:]
         
@@ -1295,7 +1603,39 @@ class Grain(object):
                   '%g\t%g\t%g\t%g\t%g\t%g\n' % tuple(num.r_[lp[:3], r2d*lp[3:]])
             if fitPVec:
                 print >> fout, "refined COM coordinates: (%g, %g, %g)\n" % (p1[0], p1[1], p1[2])
-        return
+
+        retval = None
+        if returning_solution:
+            retval = out
+
+        return retval
+    def getFitResid(self, fitPVec=True, norm=None):
+        "returns as shape (n,3), so that len of return value is number of vectors"
+        x0 = self.__fitGetX0(fitPVec=fitPVec)
+        retval = self._fitF_objFunc(x0, fitPVec=fitPVec)
+        nVec = len(retval)/3
+        retval = retval.reshape(nVec,3)
+        if norm is not None:
+            retval = num.apply_along_axis(norm, 1, retval)
+        return retval
+    def rejectOutliers(self, fitResidStdMult=2.5):
+        nReject = 0
+        
+        masterReflInfo = self.grainSpots
+        hitReflId      = num.where(masterReflInfo['iRefl'] >= 0)[0]
+        nRefl          = len(hitReflId)
+        
+        fitResid = self.getFitResid(norm=num.linalg.norm)
+        assert len(fitResid) == nRefl, 'nRefl mismatch'
+        
+        rMean = fitResid.mean()
+        rStd  = fitResid.std()
+        if rStd > 0:
+            indxOutliers, = num.where( num.abs(fitResid - fitResid.mean()) > 2.5*rStd )
+            nReject += len(indxOutliers)
+            masterReflInfo['iRefl'][hitReflId[indxOutliers]] = self.__rejctIdxSpotM
+        
+        return nReject
     def displaySpots(self):
         grain = self
         masterReflInfo = grain.grainSpots

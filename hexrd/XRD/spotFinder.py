@@ -63,14 +63,16 @@ from hexrd.XRD import xrdBase
 from hexrd.XRD.xrdBase import getGaussNDParams
 from hexrd.XRD import Rotations
 from hexrd.XRD.Rotations import mapAngle
+
+# from hexrd import uncertainty_analysis
         
 
 debugDflt = False
 debugMulti = True
-debugFit = True
+debugFit = False
 debugMasked = False
 debugFrameRefs = False
-debugFinalize = True
+debugFinalize = False
 
 structureNDI_label = num.array([
     [0,1,0],
@@ -131,7 +133,7 @@ def copyBox(inpt, obj):
     vbox[:,:] = inpt[obj]
     return vbox
 
-def getSpot(inpt, labels, objs, index, keepWithinBBox, padSpot):
+def getSpot(inpt, labels, objs, index, keepWithinBBox, padSpot, darkframe=None):
     """
     labels is from ndimage.label;
     objs is from ndimage.find_objects
@@ -169,6 +171,10 @@ def getSpot(inpt, labels, objs, index, keepWithinBBox, padSpot):
     else:
         xl, yl = num.where(useLabels == index) # labels[useObj] > 0
     vbox = copyBox(inpt, useObj)
+    if darkframe is None:
+        raise RuntimeError, 'darkframe is None'
+    else:
+        darkbox = copyBox(darkframe, useObj)
     # v = vbox[xl,yl] # = inpt[x,y]
     x = xl + useObj[0].start
     y = yl + useObj[1].start
@@ -183,6 +189,7 @@ def getSpot(inpt, labels, objs, index, keepWithinBBox, padSpot):
     spot['x']     = x
     spot['y']     = y
     spot['atBoundary'] = atBoundary
+    spot['darkbox']=darkbox
     #spot['v']    = v # careful if put this back in -- look for where 'vbox' is used everywhere
     return spot
 
@@ -310,7 +317,7 @@ def spotFinderSingle(
     minPx,
     keepWithinBBox, padSpot,
     weightedCOM=True,
-    pw=None, debug=False
+    pw=None, debug=False, darkframe=None
     ):
     """
     find spots in thisframe;
@@ -369,7 +376,7 @@ def spotFinderSingle(
         if not keepers[iSpot]: continue
         index = iSpot+1
         
-        spot = getSpot(thisframe, labels, objs, index, keepWithinBBox, False) # padSpot
+        spot = getSpot(thisframe, labels, objs, index, keepWithinBBox, False, darkframe=darkframe) # padSpot
         spotDataList.append(spot)
     return labels, objs, spotDataList, bin
 
@@ -378,6 +385,7 @@ class IntensityFunc3D(object):
     This is just a template for intensity distribution functions in 3D
     """
     def __init__(self, *args, **kwargs):
+        self.debug = False
         raise NotImplementedError
     def guessXVec(self, x, y, z, w=None, v=None, noBkg=False): 
         raise NotImplementedError
@@ -387,19 +395,20 @@ class IntensityFunc3D(object):
         raise NotImplementedError
     def getNParams(self, noBkg=False):
         raise NotImplementedError
-    def eval(self, xVec, x, y, z, w=None, vSub=None, diff=False, noBkg=False):
+    def eval(self, xVec, x, y, z, w=None, vSub=None, vScale=None, diff=False, noBkg=False):
         """
         if w is None: x, y, and z are 1D;
         if w has 1D weights: x, y, and z are 2D
         
         if vSub is present, it is subtracted from results -- useful
-        for forming least-squares residuals
+        for forming least-squares residuals; and vScale is used to scale the results
+        if it is present
         """
         raise NotImplementedError
-    def deval(self, xVec, x, y, z, w=None, vSub=None, noBkg=False):
-        return self.eval(xVec, x, y, z, w=w, vSub=vSub, diff=True,  noBkg=noBkg)
-    def __call__(self, xVec, x, y, z, w=None, vSub=None, noBkg=False, **kwargs):
-        return self.eval(xVec, x, y, z, w=w, vSub=vSub, diff=False, noBkg=noBkg, **kwargs)
+    def deval(self, xVec, x, y, z, w=None, vSub=None, vScale=None, noBkg=False):
+        return self.eval(xVec, x, y, z, w=w, vSub=vSub, vScale=vScale, diff=True,  noBkg=noBkg)
+    def __call__(self, xVec, x, y, z, w=None, vSub=None, vScale=None, noBkg=False, **kwargs):
+        return self.eval(xVec, x, y, z, w=w, vSub=vSub, vScale=vScale, diff=False, noBkg=noBkg, **kwargs)
 #
 class IntensityFuncGauss3D(IntensityFunc3D):
     """
@@ -412,6 +421,7 @@ class IntensityFuncGauss3D(IntensityFunc3D):
     """
     __nParams = 8
     def __init__(self):
+        self.debug = False
         self.expFact  = -4.0 * math.log(2.0)
         return
     def guessXVec(self, x, y, z, w=None, v=None, noBkg=False): 
@@ -434,11 +444,20 @@ class IntensityFuncGauss3D(IntensityFunc3D):
         if noBkg:
             retval -= 1
         return retval
+    def constructParams(self, center, fwhm, A, B=0.0):
+        xVec = num.zeros(self.getNParams())
+        xVec[0:3] = center[:]
+        xVec[3:6] = fwhm[:]
+        xVec[6]   = A
+        xVec[7]   = B
+        return xVec
     @classmethod
     def get2DFunc(cls):
         instance = IntensityFuncGauss2D()
         return instance
-    def eval(self, xVec, x, y, z, w=None, vSub=None, diff=False, noBkg=False, minWidth=None):
+    def eval(self, xVec, x, y, z, w=None, vSub=None, vScale=None, diff=False, noBkg=False, minWidth=None):
+        
+        unscaledNorm = None
         
         if w is not None:
              assert x.shape == w.shape,\
@@ -528,8 +547,23 @@ class IntensityFuncGauss3D(IntensityFunc3D):
                     raise NotImplementedError,\
                         'shape of w has length %d' % (len(shape(w)))
             if vSub is not None:
-                retval = retval - vSub
-            
+                retval = (retval - vSub)
+                unscaledNorm = num.linalg.norm(retval)
+
+        if vScale is not None:
+            if len(retval.shape)==1:
+                realw = vScale
+            else:
+                'only happens when diff is True?'
+                realw = num.tile(vScale.reshape(len(vScale),1),retval.shape[1])
+            retval = retval * realw
+    
+        if self.debug and vSub is not None: 
+            if diff:
+                print '%s : did diff eval' % (self.__class__.__name__)
+            else:
+                print '%s : eval with norm %24.14e unscaled: %24.14e' % (self.__class__.__name__, num.linalg.norm(retval), unscaledNorm)
+
         return retval
 
 class IntensityFuncGauss3DGenEll(IntensityFunc3D):
@@ -545,6 +579,7 @@ class IntensityFuncGauss3DGenEll(IntensityFunc3D):
     """
     __nParams = 11
     def __init__(self):
+        self.debug = False
         self.expFact  = -4.0 * math.log(2.0)
         return
     def guessXVec(self, x, y, z, w=None, v=None, noBkg=False): 
@@ -582,7 +617,7 @@ class IntensityFuncGauss3DGenEll(IntensityFunc3D):
         """
         instance = IntensityFuncGauss2D()
         return instance
-    def eval(self, xVec, x, y, z, w=None, vSub=None, diff=False, noBkg=False):
+    def eval(self, xVec, x, y, z, w=None, vSub=None, vScale=None, diff=False, noBkg=False):
         
         if w is not None:
              assert x.shape == w.shape,\
@@ -662,6 +697,9 @@ class IntensityFuncGauss3DGenEll(IntensityFunc3D):
                         'shape of w has length %d' % (len(shape(w)))
                 
             'nothing needs to be done with vSub'
+            if vScale is not None:
+                for xInd in range(dg_dx.shape[-1]):
+                    retval[:,xInd] = retval[:,xInd] * vScale[:]
         
         else:
             
@@ -693,6 +731,8 @@ class IntensityFuncGauss3DGenEll(IntensityFunc3D):
                 retval = retval - vSub
                 if debugMulti > 1:
                     print 'norm of retval : %g' % (num.linalg.norm(retval))
+            if vScale is not None:
+                retval = retval * vScale
             
         return retval
 
@@ -752,6 +792,7 @@ class IntensityFuncMulti3D(IntensityFunc3D):
     combination of multiple overlapped functions
     """
     def __init__(self, subFuncClass, nSubFuncs, minWidth=None ):
+        self.debug = False
         self.funcs = [ subFuncClass() for iSubFunc in range(nSubFuncs) ]
         self.minWidth = copy.deepcopy(minWidth)
         return
@@ -993,7 +1034,7 @@ class IntensityFuncMulti3D(IntensityFunc3D):
         if not noBkg:        
             retval += 1 # B # background
         return retval
-    def eval(self, xVecAll, x, y, z, w=None, vSub=None, diff=False, noBkg=False, iFunc=None):
+    def eval(self, xVecAll, x, y, z, w=None, vSub=None, vScale=None, diff=False, noBkg=False, iFunc=None):
         
         nX = self.getNParams(noBkg=noBkg)
         
@@ -1010,7 +1051,7 @@ class IntensityFuncMulti3D(IntensityFunc3D):
             for func in self.funcs:
                 nXThis = func.getNParams(noBkg=True)
                 xVec = xVecAll[iXLB:iXLB+nXThis]
-                retvalThis = func.eval(xVec, x, y, z, w=w, vSub=None, diff=diff, noBkg=True)
+                retvalThis = func.eval(xVec, x, y, z, w=w, vSub=None, vScale=vScale, diff=diff, noBkg=True)
                 # minWidth=minWidth
                 if retval is None:
                     retval = num.empty( (num.shape(retvalThis)[0], nX) )
@@ -1018,7 +1059,10 @@ class IntensityFuncMulti3D(IntensityFunc3D):
                 iXLB += nXThis
             if not noBkg:
                 B = xVecAll[iXLB] # = xVecAll[-1]
-                retval[:,iXLB] = 1.0 # B
+                if vScale is not None:
+                    retval[:,iXLB] = vScale # B
+                else:
+                    retval[:,iXLB] = 1.0 # B
                 iXLB += 1
             'nothing needs to be done with vSub'
         else:
@@ -1028,7 +1072,7 @@ class IntensityFuncMulti3D(IntensityFunc3D):
                 nXThis = func.getNParams(noBkg=True)
                 if iFunc is None or iF == iFunc:
                     xVec = xVecAll[iXLB:iXLB+nXThis]
-                    retvalThis = func.eval(xVec, x, y, z, w=w, vSub=None, diff=diff, noBkg=True)
+                    retvalThis = func.eval(xVec, x, y, z, w=w, vSub=None, vScale=None, diff=diff, noBkg=True)
                     # minWidth=minWidth)
                     if retval is None:
                         retval = retvalThis
@@ -1045,6 +1089,8 @@ class IntensityFuncMulti3D(IntensityFunc3D):
                 retval = retval - vSub
                 if debugMulti > 1:
                     print 'norm in eval is '+str(num.linalg.norm(retval))
+            if vScale is not None:
+                retval = retval * vScale
             
         return retval
     
@@ -1055,6 +1101,7 @@ class IntensityFunc2D(object):
     interface harder to understand 
     """
     def __init__(self, *args, **kwargs):
+        self.debug = False
         raise NotImplementedError
     def guessXVec(self, x, y, w=None, v=None, noBkg=False):
         raise NotImplementedError
@@ -1064,19 +1111,20 @@ class IntensityFunc2D(object):
         raise NotImplementedError
     def getNParams(self, noBkg=False):
         raise NotImplementedError
-    def eval(self, xVec, x, y, w=None, vSub=None, diff=False, noBkg=False):
+    def eval(self, xVec, x, y, w=None, vSub=None, vScale=None, diff=False, noBkg=False):
         """
         if w is None: x and y are 1D;
         if w has 1D weights: x and y are 2D
         
         if vSub is present, it is subtracted from results -- useful
-        for forming least-squares residuals
+        for forming least-squares residuals; and vScale is used to scale the results
+        if it is present
         """
         raise NotImplementedError
-    def deval(self, xVec, x, y, w=None, vSub=None, noBkg=False):
-        return self.eval(xVec, x, y, w=w, vSub=vSub, diff=True,  noBkg=noBkg)
-    def __call__(self, xVec, x, y, w=None, vSub=None, noBkg=False):
-        return self.eval(xVec, x, y, w=w, vSub=vSub, diff=False, noBkg=noBkg)
+    def deval(self, xVec, x, y, w=None, vSub=None, vScale=None, noBkg=False):
+        return self.eval(xVec, x, y, w=w, vSub=vSub, vScale=vScale, diff=True,  noBkg=noBkg)
+    def __call__(self, xVec, x, y, w=None, vSub=None, vScale=None, noBkg=False):
+        return self.eval(xVec, x, y, w=w, vSub=vSub, vScale=vScale, diff=False, noBkg=noBkg)
 #
 class IntensityFuncGauss2D(IntensityFunc2D):
     """
@@ -1088,6 +1136,7 @@ class IntensityFuncGauss2D(IntensityFunc2D):
     """
     __nParams = 6
     def __init__(self):
+        self.debug = False
         self.expFact  = -4.0 * math.log(2.0)
         return
     def guessXVec(self, x, y, w=None, v=None, noBkg=False):
@@ -1110,7 +1159,7 @@ class IntensityFuncGauss2D(IntensityFunc2D):
         if noBkg:
             retval -= 1
         return retval
-    def eval(self, xVec, x, y, w=None, vSub=None, diff=False, noBkg=False):
+    def eval(self, xVec, x, y, w=None, vSub=None, vScale=None, diff=False, noBkg=False):
         
         if w is not None:
              assert x.shape == w.shape,\
@@ -1190,6 +1239,14 @@ class IntensityFuncGauss2D(IntensityFunc2D):
             if vSub is not None:
                 retval = retval - vSub
             
+        if vScale is not None:
+            if len(retval.shape)==1:
+                realw = vScale
+            else:
+                'only happens when diff is True?'
+                realw = num.tile(vSscale.reshape(len(vScale),1),retval.shape[1])
+            retval = retval * realw
+    
         return retval
 
 class IntensityFuncMulti2D(IntensityFunc2D):
@@ -1197,6 +1254,7 @@ class IntensityFuncMulti2D(IntensityFunc2D):
     combination of multiple overlapped functions
     """
     def __init__(self, subFuncClass, nSubFuncs):
+        self.debug = False
         self.funcs = [ subFuncClass() for iSubFunc in range(nSubFuncs) ]
         return
     def getBounds(self):
@@ -1318,7 +1376,7 @@ class IntensityFuncMulti2D(IntensityFunc2D):
         if not noBkg:        
             retval += 1 # B # background
         return retval
-    def eval(self, xVecAll, x, y, w=None, vSub=None, diff=False, noBkg=False, iFunc=None): # no z 2d/3d
+    def eval(self, xVecAll, x, y, w=None, vSub=None, vScale=None, diff=False, noBkg=False, iFunc=None): # no z 2d/3d
         
         nX = self.getNParams(noBkg=noBkg)
         
@@ -1331,14 +1389,17 @@ class IntensityFuncMulti2D(IntensityFunc2D):
             for func in self.funcs:
                 nXThis = func.getNParams(noBkg=True)
                 xVec = xVecAll[iXLB:iXLB+nXThis]
-                retvalThis = func.eval(xVec, x, y, w=w, vSub=None, diff=diff, noBkg=True) # no z 2d/3d
+                retvalThis = func.eval(xVec, x, y, w=w, vSub=None, vScale=vScale, diff=diff, noBkg=True) # no z 2d/3d
                 if retval is None:
                     retval = num.empty( (num.shape(retvalThis)[0], nX) )
                 retval[:,iXLB:iXLB+nXThis] = retvalThis
                 iXLB += nXThis
             if not noBkg:
                 B = xVecAll[iXLB] # = xVecAll[-1]
-                retval[:,iXLB] = 1.0 # B
+                if vScale is not None:
+                    retval[:,iXLB] = vScale # B
+                else:
+                    retval[:,iXLB] = 1.0 # B
                 iXLB += 1
             'nothing needs to be done with vSub'
         else:
@@ -1348,7 +1409,7 @@ class IntensityFuncMulti2D(IntensityFunc2D):
                 nXThis = func.getNParams(noBkg=True)
                 if iFunc is None or iF == iFunc:
                     xVec = xVecAll[iXLB:iXLB+nXThis]
-                    retvalThis = func.eval(xVec, x, y, w=w, vSub=None, diff=diff, noBkg=True) # no z 2d/3d
+                    retvalThis = func.eval(xVec, x, y, w=w, vSub=None, vScale=None, diff=diff, noBkg=True) # no z 2d/3d
                     if retval is None:
                         retval = retvalThis
                     else:
@@ -1362,6 +1423,8 @@ class IntensityFuncMulti2D(IntensityFunc2D):
                 iXLB += 1
             if vSub is not None:
                 retval = retval - vSub
+            if vScale is not None:
+                retval = retval * vScale
             
         return retval
     
@@ -1384,7 +1447,8 @@ class Spot(object):
         ('x', num.ndarray), # len(x) == len(v)
         ('y', num.ndarray), # len(y) == len(v)
         ('omega', float),
-        ('iFrame', int)
+        ('iFrame', int),
+        ('darkval',num.ndarray)
         ]
     markAtOmegaLo = -1
     markAtOmegaHi = -2
@@ -1410,6 +1474,7 @@ class Spot(object):
 
         self.data = None
         self.xAll = self.yAll = self.oAll = self.vAll = None
+        self.darkAll = None
         self.finalized = False
         self.marks = []
         self.debug = debugDflt
@@ -1434,6 +1499,14 @@ class Spot(object):
                 elif len(data) == 4:
                     'data as from getDataMinimal()[2]'
                     self.xAll, self.yAll, self.oAll, self.vAll = data
+                    # detectorGeom = self.detectorGeom # not needed here!
+                    assert detectorGeom is not None, \
+                        'without darkAll being given, need to provide a detectorGeom'
+                    self.darkAll = num.ones_like(self.vAll) * detectorGeom.getVDark()
+                    self.finalize()
+                elif len(data) == 5:
+                    'data as from getDataMinimal()[2]'
+                    self.xAll, self.yAll, self.oAll, self.vAll, self.darkAll = data
                     self.finalize()
             else:
                 raise RuntimeError, 'do not know what to do with data : '+str(data)
@@ -1466,7 +1539,7 @@ class Spot(object):
         return retval
     def getDataMinimal(self):
         assert self.finalized, 'called on spot that was not finalized'
-        retval = self.key, self.delta_omega_abs, (self.xAll, self.yAll, self.oAll, self.vAll)
+        retval = self.key, self.delta_omega_abs, (self.xAll, self.yAll, self.oAll, self.vAll, self.darkAll)
         return retval
     def getShape(self):
         assert self.finalized, 'called on spot that was not finalized'
@@ -1499,8 +1572,15 @@ class Spot(object):
         yl   = dataDict['yl']
         vbox = dataDict['vbox'] 
         v    = vbox[xl,yl] 
+        if dataDict.has_key('darkbox'):
+            darkbox = dataDict['darkbox']
+            darkval = darkbox[xl,yl]
+            pass
+        else:
+            raise RuntimeError, 'darkbox now required'
+            pass
         toInsert = num.array(
-            [( xl, yl, vbox, v, dataDict['x'], dataDict['y'], omega, iFrame )],
+            [( xl, yl, vbox, v, dataDict['x'], dataDict['y'], omega, iFrame, darkval )],
             dtype=self.__dtype)
         if self.data is None:
             self.data = toInsert
@@ -1529,7 +1609,8 @@ class Spot(object):
                 self.xAll is not None and \
                 self.yAll is not None and \
                 self.oAll is not None and \
-                self.vAll is not None, \
+                self.vAll is not None and \
+                self.darkAll is not None, \
                 'do not have necessary data'
             if flatten:
                 """
@@ -1544,22 +1625,35 @@ class Spot(object):
                 vSum = float(num.sum(self.vAll))
                 omegaMean = float(num.dot(self.oAll, self.vAll)) / vSum
                 pixelDict = {}
-                for x_p, y_p, v_p in zip(self.xAll, self.yAll, self.vAll):
+                darkDict={}
+                for x_p, y_p, v_p, d_p in zip(self.xAll, self.yAll, self.vAll, self.darkAll):
                     key = (x_p, y_p) # (int(x_p), int(y_p))
                     if pixelDict.has_key(key):
                         pixelDict[key] = pixelDict[key] + v_p
                     else:
                         pixelDict[key] = v_p
+                    if darkDict.has_key(key):
+                        darkDict[key].append(d_p)# = darkDict[key] + d_p
+                    else:
+                        darkDict[key] = [d_p]
+                avgDark = {}
+                for key in darkDict.keys():
+                    avgDark[key]=num.mean(darkDict[key])
+                    pass
+                darkDict = avgDark
+                
                 nPxFlat = len(pixelDict)
-                self.xAll = num.empty(nPxFlat, dtype=self.xAll.dtype)
-                self.yAll = num.empty(nPxFlat, dtype=self.yAll.dtype)
-                self.oAll = num.empty(nPxFlat, dtype=self.oAll.dtype)
-                self.vAll = num.empty(nPxFlat, dtype=self.vAll.dtype)
+                self.xAll    = num.empty(nPxFlat, dtype=self.xAll.dtype)
+                self.yAll    = num.empty(nPxFlat, dtype=self.yAll.dtype)
+                self.oAll    = num.empty(nPxFlat, dtype=self.oAll.dtype)
+                self.vAll    = num.empty(nPxFlat, dtype=self.vAll.dtype)
+                self.darkAll = num.empty(nPxFlat, dtype=self.darkAll.dtype)
                 iPx = 0
                 for key, value in pixelDict.iteritems():
                     self.xAll[iPx] = key[0]
                     self.yAll[iPx] = key[1]
                     self.vAll[iPx] = value
+                    self.darkAll[iPx]=darkDict[key]
                     iPx += 1
                 self.oAll[:] = omegaMean
         else:
@@ -1569,6 +1663,7 @@ class Spot(object):
                 self.vAll = num.hstack(self.data['v'][:,0])
                 self.xAll = num.hstack(self.data['x'][:,0])
                 self.yAll = num.hstack(self.data['y'][:,0])
+                self.darkAll = num.hstack(self.data['darkval'][:,0])
                 lengths   = map(len, self.data['v'][:,0])
                 oAll = num.empty(0)
                 for iOm, om in enumerate(self.data['omega']):
@@ -1577,6 +1672,7 @@ class Spot(object):
             else:
                 'do not want vAll to stay a special class instance if it is'
                 self.vAll = num.array(self.data['v'][:][0])
+                self.darkAll = num.array(self.data['darkval'][:][0])
                 #
                 self.xAll = self.data['x'][:][0]
                 self.yAll = self.data['y'][:][0]
@@ -1586,13 +1682,17 @@ class Spot(object):
             'cull duplicates that could have happened due to merging of spots'
             xyo = num.empty( len(self.vAll), dtype=[('x',int),('y',int),('o',float)] )
             xyo['x'], xyo['y'], xyo['o'] = self.xAll[:], self.yAll[:], self.oAll[:]
-            xyoUnique, indices = num.unique(xyo, return_index=True)
+            try:
+                xyoUnique, indices = num.unique...(xyo, return_index=True)
+            except TypeError:
+                xyoUnique, indices = num.unique1d...(xyo, return_index=True)
             if debugFinalize:
                 nDiscard = len(self.vAll) - len(indices)
                 if nDiscard > 0:
                     print '   finalize : %d of %d pixels are duplicate, discarding' % (nDiscard, len(self.vAll))
             self.xAll, self.yAll, self.oAll = xyoUnique['x'], xyoUnique['y'], xyoUnique['o']
             self.vAll = self.vAll[indices]
+            self.darkAll = self.darkAll[indices]
         self.shape = num.array([
                 self.xAll.max()-self.xAll.min()+1, 
                 self.yAll.max()-self.yAll.min()+1, 
@@ -1681,10 +1781,7 @@ class Spot(object):
             if uncertainties:
                 'base uncertainies on how far appart the corners of a pixel fall in angular space'
                 self.__checkDG()
-                self.__fitUncertainties = self.__detectorGeom.getAngPixelSize(
-                    self.xyoCOM(useFit=False), 
-                    self.delta_omega_abs,
-                    )
+                self.__fitUncertainties = self.angPixelSize
         except FitFailedError, e:
             self.cleanFit()
             # self.__fitFailed = e
@@ -1692,6 +1789,9 @@ class Spot(object):
             if uncertainties:
                 'not necessarily okay to have such a nasty spot'
                 raise
+        '''
+        # used to catch other stuff here, but then that results in errors getting masked and 
+        # looking like failures to fit when they are really errors that need to be fixed
         except:
             (etype, eobj, etb) = sys.exc_info()
             self.cleanFit()
@@ -1699,6 +1799,7 @@ class Spot(object):
             if uncertainties:
                 'not necessarily okay to have such a nasty spot'
                 raise
+        '''
         
         return
     def fit(self, 
@@ -1835,7 +1936,7 @@ class Spot(object):
         self.__checkDG()
         xyoToAng  = self.__detectorGeom.xyoToAngMap
         angToXYO  = self.__detectorGeom.angToXYO
-        angPixelSize = self.__detectorGeom.getAngPixelSize( self.xyoCOM(useFit=False), self.delta_omega_abs, )
+        angPixelSize = self.angPixelSize
         
         xAng, yAng, zAng, w = xyoToAng(self.xAll, self.yAll, self.oAll, outputDV=True)
         
@@ -2004,16 +2105,16 @@ class Spot(object):
             xi[:,2] = xi[:,2] * self.delta_omega_abs
         #
         'store information so that can reconstruct quadrature rules'
-        self.__q_w  = w
-        self.__q_xi = xi
-        self.__q_withOmega = withOmega
+        self.__setQ(w, xi, withOmega)
 
         xAng, yAng, zAng, wQP = self.__getQP() # get versions for use with quadrature
         #
+        'set of vScale for weighting, desirable in general and for uncertainty analysis'
+        vScale = self.__detectorGeom.getVScale(self.vAll + self.darkAll)
         if withOmega:
-            args = (xAng, yAng, zAng, wQP, self.vAll)
+            args = (xAng, yAng, zAng, wQP, self.vAll, vScale)
         else:
-            args = (xAng, yAng,       wQP, self.vAll)
+            args = (xAng, yAng,       wQP, self.vAll, vScale)
         #
         if bounds is None:
             maxIter = min(300, len(xVec0)*100) # do not let it take too long if things look nasty
@@ -2147,10 +2248,7 @@ class Spot(object):
         if quadr == 'auto':
             'get guess of xVec without quadrature, so that can guess appropriate quadrature'
             xAng, yAng, zAng = xyoToAng(self.xAll, self.yAll, self.oAll)
-            angPixelSize = self.__detectorGeom.getAngPixelSize(
-                    self.xyoCOM(useFit=False), 
-                    self.delta_omega_abs,
-                    )
+            angPixelSize = self.angPixelSize
             if self.debug >1 : print >> fout,  'angPixelSize : '+str(angPixelSize)
             
             dropFrom3D = False; newFunc = None;
@@ -2244,16 +2342,16 @@ class Spot(object):
             xi[:,2] = xi[:,2] * self.delta_omega_abs
         #
         'store information so that can reconstruct quadrature rules'
-        self.__q_w  = w
-        self.__q_xi = xi
-        self.__q_withOmega = withOmega
+        self.__setQ(w, xi, withOmega)
         #
         xAng, yAng, zAng, wQP = self.__getQP()
         #
+        'set of vScale for weighting for uncertainty analysis'
+        vScale = self.__detectorGeom.getVScale(self.vAll + self.darkAll)
         if withOmega:
-            args = (xAng, yAng, zAng, wQP, self.vAll)
+            args = (xAng, yAng, zAng, wQP, self.vAll, vScale)
         else:
-            args = (xAng, yAng,       wQP, self.vAll)
+            args = (xAng, yAng,       wQP, self.vAll, vScale)
         
         # 'do not use existing fit in case it is bad' 
         # com_xyo = self.xyoCOM(useFit=False)
@@ -2269,16 +2367,19 @@ class Spot(object):
         # else:
         #     xVec0 = intensityFunc.guessXVec(com_ang[0:2], widths_ang[0:2], 
         #                                     self.vAll.mean(), self.vAll.min(), self.vAll.max())
-        xVec0 = intensityFunc.guessXVec(*args)
+        xVec0 = intensityFunc.guessXVec(*args[0:-1]) # guessXVec does not take vScale
         fwhm = intensityFunc.getFWHM(xVec0)
         if num.any( fwhm <= 0. ):
             raise UnfitableError(1, 'guess has zero width in at least one dimension : '+str(fwhm))
+
+        intensityFunc.debug = self.debug
 
         if full_output:
             x, cov_x, infodict, mesg, ier = \
                 optimize.leastsq(intensityFunc, # intensityFunc.eval should work too
                                  xVec0,
                                  Dfun=intensityFunc.deval,
+                                 ftol=1e-12,
                                  args=args,
                                  full_output=1)
             message = ' message :  %s' % (mesg)
@@ -2289,6 +2390,7 @@ class Spot(object):
                 optimize.leastsq(intensityFunc, # intensityFunc.eval should work too
                                  xVec0,
                                  Dfun=intensityFunc.deval,
+                                 ftol=1e-12,
                                  args=args)
             message = ''
             if not [1,2,3,4].count(ier):
@@ -2322,7 +2424,14 @@ class Spot(object):
             retval = (x, vCalc, ndim, intensityFunc)
         return retval
     def __getQP(self):
-        'see __fitSpot'
+        """
+        see __fitSpot
+        
+        do not store results because in other places we do crazy things 
+        like change the oAll and do not want to have to worry about keeping these
+        quadrature quantities consistent 
+        """
+        
         xyoToAng = self.__detectorGeom.xyoToAngMap
         
         nQP = len(self.__q_w)
@@ -2342,24 +2451,82 @@ class Spot(object):
         wQP = num.array(num.matrix(dvQP) * wD.tocsr())
         
         return xAng, yAng, zAng, wQP
+    
+    def getAngPixelSize(self):
+        retval = self.__detectorGeom.getAngPixelSize(
+            self.xyoCOM(useFit=False), 
+            self.delta_omega_abs,
+            )
+        return retval
+    angPixelSize = property(getAngPixelSize, None, None)
+
+    def __setQ(self, w, xi, withOmega):
+        self.__q_w  = w
+        self.__q_xi = xi
+        self.__q_withOmega = withOmega
+        # self.__q_xAng = self.__q_yAng = self.__q_zAng = self.__q_wQP = None
+        return
+    def setupQuardFromFWHM(self, fwhm, fout=sys.stdout):
+        """
+        so far, written only for withOmega being True
+        """
+
+        if self.__fitFunc is not None:
+            raise RuntimeError, 'do not want to clobber existing quadrature setup'
+        
+        withOmega = True
+        
+        angPixelSize = self.getAngPixelSize()
+        nPx_FWHM = fwhm/angPixelSize
+        q1D_invAll = nPx_FWHM / self.nQP_FWHM 
+        q1D_tooSmall = q1D_invAll < self.minQ1DInv
+        numTooSmall = num.sum(q1D_tooSmall)
+        if numTooSmall:
+            mesg = 'q1D_invAll : '+str(q1D_invAll)
+            print >> fout,  mesg
+            raise UnfitableError(1, mesg)
+        
+        q1D_all = 1.0 / q1D_invAll
+        if self.uniformQP:
+            q1D = max(3, int(num.round(num.max(q1D_all))) )
+            qRule = '3x%d' % (q1D)
+        else:
+            q1D = num.maximum(3, num.array(num.round(q1D_all), dtype=int))
+            qRule = '%db%db%d' % tuple(q1D.tolist())
+        if self.debug >1 : print >> fout,  'from %s requested quad points : %s' % (str(q1D_all), str(qRule))
+        xi, w = q3db.qLoc(qRule)
+        
+        xi[:,:] = xi[:,:] - 0.5
+        if withOmega:
+            xi[:,2] = xi[:,2] * self.delta_omega_abs
+        
+        self.__setQ(w, xi, withOmega)
+        
+        return
+
+    def getVCalc(self, intensityFunc, x, noBkg=False, iSubSpot=None):
+        xAng, yAng, zAng, wQP = self.__getQP()
+        if iSubSpot is not None and not self.__split:
+            raise RuntimeError, 'only set iSubSpot for a spot that is split'
+        if iSubSpot is not None and self.__split:
+            vCalc = intensityFunc(x, xAng, yAng, zAng, wQP, noBkg=noBkg, iFunc=iSubSpot)
+        else:
+            if self.__q_withOmega:
+                vCalc = intensityFunc(x, xAng, yAng, zAng, wQP, noBkg=noBkg)
+            else:
+                vCalc = intensityFunc(x, xAng, yAng, wQP, noBkg=noBkg)
+        return vCalc
     def getIntegratedIntensity(self, useFit=True, iSubSpot=None, getResid=True):
         if self.haveFit() and useFit:
             # assert self.__fitFunc is not None, 'have not done fit, set useFit to False'
+            
             x = self.__fitX
             intensityFunc = self.__fitFunc
-            xAng, yAng, zAng, wQP = self.__getQP()
-            if iSubSpot is not None and not self.__split:
-                raise RuntimeError, 'only set iSubSpot for a spot that is split'
-            if iSubSpot is not None and self.__split:
-                vCalcNBG = intensityFunc(x, xAng, yAng, zAng, wQP, noBkg=True, iFunc=iSubSpot)
-            else:
-                if self.__q_withOmega:
-                    vCalcNBG = intensityFunc(x, xAng, yAng, zAng, wQP, noBkg=True)
-                else:
-                    vCalcNBG = intensityFunc(x, xAng, yAng, wQP, noBkg=True)
-            'also compute the residual for the fit'
+            vCalcNBG = self.getVCalc(intensityFunc, x, noBkg=True, iSubSpot=iSubSpot)
             integIntens = num.sum(vCalcNBG)
+            
             if getResid:
+                'also compute the residual for the fit'
                 resid = self.__fitV - self.vAll
                 res   = num.linalg.norm(resid)
                 res0  = num.linalg.norm(self.vAll.astype(float))
@@ -2402,7 +2569,10 @@ class Spot(object):
         assert self.finalized, 'called on spot that was not finalized'
         self.__checkDG()
         vSum = float(num.sum(self.vAll))
-        assert vSum > 0, 'sum of spot intensities <= zero'
+        if vSum <= 0:
+            print >> sys.stderr, "vSum %g <= 0, using only positive values" % (vSum)
+            vSum = num.sum(self.vAll[self.vAll > 0])
+            assert vSum > 0, 'vSum <= 0, all intensities are negative?'
         a1, a2, a3 = self.__detectorGeom.xyoToAngMap(self.xAll, self.yAll, self.oAll)
         com_ang = num.array([
                 num.dot(a1, self.vAll) / vSum,
@@ -2701,10 +2871,7 @@ class Spot(object):
                 else:
                     'just use pixel size to have something to plot'
                     self.__checkDG()
-                    angCOM_unc = self.__detectorGeom.getAngPixelSize(
-                        self.xyoCOM(useFit=False), 
-                        self.delta_omega_abs,
-                        )
+                    angCOM_unc = self.angPixelSize
                 if abs(omega - angCOM[2]) <= 0.5*self.delta_omega_abs:
                     """
                     plot on this omega frame;
@@ -3995,7 +4162,7 @@ class Spots(object):
             'need list of Spot instances'
         nFailed  = 0
         nFailedM = 0
-        for spot in self.__spots:
+        for spot in self.__spots[0:self.__nRawSpots]:
             failed = spot.fitHasFailed()
             if failed:
                 nFailed = nFailed + 1
@@ -4164,7 +4331,9 @@ class Spots(object):
                             nframesLump=1, # probably get rid of this eventually
                             padOmega=True,
                             padSpot=True,
-                            debug=False, pw=None):
+                            debug=False, pw=None,
+                            fout=None,
+                            sumImg=None):
         """
         This method does not necessarily need to hang off of the Spots class, 
         but Spots is a convenient place to put it.
@@ -4183,12 +4352,15 @@ class Spots(object):
         if go to parallel processing, perhaps return first and last lables for doing merges
         """
         location = '  findSpotsOmegaStack'
+        fout = fout or sys.stdout
+        def log_l(message):
+            print >> fout, location+' : '+message
         
         if overlapPixelDistance:
             assert isinstance(overlapPixelDistance,float), \
                 'if specified, overlapPixelDistance should be a float'
             if debug:
-                print location+' : will use pixel distance of %g for overlap determination' % (overlapPixelDistance)
+                log_l(' will use pixel distance of %g for overlap determination' % (overlapPixelDistance))
         if padOmega:
             '''
             The idea of padding in omega is to include background pixels in adjacent omega frames,
@@ -4208,39 +4380,45 @@ class Spots(object):
         """keep active spot data in a dictionary, indexed by (original iFrame, original index in iFrame)"""
         spotDictA = {} # active spots
         #
-        delta_omega = reader.getDeltaOmega(nframes=nframesLump)
-        sumImg = nframesLump > 1
+        delta_omega = reader.getDeltaOmega()
+        delta_omega = delta_omega * nframesLump
+        if sumImg is None:
+            sumImg = nframesLump > 1
+
         if nFrames == 0:
             nFrames = reader.getNFrames()
+        if debug:
+            log_l('using reader with %d frames and delta-omega of %g' % (nFrames, delta_omega))
         #
         prevframe = None
         prevbin   = None
         prevomega = None
+        darkframe = reader.getDark()
         for iFrame in range(nFrames / nframesLump): # for iFrame, omega in enumerate(omegas):
-            if debug:
-                print location+' : working on frame %d' % (iFrame)
+            if debug > 1:
+                log_l('working on frame %d' % (iFrame))
                 ticFrame = time.time()
             thisframe = reader.read(nframes=nframesLump, sumImg=sumImg) 
             omega = reader.getFrameOmega()
             
-            if debug:
+            if debug > 1:
                 tic = time.time()
             'call spotFinderSingle with minPx == 1 so it does not discard any spots'
             if pw is not None:
                 reader.display(thisframe, pw=pw)
             if debugFrameRefs:
-                print 'references to thisframe : %d' % (sys.getrefcount(thisframe))
+                log_l('references to thisframe : %d' % (sys.getrefcount(thisframe)))
             labels, objs, spotDataList, bin = spotFinderSingle(thisframe, threshold, 1, 
                                                                keepWithinBBox, padSpot,
-                                                               debug=debug>3, pw=pw)
-            if debug:
+                                                               debug=debug>3, pw=pw, darkframe=darkframe)
+            if debug > 1:
                 toc = time.time()
-                print location+' :    spotFinderSingle took %g seconds' % ((toc - tic))
-            if debug:
-                print location+' : len(spotDataList) : %d' % (len(spotDataList))
+                log_l('    spotFinderSingle took %g seconds' % ((toc - tic)))
+            if debug > 1:
+                log_l('len(spotDataList) : %d' % (len(spotDataList)))
                 
             if debugFrameRefs:
-                print 'references to thisframe : %d (after spotFinderSingle)' % (sys.getrefcount(thisframe))
+                log_l('references to thisframe : %d (after spotFinderSingle)' % (sys.getrefcount(thisframe)))
             if overlapPixelDistance:
                 'will need centers of mass'
                 coms = num.empty((len(objs),2))
@@ -4253,8 +4431,8 @@ class Spots(object):
                 """starting with all new spots
                 mark for deletion as touch the lower omega limit
                 """ 
-                if debug:
-                    print location+' : starting all new spots'
+                if debug > 1:
+                    log_l('starting all new spots')
                 for spotData in spotDataList:
                     key = (iFrame, spotData['index'])
                     """
@@ -4267,23 +4445,23 @@ class Spots(object):
                     spotDictA[key] = Spots.newActiveSpotData(spot, [indexPrev])
             else:
                 
-                if debug > 1:
+                if debug > 2:
                     ticClaim = time.time()
                 keysToPop = [] # spotsToPop = []
                 spotClaimedBy = [None for iSpot in range(len(spotDataList))]
                 #
-                if debug:
+                if debug > 2:
                     ttIndU = 0.
                     ttOver = 0.
                     ttNotO = 0.
-                if debug:
-                    print location+' : working on %d active spots' % (len(spotDictA))
+                if debug > 1:
+                    log_l('working on %d active spots' % (len(spotDictA)))
                 for key, activeSpotData in spotDictA.iteritems(): 
                     activeSpot = activeSpotData['spot']
                     
                     foundOverlap = False
-                    if debug > 1:
-                        print location+' :    indexsPrev : '+str(activeSpotData['indexsPrev'])
+                    if debug > 2:
+                        log_l('    indexsPrev : '+str(activeSpotData['indexsPrev']))
                     for indexPrev in activeSpotData['indexsPrev']:
                         if overlapPixelDistance:
                             """
@@ -4301,17 +4479,17 @@ class Spots(object):
                                 if dist <= overlapPixelDistance:
                                     spotIndexsUnique.append(index)
                         else:
-                            if debug > 1:
+                            if debug > 2:
                                 tic = time.time()
                             spotIndexs = getValuesOnly(labels, labelsPrev, objsPrev, indexPrev)
                             spotIndexsUnique = num.unique(spotIndexs)
-                            if debug > 1:
+                            if debug > 2:
                                 ttIndU += time.time() - tic
                         # overlap = ndimage.sum(labels, labels=labelsPrev, index=indexPrev) > 0
-                        if debug > 1:
+                        if debug > 2:
                             tic = time.time()
-                        if debug > 1:
-                            print location+' :    spotIndexsUnique : '+str(spotIndexsUnique)
+                        if debug > 2:
+                            log_l('    spotIndexsUnique : '+str(spotIndexsUnique))
                         overlap = spotIndexsUnique[-1] > 0
                         if overlap:
                             foundOverlap = True
@@ -4330,10 +4508,10 @@ class Spots(object):
                                     Spots.enslaveSpotData(activeSpotData, spotClaimedBy[iSpot])
                                 else:
                                     spotClaimedBy[iSpot] = activeSpotData
-                        if debug > 1:
+                        if debug > 2:
                             ttOver += time.time() - tic
                     'done looping over indexPrev for this active spot'
-                    if debug > 1:
+                    if debug > 2:
                         tic = time.time()
                     
                     if foundOverlap:
@@ -4341,13 +4519,13 @@ class Spots(object):
                             for indexPrev in activeSpotData['indexsPrev']:
                                 'previous frame onto this one'
                                 spotDataPad = getSpot(thisframe, labelsPrev, objsPrev, indexPrev, 
-                                                      keepWithinBBox, False) # padSpot
+                                                      keepWithinBBox, False, darkframe) # padSpot
                                 cullSpotUsingBin(spotDataPad, bin)
                                 activeSpot.append(spotDataPad, omega, iFrame)
                             for index in activeSpotData['indexsNew']:
                                 'this frame onto previous one'
                                 spotDataPad = getSpot(prevframe, labels, objs, index, 
-                                                      keepWithinBBox, False) # padSpot
+                                                      keepWithinBBox, False, darkframe) # padSpot
                                 cullSpotUsingBin(spotDataPad, prevbin)
                                 activeSpot.append(spotDataPad, prevomega, iFrame-1)
                     else:
@@ -4355,27 +4533,25 @@ class Spots(object):
                         if padOmega:
                             for indexPrev in activeSpotData['indexsPrev']:
                                 spotDataPad = getSpot(thisframe, labelsPrev, objsPrev, indexPrev, 
-                                                      keepWithinBBox, False) # padSpot
+                                                      keepWithinBBox, False, darkframe) # padSpot
                                 if cullPadOmega:
                                     cullSpotUsingBin(spotDataPad, bin)
                                 activeSpot.append(spotDataPad, omega, iFrame)
                         activeSpot.finalize()
                         spotListF.append(activeSpot)
                         keysToPop.append(key) # spotsToPop.append(spot) # spot
-                    if debug > 1:
+                    if debug > 2:
                         ttNotO += time.time() - tic
                 'end for key, activeSpotData in spotDictA.iteritems()'
-                if debug > 1:
+                if debug > 2:
                     tocClaim = time.time()
-                    print location+' :    claiming spots took %g seconds' % ((tocClaim - ticClaim))
-                    print location+' :        for IndU : %g seconds' % (ttIndU)
-                    print location+' :        for Over : %g seconds' % (ttOver)
-                    print location+' :        for NotO : %g seconds' % (ttNotO)
+                    log_l('    claiming spots took %g seconds' % ((tocClaim - ticClaim)))
+                    log_l('        for IndU : %g seconds' % (ttIndU))
+                    log_l('        for Over : %g seconds' % (ttOver))
+                    log_l('        for NotO : %g seconds' % (ttNotO))
                     ticMunge = time.time()
                 
                 nFinalize = len(keysToPop)
-                if debug:
-                    print location+' : finalizing %d spots' % (nFinalize)
                 'before popping, add keys for merged spots to keysToPop'
                 for key, activeSpotData in spotDictA.iteritems(): 
                     merged = Spots.mergeSpotData(activeSpotData)
@@ -4383,7 +4559,7 @@ class Spots(object):
                         keysToPop.append(key)
                 nMerge = len(keysToPop) - nFinalize
                 if debug:
-                    print location+' : merging %d spots' % (nMerge)
+                    log_l('finalizing %d and merging %d spots' % (nFinalize, nMerge))
                 
                 'now pop'
                 for key in keysToPop: # for spot in spotsToPop:
@@ -4394,8 +4570,8 @@ class Spots(object):
                 unclaimed = num.array([spotClaimedBy[iSpot] is None  
                                        for iSpot in range(len(spotDataList))],
                                       dtype=bool)
-                if debug:
-                    print location+' : creating %d new spots' % (num.sum(unclaimed))
+                if debug > 1:
+                    log_l('creating %d new spots' % (num.sum(unclaimed)))
                 for iSpotData, spotData in enumerate(spotDataList):
                     if not unclaimed[iSpotData] : continue
                     'no overlap with existing spots, make a new spot'
@@ -4405,7 +4581,8 @@ class Spots(object):
                         #prevSpotData = copy.deepcopy(spotData)
                         prevSpotData = {}
                         prevSpotData.update(spotData)
-                        prevSpotData['vbox'] = copyBox(prevframe, prevSpotData['obj'])
+                        prevSpotData['vbox']    = copyBox(prevframe, prevSpotData['obj'])
+                        prevSpotData['darkbox'] = copyBox(darkframe, prevSpotData['obj'])
                         if cullPadOmega:
                             cullSpotUsingBin(prevSpotData, prevbin)
                         spot = Spot(key, delta_omega, prevSpotData, prevomega, iFrame-1)
@@ -4416,13 +4593,13 @@ class Spots(object):
                     indexPrev = spotData['index']
                     spotDictA[key] = Spots.newActiveSpotData(spot, [indexPrev])
                 
-                if debug > 1:
+                if debug > 2:
                     tocMunge = time.time()
-                    print location+' :    munging spots took %g seconds' % ((tocMunge - ticMunge))
+                    log_l('    munging spots took %g seconds' % ((tocMunge - ticMunge)))
             'end of if for labelsPrev is None'
 
-            if debug:
-                print location+' : now have %d active spots' % (len(spotDictA))
+            if debug > 1:
+                log_l('now have %d active spots' % (len(spotDictA)))
             for key, activeSpotData in spotDictA.iteritems(): 
                 Spots.ageSpotData(activeSpotData)
             
@@ -4436,12 +4613,12 @@ class Spots(object):
             if overlapPixelDistance:
                 comsPrev   = coms
             
-            if debug:
+            if debug > 1:
                 tocFrame = time.time()
-                print location+' : in total, frame %d took %g seconds' % (iFrame, (tocFrame - ticFrame))
+                log_l('in total, frame %d took %g seconds' % (iFrame, (tocFrame - ticFrame)))
             
             if debugFrameRefs:
-                print 'references to thisframe : %d (end of loop)' % (sys.getrefcount(thisframe))
+                log_l('references to thisframe : %d (end of loop)' % (sys.getrefcount(thisframe)))
             del thisframe
         'done with iFrame loop'
         
@@ -4460,8 +4637,8 @@ class Spots(object):
             spotListF.append(activeSpot)
         
         keepers = num.array(map(Spot.nPx, spotListF)) >= minPx # dtype=bool
-        if debug:
-            print location+' : %d of %d spots have more than %d pixels' % (num.sum(keepers), len(spotListF), minPx)
+        if debug > 1:
+            log_l('%d of %d spots have more than %d pixels' % (num.sum(keepers), len(spotListF), minPx))
         if discardAtBounds:
             if hasattr(discardAtBounds, '__len__'):
                 toDiscard = discardAtBounds
@@ -4474,8 +4651,8 @@ class Spots(object):
                 if spot.isMarked(toDiscard):
                     keepers[iSpot] = False
                     nDiscard += 1
-            if debug:
-                print location+' : discarded %d spots at omega bounds' % (nDiscard)
+            if debug > 1:
+                log_l('discarded %d spots at omega bounds' % (nDiscard))
         
         keptSpots = []
         for iSpot in range(len(spotListF)): # spot in spotListF:
