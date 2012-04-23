@@ -183,21 +183,41 @@ def getCMap(spec):
     return cmap
 
 
-class Reader(object):
+class Framer2DRC(object):
     """
-    base class for readers
+    Base class for readers.
+
+    You can make an instance of this class and use it for most of the 
+    things a reader would do, other than actually reading frames
     """
-    @classmethod
-    def getReadDtype(cls):
-        raise NotImplementedError
-    @classmethod
-    def maxVal(cls):
-        """
-        maximum value that can be stored in the image pixel data type;
-        redefine as desired
-        """
-        maxInt = num.iinfo(cls.getReadDtype()).max
-        return maxInt
+    def __init__(self,
+                 ncols, nrows,
+                 dtypeDefault='int16', dtypeRead='unit16', dtypeFloat='float64'):
+        self.__ncols = ncols
+        self.__nrows = nrows
+        self.__frame_dtype_dflt  = dtypeDefault
+        self.__frame_dtype_read  = dtypeRead
+        self.__frame_dtype_float = dtypeFloat
+        return
+    
+    def get_ncols(self):
+        return self.__ncols
+    ncols = property(get_ncols, None, None)
+
+    def get_nrows(self):
+        return self.__nrows
+    nrows = property(get_nrows, None, None)
+    
+    def get_dtypeDefault(self):
+        return self.__frame_dtype_dflt
+    dtypeDefault = property(get_dtypeDefault, None, None)
+    def get_dtypeRead(self):
+        return self.__frame_dtype_read
+    dtypeRead = property(get_dtypeRead, None, None)
+    def get_dtypeFloat(self):
+        return self.__frame_dtype_float 
+    dtypeFloat = property(get_dtypeFloat, None, None)
+    
     def getOmegaMinMax(self):
         raise NotImplementedError
     def getDeltaOmega(self):
@@ -218,54 +238,47 @@ class Reader(object):
     def getFrameOmega(self, iFrame=None):
         'needed in findSpotsOmegaStack'
         raise NotImplementedError
+
+
     @classmethod
-    def getSize(cls):
-        raise NotImplementedError
-    @classmethod
-    def getVMM(cls, dROI, range=None):
-        if range is None:
-            range = 200.
-        if hasattr(range,'__len__'):
-            assert len(range) == 2, 'wrong length for value range'
-            vmin = range[0]
-            vmax = range[1]
+    def maxVal(cls, dtypeRead):
+        """
+        maximum value that can be stored in the image pixel data type;
+        redefine as desired
+        """
+        maxInt = num.iinfo(dtypeRead).max
+        return maxInt
+
+    def getEmptyMask(self):
+        """convenience method for getting an emtpy mask"""
+        # this used to be a class method
+        mask = num.zeros([self.nrows, self.ncols], dtype=bool)
+        return mask
+
+    def getSize(self):
+        retval = (self.nrows, self.ncols)
+        return retval
+
+    def frame(self, nframes=None, dtype=None, buffer=None, mask=None):
+        if buffer is not None and dtype is None:
+            if hasattr(buffer,'dtype'):
+                dtype = buffer.dtype
+        if dtype is None:
+            dtype = self.__frame_dtype_dflt
+        if nframes is None:
+            shape = (self.nrows, self.ncols)
         else:
-            thr    = dROI.mean()
-            vmin = max(0,            thr-range/2) # max(dROI.min(), thr-range/2) 
-            vmax = min(cls.maxVal(), thr+range/2)
-        return vmin, vmax
-    @classmethod
-    def getDisplayArgs(cls, dROI, kwargs):
-        range = None
-        cmap = None
-        if kwargs.has_key('range'):
-            range = kwargs.pop('range')
-        if kwargs.has_key('cmap'):
-            cmap  = kwargs.pop('cmap')
-            
-        roiMin = dROI.min()
-        roiMax = dROI.max()
-        #
-        centered = getCentered(roiMin, roiMax)
-        if dROI.dtype == 'bool' and range is None:
-            centered = False
-            vmin = 0
-            vmax = 1
-        elif dROI.dtype == 'float64' and \
-                centered and \
-                range is None:
-            range = 2.0*num.max(num.abs(dROI))
-            thr   = 0.0
-            vmin = thr-range/2
-            vmax = thr+range/2
+            assert mask is None,\
+                'not coded: multiframe with mask'
+            shape = (nframes, self.rows, self.ncols)
+        if buffer is None:
+            retval = num.zeros(shape, dtype=dtype)
         else:
-            centered = False
-            vmin, vmax = cls.getVMM(dROI, range)
-        #
-        if cmap is None:
-            cmap = getCMap(centered)
-        
-        return vmin, vmax, cmap
+            retval = num.array(buffer, dtype=dtype).reshape(shape)
+        if mask is not None:
+            retval = num.ma.masked_array(retval, mask, hard_mask=True, copy=False)
+        return retval
+
     @classmethod
     def display(cls, 
                 thisframe,
@@ -273,7 +286,7 @@ class Reader(object):
                 pw  = None,
                 **kwargs
                 ):
-        # ... interpolation method that looks like max() so that do not miss pixels?
+        # ... interpolation method that looks like max() so that do not miss peak pixels?
         
         if roi is not None:
             dROI   = thisframe[ roi[0][0]:roi[0][1], roi[1][0]:roi[1][1] ]
@@ -298,6 +311,50 @@ class Reader(object):
         
         retval = p
         return retval
+    
+    @classmethod
+    def getDisplayArgs(cls, dROI, kwargs):
+        range     = kwargs.pop('range',None)
+        cmap      = kwargs.pop('cmap',None)
+        dtypeRead = kwargs.pop('dtypeRead','uint16')
+            
+        roiMin = dROI.min()
+        roiMax = dROI.max()
+        #
+        centered = getCentered(roiMin, roiMax)
+        if dROI.dtype == 'bool' and range is None:
+            centered = False
+            vmin = 0
+            vmax = 1
+        elif dROI.dtype == 'float64' and \
+                centered and \
+                range is None:
+            range = 2.0*num.max(num.abs(dROI))
+            thr   = 0.0
+            vmin = thr-range/2
+            vmax = thr+range/2
+        else:
+            centered = False
+            vmin, vmax = cls.getVMM(dROI, range=range, dtypeRead=dtypeRead)
+        #
+        if cmap is None:
+            cmap = getCMap(centered)
+        
+        return vmin, vmax, cmap
+
+    @classmethod
+    def getVMM(cls, dROI, range=None, dtypeRead='uint16'):
+        if range is None:
+            range = 200.
+        if hasattr(range,'__len__'):
+            assert len(range) == 2, 'wrong length for value range'
+            vmin = range[0]
+            vmax = range[1]
+        else:
+            thr    = dROI.mean()
+            vmin = max(0,            thr-range/2) # max(dROI.min(), thr-range/2) 
+            vmax = min(cls.maxVal(dtypeRead), thr+range/2)
+        return vmin, vmax
 
 def omeToFrameRange(omega, omegas, omegaDelta):
     """
@@ -308,7 +365,7 @@ def omeToFrameRange(omega, omegas, omegaDelta):
     retval = num.where(num.abs(omegas - omega) <= omegaDelta*0.5)[0]
     return retval
 
-class ReadGE(Reader):
+class ReadGE(Framer2DRC):
     """
     Read in raw GE files; this is the class version of the foregoing functions
     
@@ -332,6 +389,9 @@ class ReadGE(Reader):
        If there are multiple empty frames, the average is used.	   
     
     """
+    """
+    It is likely that some of the methods here should be moved up to a base class
+    """
     __nbytes_header    = 8192
     __idim             = 2048
     __nrows = __idim
@@ -345,7 +405,7 @@ class ReadGE(Reader):
     __location = '  ReadGE'
     __readArgs = {
         'dtype' : __frame_dtype_read, 
-        'count' : __idim**2
+        'count' : __nrows*__ncols
         }
     __castArgs = {
         'dtype' : __frame_dtype_dflt
@@ -378,6 +438,13 @@ class ReadGE(Reader):
         for multiple files and no dark, dark is formed only from empty
         frames in the first file
         """
+
+        Framer2DRC.__init__(self, 
+                            self.__nrows, self.__ncols,
+                            dtypeDefault = self.__frame_dtype_dflt, 
+                            dtypeRead    = self.__frame_dtype_read,
+                            dtypeFloat   = self.__frame_dtype_float,
+                            )
         
         # defaults
         self.__kwPassed = {}
@@ -401,6 +468,7 @@ class ReadGE(Reader):
         self.img = None
         self.th  = None
         self.fileInfo      = None
+        self.fileInfoR     = None
         self.nFramesRemain = None # remaining in current file
         self.iFrame = -1 # counter for last global frame that was read
         
@@ -415,7 +483,7 @@ class ReadGE(Reader):
             elif isinstance(self.dark, num.ndarray):
                 assert self.dark.size == self.__nrows * self.__ncols, \
                     'self.dark wrong size'
-                self.dark.shape = (self.__idim, self.__idim)
+                self.dark.shape = (self.__nrows, self.__ncols)
                 if self.dark.dtype.name == self.__frame_dtype_read:
                     'protect against unsigned-badness when subtracting'
                     self.dark = self.dark.astype(self.__frame_dtype_dflt)
@@ -423,13 +491,22 @@ class ReadGE(Reader):
             else:
                 raise RuntimeError, 'do not know what to do with dark of type : '+str(type(self.dark))
         
-        self.__setupRead(fileInfo, self.subtractDark, self.mask, self.omegaStart, self.omegaDelta)
+        if fileInfo is not None:
+            self.__setupRead(fileInfo, self.subtractDark, self.mask, self.omegaStart, self.omegaDelta)
 
         return
+    
     @classmethod
-    def getSize(cls):
-        retval = (cls.__nrows, cls.__ncols)
+    def display(cls, 
+                thisframe,
+                roi = None,
+                pw  = None,
+                **kwargs
+                ):
+        'this is a bit ugly in that it sidesteps the dtypeRead property'
+        retval = Framer2DRC.display(thisframe, roi=roi, pw=pw, dtypeRead=cls.__frame_dtype_read)
         return retval
+    
     @classmethod
     def readRaw(cls, fname, mode='raw', headerlen=0):
         '''
@@ -476,26 +553,6 @@ class ReadGE(Reader):
     def getRawReader(self, doFlip=False):
         new = self.__class__(self.fileInfo, doFlip=doFlip)
         return new
-    @classmethod
-    def frame(cls, nframes=None, dtype=None, buffer=None, mask=None):
-        if buffer is not None and dtype is None:
-            if hasattr(buffer,'dtype'):
-                dtype = buffer.dtype
-        if dtype is None:
-            dtype = cls.__frame_dtype_dflt
-        if nframes is None:
-            shape = (cls.__nrows, cls.__ncols)
-        else:
-            assert mask is None,\
-                'not coded: multiframe with mask'
-            shape = (nframes, cls.__nrows, cls.__ncols)
-        if buffer is None:
-            retval = num.zeros(shape, dtype=dtype)
-        else:
-            retval = num.array(buffer, dtype=dtype).reshape(shape)
-        if mask is not None:
-            retval = num.ma.masked_array(retval, mask, hard_mask=True, copy=False)
-        return retval
 
     def __setupRead(self, fileInfo, subtractDark, mask, omegaStart, omegaDelta):
         
@@ -529,11 +586,6 @@ class ReadGE(Reader):
         self.__nextFile()
         
         return
-    @classmethod
-    def getEmptyMask(cls):
-        """convenience method for getting an emtpy mask"""
-        mask = num.zeros([cls.__idim, cls.__idim], dtype=bool)
-        return mask
     def getNFrames(self):
         """number of total frames with real data, not number remaining"""
         nFramesTot = self.getNFramesFromFileInfo(self.fileInfo)
@@ -630,7 +682,7 @@ class ReadGE(Reader):
                 for i in range(nempty):
                     self.dark = self.dark + num.fromfile(
                         self.img, **self.__readArgs
-                        ).reshape(self.__idim, self.__idim) * scale
+                        ).reshape(self.__nrows, self.__ncols) * scale
                 self.dark.astype(self.__frame_dtype_dflt)
                 self.__log('got dark from %d empty frames in file %s' % (nempty, fname))
             else:
@@ -740,7 +792,7 @@ class ReadGE(Reader):
         for i in range(nframes):
             
             #data = self.__readNext(nskip=nskip)
-            #thisframe = data.reshape(self.__idim, self.__idim)
+            #thisframe = data.reshape(self.__nrows, self.__ncols)
             data = self.__readNext(nskip=nskip) # .reshape(self.__nrows, self.__ncols)
             self.iFrame += nskip + 1
             nskip=0 # all done skipping once have the first frame!
@@ -864,9 +916,9 @@ class ReadGE(Reader):
         if self.img is not None:
             self.img.close()
         return
-    @classmethod
-    def getReadDtype(cls):
-        return cls.__frame_dtype_read
+    """
+    getReadDtype function replaced by dtypeRead property
+    """
     @classmethod
     def maxVal(cls):
         'maximum value that can be stored in the image pixel data type'
@@ -898,7 +950,7 @@ class ReadGE(Reader):
         mask[indices] = True
       return mask
 
-class ReadMar165(Reader):
+class ReadMar165(Framer2DRC):
     """
     placeholder; not yet really implemented
     
@@ -926,19 +978,19 @@ class ReadMar165(Reader):
     
 class ReadMar165NB1(ReadMar165):
     def __init__(self, *args, **kwargs):
-        ReadMar165.__init__(1, *args, **kwargs)
+        ReadMar165.__init__(self, 1, *args, **kwargs)
         return
 class ReadMar165NB2(ReadMar165):
     def __init__(self, *args, **kwargs):
-        ReadMar165.__init__(2, *args, **kwargs)
+        ReadMar165.__init__(self, 2, *args, **kwargs)
         return
 class ReadMar165NB3(ReadMar165):
     def __init__(self, *args, **kwargs):
-        ReadMar165.__init__(3, *args, **kwargs)
+        ReadMar165.__init__(self, 3, *args, **kwargs)
         return
 class ReadMar165NB4(ReadMar165):
     def __init__(self, *args, **kwargs):
-        ReadMar165.__init__(4, *args, **kwargs)
+        ReadMar165.__init__(self, 4, *args, **kwargs)
         return
 
 class LineStyles:
@@ -2628,19 +2680,17 @@ class DetectorBase(object):
     Yl = num.vstack([0, 1, 0])                      # Y in the lab frame
     Zl = num.vstack([0, 0, 1])                      # Z in the lab frame
 
-    def __init__(self, readerClass):
-        self.__readerClass = readerClass
+    def __init__(self, reader):
+        self.__reader = reader
         self.refineFlags = self.getRefineFlagsDflt()
         return
     
-    def set_readerClass(self, readerClass):
-        raise RuntimeError, 'set of readerClass not allowed'
-    def get_readerClass(self):
-        return self.__readerClass
-    readerClass = property(get_readerClass, set_readerClass, None)
+    def get_reader(self):
+        return self.__reader
+    reader = property(get_reader, None, None)
 
     def frame(self, *args, **kwargs):
-        retval = self.readerClass.frame(*args, **kwargs)
+        retval = self.reader.frame(*args, **kwargs)
         return retval
     
     @classmethod
@@ -2685,9 +2735,43 @@ class Detector2DRC(DetectorBase):
     def __init__(self, 
                  ncols, nrows, pixelPitch, 
                  vFactorUnc, vDark, 
-                 readerClass, *args, **kwargs):
+                 reader, *args, **kwargs):
         
-        DetectorBase.__init__(self, readerClass)
+        if reader is None:
+            reader = newGenericReader(ncols, nrows)
+        
+        """
+        The following is meant to facilitate creation of generic detector types;
+        It is rather ugly, but seems to work
+        """
+        getDParamDflt        = kwargs.pop('getDParamDflt', None)
+        setDParamZero        = kwargs.pop('setDParamZero', None)
+        getDParamScalings    = kwargs.pop('getDParamScalings', None)
+        getDParamRefineDflt  = kwargs.pop('getDParamRefineDflt', None)
+        radialDistortion     = kwargs.pop('radialDistortion', None)
+        #
+        if getDParamDflt:
+            def f_getDParamDflt():
+                return getDParamDflt(self)
+            self.getDParamDflt = f_getDParamDflt
+        if setDParamZero:
+            def f_setDParamZero():
+                return setDParamZero(self)
+            self.setDParamZero = f_setDParamZero
+        if getDParamScalings:
+            def f_getDParamScalings():
+                return getDParamScalings(self)
+            self.getDParamScalings = f_getDParamScalings
+        if getDParamRefineDflt:
+            def f_getDParamRefineDflt():
+                return getDParamRefineDflt(self)
+            self.getDParamRefineDflt = f_getDParamRefineDflt
+        if radialDistortion:
+            def f_radialDistortion(*args):
+                return radialDistortion(self, *args)
+            self.radialDistortion = f_radialDistortion
+        
+        DetectorBase.__init__(self, reader)
         
         self.__ncols = ncols
         self.__nrows = nrows
@@ -2829,7 +2913,7 @@ class Detector2DRC(DetectorBase):
     def __updateFromPList(self, plist):
         self.xc, self.yc, self.workDist, self.xTilt, self.yTilt, self.zTilt = plist[0:6]
         if hasattr(plist[6],'__len__'):
-            assert len(plist) == 6, 'plist of wrong length : '+str(plist)
+            # assert len(plist) == 6, 'plist of wrong length : '+str(plist) # only true for GE detector
             self.dparms = plist[6]
         else:
             self.dparms = plist[6:]
@@ -3495,7 +3579,7 @@ class Detector2DRC(DetectorBase):
         Mask in the sense that reader with the mask will exclude all else
         """
         indicesList, iHKLLists = self.makeIndicesTThRanges(planeData)
-        mask = -self.readerClass.indicesToMask(indicesList)
+        mask = -self.reader.indicesToMask(indicesList)
         return mask
     def xyoToAngAll(self):
         """
@@ -3547,7 +3631,7 @@ class Detector2DRC(DetectorBase):
         """
         return a list of indices for sets of overlaping two-theta ranges;
         to plot, can do something like:
-        	mask = self.readerClass.getEmptyMask()
+        	mask = self.reader.getEmptyMask()
           mask[indices] = True
         
         With cullDupl set true, eliminate HKLs with duplicate 2-thetas
@@ -3893,7 +3977,7 @@ class Detector2DRC(DetectorBase):
             pw = plotWrap.PlotWrap(**pwKWArgs)
         retval = pw
         
-        vmin, vmax, cmap = self.readerClass.getDisplayArgs(h, kwargs)
+        vmin, vmax, cmap = self.reader.getDisplayArgs(h, kwargs)
         pw.a.set_axis_bgcolor('white')
         cmap.set_under(color='white', alpha=0.0)
         norm = matplotlib.colors.Normalize(clip=False, vmin=vmin, vmax=vmax)
@@ -3924,7 +4008,7 @@ class Detector2DRC(DetectorBase):
         
         ...*** option for drawing lab-frame glyph
         """
-        pw = self.readerClass.display(thisframe, **kwargs)
+        pw = self.reader.display(thisframe, **kwargs)
         # pw.a is same as pw.win.getAxes(0)
         if planeData is None:
             def fmtCoord(x,y):
@@ -4395,20 +4479,21 @@ class DetectorGeomMar165(Detector2DRC):
         idim = mar165IDim(mode)
         nrows = ncols = idim 
         pixelPitch = 165.0 / idim # mm
+        reader = readerClass()
         
         self.mode = mode
         
         Detector2DRC.__init__(self, 
                               nrows, ncols, pixelPitch, 
                               self.__vfu, self.__vdk,
-                              readerClass,
+                              reader,
                               *args, **kwargs)
         return
 
     def getDParamDflt(self):    
-        return 
-    def getDParamDflt(self):
         return []
+    def setDParamZero(self):    
+        return
     def getDParamScalings(self):    
         return []
     def getDParamRefineDflt(self):
@@ -4537,8 +4622,9 @@ class DetectorGeomQuadGE(DetectorBase):
     
     def __init__(self, *args, **kwargs):
         
-        'pass ReadGE as the readerClass for now; perhaps make a ReadQuadGE class later if it turns out to be needed'
-        DetectorBase.__init__(self, ReadGE)
+        'pass ReadGE instance as the reader for now; perhaps make a ReadQuadGE class later if it turns out to be needed'
+        reader = ReadGE(None)
+        DetectorBase.__init__(self, reader)
         
         # defaults and kwargs parsing        
         for parm, val in self.__inParmDict.iteritems():
@@ -4709,7 +4795,7 @@ class DetectorGeomQuadGE(DetectorBase):
             h, xedges, yedges, mask = dg.renderIdeal(thisframe, workDist=workDist, nlump=nlump)
             
             if cmap is None:
-                vmin, vmax, cmap = dg.readerClass.getDisplayArgs(h, kwargs)
+                vmin, vmax, cmap = dg.reader.getDisplayArgs(h, kwargs)
                 cmap.set_under(color='white', alpha=0.0)
                 norm = matplotlib.colors.Normalize(clip=False, vmin=vmin, vmax=vmax)
             if True:
@@ -4875,5 +4961,64 @@ def newDetector(detectorType):
 
     return d
 
-def genericDetector(...NRB):
-    return d
+def newGenericReader(ncols, nrows, **kwargs):
+    framer = Framer2DRC(ncols, nrows, **kwargs)
+    return framer
+
+def newGenericDetector(ncols, nrows, pixelPitch, *args, **kwargs):
+    """
+    If reader is passed as None, then a generic reader is created
+
+    Keyword Arguments:
+	vFactorUnc
+	vDark
+	reader
+	readerKWArgs
+	getDParamDflt
+	setDParamZero
+	getDParamScalings
+	getDParamRefineDflt
+	radialDistortion
+        
+    If *args is an existing detector geometry, then
+    additional keyword arguments may include:
+	pVec
+    
+    If *args is (xc, yc, workDist, xTilt, yTilt, zTilt) detector parameters, then 
+    additional keyword arguments may include:
+	distortionParams
+
+    """
+    
+    vFactorUnc   = kwargs.pop('vFactorUnc',0.2)
+    vDark        = kwargs.pop('vDark',1800)
+    reader       = kwargs.pop('reader',None)
+    readerKWArgs = kwargs.pop('readerKWArgs',{})
+
+    'default functions corresponding to no distortion'
+    def getDParamDflt_dflt(slf):    
+        return []
+    def setDParamZero_dflt(slf):    
+        return
+    def getDParamScalings_dflt(slf):    
+        return []
+    def getDParamRefineDflt_dflt(slf):
+        return []
+    def radialDistortion_dflt(slf, xin, yin, invert=False):
+        'no distortion correction'
+        return xin, yin
+    
+    getDParamDflt        = kwargs.setdefault('getDParamDflt', getDParamDflt_dflt)
+    setDParamZero        = kwargs.setdefault('setDParamZero', setDParamZero_dflt)
+    getDParamScalings    = kwargs.setdefault('getDParamScalings', getDParamScalings_dflt)
+    getDParamRefineDflt  = kwargs.setdefault('getDParamRefineDflt', getDParamRefineDflt_dflt)
+    radialDistortion     = kwargs.setdefault('radialDistortion', radialDistortion_dflt)
+
+    if reader is None:
+        reader = newGenericReader(ncols, nrows, **readerKWArgs)
+
+    detector = Detector2DRC(ncols, nrows, pixelPitch, 
+                            vFactorUnc, vDark,
+                            reader, *args, **kwargs)
+
+    return detector

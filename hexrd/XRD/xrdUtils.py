@@ -51,7 +51,7 @@ import hexrd.orientations as ors
 from hexrd.XRD import crystallography
 from hexrd.XRD.crystallography import latticeParameters, latticeVectors
 from hexrd.XRD import detector
-from hexrd.XRD.detector import Reader
+from hexrd.XRD.detector import Framer2DRC as Reader
 from hexrd.XRD.detector import getCMap
 from hexrd.XRD import xrdBase
 from hexrd.XRD.xrdBase import dataToFrame
@@ -2581,3 +2581,122 @@ def pfigFromSpots(spots, iHKL, phaseID=None,
         
     return retval
 
+def makeSynthFrames(spotParamsList, detectorGeom, omegas, 
+                    intensityFunc=spotFinder.IntensityFuncGauss3D(), 
+                    asSparse=True, 
+                    outputPrefix=None, 
+                    cutoffMult=4.0, 
+                    debug=3,
+                    ):
+    """
+    intensityFunc is an instanct of a class that works as an intensity fuction. 
+    
+    spotParamsList should be a list with each entry being a list of arguments appropriate to the intensityFunc.constructParams function. For intensityFunc=spotFinder.IntensityFuncGauss3D(), each spotParamsList entry should be (center, fwhm, A), with center being the 3D spot center in angular coordinates (radians), fwhm being the (2-theta, eta, omega) widths in 3D, and A being an intensity scaling. 
+    
+    If outputPrefix is specified, then the frames are dumped to files instead of being accumulated in memory. 
+    
+    If asSparse is true then sparse matrices are used to reduce memory footprint. The asSparse option is currently not coded for the case of outputPrefix having been specied.
+    
+    cutoffMult is the multiplier on the FWHM to determine the angular cutoff range for evaluating intensity for each spot. 
+    """
+    
+    nFrames = len(omegas)
+    
+    'might eventually want to add a check for constant delta-omega'
+    omegaDelta = num.mean(omegas[1:]-omegas[:-1])
+    
+    # nParams = intensityFunc.getNParams(noBkg=False) # not needed
+    
+    spotList = []
+    #
+    for iSpot, spotParams in enumerate(spotParamsList):
+        xVec = intensityFunc.constructParams(*spotParams)
+    
+        'bbox from center and widths'
+        'do not worry about excessive pixel coverage for spots at eta around 45 degrees and the like?'
+        angCen = intensityFunc.getCenter(xVec)
+        fwhm   = intensityFunc.getFWHM(xVec)
+        angPM  = fwhm * cutoffMult
+        xyfBBox = detectorGeom.angToXYOBBox(angCen, angPM, units='pixels', omegas=omegas)
+        # xyfBBox_0 = num.array([sl[0] for sl in xyfBBox])
+        # stack[slice(*xyfBBox[0]), slice(*xyfBBox[1]), slice(*xyfBBox[2])]
+        
+        'make spot instance, set up for just a single omega frame slice'
+        xM, yM = num.meshgrid(num.arange(*xyfBBox[0]), num.arange(*xyfBBox[1]))
+        xAll = xM.flatten(); yAll = yM.flatten();
+        data = ( xAll, yAll, num.zeros_like(xAll), num.ones_like(xAll) )
+        spot = spotFinder.Spot(iSpot, omegaDelta, data=data, detectorGeom=detectorGeom)
+        spot.setupQuardFromFWHM(fwhm)
+        
+        spotList.append( (spot, xyfBBox, xVec) )
+        if debug: print 'created spot %d'%(iSpot)
+    
+    if outputPrefix is None:
+        if asSparse:
+            stack = [] # sparse.coo_matrix( (detectorGeom.nrows, detectorGeom.ncols), float )
+        else:
+            'this can eat up a big chunk of memory'
+            stack = num.zeros( (nFrames, detectorGeom.nrows, detectorGeom.ncols), dtype=float)
+    else:
+        if asSparse:
+            raise NotImplementedError, 'have not implemented output to file in sparse format'
+        stack = None
+    #
+    for iFrame, omega in enumerate(omegas):
+        
+        if outputPrefix is None:
+            if asSparse:
+                vThese = []
+                xThese = []
+                yThese = []
+            else:
+                frame = stack[iFrame,:,:]
+        else:
+            frame = detectorGeom.frame()
+        
+        for iSpot, (spot, xyfBBox, xVec) in enumerate(spotList):
+            
+            if iFrame < xyfBBox[2][0] or iFrame >= xyfBBox[2][1]:
+                '>= for upper end because is meant to be used as a slice'
+                if debug>2: print 'spot %d not on frame %d' % (iSpot, iFrame)
+                continue
+            
+            'calculate intensities at the omega for this frame'
+            spot.oAll[:] = omega
+            vCalc = spot.getVCalc(intensityFunc, xVec, noBkg=True) 
+            if debug>2:print vCalc.max()
+            
+            'put intensity on frames'
+            if asSparse:
+                vThese.append(vCalc)
+                xThese.append(spot.xAll)
+                yThese.append(spot.yAll)
+            else:
+                frame[spot.xAll, spot.yAll] += vCalc
+        'done with spot loop'
+        
+        if outputPrefix is None:
+            if asSparse:
+                if len(vThese) > 0:
+                    vThese = num.hstack(vThese)
+                    xThese = num.hstack(xThese)
+                    yThese = num.hstack(yThese)
+                    if debug>1: print 'frame %d will have up to %d nonzeros' % (iFrame,len(vThese))
+                    frame = sparse.coo_matrix( ( vThese , (xThese,yThese) ) , 
+                                               shape=(detectorGeom.nrows, detectorGeom.ncols) )
+                    frame = frame.tocsr() # note that coo->csr sums entries as desired for overlapped spots
+                else:
+                    'just make an empty matrix'
+                    frame = sparse.csr_matrix( (detectorGeom.nrows, detectorGeom.ncols) )
+                stack.append(frame)
+            else:
+                'nothing to do here'
+                pass
+        else:
+            frame.tofile(outputPrefix+'_%04d.dat'%iFrame)
+    
+        if debug: print 'created frame %d'%(iFrame)
+    
+    'done with loop over frames'
+        
+    return stack # may be None

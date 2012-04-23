@@ -1683,9 +1683,9 @@ class Spot(object):
             xyo = num.empty( len(self.vAll), dtype=[('x',int),('y',int),('o',float)] )
             xyo['x'], xyo['y'], xyo['o'] = self.xAll[:], self.yAll[:], self.oAll[:]
             try:
-                xyoUnique, indices = num.unique...(xyo, return_index=True)
+                xyoUnique, indices = num.unique(xyo, return_index=True)
             except TypeError:
-                xyoUnique, indices = num.unique1d...(xyo, return_index=True)
+                xyoUnique, indices = num.unique1d(xyo, return_index=True)
             if debugFinalize:
                 nDiscard = len(self.vAll) - len(indices)
                 if nDiscard > 0:
