@@ -103,7 +103,7 @@ class ImageModes(object):
 # ---------------------------------------------------CLASS:  Experiment
 #
 class Experiment(object):
-    """Experiment class:  wrapper for XRD functionality"""
+    """Wrapper for XRD functionality"""
     def __init__(self, cfgFile, matFile):
         """Constructor for Experiment
 
@@ -135,6 +135,10 @@ class Experiment(object):
         self._detInfo  = DetectorInfo()
         self._calInput = CalibrationInput(self.matList[0])
         #
+        #  Spots information.
+        #
+        self._spotOpts = SpotOptions()
+        #
         #  Add hydra interface
         #
         self._hydra = Hydra()
@@ -149,7 +153,16 @@ class Experiment(object):
     #
     # ============================== API
     #
-    #                     ========== Properties
+    # ==================== Spots
+    #
+    # property:  spotOpts
+
+    @property
+    def spotOpts(self):
+        """(get-only) spot finding options"""
+        return self._spotOpts
+    #
+    # ==================== Detector
     #
     # property:  detector
 
@@ -1023,3 +1036,42 @@ class PolarRebinOpts(object):
     pass  # end class
 #
 # -----------------------------------------------END CLASS:  PolarRebinOpts
+# ---------------------------------------------------CLASS:  SpotOptions
+#
+class SpotOptions(object):
+    """Manage options available for spot finding and analysis
+
+    Mainly, this manages the keyword options to the findSpotsOmegaStack()
+    static method in the Spots class.
+    """
+    #
+    # call to findSpotsOmegaStack for reference:
+    #
+    ### def findSpotsOmegaStack(reader, 
+    ###                         nFrames,
+    ###                         threshold, minPx, 
+    ###                         discardAtBounds=True,
+    ###                         keepWithinBBox=True,
+    ###                         overlapPixelDistance=None,
+    ###                         nframesLump=1, # probably get rid of this eventually
+    ###                         padOmega=True,
+    ###                         padSpot=True,
+    ###                         debug=False, pw=None):
+    
+    def __init__(self):
+        """SpotOptions Constructor"""
+        #
+        self.thresh = 1000 # need reasonable initial value
+	self.minPix = 4
+        self.discardAtBounds = False
+        self.overlap = 1 # overlapPixelDistance=overlap,
+        #
+        return
+    #
+    # ============================== API
+    #
+
+    #
+    pass  # end class
+#
+# -----------------------------------------------END CLASS:  SpotOptions
