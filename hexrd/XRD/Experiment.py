@@ -36,7 +36,7 @@ are helpers.
 """
 import sys, os, copy
 import cPickle
-
+ghit 
 import numpy
 
 from hexrd.XRD import detector
@@ -161,6 +161,20 @@ class Experiment(object):
     def spotOpts(self):
         """(get-only) spot finding options"""
         return self._spotOpts
+
+    def findSpots(self):
+        """find spots using current reader and options"""
+        findSOS = spotFinder.Spots.findSpotsOmegaStack
+        opts = self.spotOpts
+        #
+        self._spots = findSOS(self.activeReader, 
+                              self.numFramesTotal,
+                              opts.thresh, 
+                              opts.minPix, 
+                              debug=0,
+                              overlapPixelDistance=opts.overlap,
+                              discardAtBounds=opts.discardAtBounds)
+        return
     #
     # ==================== Detector
     #
