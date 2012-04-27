@@ -36,7 +36,6 @@ are helpers.
 """
 import sys, os, copy
 import cPickle
-ghit 
 import numpy
 
 from hexrd.XRD import detector
@@ -274,7 +273,6 @@ class Experiment(object):
         self._matList = v
         self.activeMaterial = 0
         # On initialization, this is called before calInput exists
-        print 'calibrant name: ', self.matList[0]
         try:
             self.calInput.calMat = self.matList[0]
         except:
@@ -857,7 +855,6 @@ class CalibrationInput(object):
     def _set_calMat(self, v):
         """Set method for calMat"""
         self._calMat = v
-        print 'setting calMat:  \n', str(self.calData)
         return
 
     calMat = property(_get_calMat, _set_calMat, None,

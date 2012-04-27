@@ -87,12 +87,8 @@ space group data.
             #
             self.description = ''
 
-            print 'using default values: ', self
-            
             pass
-        #
-        print 'New Material \n', self
-        #
+
         return
 
     def __str__(self):
@@ -146,8 +142,6 @@ space group data.
                             Material.DFLT_KEV, Material.DFLT_STR,
                             tThWidth=Material.DFLT_TTH)
         
-        print 'defaults (tth/kev/str): ', \
-              Material.DFLT_TTH, Material.DFLT_KEV, Material.DFLT_STR
         #
         #  Set default exclusions
         #
