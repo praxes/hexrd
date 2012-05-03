@@ -189,6 +189,17 @@ class Experiment(object):
         """(read only) refinement flags for calibration"""
         return self._detInfo.refineFlags
 
+    def newDetector(self, gp, dp):
+        """Create a new detector with given geometry and distortion parameters
+
+        *gp* - initial geometric parameters
+        *dp* - initial distortion parameters
+
+"""
+        self._detInfo  = DetectorInfo(gParms=gp, dParms=dp)
+
+        return
+    
     def saveDetector(self, fname):
         """Save the detector information to a file
         
@@ -207,6 +218,7 @@ class Experiment(object):
 
         INPUTS
         fname -- the name of the file to load from
+
 """
         # should check the loaded file here
         f = open(fname, 'r')
@@ -887,16 +899,16 @@ class CalibrationInput(object):
 # ---------------------------------------------------CLASS:  DetectorInfo
 #
 class DetectorInfo(object):
-    """detectorInfo"""
+    """Class for detector and associated data"""
     # refinement-specific things
     #  ---------------> (   xc,    yc,     D,    xt,    yt,    zt,   
     #                      dp1,   dp2,   dp3,   dp4,   dp5,   dp6)
     DFLT_REFINE_FLAGS = ( True,  True,  True,  True,  True, False, 
                           True,  True,  True, False, False, False)
-    def __init__(self):
+    def __init__(self, gParms=[], dParms=[]):
         """Constructor for detectorInfo"""
         #
-	self.detector  = detector.newDetector('ge')
+	self.detector  = detector.newDetector('ge', gParams=gParms, dParams=dParms)
         self.mrbImages = []
         self.fitParams = []
         #
