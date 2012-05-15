@@ -937,12 +937,12 @@ class ReadGE(Framer2DRC):
                 nFrames -= nempty
             nFramesTot += nFrames
         return nFramesTot
-    @classmethod
-    def indicesToMask(cls, indices):
+
+    def indicesToMask(self, indices):
       """
       Indices can be a list of indices, as from makeIndicesTThRanges
       """
-      mask = cls.getEmptyMask()
+      mask = self.getEmptyMask()
       if hasattr(indices,'__len__'):
         for indThese in indices:
           mask[indThese] = True
@@ -2751,24 +2751,39 @@ class Detector2DRC(DetectorBase):
         radialDistortion     = kwargs.pop('radialDistortion', None)
         #
         if getDParamDflt:
-            def f_getDParamDflt():
-                return getDParamDflt(self)
+            if hasattr(getDParamDflt, 'im_class'):
+                f_getDParamDflt = getDParamDflt
+            else:
+                def f_getDParamDflt():
+                    return getDParamDflt(self)
             self.getDParamDflt = f_getDParamDflt
         if setDParamZero:
-            def f_setDParamZero():
-                return setDParamZero(self)
+            if hasattr(setDParamZero, 'im_class'):
+                f_setDParamZero = setDParamZero
+            else:
+                def f_setDParamZero():
+                    return setDParamZero(self)
             self.setDParamZero = f_setDParamZero
         if getDParamScalings:
-            def f_getDParamScalings():
-                return getDParamScalings(self)
+            if hasattr(getDParamScalings, 'im_class'):
+                f_getDParamScalings = getDParamScalings
+            else:
+                def f_getDParamScalings():
+                    return getDParamScalings(self)
             self.getDParamScalings = f_getDParamScalings
         if getDParamRefineDflt:
-            def f_getDParamRefineDflt():
-                return getDParamRefineDflt(self)
+            if hasattr(getDParamRefineDflt, 'im_class'):
+                f_getDParamRefineDflt = getDParamRefineDflt
+            else:
+                def f_getDParamRefineDflt():
+                    return getDParamRefineDflt(self)
             self.getDParamRefineDflt = f_getDParamRefineDflt
         if radialDistortion:
-            def f_radialDistortion(*args):
-                return radialDistortion(self, *args)
+            if hasattr(radialDistortion, 'im_class'):            
+                f_radialDistortion = radialDistortion
+            else:
+                def f_radialDistortion(*args):
+                    return radialDistortion(self, *args)
             self.radialDistortion = f_radialDistortion
         
         DetectorBase.__init__(self, reader)
@@ -4524,10 +4539,20 @@ class DetectorGeomGE(Detector2DRC):
     
     def __init__(self, *args, **kwargs):
         
+        kwargs.setdefault('getDParamDflt',       self.getDParamDflt)
+        kwargs.setdefault('setDParamZero',       self.setDParamZero)
+        kwargs.setdefault('getDParamScalings',   self.getDParamScalings)
+        kwargs.setdefault('getDParamRefineDflt', self.getDParamRefineDflt)
+        kwargs.setdefault('radialDistortion',    self.radialDistortion)
+
+        reader = kwargs.pop('reader', None)
+        if reader is None:
+            reader = ReadGE(None)
+        
         Detector2DRC.__init__(self, 
                               self.__nrows, self.__ncols, self.__pixelPitch, 
                               self.__vfu, self.__vdk,
-                              ReadGE,
+                              reader,
                               *args, **kwargs)
         return
     
