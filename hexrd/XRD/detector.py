@@ -399,6 +399,20 @@ class ReadGE(Reader):
         self.__setupRead(fileInfo, self.subtractDark, self.mask, self.omegaStart, self.omegaDelta)
 
         return
+
+    # property:  useThreading
+
+    @property
+    def useThreading(self):
+        """turn threading on or off"""
+        return self.__useThreading
+    
+    @useThreading.setter
+    def useThreading(self, v):
+        """Set method for useThreading"""
+        self.__useThreading = haveThreading and v
+        return
+
     @classmethod
     def getSize(cls):
         retval = (cls.__nrows, cls.__ncols)
