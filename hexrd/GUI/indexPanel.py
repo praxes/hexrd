@@ -72,6 +72,9 @@ class indexPanel(wx.Panel):
         self.sz_titlebar = makeTitleBar(self, 'Indexing')
         self.method_cho = wx.Choice(self, wx.NewId(), choices=['Fiber Search', 'GrainSpotter'])
         self.run_but  = wx.Button(self, wx.NewId(), 'Run Indexer')
+
+        self.fiber_pan = FiberSearchPanel(self, wx.NewId())
+        self.gspot_pan = GrainSpotterPanel(self, wx.NewId())
         
         return
 
@@ -90,6 +93,8 @@ class indexPanel(wx.Panel):
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.sz_titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.topsizer, 0)
+        self.sizer.Add(self.fiber_pan, 1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.gspot_pan, 1, wx.EXPAND|wx.ALIGN_CENTER)
 
 	return
     #
@@ -102,3 +107,131 @@ class indexPanel(wx.Panel):
     pass # end class
 #
 # -----------------------------------------------END CLASS:  indexPanel
+# ---------------------------------------------------CLASS:  FiberSearchPanel
+#
+class FiberSearchPanel(wx.Panel):
+    """Handles fiber search options """
+    def __init__(self, parent, id, **kwargs):
+	"""Constructor for FiberSearchPanel"""
+	#
+	wx.Panel.__init__(self, parent, id, **kwargs)
+	#
+        #  Data
+        #
+
+        #
+	#  Window Objects.
+	#
+        self.__makeObjects()
+	#
+	#  Bindings.
+	#
+	self.__makeBindings()
+	#
+	#  Sizing.
+	#
+	self.__makeSizers()
+	#
+	self.SetAutoLayout(True)
+        self.SetSizerAndFit(self.sizer)
+	#
+	return
+    #
+    # ============================== Internal Methods
+    #
+    def __makeObjects(self):
+        """Add interactors"""
+
+        self.tbarSizer = makeTitleBar(self, 'Fiber Search Options', 
+                                      color=WP.BG_COLOR_PANEL1_TITLEBAR)
+
+        return
+
+    def __makeBindings(self):
+        """Bind interactors"""
+        return
+
+    def __makeSizers(self):
+	"""Lay out the interactors"""
+	
+	self.sizer = wx.BoxSizer(wx.VERTICAL)
+	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+
+	return
+    #
+    # ============================== API
+    #
+    #                     ========== *** Access Methods
+    #
+
+    #
+    #                     ========== *** Event Callbacks
+    #
+    
+    pass # end class
+#
+# -----------------------------------------------END CLASS:  FiberSearchPanel
+# ---------------------------------------------------CLASS:  GrainSpotterPanel
+#
+class GrainSpotterPanel(wx.Panel):
+    """Handles grain spotter options """
+    def __init__(self, parent, id, **kwargs):
+	"""Constructor for GrainSpotterPanel"""
+	#
+	wx.Panel.__init__(self, parent, id, **kwargs)
+	#
+        #  Data
+        #
+
+        #
+	#  Window Objects.
+	#
+        self.__makeObjects()
+	#
+	#  Bindings.
+	#
+	self.__makeBindings()
+	#
+	#  Sizing.
+	#
+	self.__makeSizers()
+	#
+	self.SetAutoLayout(True)
+        self.SetSizerAndFit(self.sizer)
+	#
+	return
+    #
+    # ============================== Internal Methods
+    #
+    def __makeObjects(self):
+        """Add interactors"""
+
+        self.tbarSizer = makeTitleBar(self, 'Grain Spotter Options', 
+                                      color=WP.BG_COLOR_PANEL1_TITLEBAR)
+
+        return
+
+    def __makeBindings(self):
+        """Bind interactors"""
+        return
+
+    def __makeSizers(self):
+	"""Lay out the interactors"""
+	
+	self.sizer = wx.BoxSizer(wx.VERTICAL)
+	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+
+	return
+    #
+    # ============================== API
+    #
+    #                     ========== *** Access Methods
+    #
+
+    #
+    #                     ========== *** Event Callbacks
+    #
+    
+    pass # end class
+#
+# -----------------------------------------------END CLASS:  GrainSpotterPanel
