@@ -200,7 +200,17 @@ class spotsPanel(wx.Panel):
 
     def OnRun(self, evt):
         """Callback for run"""
-        #wx.GetApp().ws.findSpots()
+        exp = wx.GetApp().ws
+        #
+        # Fill in spot options from the form
+        #
+        opts = exp.spotOpts
+        #
+        opts.thresh = int(self.thresh_txt.GetValue())
+        opts.minpx = int(self.minpx_txt.GetValue())
+        #
+        exp.findSpots()
+        
         return
     
     pass # end class
