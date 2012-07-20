@@ -70,20 +70,26 @@ class indexPanel(wx.Panel):
         """Add interactors"""
 
         self.sz_titlebar = makeTitleBar(self, 'Indexing')
-        self.hpage = callJoel(self)
-
+        self.method_cho = wx.Choice(self, wx.NewId(), choices=['Fiber Search', 'GrainSpotter'])
+        self.run_but  = wx.Button(self, wx.NewId(), 'Run Indexer')
+        
         return
 
     def __makeBindings(self):
         """Bind interactors"""
+	#self.Bind(wx.EVT_CHOICE, self.OnChoice, self.choice)
         return
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+        # Top sizer for method and run
+	self.topsizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.topsizer.Add(self.method_cho, 0)
+        self.topsizer.Add(self.run_but,  0, wx.LEFT, 5)
+    
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.sz_titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.hpage,    1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.topsizer, 0)
 
 	return
     #
