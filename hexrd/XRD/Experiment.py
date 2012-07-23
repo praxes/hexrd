@@ -167,12 +167,17 @@ class Experiment(object):
         opts = self.spotOpts
         #
         self._spots = findSOS(self.activeReader, 
-                              self.numFramesTotal,
+                              opts.nframes,
                               opts.thresh, 
                               opts.minPix, 
-                              debug=0,
+                              discardAtBounds=opts.discardAtBounds,
+                              keepWithinBBox=opts.keepWithinBBox,
                               overlapPixelDistance=opts.overlap,
-                              discardAtBounds=opts.discardAtBounds)
+                              nframesLump=opts.nflump,
+                              padOmega=opts.padOmega,
+                              padSpot=opts.padSpot,
+                              
+            )
         return
     #
     # ==================== Detector
@@ -1075,8 +1080,8 @@ class SpotOptions(object):
     ###                         threshold, minPx, 
     ###                         discardAtBounds=True,
     ###                         keepWithinBBox=True,
-    ###                         overlapPixelDistance=None,
-    ###                         nframesLump=1, # probably get rid of this eventually
+    ###                         overlapPixelDistance=None,  # float, if specified
+    ###                         nframesLump=1,              # probably get rid of this eventually
     ###                         padOmega=True,
     ###                         padSpot=True,
     ###                         debug=False, pw=None):
@@ -1084,10 +1089,17 @@ class SpotOptions(object):
     def __init__(self):
         """SpotOptions Constructor"""
         #
+        self.nframes = 0   # means use all
         self.thresh = 1000 # need reasonable initial value
-	self.minPix = 4
-        self.discardAtBounds = False
-        self.overlap = 1 # overlapPixelDistance=overlap,
+	self.minPix = 4    # reasonable initial value
+        self.discardAtBounds = True
+        self.keepWithinBBox = True
+        self.overlap = None
+        self.nflump = 1
+        self.padOmega = True
+        self.padSpot = True
+        #
+        # Keep debug=False, pw=None
         #
         return
     #
