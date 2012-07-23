@@ -39,7 +39,7 @@ sglite_mod = Extension('hexrd.XRD.sglite', sources=srclist,
 ext_modules = [sglite_mod]
 
 packages = []
-for dirpath, dirnames, filenames in os.walk('.'):
+for dirpath, dirnames, filenames in os.walk('hexrd'):
     if '__init__.py' in filenames:
         packages.append('.'.join(dirpath.split(os.sep)))
     else:
