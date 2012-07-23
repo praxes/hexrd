@@ -1023,3 +1023,21 @@ class PolarRebinOpts(object):
     pass  # end class
 #
 # -----------------------------------------------END CLASS:  PolarRebinOpts
+# ---------------------------------------------------CLASS:  indexOptions
+#
+class indexOptions(object):
+    """indexOptions"""
+    def __init__(self):
+        """Constructor for indexOptions"""
+        #
+	
+        #
+        return
+    #
+    # ============================== API
+    #
+
+    #
+    pass  # end class
+#
+# -----------------------------------------------END CLASS:  indexOptions

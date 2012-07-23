@@ -37,6 +37,12 @@ from hexrd.GUI.guiUtilities import makeTitleBar, callJoel
 #
 class indexPanel(wx.Panel):
     """indexPanel """
+    #
+    # Class data
+    #
+    INDEX_CHOICES = ['Fiber Search', 'GrainSpotter']
+    INDEX_CHOICE_IDS = [IND_FIBER, IND_GSPOT] = range(2)
+    
     def __init__(self, parent, id, **kwargs):
 	"""Constructor for indexPanel."""
 	#
@@ -58,6 +64,8 @@ class indexPanel(wx.Panel):
 	#  Sizing.
 	#
 	self.__makeSizers()
+        #
+        self.ChooseMethod(None)
 	#
 	self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
@@ -70,7 +78,7 @@ class indexPanel(wx.Panel):
         """Add interactors"""
 
         self.sz_titlebar = makeTitleBar(self, 'Indexing')
-        self.method_cho = wx.Choice(self, wx.NewId(), choices=['Fiber Search', 'GrainSpotter'])
+        self.method_cho = wx.Choice(self, wx.NewId(), choices=self.INDEX_CHOICES)
         self.run_but  = wx.Button(self, wx.NewId(), 'Run Indexer')
 
         self.fiber_pan = FiberSearchPanel(self, wx.NewId())
@@ -80,7 +88,7 @@ class indexPanel(wx.Panel):
 
     def __makeBindings(self):
         """Bind interactors"""
-	#self.Bind(wx.EVT_CHOICE, self.OnChoice, self.choice)
+	self.Bind(wx.EVT_CHOICE, self.ChooseMethod, self.method_cho)
         return
 
     def __makeSizers(self):
@@ -100,10 +108,25 @@ class indexPanel(wx.Panel):
     #
     # ============================== API
     #
+    #                     ========== *** Access Methods
+    #
     def updateFromExp(self):
         """Update page"""
         return
-
+    #
+    #                     ========== *** Event Callbacks
+    #
+    def ChooseMethod(self, e):
+        """Choose method button has been pressed"""
+        if self.method_cho.GetSelection() == self.IND_FIBER:
+            self.fiber_pan.Enable()
+            self.gspot_pan.Disable()
+        else:
+            self.fiber_pan.Disable()
+            self.gspot_pan.Enable()
+            
+        return
+    
     pass # end class
 #
 # -----------------------------------------------END CLASS:  indexPanel
