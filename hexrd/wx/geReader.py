@@ -37,7 +37,7 @@ from hexrd.xrd.Experiment import *
 
 from hexrd.wx.guiConfig    import WindowParameters as WP
 from hexrd.wx.guiUtilities import ResetChoice, makeTitleBar
-from hexrd.wx.canvasPanel  import CanvasPanel
+from hexrd.wx.canvaspanel  import CanvasPanel
 #
 #  DATA
 #
