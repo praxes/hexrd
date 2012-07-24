@@ -59,8 +59,8 @@ from hexrd import plotwrap
 from hexrd import XRD
 from hexrd.xrd import crystallography
 from hexrd.xrd import detector
-from hexrd.xrd import xrdBase
-from hexrd.xrd.xrdBase import getGaussNDParams
+from hexrd.xrd import xrdbase
+from hexrd.xrd.xrdbase import getGaussNDParams
 from hexrd.xrd import Rotations
 from hexrd.xrd.rotations import mapAngle
 
@@ -3167,7 +3167,7 @@ class Spots(object):
             if not self.__keepMarks:
                 self.__marks = None
         else:
-            assert xrdBase.haveMultiProc, \
+            assert xrdbase.haveMultiProc, \
                 'do not have multiprocessing module available'
 
             'put marks in shared memory, and mostly use marks instead of claimedBy'
@@ -3667,7 +3667,7 @@ class Spots(object):
         """
         like fitSpots, but consider splitting up spots with multiple peaks
         """
-        multiprocessing = xrdBase.multiprocessing # former import
+        multiprocessing = xrdbase.multiprocessing # former import
 
         if self.__multiprocMode:
             raise RuntimeError, 'do not fit spots when in multiprocessing mode'
@@ -3712,8 +3712,8 @@ class Spots(object):
         thresMulti_MP = threshold
         #
         if multiProcMode:
-            multiprocessing = xrdBase.multiprocessing # former import
-            nCPUs = nCPUs or xrdBase.dfltNCPU
+            multiprocessing = xrdbase.multiprocessing # former import
+            nCPUs = nCPUs or xrdbase.dfltNCPU
             pool = multiprocessing.Pool(nCPUs)
             if debug :
                 print "using multiprocessing with %d cpus" % (nCPUs)

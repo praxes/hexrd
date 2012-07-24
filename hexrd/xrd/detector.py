@@ -54,7 +54,7 @@ from matplotlib import mlab
 from matplotlib.widgets import Slider, Button, RadioButtons
 
 from hexrd import XRD
-from hexrd.xrd.xrdBase import getGaussNDParams
+from hexrd.xrd.xrdbase import getGaussNDParams
 from hexrd.xrd.rotations import mapAngle
 from hexrd.xrd.rotations import rotMatOfExpMap
 from hexrd.xrd.rotations import rotMatOfExpMap, arccosSafe
@@ -4657,7 +4657,7 @@ class DetectorGeomQuadGE(DetectorBase):
         If want to just refine detector geometry and not the functional forms for the rings,
         pass funcXVecList as True or as something like a list of arrays from MultiRingEval.getFuncXVecList()
         """
-        from xrdBase import dataToFrame # move to beginning of module
+        from xrdbase import dataToFrame # move to beginning of module
 
         assert len(framesQuad) == 4,\
             'need len(framesQuad) to be 4'

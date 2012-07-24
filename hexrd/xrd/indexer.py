@@ -41,10 +41,10 @@ from hexrd.xrd.grain import makeMeasuredScatteringVectors
 import hexrd.xrd.rotations
 from hexrd.xrd.rotations import mapAngle
 from hexrd.xrd.symmetry import toFundamentalRegion
-from hexrd.xrd import xrdBase
+from hexrd.xrd import xrdbase
 
-if xrdBase.haveMultiProc:
-    multiprocessing = xrdBase.multiprocessing # formerly import
+if xrdbase.haveMultiProc:
+    multiprocessing = xrdbase.multiprocessing # formerly import
 
 # module vars
 piby2 = num.pi * 0.5
@@ -360,7 +360,7 @@ multiprocessing has a hard time pickling a function defined in the local scope o
 so stuck putting the function out here;
 """
 debugMultiproc = 1
-if xrdBase.haveMultiProc:
+if xrdbase.haveMultiProc:
     foundFlagShared = multiprocessing.Value(ctypes.c_bool)
     foundFlagShared.value = False
 multiProcMode_MP   = None
@@ -551,7 +551,7 @@ def fiberSearch(spotsArray, hklList,
 
     candidate = G.Grain(spotsArray, rMat=None,
                         etaTol=etaTol, omeTol=omeTol)
-    multiProcMode = xrdBase.haveMultiProc and doMultiProc
+    multiProcMode = xrdbase.haveMultiProc and doMultiProc
     #
     global foundFlagShared
     global multiProcMode_MP
@@ -572,7 +572,7 @@ def fiberSearch(spotsArray, hklList,
     set up for shared memory multiprocessing
     """
     if multiProcMode:
-        nCPUs = nCPUs or xrdBase.dfltNCPU
+        nCPUs = nCPUs or xrdbase.dfltNCPU
         spotsArray.multiprocMode = True
         pool = multiprocessing.Pool(nCPUs)
 
@@ -814,10 +814,10 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
     # make list of rMats from input quats
     rMatsList = [rot.rotMatOfQuat(quats[:, i]) for i in range(quats.shape[1])]
 
-    multiProcMode = xrdBase.haveMultiProc and doMultiProc
+    multiProcMode = xrdbase.haveMultiProc and doMultiProc
 
     if multiProcMode:
-        nCPUs = nCPUs or xrdBase.dfltNCPU
+        nCPUs = nCPUs or xrdbase.dfltNCPU
         print "INFO: using multiprocessing with %d processes\n" % (nCPUs)
     else:
         print "INFO: running in serial mode\n"

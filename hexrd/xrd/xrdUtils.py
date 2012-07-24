@@ -53,9 +53,9 @@ from hexrd.xrd.crystallography import latticeParameters, latticeVectors
 from hexrd.xrd import detector
 from hexrd.xrd.detector import Reader
 from hexrd.xrd.detector import getCMap
-from hexrd.xrd import xrdBase
-from hexrd.xrd.xrdBase import dataToFrame
-from hexrd.xrd.xrdBase import multiprocessing
+from hexrd.xrd import xrdbase
+from hexrd.xrd.xrdbase import dataToFrame
+from hexrd.xrd.xrdbase import multiprocessing
 from hexrd.xrd import Rotations as rot
 from hexrd.xrd.rotations import mapAngle
 from hexrd.xrd import spotfinder
@@ -1668,11 +1668,11 @@ def readFrameStack_multiproc(reader, func, nPerChunk=None, nCPUs=None, debug=Fal
     use makeNew for each chunk; if reader.dark is a shared memory
     array then it remains so
     """
-    assert xrdBase.haveMultiProc, \
+    assert xrdbase.haveMultiProc, \
         'do not have multiprocessing available'
 
     nFrames = reader.getNFrames()
-    nCPUs = nCPUs or xrdBase.dfltNCPU
+    nCPUs = nCPUs or xrdbase.dfltNCPU
     nPerChunk = nPerChunk or max(int(nFrames/(4*nCPUs)),1)
 
     global reader_MP, func_MP, nPerChunk_MP, debug_MP
