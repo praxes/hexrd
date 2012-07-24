@@ -45,7 +45,7 @@ from matplotlib                        import cm
 from hexrd.wx.guiConfig  import WindowParameters as WP
 from hexrd.wx.guiUtilities import ResetChoice
 
-from hexrd.wx.FloatControl import *
+from hexrd.wx.floatcontrol import *
 #
 # ---------------------------------------------------CLASS:  hydraCanvasPanel
 #

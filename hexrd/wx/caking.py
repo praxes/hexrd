@@ -42,7 +42,7 @@ from hexrd.wx.guiUtilities import makeTitleBar
 from hexrd.wx.ringSubPanel import ringPanel
 from hexrd.wx.selectHKLs   import selectHKLsDialog as hklsDlg
 from hexrd.wx.LogWindows   import logWindow
-from hexrd.wx.FloatControl import *
+from hexrd.wx.floatcontrol import *
 from hexrd.wx.cakingCanvas import cakeDisplay
 #
 #  Module Data

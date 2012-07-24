@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -39,7 +39,7 @@ SomeNewCommandEvent, EVT_SOME_NEW_COMMAND_EVENT = \
 #create the event
 evt = SomeNewEvent(self.GetId(), attr1="hello", attr2=654)
 [note that the id arg was left off of the PyWiki docs]
-   
+
 #post the event
 wx.PostEvent(target, evt)
 
@@ -62,7 +62,7 @@ class FloatControl(wx.Panel):
         'min':None,
         'max':None,
         'initial':None,
-        'delta':1.0}    
+        'delta':1.0}
     def __init__(self, parent, id, **kwargs):
 	"""Constructor for FloatControl."""
 	#
@@ -94,12 +94,12 @@ class FloatControl(wx.Panel):
         myToolTip = r"""FLOAT DATA ENTRY CONTROL
 
 You can enter the number directly in the text
-box or use the spinner to change the number.  
+box or use the spinner to change the number.
 The spinner increment is shown in the gray
 box to the right of the spinner.
 """
         self.SetToolTipString(myToolTip)
-        
+
 	self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
 	#
@@ -109,10 +109,10 @@ box to the right of the spinner.
     #
     def __makeObjects(self):
         """Add interactors"""
-        self.value_txt = wx.TextCtrl(self, wx.NewId(), 
-                                     value=str(self.value), 
+        self.value_txt = wx.TextCtrl(self, wx.NewId(),
+                                     value=str(self.value),
                                      style=wx.RAISED_BORDER| wx.TE_PROCESS_ENTER)
-        self.delta_txt = wx.TextCtrl(self, wx.NewId(), 
+        self.delta_txt = wx.TextCtrl(self, wx.NewId(),
                                      value=str(self.delta),
                                      style=wx.RAISED_BORDER| wx.TE_PROCESS_ENTER)
         self.delta_txt.SetBackgroundColour( (230, 230, 230) )
@@ -131,7 +131,7 @@ box to the right of the spinner.
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+
 	self.sizer = wx.BoxSizer(wx.HORIZONTAL)
 	self.sizer.Add(self.value_txt, 1, wx.EXPAND|wx.ALIGN_RIGHT)
 	self.sizer.Add(self.spin_but,  0, wx.LEFT|wx.RIGHT, 5)
@@ -143,7 +143,7 @@ box to the right of the spinner.
         """Show current values in the controls"""
         self.value_txt.ChangeValue(str(self.value))
         self.delta_txt.ChangeValue(str(self.delta))
-        
+
         return
     #
     # ============================== API
@@ -219,7 +219,7 @@ box to the right of the spinner.
         self.__showValues()
 
         return
-    
+
     def OnDeltaTxt(self, evt):
         """Callback for delta_txt choice"""
         try:
