@@ -56,7 +56,7 @@ from hexrd.xrd.crystallography import processWavelength
 from hexrd.wx.guiConfig    import WindowParameters as WP
 from hexrd.wx.guiUtilities import ResetChoice, AddSpacer, EmptyWindow, makeTitleBar
 from hexrd.wx.floatcontrol import *
-from hexrd.wx.LogWindows   import logWindow
+from hexrd.wx.logwindows   import logWindow
 from hexrd.wx.ringSubPanel import ringPanel
 from hexrd.wx.selectHKLs   import selectHKLsDialog as hklsDlg #TBR
 
