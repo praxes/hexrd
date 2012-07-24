@@ -32,7 +32,7 @@ import wx
 
 from hexrd.wx.guiconfig import WindowParameters as WP
 
-from hexrd.wx.hydraCanvas import hydraCanvasFrame
+from hexrd.wx.hydracanvas import hydraCanvasFrame
 #
 # ---------------------------------------------------CLASS:  HydraControlPanel
 #
