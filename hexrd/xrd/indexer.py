@@ -750,7 +750,7 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
 
     bMat is in CRYSTAL frame
 
-    etaOmeMaps is instance of xrd.xrdUtils.CollapseOmeEta
+    etaOmeMaps is instance of xrd.xrdutil.CollapseOmeEta
 
     omegaRange=([-num.pi/3., num.pi/3.],) for example
 

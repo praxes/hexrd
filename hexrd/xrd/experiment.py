@@ -48,7 +48,7 @@ from hexrd.xrd import indexer
 from hexrd.xrd.hydra    import Hydra
 from hexrd.xrd.material import Material, loadMaterialList
 
-from hexrd.xrd import xrdUtils
+from hexrd.xrd import xrdutil
 
 #
 #  Defaults (will eventually make to a config file)

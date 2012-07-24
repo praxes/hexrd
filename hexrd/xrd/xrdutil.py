@@ -1771,7 +1771,7 @@ def grainPolesGUI(omeEtaPfigs):
     GUI with sliders for rotating a grain's spots
 
     execfile('examples/feSynthSpotsPfig.py')
-    gui = xrdUtils.grainPolesGUI([pwSB])
+    gui = grainPolesGUI([pwSB])
     """
     win = plotwrap.PlotWin(-1,
                            title='rotation sliders',
