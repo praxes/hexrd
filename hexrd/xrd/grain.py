@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -34,11 +34,11 @@ from scipy.linalg import inv, qr, svd
 
 import hexrd.matrixUtils as mUtil
 from hexrd import valUnits
-import hexrd.XRD.Rotations as rot
-import hexrd.XRD.Symmetry as sym
-import hexrd.XRD.crystallography as xtl # latticeParameters, latticeVectors, getFriedelPair
+import hexrd.xrd.Rotations as rot
+import hexrd.xrd.Symmetry as sym
+import hexrd.xrd.crystallography as xtl # latticeParameters, latticeVectors, getFriedelPair
 from hexrd import XRD
-from hexrd.XRD.xrdUtils import calculateBiotStrain, makeMeasuredScatteringVectors
+from hexrd.xrd.xrdUtils import calculateBiotStrain, makeMeasuredScatteringVectors
 from hexrd.matrixUtils import columnNorm
 
 # constants
@@ -53,9 +53,9 @@ class Grain(object):
     small and large-strain versions indices into spots a reference to
     spots?  reference lattice parameters -- not planeData in case it
     gets changed with pressure
-    
+
     fitting methods for orientation, stretch, and centroid?
-    
+
     what happens if fit a spot and the fit is bad? what if decide to
     refine the spot into two spots for clear cases of modest overlap?
     does that happen often enough that we need to worry about it?
@@ -84,34 +84,34 @@ class Grain(object):
         'etaMin':__etaMinDflt,
         'etaMax':__etaMaxDflt,
         'etaTol':__etaTolDflt,
-        'omeTol':__omeTolDflt, 
+        'omeTol':__omeTolDflt,
         'findByPixelDist':None,
         'uncertainties':False,
         'confidence_level':0.95,
         }
     __debugDflt = False
     __fp_dtype = [
-        ('idx0', int), 
-        ('idx1', int), 
-        ('tth', float), 
+        ('idx0', int),
+        ('idx1', int),
+        ('tth', float),
         ]
     __reflInfo_dtype = [
         ('iRefl', int),
         ('iHKL', int),
         ('hkl', (int, 3)),
         ('predAngles', (float, 3)),
-        ('measAngles', (float, 3)), 
+        ('measAngles', (float, 3)),
         ('diffAngles', (float, 3)),
         ('predQvec', (float, 3)),
-        ('measXYO', (float, 3)), 
-        ('measAngles_unc', (float, 3)), 
+        ('measXYO', (float, 3)),
+        ('measAngles_unc', (float, 3)),
         ]
-    def __init__(self, spots, 
+    def __init__(self, spots,
                  refineFlags=None,   # default is complicated
                  pVec=None, # [0., 0., 0.]  # not in kwargs because does not hang off of self
                  grainData=None,
                  **kwargs):
-        
+
         kwHasVMat = kwargs.has_key('vMat')
         for parm, val in self.__inParmDict.iteritems():
             if kwargs.has_key(parm):
@@ -124,19 +124,19 @@ class Grain(object):
                 raise RuntimeError, 'have unparsed keyword arguments with keys: ' + str(kwargs.keys())
         else:
             findMatchesKWArgs = kwargs
-        
+
         # convert units as necessary
         self.omeTol = valUnits.valWithDflt(self.omeTol, self.__omeTolDflt, 'radians')
         self.etaTol = valUnits.valWithDflt(self.etaTol, self.__etaTolDflt, 'radians')
-        
+
         self.detectorGeom  = spots.detectorGeom.makeNew(pVec=pVec)
         self.planeData     = spots.getPlaneData(self.phaseID)
         self.spots         = spots
-             
+
         # process ome range(s)
         self.omeMin        = spots.getOmegaMins()
         self.omeMax        = spots.getOmegaMaxs()
-        
+
         # lattice operators
         self.__latticeOperators = self.planeData.getLatticeOperators()
 
@@ -145,9 +145,9 @@ class Grain(object):
 
         self.__fMat = self.__latticeOperators['F']
         self.__bMat = self.__latticeOperators['B']
-        
+
         self.__vol  = self.__latticeOperators['vol']
-        
+
         # set refineFlags for fitPrecession on centered grains
         if refineFlags is None:
             self.__refineFlagsFPC = num.array(
@@ -158,12 +158,12 @@ class Grain(object):
         else:
             print "living dangerously and manually setting detector refinement flags"
             self.__refineFlagsFPC = refineFlags
-        
+
         self.debug = self.__debugDflt
-        
+
         self.vecs_associated   = False
         self.gI_rIs            = None
-        
+
         if grainData is None:
             if self.rMat is not None:
                 reflInfo, fPairs, completeness = self.findMatches(
@@ -188,15 +188,15 @@ class Grain(object):
                 assert not kwHasVMat, \
                     'if specify vMat in grainData, do not also specify vMat as an argument'
             self.setGrainData(grainData)
-                
+
             if self.claimingSpots:
                 self.claimSpots()
-            
+
 
         self.centered = False
-            
+
         self.didRefinement = False
-        
+
         return
     def __repr__(self):
         format = "%20s = %s\n"
@@ -251,18 +251,18 @@ class Grain(object):
                 'vMat is not 2D'
             self.__vMat = vMat
         return
-    def newGrain(self, newSpots, claimingSpots=False, 
-                 lineage=None, phaseID=None, 
-                 rMatTransf=None, vMat=None, 
-                 omeTol=None, etaTol=None, 
+    def newGrain(self, newSpots, claimingSpots=False,
+                 lineage=None, phaseID=None,
+                 rMatTransf=None, vMat=None,
+                 omeTol=None, etaTol=None,
                  **kwargs):
         """
         return a new grain instance without changing self;
         the new instance will use newSpots;
-        
+
         NOTE: claimingSpots is False by default, so if a grain is to be kept, may
         want to call claimSpots() method
-        
+
         phaseID and rMatTransf are useful for twins or phase transformations
         """
         # get defaults from __inParmDict and self
@@ -278,7 +278,7 @@ class Grain(object):
                 vMat   is None and \
                 newSpots is self.spots:
             """
-            assume want to transfer data grain and avoid the work of 
+            assume want to transfer data grain and avoid the work of
             an extra call to findMatches
             """
             grainData = self.getGrainData()
@@ -290,34 +290,34 @@ class Grain(object):
                     'do not specify phaseID without rMatTransf'
                 rMat    = copy.deepcopy(self.rMat)
             else:
-                # see, for example, hcpVariants and bccVariants 
-                # in fe/orientRelations.py 
+                # see, for example, hcpVariants and bccVariants
+                # in fe/orientRelations.py
                 rMat    = num.dot(self.rMat, rMatTransf)
             inParmDict['rMat'] = rMat
-        
+
         if not phaseID is None:
             inParmDict['phaseID'] = phaseID
-        
+
         newLineage  = copy.copy(self.lineageList)
         if lineage is not None:
             newLineage.append(lineage)
         inParmDict['lineageList'] = newLineage
-        
+
         inParmDict['pVec'] = copy.deepcopy(self.detectorGeom.pVec)
         if vMat is not None:
             inParmDict['vMat'] = vMat
         else:
             if self.vMat is not None:
                 inParmDict['vMat'] = mUtil.symmToVecMV(self.vMat)
-        
+
         inParmDict['claimingSpots'] = claimingSpots # do not default to self.claimingSpots on purpose!
-        
+
         inParmDict['omeTol'] = omeTol or self.omeTol or inParmDict['omeTol']
         inParmDict['etaTol'] = etaTol or self.etaTol or inParmDict['etaTol']
 
-        inParmDict.update(**kwargs)        
+        inParmDict.update(**kwargs)
         newGrain = self.__class__(newSpots, grainData=grainData, **inParmDict)
-        
+
         return newGrain
 
     # COM coordinates
@@ -327,7 +327,7 @@ class Grain(object):
         """
         self.detectorGeom.pVec = pVec
         return
-    
+
     # lattice parameters
     def getReferenceLatticeParams(self):
         """
@@ -335,7 +335,7 @@ class Grain(object):
         """
         return self.__latticeParameters
     referenceLatticeParameters = property(getReferenceLatticeParams, None, None)
-    
+
     # lattice munging
     def getLatticeParams(self):
         """
@@ -343,7 +343,7 @@ class Grain(object):
         """
         return xtl.latticeParameters(num.dot(self.uMat, self.__fMat))
     latticeParameters = property(getLatticeParams, None, None)
-    
+
     def getLatticeVectors(self):
         """
         Returns the lattice vector components consistent with the stretch tensor.
@@ -359,7 +359,7 @@ class Grain(object):
         Fc = self.fMat
         return num.dot(Fc[:, 0], num.cross(Fc[:, 1], Fc[:, 2]))
     vol = property(getCellVolume, None, None)
-    
+
     def getReciprocalLatticeVectors(self):
         """
         Returns the reciprocal lattice vector components consistent with the stretch tensor.
@@ -369,9 +369,9 @@ class Grain(object):
         retval = (1. / self.vol) * num.vstack([num.cross(b, c),
                                                num.cross(c, a),
                                                num.cross(a, b)]).T
-        return retval 
+        return retval
     bMat = property(getReciprocalLatticeVectors, None, None)
-    
+
     # stretch tensor munging
     def getStretchTensor(self):
         """
@@ -383,16 +383,16 @@ class Grain(object):
     def setStretchTensor(self, vVec):
         """
         Sets stretch tensor properly from a 6-vector in the Mandel-Voigt notation.
-        
+
         SEE ALSO: matrixUtils.vecMVToSymm()
         """
         uVec = num.atleast_1d(vVec).flatten()
         assert len(vVec) == 6, 'wrong length U vector'
-        
+
         self.__vMat = mUtil.vecMVToSymm(vVec)
         return
     vMat = property(getStretchTensor, setStretchTensor, None)
-    
+
     def getRightStretchTensor(self):
         """
         Returns the components of the right stretch tensor, which is symmetric positive-definite.
@@ -405,7 +405,7 @@ class Grain(object):
             R = num.eye(3)
         return num.dot( R.T, num.dot( self.vMat, R ) )
     uMat = property(getRightStretchTensor, None, None)
-    
+
     def getPredAngles(self, validOnly=False, iHKL=None):
         theseSpots = num.ones(len(self.grainSpots), dtype=bool)
         if validOnly:
@@ -414,12 +414,12 @@ class Grain(object):
             theseSpots = theseSpots & (self.grainSpots['iHKL'] == iHKL)
         predAngs = self.grainSpots['predAngles'][theseSpots]
         return predAngs
-    
+
     # special orientation matrices
     def getAlignmentRotation(self):
         """
         num.dot(q, num.eye(3) - 2 * num.diag(num.diag(num.dot(r.T, fMat)) < 0))
-        
+
         """
         rStar, fStar = qr(self.fMat)
         flipMe = num.eye(3) - 2 * num.diag(
@@ -449,15 +449,15 @@ class Grain(object):
     #          BEGIN HIGHER-ORDER FUNCTIONALITY            #
     ########################################################
     """
-    def findMatches(self, 
-                    rMat=None, 
-                    vMat=None, 
-                    strainMag=None, 
-                    etaTol=None, 
-                    etaMin=None, 
+    def findMatches(self,
+                    rMat=None,
+                    vMat=None,
+                    strainMag=None,
+                    etaTol=None,
+                    etaMin=None,
                     etaMax=None,
-                    omeTol=None, 
-                    omeMin=None, 
+                    omeTol=None,
+                    omeMin=None,
                     omeMax=None,
                     findByPixelDist=None,
                     updateSelf=False,
@@ -466,10 +466,10 @@ class Grain(object):
                     doFit=False,
                     filename=None,
                     ):
-        
-        
+
+
         writeOutput=False
-        
+
         if self.uncertainties:
             'need to do fits to have uncertainties'
             doFit = True
@@ -479,7 +479,7 @@ class Grain(object):
             self.rMat = rMat
         if vMat is not None:
             self.vMat = vMat
-            
+
         # handle tolerances
         if etaTol is None:
             etaTol = self.etaTol
@@ -491,7 +491,7 @@ class Grain(object):
             omeTol = omeTol.getVal('radians')
         if findByPixelDist is None:
             findByPixelDist = self.findByPixelDist
-        
+
         'handle eta ranges, if any specified'
         # min
         if etaMin is None:
@@ -511,7 +511,7 @@ class Grain(object):
         # max
         if etaMax is None:
             etaMax = self.etaMax
-        if etaMax is not None:    
+        if etaMax is not None:
             if hasattr(etaMax,'__len__'):
                 tmp = []
                 for i in range(len(etaMax)):
@@ -527,7 +527,7 @@ class Grain(object):
             assert len(etaMin) == len(etaMax), \
                    'azimuthal angle ranges are not the same length'
             pass
-        
+
         'handle ome ranges'
         # min
         if omeMin is None:
@@ -557,20 +557,20 @@ class Grain(object):
         else:
             if hasattr(omeMax, 'getVal'):
                 omeMax = [omeMax.getVal('radians')]
-        
+
         assert len(omeMin) == len(omeMax), \
                'oscillation angle ranges are not the same length'
-        
+
         # handle output request
         if filename is not None:
             assert isinstance(filename, str) or isinstance(filename, file), 'Output filename must be a string!'
             writeOutput=True
-        
+
         # make all theoretical scattering vectors
         predQvec, predQAng0, predQAng1 = \
                   self.planeData._PlaneData__makeScatteringVectors(self.rMat, bMat=self.bMat,
                                                                    chiTilt=self.detectorGeom.chiTilt)
-        
+
         # for control of tolerancing
         symHKLs   = self.planeData.getSymHKLs()
         tThRanges = self.planeData.getTThRanges(strainMag=strainMag)
@@ -580,19 +580,19 @@ class Grain(object):
         measQAngAll = None
         if self.detectorGeom.pVec is None:
             measQAngAll = self.spots.getAngCoords()
-        
+
         nPredRefl = 0
         nMeasRefl = 0
         reflInfoList = []
         dummySpotInfo = num.nan * num.ones(3)
-        for iHKL, tThTol in enumerate(tThTols):            
-            
+        for iHKL, tThTol in enumerate(tThTols):
+
             # filter using ome ranges
             reflInRange0 = validateQVecAngles(predQAng0[iHKL][2, :], omeMin, omeMax)
             reflInRange1 = validateQVecAngles(predQAng1[iHKL][2, :], omeMin, omeMax)
-            
+
             # DEBUGGING # import pdb;pdb.set_trace()
-            
+
             # now eta (if applicable)
             if etaMin is not None:
                 reflInRange0 = num.logical_and( reflInRange0, validateQVecAngles(predQAng0[iHKL][1, :], etaMin, etaMax) )
@@ -602,19 +602,19 @@ class Grain(object):
             culledTTh = num.r_[ predQAng0[iHKL][0, reflInRange0], predQAng1[iHKL][0, reflInRange1] ]
             culledEta = num.r_[ predQAng0[iHKL][1, reflInRange0], predQAng1[iHKL][1, reflInRange1] ]
             culledOme = num.r_[ predQAng0[iHKL][2, reflInRange0], predQAng1[iHKL][2, reflInRange1] ]
-            
-            culledHKLs = num.hstack( [ 
-                symHKLs[iHKL][:, reflInRange0], 
+
+            culledHKLs = num.hstack( [
+                symHKLs[iHKL][:, reflInRange0],
                 symHKLs[iHKL][:, reflInRange1] ] )
-            
+
             culledQvec = num.c_[ predQvec[iHKL][:, reflInRange0], predQvec[iHKL][:, reflInRange1] ]
-            
+
             nThisPredRefl = len(culledTTh)
-            
+
             # DEBUG # print 'nThisPredRefl = '+str(nThisPredRefl)
-            
+
             nPredRefl += nThisPredRefl  # running count of total number of prepdicted reflections
-            
+
             idxSpotM = self.spots.getHKLSpots(iHKL, phaseID=self.phaseID, disallowMasterWhenSplit=True)
             if len(idxSpotM) > 0:
                 if measQAngAll is not None:
@@ -629,7 +629,7 @@ class Grain(object):
                     measQAng = num.asarray(measQAng).T # sucks, but need it as an array with cols
             else:
                 measQAng = num.zeros((0,3))
-            
+
             # loop over culled reflections for this HKL
             for iPredSpot in range(nThisPredRefl):
                 thisSpotInfo = [
@@ -637,15 +637,15 @@ class Grain(object):
                     iHKL,                                 # HKL index
                     culledHKLs[:, iPredSpot],             # [h, k, l]
                     num.hstack([ culledTTh[iPredSpot],    # [predTTh, predEta, predOme]
-                                 culledEta[iPredSpot],    # 
-                                 culledOme[iPredSpot] ]), # 
+                                 culledEta[iPredSpot],    #
+                                 culledOme[iPredSpot] ]), #
                     dummySpotInfo,                        # [measTTh, measEta, measOme]
                     dummySpotInfo,                        # [diffTTh, diffEta, diffOme]
                     culledQvec[:, iPredSpot],             # predQvec
                     dummySpotInfo,                        # xyoCOM
                     dummySpotInfo,                        # measAng_unc
                     ]
-                
+
                 if len(measQAng) > 0:
                     tthDiff = rot.angularDifference( culledTTh[iPredSpot], measQAng[:, 0] )
                     etaDiff = rot.angularDifference( culledEta[iPredSpot], measQAng[:, 1] )
@@ -658,16 +658,16 @@ class Grain(object):
                     else:
                         xPixel, yPixel, oPixel = self.detectorGeom.angToXYO( # need to pass ome in case pVec is set
                             culledTTh[iPredSpot], culledEta[iPredSpot], culledOme[iPredSpot] )
-                        hitRefl = self.spots.getPixelIsInSpots( idxSpotM, 
-                                                                (xPixel, yPixel, culledOme[iPredSpot] ), 
+                        hitRefl = self.spots.getPixelIsInSpots( idxSpotM,
+                                                                (xPixel, yPixel, culledOme[iPredSpot] ),
                                                                 pixelDist=findByPixelDist )
-                    
+
                     if hitRefl.any(): # found at least one match
                         nMeasRefl += 1
                         if hitRefl.sum() > 1: # grab the closest
                             # ... use minimum column norm of angular difference vector to choose?
                             angNorm = columnNorm( num.vstack( [ tthDiff, etaDiff, omeDiff ] ) )
-                            
+
                             # for this, just grab first index if there are identical entries
                             bestMatch = num.argmin(angNorm)
 
@@ -691,10 +691,10 @@ class Grain(object):
                     else:
                         # ... use minimum column norm of angular difference vector to choose?
                         angNorm = columnNorm( num.vstack( [ tthDiff, etaDiff, omeDiff ] ) )
-                        
+
                         # for this, just grab first index if there are identical entries
                         bestMatch = num.argmin(angNorm)
-                        
+
                         # contribute to results table
                         thisSpotInfo[5] = num.hstack( [
                             tthDiff[bestMatch],
@@ -713,7 +713,7 @@ class Grain(object):
                         try:
                             if self.uncertainties:
                                 angCOM, angCOM_unc = self.spots.fitSpots(iSpot,
-                                                                         uncertainties=self.uncertainties, 
+                                                                         uncertainties=self.uncertainties,
                                                                          confidence_level=self.confidence_level)
                                 thisSpotInfo[8] = angCOM_unc
                             else:
@@ -743,10 +743,10 @@ class Grain(object):
                 reflInfoList.append(thisSpotInfo)
             # close predicted spot loop for iHKL
         # close loop over HKLs
-        
+
         # output to structured array
         reflInfo = num.array([tuple(i) for i in reflInfoList], dtype=self.__reflInfo_dtype)
-        
+
         # check for conflicts
         boolValidIRefl = reflInfo['iRefl'] >= 0
         reducedIRefl = num.where(reflInfo['iRefl'] >= 0)[0]
@@ -761,7 +761,7 @@ class Grain(object):
                 if self.debug:
                     print 'in findMatches, %d spots in conflict' % (len(conflictIRefl))
                 reflInfo['iRefl'][conflictIRefl] = self.__conflIdxSpotM
-        
+
         ##
         ## grab Friedel pairs here off of hkls
         ##
@@ -777,18 +777,18 @@ class Grain(object):
             pTTh = reflInfo['predAngles'][:, 0]
             pEta = reflInfo['predAngles'][:, 1]
             pOme = reflInfo['predAngles'][:, 2]
-            
+
             # 'daughter' angles
             dOme, dEta = xtl.getFriedelPair(pTTh[reducedIRefl],
                                             pEta[reducedIRefl],
                                             pOme[reducedIRefl],
                                             units='radians', chiTilt=self.detectorGeom.chiTilt)
-            
+
             # lump into arrays of [eta, ome] vectors
             #   - must make deepcoopy of slice into reflInfo, cuz we're gonna chop it
             fpAngles0 = copy.deepcopy(reflInfo['predAngles'][reducedIRefl, 1:]).T
             fpAngles1 = num.c_[dEta.flatten(), dOme.flatten()].T
-                        
+
             # Here's the idea:
             # we pop pairs of the parent and daughter lists (and index list) and
             # accumulate them in fPairs as we find them
@@ -800,30 +800,30 @@ class Grain(object):
             while len(iSpotG) > 1:
                 fpMask    = num.ones(len(iSpotG), dtype='bool') # resize mask
                 fpMask[0] = False       # always pop top entry
-                
+
                 fp0 = num.tile(fpAngles0[:, 0], (fpAngles1.shape[1], 1)).T
                 fpd = rot.angularDifference(fp0, fpAngles1)
-                
+
                 # find matching pairs here
                 dupl = num.where( abs( num.sum(fpd, axis=0 ) ) < zTol)[0]
-                
+
                 if len(dupl) == 1:
                     dID = dupl[0]
-                    
+
                     fpListG.append( [ iSpotG[0], iSpotG[dID] ] )
                     fpListL.append( [ iSpotL[0], iSpotL[dID] ] )
-                    
+
                     fpMask[dID] = False # pop the daughter of the top entry
                 elif len(dupl) > 1:
                     raise RuntimeError, "There may be duplicated spots in the list"
-                
+
                 # apply masks to our args
                 iSpotG    = iSpotG[fpMask]
                 iSpotL    = iSpotL[fpMask]
                 fpAngles0 = fpAngles0[:, fpMask]
                 fpAngles1 = fpAngles1[:, fpMask]
                 pass
-            
+
             fPairs = num.empty(len(fpListL), dtype=self.__fp_dtype)
             for iFP, rFP in enumerate(fpListL):
                 fPairs[iFP] = ( rFP[0],
@@ -831,14 +831,14 @@ class Grain(object):
                                 reflInfo['predAngles'][rFP[0], 0] )
         else:
             fPairs = []
-        
+
         completeness = len(reducedIRefl)/float(nPredRefl)
-                
+
         if updateSelf:
             self.grainSpots   = reflInfo
             self.friedelPairs = fPairs
             self.completeness = completeness
-        
+
         if writeOutput:
             if isinstance(filename, file):
                 fid = filename
@@ -859,7 +859,7 @@ class Grain(object):
                 else:
                     measAnglesString = '%1.4e\t%1.4e\t%1.4e\t' % tuple(r2d*reflInfo['measAngles'][i])
                     measXYOString    = '%1.4e\t%1.4e\t%1.4e' % tuple(reflInfo['measXYO'][i]*convMeasXYO)
-                
+
                 print >> fid, '\t%d\t' % (reflInfo['iRefl'][i]) + \
                               '%d\t' % (reflInfo['iHKL'][i]) + \
                               '%d\t%d\t%d\t' % tuple(reflInfo['hkl'][i]) + \
@@ -868,7 +868,7 @@ class Grain(object):
                               '%1.4e\t%1.4e\t%1.4e\t' % tuple(r2d*reflInfo['diffAngles'][i]) + \
                               '%1.4e\t%1.4e\t%1.4e\t' % tuple(reflInfo['predQvec'][i]) + \
                               measXYOString
-                                                     
+
         return reflInfo, fPairs, completeness #, (nMeasRefl, nPredRefl)
     def getValidSpotIdx(self, ignoreClaims=False):
         masterReflInfo = self.grainSpots
@@ -910,11 +910,11 @@ class Grain(object):
         return
     def checkClaims(self):
         """
-        useful if have not done claims yet and want to check and see if spots 
+        useful if have not done claims yet and want to check and see if spots
         are still available;
         updates completeness too
         """
-        
+
         validSpotIdx, hitReflId = self.getValidSpotIdx(ignoreClaims=True)
         conflicts = self.spots.claimSpots(validSpotIdx, self, checkOnly=True)
         conflictIRefl = hitReflId[conflicts]
@@ -938,11 +938,11 @@ class Grain(object):
     def claimSpots(self, asMaster=None):
         """
         claim spots; particularly useful if claimingSpots was False on init;
-        assume conflicts are handled elsewhere or ignored if want to claim spots 
+        assume conflicts are handled elsewhere or ignored if want to claim spots
         using this method;
         """
         validSpotIdx, hitReflId = self.getValidSpotIdx()
-        
+
         conflicts = self.spots.claimSpots(validSpotIdx, self, checkOnly=False, asMaster=asMaster)
         return
     #
@@ -958,23 +958,23 @@ class Grain(object):
         if self.centered:
             # set things in tmpDG
             tmpDG.pVec = None
-            
+
             tmpDG.setupRefinement(self._Grain__refineFlagsFPC)
             tmpDG.updateParams(pVec)    # note that pVec are dg params in this case!
 
             # grab wavelength
             wlen = self.planeData.wavelength
-            
+
             # grab all valid spots for residual contribution
             validSpots = num.where(self.grainSpots['iRefl'] >= 0)[0]
             for ii, iRow in enumerate(validSpots):
                 ## In this case, the predicted angles in self.grainSpots come from
                 ## the lattice, which is fixed; altering the detector geometry helps to
                 ## bring the predicted and measured angles into coincidence.
-                ## 
+                ##
                 ## The 'measXYO' *should* be immutable enough depite the fact the spots
                 ## are fit in angular space using the unrefined detector geometry.
-                ## 
+                ##
                 ## without uncertainties accounted for, the relatively large omega
                 ## uncertainty adversely affects the solution
                 measAngs = tmpDG.xyoToAng( *( self.grainSpots['measXYO'][iRow] ) )
@@ -1009,7 +1009,7 @@ class Grain(object):
                         # remember angs are (tTh, eta, ome)
                         fpAng0 = tmpDG.xyoToAng( *( self.grainSpots['measXYO'][fPairList[0]] ) )
                         fpAng1 = tmpDG.xyoToAng( *( self.grainSpots['measXYO'][fPairList[1]] ) )
-                        
+
                         # figure of merit on measured tTh and eta
                         figOfMerit = num.vstack(
                             [ rot.angularDifference(fpAng0[0], fpAng1[0]),
@@ -1042,14 +1042,14 @@ class Grain(object):
             qxy1 = num.array( [num.cos(_fpAng1[1])*num.cos(0.5*_fpAng1[0]),
                                num.sin(_fpAng1[1])*num.cos(0.5*_fpAng1[0])])
             return num.sqrt(num.dot(qxy0+qxy1,qxy0+qxy1))
-            
+
         tmpDG = self.detectorGeom.makeNew()
         if self.centered:
             tmpDG.xc = pVec[0]
             tmpDG.yc = pVec[1]
         else:
             tmpDG.pVec = pVec
-        
+
         retval = []
         ufs = []
         for iFP, fPairList in enumerate(self.friedelPairs):
@@ -1072,10 +1072,10 @@ class Grain(object):
                 angCOM_1_unc = self.grainSpots['measAngles_unc'][ fPairList[1] ]
                 xyoCOM_1     = self.grainSpots['measXYO'][        fPairList[1] ]
                 angCOM_1     = tmpDG.xyoToAng( *( xyoCOM_1 ) )
-                
+
                 mus     = num.hstack(angCOM_0, angCOM_1).flatten()
                 mu_uncs = num.hstack(angCOM_0_unc, angCOM_1_unc).flatten()
-                extraArgs = (tmpDG, xyoCOM_0, xyoCOM_1) 
+                extraArgs = (tmpDG, xyoCOM_0, xyoCOM_1)
                 try:
                     raise NotImplementedError('uncertainties not implemented')
                     #uf = uncertainty_analysis.propagateUncertainty(
@@ -1090,7 +1090,7 @@ class Grain(object):
                     continue
             if weighting == False:
                 uf = 1.
-            ufs.append(1./uf)            
+            ufs.append(1./uf)
             retval.append(__fitPrecession_model_func(mus, *extraArgs))
             #print retval
             #print ufs
@@ -1099,13 +1099,13 @@ class Grain(object):
         print'retval',retval
         ufs_ = num.array(ufs)
         #print len(retval),len(ufs_)
-        return (num.array(retval)*ufs_)*maxuf   
+        return (num.array(retval)*ufs_)*maxuf
     def fitPrecession(self, weighting=False, display=True, xtol=1e-12, ftol=1e-12, fout=None):
         """
         Fit the Center-Of-Mass coordinates of the grain in the sample frame
         """
         fout = fout or sys.stdout
-        
+
         if self.centered:
             self.detectorGeom.pVec = None # zero out any existing pVec
             pVec0 = self.detectorGeom.getParams(allParams=True)[self._Grain__refineFlagsFPC]
@@ -1114,7 +1114,7 @@ class Grain(object):
                 pVec0 = num.zeros(3)
             else:
                 pVec0 = self.detectorGeom.pVec
-        
+
         if self.uncertainties:
             #the cov_matrix is huge... giving large uncertainty, in progress
             optResults = optimize.leastsq(self._fitPrecessionWeighting_objFunc,
@@ -1129,7 +1129,7 @@ class Grain(object):
             raise NotImplementedError('uncertainties not implemented')
             #u_is = uncertainty_analysis.computeAllparameterUncertainties(pVec1, cov_x, confidence_level)
             self.detectorGeom.pVecUncertainties = u_is
-            
+
             pVec1 = optResults[0]
         else:
             optResults = optimize.leastsq(self._fitPrecession_objFunc,
@@ -1179,17 +1179,17 @@ class Grain(object):
         masterReflInfo = self.grainSpots
         hitReflId      = num.where(masterReflInfo['iRefl'] >= 0)[0]
         nRefl          = len(hitReflId)
-        
+
 
         # wavelength (for normalization)
         wlen = self.planeData.wavelength
-                
-        # we write the deformation gradient F in terms of its 
+
+        # we write the deformation gradient F in terms of its
         # left polar decomposition: F = U * V
         R = rot.rotMatOfExpMap(num.c_[rVec[:3]])
         V = mUtil.vecMVToSymm(rVec[3:9]) + num.eye(3)
         # U = num.dot(R.T, num.dot(V, R))
-        
+
         if fitPVec:
             p = rVec[9:]
             # make local copy of detector geometry as reset pVec
@@ -1197,11 +1197,11 @@ class Grain(object):
             tmpDG.pVec = p
         else:
             tmpDG = self.detectorGeom
-        
+
         # augment reference lattice vectors in place to get their components
         # in the SAMPLE FRAME
         fMat = num.dot(V, num.dot(R, self.__fMat))
-        
+
         # the bMat is by definition the components of the reciprocal lattice
         # vectors written in the crystal frame; we can define it here from the
         # deformed cell in the SAMPLE FRAME
@@ -1210,7 +1210,7 @@ class Grain(object):
         bstar = num.cross(fMat[:, 2], fMat[:, 0])
         cstar = num.cross(fMat[:, 0], fMat[:, 1])
         bMat  = (1. / vol) * num.vstack([astar, bstar, cstar]).T
-        
+
         # measured data
         #   - measAngs = [tTh, eta, ome]
         #   - Q-vectors (i.e. G-vectors) normalized to have length of 1/d
@@ -1220,14 +1220,14 @@ class Grain(object):
         measAngs = tmpDG.xyoToAng(measXYO[:, 0], measXYO[:, 1], measXYO[:, 2])
         measQvec = makeMeasuredScatteringVectors(measAngs[0], measAngs[1], measAngs[2])
         measQvec = num.tile(2*num.sin(0.5*measAngs[0])/wlen, (3, 1)) * measQvec
-        
+
         # predicted Q
         predQvec = num.dot(bMat, measHKLs.T)
 
         # return value is concatenated vector differences between
         # measured and predicted Q (i.e. G)
         retVal = ( measQvec - predQvec ).T.flatten()
-        
+
         return retVal
     def fit(self, xtol=1e-12, ftol=1e-12, fitPVec=True, display=True, fout=None):
         """
@@ -1241,7 +1241,7 @@ class Grain(object):
         if len(num.where(self.grainSpots['iRefl'] >= 0)[0]) < 14:
             print >> fout, 'Not enough data for fit, exiting...'
             return
-        
+
         # for initial guess
         angl, axxx = rot.angleAxisOfRotMat(self.rMat)
         R0 = angl * axxx
@@ -1250,23 +1250,23 @@ class Grain(object):
             p0 = num.zeros(3)
         else:
             p0 = self.detectorGeom.pVec
-        
+
         if fitPVec:
             x0 = num.r_[R0.flatten(), E0, p0]
             lsArgs = ()
         else:
             x0 = num.r_[R0.flatten(), E0]
             lsArgs = (False)
-        
+
         # do least squares
         x1, cov_x, infodict, mesg, ierr = \
-            optimize.leastsq(self._fitF_objFunc, 
+            optimize.leastsq(self._fitF_objFunc,
                              x0, args=lsArgs,
                              xtol=xtol,
                              ftol=ftol,
                              full_output=1)
-                
-        
+
+
         # strip results
         #   - map rotation to fundamental region... necessary?
         q1 = rot.quatOfExpMap(x1[:3].reshape(3, 1))
@@ -1275,12 +1275,12 @@ class Grain(object):
         E1 = mUtil.vecMVToSymm(x1[3:9])
         if fitPVec:
             p1 = x1[9:]
-        
+
         self.rMat = R1
         self.vMat = mUtil.symmToVecMV(E1 + num.eye(3))
         if fitPVec:
             self.detectorGeom.pVec = p1
-        
+
         # print results
         if display:
             lp = num.array(self.latticeParameters)
@@ -1302,8 +1302,8 @@ class Grain(object):
         iRefl = masterReflInfo['iRefl']
         these = num.where(iRefl >= 0)
         predAngs = masterReflInfo['predAngles'][these]
-        xyoPointsListBase = ( 
-            [ map(float, self.detectorGeom.angToXYO(*predAng)) for predAng in predAngs ] , 
+        xyoPointsListBase = (
+            [ map(float, self.detectorGeom.angToXYO(*predAng)) for predAng in predAngs ] ,
             {'marker':'o','mec':'r'},
             )
         retval = []
@@ -1330,7 +1330,7 @@ class Grain(object):
         # wavelength (for normalization)
         wlen = self.planeData.wavelength
         bMat = self.bMat
-        
+
         q = rot.quatOfRotMat(rot.rotMatOfExpMap(num.c_[rVec]))
 
         # mesured data
@@ -1346,7 +1346,7 @@ class Grain(object):
 
         # predicted Q vectors
         predQvec = num.dot( bMat, measHKLs.T )
-        
+
         dist = num.empty(nRefl, dtype=float)
         for i in range(nRefl):
             dist[i] = rot.distanceToFiber(predQvec[:, i].reshape(3, 1),
@@ -1360,9 +1360,9 @@ class Grain(object):
         """
         angl, axxx = rot.angleAxisOfRotMat(self.rMat)
         x0 = angl * axxx
-        
+
         optResults = optimize.leastsq(self._minFiberDistance_obj, x0.flatten(), xtol=xtol, ftol=ftol)
-        
+
         x1 = optResults[0]
         r1 = rot.rotMatOfExpMap(x1)
         q1 = rot.quatOfRotMat(r1)
@@ -1384,10 +1384,10 @@ class Grain(object):
 
 def validateQVecAngles(angList, angMin, angMax):
     angList = num.atleast_1d(angList)   # needs to have 'shape'
-    
+
     angMin = num.atleast_1d(angMin)    # need to have len
     angMax = num.atleast_1d(angMax)    # need to have len
-    
+
     assert len(angMin) == len(angMax), "length of min and max angular limits must match!"
 
     reflInRange = num.zeros(angList.shape, dtype=bool)

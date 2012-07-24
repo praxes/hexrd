@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -34,14 +34,14 @@ Hall or Hermann-Mauguin notation, as well as the inverse notations.
 Space groups can be mapped to crystal class (one of 32 point groups)
 and then to crystal system .
 
-NOTES:  
+NOTES:
 
 * Laue group is the cyrstal class if you add a center of symmetry.
   There are 11 Laue groups, determined directly from the point group.
 * This module avoids the use of numpy and uses math module instead.
   That means the hkl lists are not numpy arrays, but simple lists of
   tuples.
-* Rhombohedral lattices:  
+* Rhombohedral lattices:
 
 REFERENCES
 
@@ -60,7 +60,7 @@ http://en.wikipedia.org/wiki/Space_group#Classification_systems_for_space_groups
 5.  Point group to laue group
 http://www.ruppweb.org/Xray/tutorial/32point.htm
 
-6.  For discussion of rhombohedral lattice and "obverse" 
+6.  For discussion of rhombohedral lattice and "obverse"
 and "reverse" settings for lattice parameters.
 Crystal structure determination (book) By Werner Massa
 
@@ -72,7 +72,7 @@ the HKL evaluation.
 #
 from math import sqrt, floor
 
-import hexrd.XRD.sglite as sglite
+import hexrd.xrd.sglite as sglite
 #
 __all__ = ['SpaceGroup']
 #
@@ -116,7 +116,7 @@ class SpaceGroup(object):
         if not d['SgNumber'] == self.sgnum:
             raise ValueError('space group number failed consistency check')
 
-        return 
+        return
     #
     # ============================== API
     #
@@ -145,7 +145,7 @@ class SpaceGroup(object):
                 self._laueGroup  = pglg[1]
                 pass
             pass
-        
+
         return
 
     sgnum = property(_get_sgnum, _set_sgnum, None,
@@ -160,12 +160,12 @@ class SpaceGroup(object):
     def pointGroup(self):
         """Schonflies symbol for point group (read only)"""
         return self._pointGroup
-    
+
     @property
     def latticeType(self):
         """Lattice type
 
-        Possible values are 'cubic', 'hexagonal', 'trigonal', 
+        Possible values are 'cubic', 'hexagonal', 'trigonal',
         'tetragonal', 'orthorhombic', 'monoclinic' and 'triclinic'
 
         Rhombohedral lattices are treated as trigonal using the
@@ -214,7 +214,7 @@ class SpaceGroup(object):
         * Output angles are in degrees
 """
         return _rqpDict[self.latticeType][1](lparams)
-        
+
     def getHKLs(self, ssmax):
         """Return a list of HKLs with a cutoff sum of square
 
@@ -225,7 +225,7 @@ class SpaceGroup(object):
         hkls -- a list of all HKLs with sum of squares less than
                 or equal to the cutoff, excluding systematic
                 absences and symmetrically equivalent hkls
-        
+
         DESCRIPTION
 """
         #
@@ -258,7 +258,7 @@ class SpaceGroup(object):
 #
 # -----------------------------------------------END CLASS:  SpaceGroup
 #
-# Hall Symbols copied from:  
+# Hall Symbols copied from:
 #
 _hallStr = r"""
      1         P 1
@@ -794,536 +794,536 @@ _hallStr = r"""
 """
 # Hermann-Mauguin notation
 _hmStr = r"""
-     1        P 1         
-     2        P -1        
-     3:b      P 1 2 1     
-     3:c      P 1 1 2     
-     3:a      P 2 1 1     
-     4:b      P 1 21 1    
-     4:c      P 1 1 21    
-     4:a      P 21 1 1    
-     5:b1     C 1 2 1     
-     5:b2     A 1 2 1     
-     5:b3     I 1 2 1     
-     5:c1     A 1 1 2     
-     5:c2     B 1 1 2     
-     5:c3     I 1 1 2     
-     5:a1     B 2 1 1     
-     5:a2     C 2 1 1     
-     5:a3     I 2 1 1     
-     6:b      P 1 m 1     
-     6:c      P 1 1 m     
-     6:a      P m 1 1     
-     7:b1     P 1 c 1     
-     7:b2     P 1 n 1     
-     7:b3     P 1 a 1     
-     7:c1     P 1 1 a     
-     7:c2     P 1 1 n     
-     7:c3     P 1 1 b     
-     7:a1     P b 1 1     
-     7:a2     P n 1 1     
-     7:a3     P c 1 1     
-     8:b1     C 1 m 1     
-     8:b2     A 1 m 1     
-     8:b3     I 1 m 1     
-     8:c1     A 1 1 m     
-     8:c2     B 1 1 m     
-     8:c3     I 1 1 m     
-     8:a1     B m 1 1     
-     8:a2     C m 1 1     
-     8:a3     I m 1 1     
-     9:b1     C 1 c 1     
-     9:b2     A 1 n 1     
-     9:b3     I 1 a 1     
-     9:-b1    A 1 a 1     
-     9:-b2    C 1 n 1     
-     9:-b3    I 1 c 1     
-     9:c1     A 1 1 a     
-     9:c2     B 1 1 n     
-     9:c3     I 1 1 b     
-     9:-c1    B 1 1 b     
-     9:-c2    A 1 1 n     
-     9:-c3    I 1 1 a     
-     9:a1     B b 1 1     
-     9:a2     C n 1 1     
-     9:a3     I c 1 1     
-     9:-a1    C c 1 1     
-     9:-a2    B n 1 1     
-     9:-a3    I b 1 1     
-    10:b      P 1 2/m 1   
-    10:c      P 1 1 2/m   
-    10:a      P 2/m 1 1   
-    11:b      P 1 21/m 1  
-    11:c      P 1 1 21/m  
-    11:a      P 21/m 1 1  
-    12:b1     C 1 2/m 1   
-    12:b2     A 1 2/m 1   
-    12:b3     I 1 2/m 1   
-    12:c1     A 1 1 2/m   
-    12:c2     B 1 1 2/m   
-    12:c3     I 1 1 2/m   
-    12:a1     B 2/m 1 1   
-    12:a2     C 2/m 1 1   
-    12:a3     I 2/m 1 1   
-    13:b1     P 1 2/c 1   
-    13:b2     P 1 2/n 1   
-    13:b3     P 1 2/a 1   
-    13:c1     P 1 1 2/a   
-    13:c2     P 1 1 2/n   
-    13:c3     P 1 1 2/b   
-    13:a1     P 2/b 1 1   
-    13:a2     P 2/n 1 1   
-    13:a3     P 2/c 1 1   
-    14:b1     P 1 21/c 1  
-    14:b2     P 1 21/n 1  
-    14:b3     P 1 21/a 1  
-    14:c1     P 1 1 21/a  
-    14:c2     P 1 1 21/n  
-    14:c3     P 1 1 21/b  
-    14:a1     P 21/b 1 1  
-    14:a2     P 21/n 1 1  
-    14:a3     P 21/c 1 1  
-    15:b1     C 1 2/c 1   
-    15:b2     A 1 2/n 1   
-    15:b3     I 1 2/a 1   
-    15:-b1    A 1 2/a 1   
-    15:-b2    C 1 2/n 1   
-    15:-b3    I 1 2/c 1   
-    15:c1     A 1 1 2/a   
-    15:c2     B 1 1 2/n   
-    15:c3     I 1 1 2/b   
-    15:-c1    B 1 1 2/b   
-    15:-c2    A 1 1 2/n   
-    15:-c3    I 1 1 2/a   
-    15:a1     B 2/b 1 1   
-    15:a2     C 2/n 1 1   
-    15:a3     I 2/c 1 1   
-    15:-a1    C 2/c 1 1   
-    15:-a2    B 2/n 1 1   
-    15:-a3    I 2/b 1 1   
-    16        P 2 2 2     
-    17        P 2 2 21    
-    17:cab    P 21 2 2    
-    17:bca    P 2 21 2    
-    18        P 21 21 2   
-    18:cab    P 2 21 21   
-    18:bca    P 21 2 21   
-    19        P 21 21 21  
-    20        C 2 2 21    
-    20:cab    A 21 2 2    
-    20:bca    B 2 21 2    
-    21        C 2 2 2     
-    21:cab    A 2 2 2     
-    21:bca    B 2 2 2     
-    22        F 2 2 2     
-    23        I 2 2 2     
-    24        I 21 21 21  
-    25        P m m 2     
-    25:cab    P 2 m m     
-    25:bca    P m 2 m     
-    26        P m c 21    
-    26:ba-c   P c m 21    
-    26:cab    P 21 m a    
-    26:-cba   P 21 a m    
-    26:bca    P b 21 m    
-    26:a-cb   P m 21 b    
-    27        P c c 2     
-    27:cab    P 2 a a     
-    27:bca    P b 2 b     
-    28        P m a 2     
-    28:ba-c   P b m 2     
-    28:cab    P 2 m b     
-    28:-cba   P 2 c m     
-    28:bca    P c 2 m     
-    28:a-cb   P m 2 a     
-    29        P c a 21    
-    29:ba-c   P b c 21    
-    29:cab    P 21 a b    
-    29:-cba   P 21 c a    
-    29:bca    P c 21 b    
-    29:a-cb   P b 21 a    
-    30        P n c 2     
-    30:ba-c   P c n 2     
-    30:cab    P 2 n a     
-    30:-cba   P 2 a n     
-    30:bca    P b 2 n     
-    30:a-cb   P n 2 b     
-    31        P m n 21    
-    31:ba-c   P n m 21    
-    31:cab    P 21 m n    
-    31:-cba   P 21 n m    
-    31:bca    P n 21 m    
-    31:a-cb   P m 21 n    
-    32        P b a 2     
-    32:cab    P 2 c b     
-    32:bca    P c 2 a     
-    33        P n a 21    
-    33:ba-c   P b n 21    
-    33:cab    P 21 n b    
-    33:-cba   P 21 c n    
-    33:bca    P c 21 n    
-    33:a-cb   P n 21 a    
-    34        P n n 2     
-    34:cab    P 2 n n     
-    34:bca    P n 2 n     
-    35        C m m 2     
-    35:cab    A 2 m m     
-    35:bca    B m 2 m     
-    36        C m c 21    
-    36:ba-c   C c m 21    
-    36:cab    A 21 m a    
-    36:-cba   A 21 a m    
-    36:bca    B b 21 m    
-    36:a-cb   B m 21 b    
-    37        C c c 2     
-    37:cab    A 2 a a     
-    37:bca    B b 2 b     
-    38        A m m 2     
-    38:ba-c   B m m 2     
-    38:cab    B 2 m m     
-    38:-cba   C 2 m m     
-    38:bca    C m 2 m     
-    38:a-cb   A m 2 m     
-    39        A b m 2     
-    39:ba-c   B m a 2     
-    39:cab    B 2 c m     
-    39:-cba   C 2 m b     
-    39:bca    C m 2 a     
-    39:a-cb   A c 2 m     
-    40        A m a 2     
-    40:ba-c   B b m 2     
-    40:cab    B 2 m b     
-    40:-cba   C 2 c m     
-    40:bca    C c 2 m     
-    40:a-cb   A m 2 a     
-    41        A b a 2     
-    41:ba-c   B b a 2     
-    41:cab    B 2 c b     
-    41:-cba   C 2 c b     
-    41:bca    C c 2 a     
-    41:a-cb   A c 2 a     
-    42        F m m 2     
-    42:cab    F 2 m m     
-    42:bca    F m 2 m     
-    43        F d d 2     
-    43:cab    F 2 d d     
-    43:bca    F d 2 d     
-    44        I m m 2     
-    44:cab    I 2 m m     
-    44:bca    I m 2 m     
-    45        I b a 2     
-    45:cab    I 2 c b     
-    45:bca    I c 2 a     
-    46        I m a 2     
-    46:ba-c   I b m 2     
-    46:cab    I 2 m b     
-    46:-cba   I 2 c m     
-    46:bca    I c 2 m     
-    46:a-cb   I m 2 a     
-    47        P m m m     
-    48:1      P n n n:1   
-    48:2      P n n n:2   
-    49        P c c m     
-    49:cab    P m a a     
-    49:bca    P b m b     
-    50:1      P b a n:1   
-    50:2      P b a n:2   
-    50:1cab   P n c b:1   
-    50:2cab   P n c b:2   
-    50:1bca   P c n a:1   
-    50:2bca   P c n a:2   
-    51        P m m a     
-    51:ba-c   P m m b     
-    51:cab    P b m m     
-    51:-cba   P c m m     
-    51:bca    P m c m     
-    51:a-cb   P m a m     
-    52        P n n a     
-    52:ba-c   P n n b     
-    52:cab    P b n n     
-    52:-cba   P c n n     
-    52:bca    P n c n     
-    52:a-cb   P n a n     
-    53        P m n a     
-    53:ba-c   P n m b     
-    53:cab    P b m n     
-    53:-cba   P c n m     
-    53:bca    P n c m     
-    53:a-cb   P m a n     
-    54        P c c a     
-    54:ba-c   P c c b     
-    54:cab    P b a a     
-    54:-cba   P c a a     
-    54:bca    P b c b     
-    54:a-cb   P b a b     
-    55        P b a m     
-    55:cab    P m c b     
-    55:bca    P c m a     
-    56        P c c n     
-    56:cab    P n a a     
-    56:bca    P b n b     
-    57        P b c m     
-    57:ba-c   P c a m     
-    57:cab    P m c a     
-    57:-cba   P m a b     
-    57:bca    P b m a     
-    57:a-cb   P c m b     
-    58        P n n m     
-    58:cab    P m n n     
-    58:bca    P n m n     
-    59:1      P m m n:1   
-    59:2      P m m n:2   
-    59:1cab   P n m m:1   
-    59:2cab   P n m m:2   
-    59:1bca   P m n m:1   
-    59:2bca   P m n m:2   
-    60        P b c n     
-    60:ba-c   P c a n     
-    60:cab    P n c a     
-    60:-cba   P n a b     
-    60:bca    P b n a     
-    60:a-cb   P c n b     
-    61        P b c a     
-    61:ba-c   P c a b     
-    62        P n m a     
-    62:ba-c   P m n b     
-    62:cab    P b n m     
-    62:-cba   P c m n     
-    62:bca    P m c n     
-    62:a-cb   P n a m     
-    63        C m c m     
-    63:ba-c   C c m m     
-    63:cab    A m m a     
-    63:-cba   A m a m     
-    63:bca    B b m m     
-    63:a-cb   B m m b     
-    64        C m c a     
-    64:ba-c   C c m b     
-    64:cab    A b m a     
-    64:-cba   A c a m     
-    64:bca    B b c m     
-    64:a-cb   B m a b     
-    65        C m m m     
-    65:cab    A m m m     
-    65:bca    B m m m     
-    66        C c c m     
-    66:cab    A m a a     
-    66:bca    B b m b     
-    67        C m m a     
-    67:ba-c   C m m b     
-    67:cab    A b m m     
-    67:-cba   A c m m     
-    67:bca    B m c m     
-    67:a-cb   B m a m     
-    68:1      C c c a:1   
-    68:2      C c c a:2   
-    68:1ba-c  C c c b:1   
-    68:2ba-c  C c c b:2   
-    68:1cab   A b a a:1   
-    68:2cab   A b a a:2   
-    68:1-cba  A c a a:1   
-    68:2-cba  A c a a:2   
-    68:1bca   B b c b:1   
-    68:2bca   B b c b:2   
-    68:1a-cb  B b a b:1   
-    68:2a-cb  B b a b:2   
-    69        F m m m     
-    70:1      F d d d:1   
-    70:2      F d d d:2   
-    71        I m m m     
-    72        I b a m     
-    72:cab    I m c b     
-    72:bca    I c m a     
-    73        I b c a     
-    73:ba-c   I c a b     
-    74        I m m a     
-    74:ba-c   I m m b     
-    74:cab    I b m m     
-    74:-cba   I c m m     
-    74:bca    I m c m     
-    74:a-cb   I m a m     
-    75        P 4         
-    76        P 41        
-    77        P 42        
-    78        P 43        
-    79        I 4         
-    80        I 41        
-    81        P -4        
-    82        I -4        
-    83        P 4/m       
-    84        P 42/m      
-    85:1      P 4/n:1     
-    85:2      P 4/n:2     
-    86:1      P 42/n:1    
-    86:2      P 42/n:2    
-    87        I 4/m       
-    88:1      I 41/a:1    
-    88:2      I 41/a:2    
-    89        P 4 2 2     
-    90        P 42 1 2    
-    91        P 41 2 2    
-    92        P 41 21 2   
-    93        P 42 2 2    
-    94        P 42 21 2   
-    95        P 43 2 2    
-    96        P 43 21 2   
-    97        I 4 2 2     
-    98        I 41 2 2    
-    99        P 4 m m     
-   100        P 4 b m     
-   101        P 42 c m    
-   102        P 42 n m    
-   103        P 4 c c     
-   104        P 4 n c     
-   105        P 42 m c    
-   106        P 42 b c    
-   107        I 4 m m     
-   108        I 4 c m     
-   109        I 41 m d    
-   110        I 41 c d    
-   111        P -4 2 m    
-   112        P -4 2 c    
-   113        P -4 21 m   
-   114        P -4 21 c   
-   115        P -4 m 2    
-   116        P -4 c 2    
-   117        P -4 b 2    
-   118        P -4 n 2    
-   119        I -4 m 2    
-   120        I -4 c 2    
-   121        I -4 2 m    
-   122        I -4 2 d    
-   123        P 4/m m m   
-   124        P 4/m c c   
-   125:1      P 4/n b m:1 
-   125:2      P 4/n b m:2 
-   126:1      P 4/n n c:1 
-   126:2      P 4/n n c:2 
-   127        P 4/m b m   
-   128        P 4/m n c   
-   129:1      P 4/n m m:1 
-   129:2      P 4/n m m:2 
-   130:1      P 4/n c c:1 
-   130:2      P 4/n c c:2 
-   131        P 42/m m c  
-   132        P 42/m c m  
+     1        P 1
+     2        P -1
+     3:b      P 1 2 1
+     3:c      P 1 1 2
+     3:a      P 2 1 1
+     4:b      P 1 21 1
+     4:c      P 1 1 21
+     4:a      P 21 1 1
+     5:b1     C 1 2 1
+     5:b2     A 1 2 1
+     5:b3     I 1 2 1
+     5:c1     A 1 1 2
+     5:c2     B 1 1 2
+     5:c3     I 1 1 2
+     5:a1     B 2 1 1
+     5:a2     C 2 1 1
+     5:a3     I 2 1 1
+     6:b      P 1 m 1
+     6:c      P 1 1 m
+     6:a      P m 1 1
+     7:b1     P 1 c 1
+     7:b2     P 1 n 1
+     7:b3     P 1 a 1
+     7:c1     P 1 1 a
+     7:c2     P 1 1 n
+     7:c3     P 1 1 b
+     7:a1     P b 1 1
+     7:a2     P n 1 1
+     7:a3     P c 1 1
+     8:b1     C 1 m 1
+     8:b2     A 1 m 1
+     8:b3     I 1 m 1
+     8:c1     A 1 1 m
+     8:c2     B 1 1 m
+     8:c3     I 1 1 m
+     8:a1     B m 1 1
+     8:a2     C m 1 1
+     8:a3     I m 1 1
+     9:b1     C 1 c 1
+     9:b2     A 1 n 1
+     9:b3     I 1 a 1
+     9:-b1    A 1 a 1
+     9:-b2    C 1 n 1
+     9:-b3    I 1 c 1
+     9:c1     A 1 1 a
+     9:c2     B 1 1 n
+     9:c3     I 1 1 b
+     9:-c1    B 1 1 b
+     9:-c2    A 1 1 n
+     9:-c3    I 1 1 a
+     9:a1     B b 1 1
+     9:a2     C n 1 1
+     9:a3     I c 1 1
+     9:-a1    C c 1 1
+     9:-a2    B n 1 1
+     9:-a3    I b 1 1
+    10:b      P 1 2/m 1
+    10:c      P 1 1 2/m
+    10:a      P 2/m 1 1
+    11:b      P 1 21/m 1
+    11:c      P 1 1 21/m
+    11:a      P 21/m 1 1
+    12:b1     C 1 2/m 1
+    12:b2     A 1 2/m 1
+    12:b3     I 1 2/m 1
+    12:c1     A 1 1 2/m
+    12:c2     B 1 1 2/m
+    12:c3     I 1 1 2/m
+    12:a1     B 2/m 1 1
+    12:a2     C 2/m 1 1
+    12:a3     I 2/m 1 1
+    13:b1     P 1 2/c 1
+    13:b2     P 1 2/n 1
+    13:b3     P 1 2/a 1
+    13:c1     P 1 1 2/a
+    13:c2     P 1 1 2/n
+    13:c3     P 1 1 2/b
+    13:a1     P 2/b 1 1
+    13:a2     P 2/n 1 1
+    13:a3     P 2/c 1 1
+    14:b1     P 1 21/c 1
+    14:b2     P 1 21/n 1
+    14:b3     P 1 21/a 1
+    14:c1     P 1 1 21/a
+    14:c2     P 1 1 21/n
+    14:c3     P 1 1 21/b
+    14:a1     P 21/b 1 1
+    14:a2     P 21/n 1 1
+    14:a3     P 21/c 1 1
+    15:b1     C 1 2/c 1
+    15:b2     A 1 2/n 1
+    15:b3     I 1 2/a 1
+    15:-b1    A 1 2/a 1
+    15:-b2    C 1 2/n 1
+    15:-b3    I 1 2/c 1
+    15:c1     A 1 1 2/a
+    15:c2     B 1 1 2/n
+    15:c3     I 1 1 2/b
+    15:-c1    B 1 1 2/b
+    15:-c2    A 1 1 2/n
+    15:-c3    I 1 1 2/a
+    15:a1     B 2/b 1 1
+    15:a2     C 2/n 1 1
+    15:a3     I 2/c 1 1
+    15:-a1    C 2/c 1 1
+    15:-a2    B 2/n 1 1
+    15:-a3    I 2/b 1 1
+    16        P 2 2 2
+    17        P 2 2 21
+    17:cab    P 21 2 2
+    17:bca    P 2 21 2
+    18        P 21 21 2
+    18:cab    P 2 21 21
+    18:bca    P 21 2 21
+    19        P 21 21 21
+    20        C 2 2 21
+    20:cab    A 21 2 2
+    20:bca    B 2 21 2
+    21        C 2 2 2
+    21:cab    A 2 2 2
+    21:bca    B 2 2 2
+    22        F 2 2 2
+    23        I 2 2 2
+    24        I 21 21 21
+    25        P m m 2
+    25:cab    P 2 m m
+    25:bca    P m 2 m
+    26        P m c 21
+    26:ba-c   P c m 21
+    26:cab    P 21 m a
+    26:-cba   P 21 a m
+    26:bca    P b 21 m
+    26:a-cb   P m 21 b
+    27        P c c 2
+    27:cab    P 2 a a
+    27:bca    P b 2 b
+    28        P m a 2
+    28:ba-c   P b m 2
+    28:cab    P 2 m b
+    28:-cba   P 2 c m
+    28:bca    P c 2 m
+    28:a-cb   P m 2 a
+    29        P c a 21
+    29:ba-c   P b c 21
+    29:cab    P 21 a b
+    29:-cba   P 21 c a
+    29:bca    P c 21 b
+    29:a-cb   P b 21 a
+    30        P n c 2
+    30:ba-c   P c n 2
+    30:cab    P 2 n a
+    30:-cba   P 2 a n
+    30:bca    P b 2 n
+    30:a-cb   P n 2 b
+    31        P m n 21
+    31:ba-c   P n m 21
+    31:cab    P 21 m n
+    31:-cba   P 21 n m
+    31:bca    P n 21 m
+    31:a-cb   P m 21 n
+    32        P b a 2
+    32:cab    P 2 c b
+    32:bca    P c 2 a
+    33        P n a 21
+    33:ba-c   P b n 21
+    33:cab    P 21 n b
+    33:-cba   P 21 c n
+    33:bca    P c 21 n
+    33:a-cb   P n 21 a
+    34        P n n 2
+    34:cab    P 2 n n
+    34:bca    P n 2 n
+    35        C m m 2
+    35:cab    A 2 m m
+    35:bca    B m 2 m
+    36        C m c 21
+    36:ba-c   C c m 21
+    36:cab    A 21 m a
+    36:-cba   A 21 a m
+    36:bca    B b 21 m
+    36:a-cb   B m 21 b
+    37        C c c 2
+    37:cab    A 2 a a
+    37:bca    B b 2 b
+    38        A m m 2
+    38:ba-c   B m m 2
+    38:cab    B 2 m m
+    38:-cba   C 2 m m
+    38:bca    C m 2 m
+    38:a-cb   A m 2 m
+    39        A b m 2
+    39:ba-c   B m a 2
+    39:cab    B 2 c m
+    39:-cba   C 2 m b
+    39:bca    C m 2 a
+    39:a-cb   A c 2 m
+    40        A m a 2
+    40:ba-c   B b m 2
+    40:cab    B 2 m b
+    40:-cba   C 2 c m
+    40:bca    C c 2 m
+    40:a-cb   A m 2 a
+    41        A b a 2
+    41:ba-c   B b a 2
+    41:cab    B 2 c b
+    41:-cba   C 2 c b
+    41:bca    C c 2 a
+    41:a-cb   A c 2 a
+    42        F m m 2
+    42:cab    F 2 m m
+    42:bca    F m 2 m
+    43        F d d 2
+    43:cab    F 2 d d
+    43:bca    F d 2 d
+    44        I m m 2
+    44:cab    I 2 m m
+    44:bca    I m 2 m
+    45        I b a 2
+    45:cab    I 2 c b
+    45:bca    I c 2 a
+    46        I m a 2
+    46:ba-c   I b m 2
+    46:cab    I 2 m b
+    46:-cba   I 2 c m
+    46:bca    I c 2 m
+    46:a-cb   I m 2 a
+    47        P m m m
+    48:1      P n n n:1
+    48:2      P n n n:2
+    49        P c c m
+    49:cab    P m a a
+    49:bca    P b m b
+    50:1      P b a n:1
+    50:2      P b a n:2
+    50:1cab   P n c b:1
+    50:2cab   P n c b:2
+    50:1bca   P c n a:1
+    50:2bca   P c n a:2
+    51        P m m a
+    51:ba-c   P m m b
+    51:cab    P b m m
+    51:-cba   P c m m
+    51:bca    P m c m
+    51:a-cb   P m a m
+    52        P n n a
+    52:ba-c   P n n b
+    52:cab    P b n n
+    52:-cba   P c n n
+    52:bca    P n c n
+    52:a-cb   P n a n
+    53        P m n a
+    53:ba-c   P n m b
+    53:cab    P b m n
+    53:-cba   P c n m
+    53:bca    P n c m
+    53:a-cb   P m a n
+    54        P c c a
+    54:ba-c   P c c b
+    54:cab    P b a a
+    54:-cba   P c a a
+    54:bca    P b c b
+    54:a-cb   P b a b
+    55        P b a m
+    55:cab    P m c b
+    55:bca    P c m a
+    56        P c c n
+    56:cab    P n a a
+    56:bca    P b n b
+    57        P b c m
+    57:ba-c   P c a m
+    57:cab    P m c a
+    57:-cba   P m a b
+    57:bca    P b m a
+    57:a-cb   P c m b
+    58        P n n m
+    58:cab    P m n n
+    58:bca    P n m n
+    59:1      P m m n:1
+    59:2      P m m n:2
+    59:1cab   P n m m:1
+    59:2cab   P n m m:2
+    59:1bca   P m n m:1
+    59:2bca   P m n m:2
+    60        P b c n
+    60:ba-c   P c a n
+    60:cab    P n c a
+    60:-cba   P n a b
+    60:bca    P b n a
+    60:a-cb   P c n b
+    61        P b c a
+    61:ba-c   P c a b
+    62        P n m a
+    62:ba-c   P m n b
+    62:cab    P b n m
+    62:-cba   P c m n
+    62:bca    P m c n
+    62:a-cb   P n a m
+    63        C m c m
+    63:ba-c   C c m m
+    63:cab    A m m a
+    63:-cba   A m a m
+    63:bca    B b m m
+    63:a-cb   B m m b
+    64        C m c a
+    64:ba-c   C c m b
+    64:cab    A b m a
+    64:-cba   A c a m
+    64:bca    B b c m
+    64:a-cb   B m a b
+    65        C m m m
+    65:cab    A m m m
+    65:bca    B m m m
+    66        C c c m
+    66:cab    A m a a
+    66:bca    B b m b
+    67        C m m a
+    67:ba-c   C m m b
+    67:cab    A b m m
+    67:-cba   A c m m
+    67:bca    B m c m
+    67:a-cb   B m a m
+    68:1      C c c a:1
+    68:2      C c c a:2
+    68:1ba-c  C c c b:1
+    68:2ba-c  C c c b:2
+    68:1cab   A b a a:1
+    68:2cab   A b a a:2
+    68:1-cba  A c a a:1
+    68:2-cba  A c a a:2
+    68:1bca   B b c b:1
+    68:2bca   B b c b:2
+    68:1a-cb  B b a b:1
+    68:2a-cb  B b a b:2
+    69        F m m m
+    70:1      F d d d:1
+    70:2      F d d d:2
+    71        I m m m
+    72        I b a m
+    72:cab    I m c b
+    72:bca    I c m a
+    73        I b c a
+    73:ba-c   I c a b
+    74        I m m a
+    74:ba-c   I m m b
+    74:cab    I b m m
+    74:-cba   I c m m
+    74:bca    I m c m
+    74:a-cb   I m a m
+    75        P 4
+    76        P 41
+    77        P 42
+    78        P 43
+    79        I 4
+    80        I 41
+    81        P -4
+    82        I -4
+    83        P 4/m
+    84        P 42/m
+    85:1      P 4/n:1
+    85:2      P 4/n:2
+    86:1      P 42/n:1
+    86:2      P 42/n:2
+    87        I 4/m
+    88:1      I 41/a:1
+    88:2      I 41/a:2
+    89        P 4 2 2
+    90        P 42 1 2
+    91        P 41 2 2
+    92        P 41 21 2
+    93        P 42 2 2
+    94        P 42 21 2
+    95        P 43 2 2
+    96        P 43 21 2
+    97        I 4 2 2
+    98        I 41 2 2
+    99        P 4 m m
+   100        P 4 b m
+   101        P 42 c m
+   102        P 42 n m
+   103        P 4 c c
+   104        P 4 n c
+   105        P 42 m c
+   106        P 42 b c
+   107        I 4 m m
+   108        I 4 c m
+   109        I 41 m d
+   110        I 41 c d
+   111        P -4 2 m
+   112        P -4 2 c
+   113        P -4 21 m
+   114        P -4 21 c
+   115        P -4 m 2
+   116        P -4 c 2
+   117        P -4 b 2
+   118        P -4 n 2
+   119        I -4 m 2
+   120        I -4 c 2
+   121        I -4 2 m
+   122        I -4 2 d
+   123        P 4/m m m
+   124        P 4/m c c
+   125:1      P 4/n b m:1
+   125:2      P 4/n b m:2
+   126:1      P 4/n n c:1
+   126:2      P 4/n n c:2
+   127        P 4/m b m
+   128        P 4/m n c
+   129:1      P 4/n m m:1
+   129:2      P 4/n m m:2
+   130:1      P 4/n c c:1
+   130:2      P 4/n c c:2
+   131        P 42/m m c
+   132        P 42/m c m
    133:1      P 42/n b c:1
    133:2      P 42/n b c:2
    134:1      P 42/n n m:1
    134:2      P 42/n n m:2
-   135        P 42/m b c  
-   136        P 42/m n m  
+   135        P 42/m b c
+   136        P 42/m n m
    137:1      P 42/n m c:1
    137:2      P 42/n m c:2
    138:1      P 42/n c m:1
    138:2      P 42/n c m:2
-   139        I 4/m m m   
-   140        I 4/m c m   
+   139        I 4/m m m
+   140        I 4/m c m
    141:1      I 41/a m d:1
    141:2      I 41/a m d:2
    142:1      I 41/a c d:1
    142:2      I 41/a c d:2
-   143        P 3         
-   144        P 31        
-   145        P 32        
-   146:H      R 3      
-   146:R      R 3       
-   147        P -3        
+   143        P 3
+   144        P 31
+   145        P 32
+   146:H      R 3
+   146:R      R 3
+   147        P -3
    148:H      R -3
    148:R      R -3
-   149        P 3 1 2     
-   150        P 3 2 1     
-   151        P 31 1 2    
-   152        P 31 2 1    
-   153        P 32 1 2    
-   154        P 32 2 1    
+   149        P 3 1 2
+   150        P 3 2 1
+   151        P 31 1 2
+   152        P 31 2 1
+   153        P 32 1 2
+   154        P 32 2 1
    155:H      R 32
    155:R      R 32
-   156        P 3 m 1     
-   157        P 3 1 m     
-   158        P 3 c 1     
-   159        P 3 1 c     
-   160:H      R 3 m   
+   156        P 3 m 1
+   157        P 3 1 m
+   158        P 3 c 1
+   159        P 3 1 c
+   160:H      R 3 m
    160:R      R 3 m
    161:H      R 3 c
    161:R      R 3 c
-   162        P -3 1 m    
-   163        P -3 1 c    
-   164        P -3 m 1    
-   165        P -3 c 1    
-   166:H      R -3 m  
+   162        P -3 1 m
+   163        P -3 1 c
+   164        P -3 m 1
+   165        P -3 c 1
+   166:H      R -3 m
    166:R      R -3 m
    167:H      R -3 c
    167:R      R -3 c
-   168        P 6         
-   169        P 61        
-   170        P 65        
-   171        P 62        
-   172        P 64        
-   173        P 63        
-   174        P -6        
-   175        P 6/m       
-   176        P 63/m      
-   177        P 6 2 2     
-   178        P 61 2 2    
-   179        P 65 2 2    
-   180        P 62 2 2    
-   181        P 64 2 2    
-   182        P 63 2 2    
-   183        P 6 m m     
-   184        P 6 c c     
-   185        P 63 c m    
-   186        P 63 m c    
-   187        P -6 m 2    
-   188        P -6 c 2    
-   189        P -6 2 m    
-   190        P -6 2 c    
-   191        P 6/m m m   
-   192        P 6/m c c   
-   193        P 63/m c m  
-   194        P 63/m m c  
-   195        P 2 3       
-   196        F 2 3       
-   197        I 2 3       
-   198        P 21 3      
-   199        I 21 3      
-   200        P m -3      
-   201:1      P n -3:1    
-   201:2      P n -3:2    
-   202        F m -3      
-   203:1      F d -3:1    
-   203:2      F d -3:2    
-   204        I m -3      
-   205        P a -3      
-   206        I a -3      
-   207        P 4 3 2     
-   208        P 42 3 2    
-   209        F 4 3 2     
-   210        F 41 3 2    
-   211        I 4 3 2     
-   212        P 43 3 2    
-   213        P 41 3 2    
-   214        I 41 3 2    
-   215        P -4 3 m    
-   216        F -4 3 m    
-   217        I -4 3 m    
-   218        P -4 3 n    
-   219        F -4 3 c    
-   220        I -4 3 d    
-   221        P m -3 m    
-   222:1      P n -3 n:1  
-   222:2      P n -3 n:2  
-   223        P m -3 n    
-   224:1      P n -3 m:1  
-   224:2      P n -3 m:2  
-   225        F m -3 m    
-   226        F m -3 c    
-   227:1      F d -3 m:1  
-   227:2      F d -3 m:2  
-   228:1      F d -3 c:1  
-   228:2      F d -3 c:2  
-   229        I m -3 m    
-   230        I a -3 d    
+   168        P 6
+   169        P 61
+   170        P 65
+   171        P 62
+   172        P 64
+   173        P 63
+   174        P -6
+   175        P 6/m
+   176        P 63/m
+   177        P 6 2 2
+   178        P 61 2 2
+   179        P 65 2 2
+   180        P 62 2 2
+   181        P 64 2 2
+   182        P 63 2 2
+   183        P 6 m m
+   184        P 6 c c
+   185        P 63 c m
+   186        P 63 m c
+   187        P -6 m 2
+   188        P -6 c 2
+   189        P -6 2 m
+   190        P -6 2 c
+   191        P 6/m m m
+   192        P 6/m c c
+   193        P 63/m c m
+   194        P 63/m m c
+   195        P 2 3
+   196        F 2 3
+   197        I 2 3
+   198        P 21 3
+   199        I 21 3
+   200        P m -3
+   201:1      P n -3:1
+   201:2      P n -3:2
+   202        F m -3
+   203:1      F d -3:1
+   203:2      F d -3:2
+   204        I m -3
+   205        P a -3
+   206        I a -3
+   207        P 4 3 2
+   208        P 42 3 2
+   209        F 4 3 2
+   210        F 41 3 2
+   211        I 4 3 2
+   212        P 43 3 2
+   213        P 41 3 2
+   214        I 41 3 2
+   215        P -4 3 m
+   216        F -4 3 m
+   217        I -4 3 m
+   218        P -4 3 n
+   219        F -4 3 c
+   220        I -4 3 d
+   221        P m -3 m
+   222:1      P n -3 n:1
+   222:2      P n -3 n:2
+   223        P m -3 n
+   224:1      P n -3 m:1
+   224:2      P n -3 m:2
+   225        F m -3 m
+   226        F m -3 c
+   227:1      F d -3 m:1
+   227:2      F d -3 m:2
+   228:1      F d -3 c:1
+   228:2      F d -3 c:2
+   229        I m -3 m
+   230        I a -3 d
 """
 def _buildDict(hstr):
     """build the dictionaries from the notation string
@@ -1377,26 +1377,26 @@ _pgDict = {
     _sgrange(  6,   9): ('cs', laue_2),
     _sgrange( 10,  15): ('c2h',laue_2),  #                    laue 2
     _sgrange( 16,  24): ('d2', laue_3),  # Orthorhombic
-    _sgrange( 25,  46): ('c2v',laue_3),  
+    _sgrange( 25,  46): ('c2v',laue_3),
     _sgrange( 47,  74): ('d2h',laue_3),  #                    laue 3
     _sgrange( 75,  80): ('c4', laue_4),  # Tetragonal
     _sgrange( 81,  82): ('s4', laue_4),
     _sgrange( 83,  88): ('c4h',laue_4),  #                    laue 4
     _sgrange( 89,  98): ('d4', laue_5),
-    _sgrange( 99, 110): ('c4v',laue_5), 
-    _sgrange(111, 122): ('d2d',laue_5), 
+    _sgrange( 99, 110): ('c4v',laue_5),
+    _sgrange(111, 122): ('d2d',laue_5),
     _sgrange(123, 142): ('d4h',laue_5),  #                    laue 5
-    _sgrange(143, 146): ('c3', laue_6),  # Trigonal 
+    _sgrange(143, 146): ('c3', laue_6),  # Trigonal
     _sgrange(147, 148): ('s6', laue_6),  #                    laue 6 [also c3i]
     _sgrange(149, 155): ('d3', laue_7),
-    _sgrange(156, 161): ('c3v',laue_7), 
+    _sgrange(156, 161): ('c3v',laue_7),
     _sgrange(162, 167): ('d3d',laue_7),  #                    laue 7
     _sgrange(168, 173): ('c6', laue_8),  # Hexagonal
-    _sgrange(174, 174): ('c3h',laue_8), 
+    _sgrange(174, 174): ('c3h',laue_8),
     _sgrange(175, 176): ('c6h',laue_8),  #                    laue 8
     _sgrange(177, 182): ('d6', laue_9),
-    _sgrange(183, 186): ('c6v',laue_9), 
-    _sgrange(187, 190): ('d3h',laue_9), 
+    _sgrange(183, 186): ('c6v',laue_9),
+    _sgrange(187, 190): ('d3h',laue_9),
     _sgrange(191, 194): ('d6h',laue_9),   #                    laue 9
     _sgrange(195, 199): ('t',  laue_10),  # Cubic
     _sgrange(200, 206): ('th', laue_10),  #                    laue 10
@@ -1432,11 +1432,11 @@ _ltDict = {
     }
 
 # Required parameters by lattice type
-# * dictionary provides list of required indices with 
+# * dictionary provides list of required indices with
 #   a function that takes the reduced set of lattice parameters
 #   to the full set
 # * consistent with lparm.latticeVectors
-# 
+#
 _rqpDict = {
     ltype_1: (tuple(range(6)), lambda p: p), # all 6
     ltype_2: ((0,1,2,4), lambda p: (p[0], p[1], p[2], 90, p[3], 90)), # note beta

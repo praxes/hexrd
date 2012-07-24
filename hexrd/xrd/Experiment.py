@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -31,7 +31,7 @@
 ##
 """Module for wrapping the main functionality of the XRD package.
 
-The Experiment class is the primary interface.  Other classes 
+The Experiment class is the primary interface.  Other classes
 are helpers.
 """
 import sys, os, copy
@@ -39,18 +39,18 @@ import cPickle
 
 import numpy
 
-from hexrd.XRD import detector
-from hexrd.XRD import spotFinder
-from hexrd.XRD import crystallography
-from hexrd.XRD import grain as G
-from hexrd.XRD import indexer
+from hexrd.xrd import detector
+from hexrd.xrd import spotFinder
+from hexrd.xrd import crystallography
+from hexrd.xrd import grain as G
+from hexrd.xrd import indexer
 
-from hexrd.XRD.hydra    import Hydra
-from hexrd.XRD.Material import Material, loadMaterialList
+from hexrd.xrd.hydra    import Hydra
+from hexrd.xrd.Material import Material, loadMaterialList
 
 
 from hexrd import valUnits
-from hexrd.XRD import xrdUtils
+from hexrd.xrd import xrdUtils
 
 #
 #  Defaults (will eventually make to a config file)
@@ -108,9 +108,9 @@ class Experiment(object):
         """Constructor for Experiment
 
         INPUTS
-        
-        cfgFile -- name of the config file to use for initialization; 
-                   an empty string indicates that default values for 
+
+        cfgFile -- name of the config file to use for initialization;
+                   an empty string indicates that default values for
                    options are used
         matFile -- name of the materials data file; a real file name
                    is required here
@@ -130,7 +130,7 @@ class Experiment(object):
         self.matList = loadMaterialList(matFile)
         self.activeMaterial = 0
         #
-        #  Detector and calibration information.  
+        #  Detector and calibration information.
         #
         self._detInfo  = DetectorInfo()
         self._calInput = CalibrationInput(self.matList[0])
@@ -165,7 +165,7 @@ class Experiment(object):
 
     def saveDetector(self, fname):
         """Save the detector information to a file
-        
+
         INPUTS
         fname -- the name of the file to save in
 """
@@ -173,7 +173,7 @@ class Experiment(object):
         self._detInfo.mrbImages = [] # remove images before saving
         cPickle.dump(self._detInfo, f)
         f.close()
-        
+
         return
 
     def loadDetector(self, fname):
@@ -186,7 +186,7 @@ class Experiment(object):
         f = open(fname, 'r')
         self._detInfo = cPickle.load(f)
         f.close()
-        
+
         return
 
     #
@@ -198,7 +198,7 @@ class Experiment(object):
     def calInput(self):
         """(get only) Calibration input instance"""
         return self._calInput
-    
+
     # ==================== Hydra
     #
     # property:  hydra
@@ -229,7 +229,7 @@ class Experiment(object):
 
     _amdoc = r"""Active Material
 
-    Can be set by number (index in material list) or by name. 
+    Can be set by number (index in material list) or by name.
 
     On output, it is always a material instance.
 """
@@ -275,7 +275,7 @@ class Experiment(object):
         # find name not already in list
         n  = self._active_mat.name
         self._active_mat.name = newName(n, self.matNames)
-        # 
+        #
         self._matList.append(self.activeMaterial)
 
         return
@@ -290,7 +290,7 @@ class Experiment(object):
         f = open(fname, 'r')
         self.matList = cPickle.load(f)
         f.close()
-        
+
         return
     #
     # ==================== Readers
@@ -321,7 +321,7 @@ class Experiment(object):
 
     _ardoc = r"""Active Material
 
-    Can be set by number (index in saved readers list) or by name. 
+    Can be set by number (index in saved readers list) or by name.
 
     On output, it is always a ReaderInput instance.
 """
@@ -331,14 +331,14 @@ class Experiment(object):
 
     def saveReaderList(self, fname):
         """Save the reader list to a file
-        
+
         INPUTS
         fname -- the name of the file to save in
 """
         f = open(fname, 'w')
         cPickle.dump(self.__savedReaders, f)
         f.close()
-        
+
         return
 
     def loadReaderList(self, fname):
@@ -352,7 +352,7 @@ class Experiment(object):
         self.__savedReaders = cPickle.load(f)
         self.activeReader = 0
         f.close()
-        
+
         return
 
     def newReader(self):
@@ -365,9 +365,9 @@ class Experiment(object):
         n  = self.__active_rdr.name
         nl = [r.name for r in self.__savedReaders]
         self.__active_rdr.name = newName(n, nl)
-        # 
+        #
         self.__savedReaders.append(self.__active_rdr)
-        
+
         return
 
     def getSavedReader(self, which):
@@ -423,14 +423,14 @@ class Experiment(object):
     #
     def readerListAddCurrent(self):
         """Add current list to list of saved readers"""
-        
+
         return
 
     def readImage(self, frameNum=1):
         """Read and return an image
 
         DESCRIPTION
-        
+
         This reads an image according to the active reader
         specification, saving it in the activeImage attribute.
 """
@@ -460,27 +460,27 @@ class Experiment(object):
         #if (frameNum == self.__curFrame): return
         # NOTE:  instantiate new reader even when requested frame is current
         # frame because reader properties may have changed
-        
+
         if haveReader and (frameNum > self.__curFrame):
             nskip = frameNum - self.__curFrame - 1
-            self.__active_img = self.__active_reader.read(nframes= rdFrames, 
+            self.__active_img = self.__active_reader.read(nframes= rdFrames,
                                                           nskip  = nskip,
                                                           sumImg = aggMode)
         else:
             # instantiate new reader
             self.__active_reader = self.activeReader.makeReader()
             nskip = frameNum - 1
-            self.__active_img = self.__active_reader.read(nframes= rdFrames, 
+            self.__active_img = self.__active_reader.read(nframes= rdFrames,
                                                           nskip  = nskip,
                                                           sumImg = aggMode)
-            
+
             pass
-        
+
         self.__curFrame = frameNum
-        print 'frame:  (exp) %d, (rdr) %s' % (self.__curFrame, 
+        print 'frame:  (exp) %d, (rdr) %s' % (self.__curFrame,
                                               str(self.__active_reader.iFrame))
 
-        return 
+        return
 
     def calibrate(self, log=None):
         """Calibrate the detector
@@ -489,7 +489,7 @@ class Experiment(object):
 """
         try:
             self._detInfo.calibrate(self.calInput,
-                                    self.activeReader, 
+                                    self.activeReader,
                                     self.activeMaterial, log=log)
         except Exception as e:
             if log:
@@ -498,10 +498,10 @@ class Experiment(object):
             else:
                 raise
             pass
-        
+
         if log:
             log.write('done')
-        
+
         return
         #
         # ==================== Polar Rebinning (Caking)
@@ -511,7 +511,7 @@ class Experiment(object):
 
             opts -- an instance of PolarRebinOpts
 """
-            
+
             img_info = det.polarRebin(self.activeImage, opts.kwArgs)
 
             return img_info
@@ -552,14 +552,14 @@ def loadExp(inpFile, matFile=DFLT_MATFILE):
 
     inpFile -- the name of either the config file or the saved exp file;
                empty string means start new experiment
-    matFile -- name of the materials file 
+    matFile -- name of the materials file
 """
     #
     if not matFile:
         print >> sys.stderr, 'no material file found'
         sys.exit(1)
         pass
-        
+
     root, ext = os.path.splitext(inpFile)
     #
     if ext == '.cfg' or not inpFile:
@@ -591,9 +591,9 @@ def loadExp(inpFile, matFile=DFLT_MATFILE):
 class ReaderInput(object):
     """ReaderInput
 
-This class is for holding input required to 
+This class is for holding input required to
 instantiate a reader object.  Currently, only
-GE reader is supported.    
+GE reader is supported.
 """
     # Class data
     DFLT_NAME = 'unnamed reader'
@@ -605,9 +605,9 @@ GE reader is supported.
     #
     AGG_MODES = (AGG_FUN_NONE, AGG_FUN_SUM, AGG_FUN_MAX, AGG_FUN_MIN) = range(4)
     AGG_DICT = {
-        AGG_FUN_NONE: False, 
+        AGG_FUN_NONE: False,
         AGG_FUN_SUM : True,  # or (1/nframes)*numpy.add
-        AGG_FUN_MAX : numpy.maximum, 
+        AGG_FUN_MAX : numpy.maximum,
         AGG_FUN_MIN : numpy.minimum
         }
     #
@@ -762,7 +762,7 @@ GE reader is supported.
         #
         subDark = not (self.darkMode == ReaderInput.DARK_MODE_NONE)
         if (self.darkMode == ReaderInput.DARK_MODE_FILE):
-            drkFile = os.path.join(self.darkDir, self.darkName) 
+            drkFile = os.path.join(self.darkDir, self.darkName)
         else:
             drkFile = None
             pass
@@ -795,7 +795,7 @@ class CalibrationInput(object):
         #
         self.numRho = 20 # for multiring binned image
         self.numEta = 36
-        
+
         self.corrected = False
         #
 	self.calMat = mat
@@ -811,7 +811,7 @@ class CalibrationInput(object):
         if not hasattr(self, '_fitType'):
             self._fitType = FitModes.DEFAULT
             pass
-        
+
         return self._fitType
 
     def _set_fitType(self, v):
@@ -852,7 +852,7 @@ class CalibrationInput(object):
     @property
     def cakeArgs(self):
         """(get only) Keyword arguments for polar rebinning"""
-        
+
         return {'verbose':True, 'numEta': self.numEta, 'corrected':self.corrected}
 
 
@@ -865,9 +865,9 @@ class CalibrationInput(object):
 class DetectorInfo(object):
     """detectorInfo"""
     # refinement-specific things
-    #  ---------------> (   xc,    yc,     D,    xt,    yt,    zt,   
+    #  ---------------> (   xc,    yc,     D,    xt,    yt,    zt,
     #                      dp1,   dp2,   dp3,   dp4,   dp5,   dp6)
-    DFLT_REFINE_FLAGS = ( True,  True,  True,  True,  True, False, 
+    DFLT_REFINE_FLAGS = ( True,  True,  True,  True,  True, False,
                           True,  True,  True, False, False, False)
     def __init__(self):
         """Constructor for detectorInfo"""
@@ -920,17 +920,17 @@ class DetectorInfo(object):
             #  Reset tthmax here in case detector geometry pushes
             #  a ring off the detector.
             #
-            # NO!!! # calDat.tThMax = self.detector.getTThMax() 
-            
+            # NO!!! # calDat.tThMax = self.detector.getTThMax()
+
             cFrame = reader()
             if log:
                 log.write(msg)
             else:
                 print msg
                 pass
-            
+
             if calInp.fitType == FitModes.MULTIRING:
-                mrb = detector.MultiRingBinned(self.detector, calDat, cFrame, 
+                mrb = detector.MultiRingBinned(self.detector, calDat, cFrame,
                                                targetNRho=calInp.numRho,
                                                polarRebinKWArgs=calInp.cakeArgs,
                                                log=log)
@@ -938,11 +938,11 @@ class DetectorInfo(object):
                 self.mrbImages.append(mrb)
             else:
                 print '... using direct fit mode'
-                
+
                 self.detector.fitRings(cFrame, calDat)
                 tmp = self.detector.xFitRings
                 pass
-            
+
             self.fitParams.append(self.detector.getParams(allParams=True))
 
             print 'fit parameters(%d):\n' % i, self.fitParams[-1]
@@ -956,7 +956,7 @@ class DetectorInfo(object):
 
         # make detector object from mean of phi = 0-180 scans
         self.detector._Detector2DRC__updateFromPList(meanParams)
-        
+
         return
     #
     pass  # end class
@@ -968,13 +968,13 @@ class PolarRebinOpts(object):
     """Options for polar rebinning"""
     #
     cakeMethods = [CAKE_IMG, CAKE_RNG, CAKE_SPH] = ['standard', 'multiring', 'spherical']
-    
+
     def __init__(self):
         """Constructor for PolarRebinOpts
 
         This routine sets default values for caking options.
 
-        The following attributes (with initial values) can be modified directly. 
+        The following attributes (with initial values) can be modified directly.
             etaMin  =    0
             etaMax  =  360
             rhoMin  =  100
@@ -1016,7 +1016,7 @@ class PolarRebinOpts(object):
                 'corrected': self.correct
                 }
             pass
-        
+
         return kwa
 
     #

@@ -44,12 +44,12 @@ import numpy
 #
 #  XRD Modules
 #
-from hexrd.XRD            import detector
-from hexrd.XRD.Material   import *
-from hexrd.XRD.Experiment import FitModes
+from hexrd.xrd            import detector
+from hexrd.xrd.Material   import *
+from hexrd.xrd.Experiment import FitModes
 
-from hexrd.XRD.crystallography import dUnit as WAVELENGTH_UNIT
-from hexrd.XRD.crystallography import processWavelength
+from hexrd.xrd.crystallography import dUnit as WAVELENGTH_UNIT
+from hexrd.xrd.crystallography import processWavelength
 #
 #  wx Modules
 #

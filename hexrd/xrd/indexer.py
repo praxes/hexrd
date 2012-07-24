@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -36,12 +36,12 @@ import time
 import numpy as num
 
 import hexrd.matrixUtils as mUtil
-import hexrd.XRD.grain
-from hexrd.XRD.grain import makeMeasuredScatteringVectors
-import hexrd.XRD.Rotations
-from hexrd.XRD.Rotations import mapAngle
-from hexrd.XRD.Symmetry import toFundamentalRegion
-from hexrd.XRD import xrdBase
+import hexrd.xrd.grain
+from hexrd.xrd.grain import makeMeasuredScatteringVectors
+import hexrd.xrd.Rotations
+from hexrd.xrd.Rotations import mapAngle
+from hexrd.xrd.Symmetry import toFundamentalRegion
+from hexrd.xrd import xrdBase
 
 if xrdBase.haveMultiProc:
     multiprocessing = xrdBase.multiprocessing # formerly import
@@ -74,20 +74,20 @@ class GrainSpotter:
     __execName = 'grainspotter'
     def __init__(self):
         self.__tempFNameList = []
-        
+
         if (os.system('which '+self.__execName) != 0):
             print >> sys.stderr, "need %s to be in the path" % (self.__execName)
             raise RuntimeError, "unrecoverable error"
 
         return
-    
+
     def __call__(self, spotsArray, **kwargs):
         """
         A word on spacegroup numbers: it appears that grainspotter is using the 'VolA' tag for calls to SgInfo
         """
         location = self.__class__.__name__
         tic = time.time()
-        
+
         # keyword argument processing
         phaseID     = None
         gVecFName   = 'tmpGve'
@@ -104,7 +104,7 @@ class GrainSpotter:
         minFracG    = 0.90
         numTrials   = 100000
         positionFit = False
-        
+
         kwarglen = len(kwargs)
         if kwarglen > 0:
             argkeys = kwargs.keys()
@@ -141,10 +141,10 @@ class GrainSpotter:
                     positionFit = kwargs[argkeys[i]]
                 else:
                     raise RuntimeError, "Unrecognized keyword argument '%s'" % (argkeys[i])
-        
+
         # cleanup stuff from any previous run
         self.cleanup()
-        
+
         planeData = spotsArray.getPlaneData(phaseID=phaseID)
         cellp   = planeData.latVecOps['dparms']
         U0      = planeData.latVecOps['U0']
@@ -153,19 +153,19 @@ class GrainSpotter:
         fHKLs   = planeData.getSymHKLs()
         tThRng  = planeData.getTThRanges()
         symTag  = planeData.getLaueGroup()
-        
+
         tThMin, tThMax = (r2d*tThRng.min(), r2d*tThRng.max()) # single range should be ok since entering hkls
         etaMin, etaMax = (0, 360)   # not sure when this will ever *NOT* be the case, so setting it
-        
+
         omeMin = spotsArray.getOmegaMins()
         omeMax = spotsArray.getOmegaMaxs()
         omeRangeString = ''
         for iOme in range(len(omeMin)):
             omeRangeString += 'omegarange %g %g\n' % (omeMin[iOme] * r2d, omeMax[iOme] * r2d)
-        
+
         # convert angles
         cellp[3:] = r2d*cellp[3:]
-        
+
         # make the theoretical hkls string
         gvecHKLString = ''
         for i in range(len(dsp)):
@@ -181,18 +181,18 @@ class GrainSpotter:
             sX, sY, sOme     = xyoCOM                          # detector coords
             sTTh, sEta, sOme = angCOM                          # angular coords (radians)
             sDsp = wlen / 2. / num.sin(0.5*sTTh)               # dspacing
-            
+
             # convert eta to risoe frame
             rEta = mapAngle(90. - r2d*sEta, [0, 360], units='degrees')
-            
+
             # make mesaured G vector components in risoe frame
             mGvec = makeMeasuredScatteringVectors(sTTh, sEta, sOme, convention='risoe', frame='sample')
             # mQvec = makeMeasuredScatteringVectors(sTTh, sEta, sOme, convention='llnl', frame='lab')
             gveXYZ = spotsArray.detectorGeom.angToXYO(sTTh, sEta, sOme, outputGve=True)
-            
+
             mGvec = mGvec / sDsp
             # mQvec = 4*num.pi*num.sin(0.5*sTTh)*mQvec/wlen
-            
+
             # make contribution
             gvecString += '%1.8f %1.8f %1.8f %1.8f %1.8f %1.8f %1.8f %1.8f %d %1.8f %1.8f %1.8f\n' \
                           % (mGvec[0], mGvec[1], mGvec[2], \
@@ -203,7 +203,7 @@ class GrainSpotter:
 
             # advance counter
             ii += 1
-            
+
         # write gve file for grainspotter
         f = open(gVecFName+'.gve', 'w')
         print >> f, '%1.8f %1.8f %1.8f %1.8f %1.8f %1.8f ' % tuple(cellp) + \
@@ -214,7 +214,7 @@ class GrainSpotter:
               '# xr yr zr xc yc ds eta omega\n' + \
               gvecString
         f.close()
-        
+
         ###############################################################
         # GrainSpotter ini parameters
         #
@@ -223,12 +223,12 @@ class GrainSpotter:
             positionString = 'positionfit'
         else:
             positionString = '!positionfit'
-        
+
         if numTrials == 0:
             randomString = '!random\n'
         else:
             randomString = 'random %g\n' % (numTrials)
-            
+
         tempFNameIn = 'tmpIni'
         f = open(tempFNameIn, 'w')
         # self.__tempFNameList.append(tempFNameIn)
@@ -247,11 +247,11 @@ class GrainSpotter:
               randomString + \
               positionString + '\n'
         f.close()
-        
+
         toc = time.time()
         print 'in %s, setup took %g' % (location, toc-tic)
         tic = time.time()
-        
+
         # tempFNameStdout = tempfile.mktemp()
         # self.__tempFNameList.append(tempFNameStdout)
         tempFNameStdout = 'tmp.out'
@@ -264,23 +264,23 @@ class GrainSpotter:
 
         # add output files to cleanup list
         # self.__tempFNameList += glob.glob(tempFNameIn+'.*')
-                
+
         # collect data from gff file'
         gffFile = tempFNameIn+'.gff'
         gffData = num.loadtxt(gffFile)
         if gffData.ndim == 1:
             gffData = gffData.reshape(1, len(gffData))
         gffData_U = gffData[:,6:6+9]
-        
+
         # process for output
         retval = convertUToRotMat(gffData_U, U0, symTag=symTag)
-        
+
         toc = time.time()
         print 'in %s, post-processing took %g' % (location, toc-tic)
         tic = time.time()
-        
+
         return retval
-    
+
     def __del__(self):
         self.cleanup()
         return
@@ -298,13 +298,13 @@ def convertUToRotMat(Urows, U0, symTag='Oh'):
     and takes it into the LLNL/APS frame of reference
 
     Urows comes from grainspotter's gff output
-    U0 comes from XRD.crystallography.latticeVectors.U0
+    U0 comes from xrd.crystallography.latticeVectors.U0
     """
-    R = hexrd.XRD.Rotations
-    
+    R = hexrd.xrd.Rotations
+
     numU, testDim = Urows.shape
     assert testDim == 9, "Your input must have 9 columns; yours has %d" % (testDim)
-    
+
     Rsamp = num.dot( R.rotMatOfExpMap(piby2*Zl), R.rotMatOfExpMap(piby2*Yl) )
     qin  = R.quatOfRotMat(Urows.reshape(numU, 3, 3))
     print "quaternions in (Risoe convention):"
@@ -330,12 +330,12 @@ def convertRotMatToRisoeU(rMats, U0, symTag='Oh'):
     and takes it into the LLNL/APS frame of reference
 
     Urows comes from grainspotter's gff output
-    U0 comes from XRD.crystallography.latticeVectors.U0
+    U0 comes from xrd.crystallography.latticeVectors.U0
     """
-    R = hexrd.XRD.Rotations # formerly import
-    
+    R = hexrd.xrd.Rotations # formerly import
+
     numU = num.shape(num.atleast_3d(rMats))[0]
-    
+
     Rsamp = num.dot( R.rotMatOfExpMap(piby2*Zl), R.rotMatOfExpMap(piby2*Yl) )
     qin  = R.quatOfRotMat(num.atleast_3d(rMats))
     print "quaternions in (LLNL convention):"
@@ -376,9 +376,9 @@ def testThisQ(thisQ):
     (*) doFit is not done here -- in multiprocessing, that would end up happening on a remote process
     and then different processes would have different data, unless spotsArray were made to be fancier
     """
-    G = hexrd.XRD.grain
-    R = hexrd.XRD.Rotations
-    
+    G = hexrd.xrd.grain
+    R = hexrd.xrd.Rotations
+
     """
     kludge stuff so that this function is outside of fiberSearch
     """
@@ -400,18 +400,18 @@ def testThisQ(thisQ):
     nSigmas = 2                         # ... make this a settable option?
     if multiProcMode:
         global foundFlagShared
-    
+
     foundGrainData = None
     #print "testing %d of %d"% (iR+1, numTrials)
     thisRMat = R.rotMatOfQuat(thisQ)
-    
+
     ppfx = ''
     if multiProcMode:
         proc = multiprocessing.current_process()
         ppfx = str(proc.name)+' : '
         if multiProcMode and foundFlagShared.value:
             """
-            map causes this function to be applied to all trial orientations, 
+            map causes this function to be applied to all trial orientations,
             but skip evaluations after an acceptable grain has been found
             """
             if debugMultiproc > 1:
@@ -425,7 +425,7 @@ def testThisQ(thisQ):
                           strainMag=dspTol,
                           claimingSpots=False,
                           testClaims=True,
-                          updateSelf=True)                
+                          updateSelf=True)
     if debugMultiproc > 1:
         print ppfx+' for '+str(thisQ)+' got completeness : '+str(candidate.completeness)
     if candidate.completeness >= minCompleteness:
@@ -501,9 +501,9 @@ def testThisQ(thisQ):
         'tolerances not actually set in candidate, so set them manually'
         foundGrainData['omeTol'] = fineOmeTol
         foundGrainData['etaTol'] = fineEtaTol
-        
+
     return foundGrainData
-#    
+#
 def fiberSearch(spotsArray, hklList,
                 iPhase=0,
                 nsteps=120,
@@ -534,8 +534,8 @@ def fiberSearch(spotsArray, hklList,
 
     the output is a concatenated list of orientation matrices ((n, 3, 3) numpy.ndarray).
     """
-    G = hexrd.XRD.grain
-    R = hexrd.XRD.Rotations
+    G = hexrd.xrd.grain
+    R = hexrd.xrd.Rotations
     assert hasattr(hklList, '__len__'), "the HKL list must have length, and len(hklList) > 0."
 
     nHKLs = len(hklList)
@@ -575,7 +575,7 @@ def fiberSearch(spotsArray, hklList,
         nCPUs = nCPUs or xrdBase.dfltNCPU
         spotsArray.multiprocMode = True
         pool = multiprocessing.Pool(nCPUs)
-    
+
     """
     HKL ITERATOR
     """
@@ -598,12 +598,12 @@ def fiberSearch(spotsArray, hklList,
             spotsIteratorI = spotsArray.getIterHKL(hklList[iHKL], unclaimedOnly=True, friedelOnly=True)
             # make some stuff for counters
             maxSpots = 0.5*(sum(thisRingSpots) - sum(spotsArray.friedelPair[thisRingSpots] == -1))
-        else:                                       
+        else:
             spotsIteratorI = spotsArray.getIterHKL(hklList[iHKL], unclaimedOnly=True, friedelOnly=False)
             maxSpots = sum(thisRingSpots)
         """
         SPOT ITERATOR
-          - this is where we iterate over all 'valid' spots for the current HKL as 
+          - this is where we iterate over all 'valid' spots for the current HKL as
             subject to the conditions of claims and ID as a friedel pair (when requested)
         """
         for iRefl, stuff in enumerate(spotsIteratorI):
@@ -665,7 +665,7 @@ def fiberSearch(spotsArray, hklList,
                         trialGrains.append(foundGrainData)
                         break
             'end of if multiProcMode'
-            
+
             if len(trialGrains) == 0:
                 print "No grain found containing reflection %d\n" % (iSpot)
                 # import pdb;pdb.set_trace()
@@ -709,7 +709,7 @@ def fiberSearch(spotsArray, hklList,
         spotsArray.resetClaims()
     toc = time.time()
     print 'fiberSearch execution took %g seconds' % (toc-tic)
-    
+
     if multiProcMode:
         pool.close()
         spotsArray.multiprocMode = False
@@ -727,7 +727,7 @@ def fiberSearch(spotsArray, hklList,
     dspTol_MP = None
     minCompleteness_MP = None
     doRefinement_MP = None
-    
+
     return rMats
 
 def pgRefine(x, etaOmeMaps, omegaRange, threshold):
@@ -749,33 +749,33 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
     do a direct search of omega-eta maps to paint each orientation in quats with a completeness
 
     bMat is in CRYSTAL frame
-    
-    etaOmeMaps is instance of XRD.xrdUtils.CollapseOmeEta
-    
+
+    etaOmeMaps is instance of xrd.xrdUtils.CollapseOmeEta
+
     omegaRange=([-num.pi/3., num.pi/3.],) for example
 
     *) lifted mainly from grain.py
 
     *) self.etaGrid, self.omeGrid = num.meshgrid(self.etaEdges, self.omeEdges)
        this means that ETA VARIES FASTEST!
-       
+
     ...make a new function that gets called by grain to do the g-vec angle computation?
     """
-    rot = hexrd.XRD.Rotations
-    
+    rot = hexrd.xrd.Rotations
+
     quats = num.atleast_2d(quats)
     if quats.size == 4:
         quats = quats.reshape(4, 1)
-    
+
     planeData = etaOmeMaps.planeData
-    
+
     hklIDs    = num.r_[etaOmeMaps.iHKLList]
     hklList   = num.atleast_2d(planeData.hkls[:, hklIDs].T).tolist()
     nHKLS     = len(hklIDs)
-    
+
     numEtas   = len(etaOmeMaps.etaEdges) - 1
     numOmes   = len(etaOmeMaps.omeEdges) - 1
-    
+
     if threshold is None:
         threshold = num.zeros(nHKLS)
         for i in range(nHKLS):
@@ -799,7 +799,7 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
     # omeIndices = mapIndices[1].T.flatten()
     etaIndices = num.tile(range(numEtas), (numOmes))
     omeIndices = num.tile(range(numOmes), (numEtas))
-    
+
     omeMin = None
     omeMax = None
     if omegaRange is not None:
@@ -809,20 +809,20 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
     etaMax = None
     if etaRange is not None:
         etaMin = [etagaRange[i][0] for i in range(len(etagaRange))]
-        etaMax = [etagaRange[i][1] for i in range(len(etagaRange))]        
-    
+        etaMax = [etagaRange[i][1] for i in range(len(etagaRange))]
+
     # make list of rMats from input quats
     rMatsList = [rot.rotMatOfQuat(quats[:, i]) for i in range(quats.shape[1])]
-    
+
     multiProcMode = xrdBase.haveMultiProc and doMultiProc
-    
+
     if multiProcMode:
         nCPUs = nCPUs or xrdBase.dfltNCPU
         print "INFO: using multiprocessing with %d processes\n" % (nCPUs)
     else:
         print "INFO: running in serial mode\n"
         nCPUs = 1
-    
+
     # assign the globals for paintGridThis
     global planeData_MP
     global omeMin_MP, omeMax_MP
@@ -832,43 +832,43 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
     global etaOmeMaps_MP
     global bMat_MP
     global threshold_MP
-    planeData_MP  = planeData  
-    hklIDs_MP     = hklIDs     
-    hklList_MP    = hklList    
-    omeMin_MP     = omeMin     
-    omeMax_MP     = omeMax     
-    omeIndices_MP = omeIndices 
-    etaMin_MP     = etaMin     
-    etaMax_MP     = etaMax     
-    etaIndices_MP = etaIndices 
+    planeData_MP  = planeData
+    hklIDs_MP     = hklIDs
+    hklList_MP    = hklList
+    omeMin_MP     = omeMin
+    omeMax_MP     = omeMax
+    omeIndices_MP = omeIndices
+    etaMin_MP     = etaMin
+    etaMax_MP     = etaMax
+    etaIndices_MP = etaIndices
     etaOmeMaps_MP = etaOmeMaps
-    bMat_MP       = bMat       
+    bMat_MP       = bMat
     threshold_MP  = threshold
-    
-    # do the mapping    
+
+    # do the mapping
     retval = None
     if multiProcMode:
         pool = multiprocessing.Pool(nCPUs)
         retval = pool.map(paintGridThis, rMatsList)
     else:
         retval = map(paintGridThis, rMatsList)
-    
-    planedata_mp  = None 
-    hklIDs_MP     = None 
-    hklList_MP    = None 
-    omeMin_MP     = None 
-    omeMax_MP     = None 
-    omeIndices_MP = None 
-    etaMin_MP     = None 
-    etaMax_MP     = None 
-    etaIndices_MP = None 
+
+    planedata_mp  = None
+    hklIDs_MP     = None
+    hklList_MP    = None
+    omeMin_MP     = None
+    omeMax_MP     = None
+    omeIndices_MP = None
+    etaMin_MP     = None
+    etaMax_MP     = None
+    etaIndices_MP = None
     etaOmeMaps_MP = None
-    bMat_MP       = None       
+    bMat_MP       = None
     threshold_MP  = None
-    
+
     if multiProcMode:
         pool.close()
-    
+
     return retval
 
 def paintGridThis(rMat):
@@ -897,29 +897,29 @@ def paintGridThis(rMat):
     threshold  = threshold_MP
 
     debug = False
-    
+
     nHKLS     = len(hklIDs)
-    
+
     nPredRefl = 0
     nMeasRefl = 0
     reflInfoList = []
     dummySpotInfo = num.nan * num.ones(3)
-    
+
     hklCounterP = 0                 # running count of excpected (predicted) HKLs
     hklCounterM = 0                 # running count of "hit" HKLs
     for iHKL in range(nHKLS):
         # for control of tolerancing
         symHKLs   = planeData.getSymHKLs()[hklIDs[iHKL]]
         tThRanges = planeData.getTThRanges()[hklIDs[iHKL]]
-        
+
         # make all theoretical scattering vectors
         predQvec, predQAng0, predQAng1 = \
                   planeData.makeTheseScatteringVectors([hklList[iHKL]], rMat, bMat=bMat)
-        
+
         # work with generated spots for iHKL
         # allPredAng = zip(predQAng0[iHKL], predQAng1[iHKL])
         allPredAng = zip(predQAng0, predQAng1)
-        
+
         # filter using omega range
         if omeMin is not None:
             reflInRangeOme0 = num.zeros(allPredAng[2][0].shape, dtype=bool)
@@ -936,7 +936,7 @@ def paintGridThis(rMat):
             reflInRangeOme0 = num.ones(allPredAng[2][0].shape, dtype=bool)
             reflInRangeOme1 = num.ones(allPredAng[2][1].shape, dtype=bool)
             pass
-        
+
         if etaMin is not None:
             reflInRangeEta0 = num.zeros(allPredAng[2][0].shape, dtype=bool)
             reflInRangeEta1 = num.zeros(allPredAng[2][1].shape, dtype=bool)
@@ -952,21 +952,21 @@ def paintGridThis(rMat):
             reflInRangeEta0 = num.ones(allPredAng[2][0].shape, dtype=bool)
             reflInRangeEta1 = num.ones(allPredAng[2][1].shape, dtype=bool)
             pass
-                        
+
         reflInRange0 = reflInRangeOme0 & reflInRangeEta0
         reflInRange1 = reflInRangeOme1 & reflInRangeEta1
-        
+
         # get culled angle and hkl lists for predicted spots
         culledTTh = num.r_[ allPredAng[0][0][reflInRange0], allPredAng[0][1][reflInRange1] ]
         culledEta = num.r_[ allPredAng[1][0][reflInRange0], allPredAng[1][1][reflInRange1] ]
         culledOme = num.r_[ allPredAng[2][0][reflInRange0], allPredAng[2][1][reflInRange1] ]
-        
-        culledHKLs = num.hstack( [ 
-            symHKLs[:, reflInRange0], 
+
+        culledHKLs = num.hstack( [
+            symHKLs[:, reflInRange0],
             symHKLs[:, reflInRange1] ] )
-        
+
         culledQvec = num.c_[ predQvec[:, reflInRange0], predQvec[:, reflInRange1] ]
-        
+
         nThisPredRefl = len(culledTTh)
         hklCounterP += nThisPredRefl
         for iTTh in range(nThisPredRefl):
@@ -984,9 +984,9 @@ def paintGridThis(rMat):
                     culledOmeIdx = None
             else:
                 culledOmeIdx = None
-                
+
             if culledEtaIdx is not None and culledOmeIdx is not None:
-                pixelVal = etaOmeMaps.dataStore[iHKL][omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ] 
+                pixelVal = etaOmeMaps.dataStore[iHKL][omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ]
                 isHit = pixelVal >= threshold[iHKL]
                 if isHit:
                     hklCounterM += 1
@@ -998,7 +998,7 @@ def paintGridThis(rMat):
                       "eta index: %d,%d\tetaP: %g\n" % (culledEtaIdx, etaIndices[culledEtaIdx], r2d*culledEta[iTTh]) + \
                       "ome index: %d,%d\tomeP: %g\n" % (culledOmeIdx, omeIndices[culledOmeIdx], r2d*culledOme[iTTh])
                 pass
-            pass # close loop on signed reflections           
+            pass # close loop on signed reflections
         pass # close loop on HKL
     retval = float(hklCounterM) / float(hklCounterP)
     return retval
@@ -1009,7 +1009,7 @@ def progress_bar(progress):
 
     Inputs:
         progress - a float between 0. and 1.
-        
+
     Example:
         >> progress_bar(0.7)
             |===================================               |

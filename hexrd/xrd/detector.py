@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -52,17 +52,17 @@ import matplotlib
 from matplotlib import cm, colors
 from matplotlib import mlab
 from matplotlib.widgets import Slider, Button, RadioButtons
-    
+
 from hexrd import XRD
-from hexrd.XRD.xrdBase import getGaussNDParams
-from hexrd.XRD.Rotations import mapAngle
-from hexrd.XRD.Rotations import rotMatOfExpMap
-from hexrd.XRD.Rotations import rotMatOfExpMap, arccosSafe
+from hexrd.xrd.xrdBase import getGaussNDParams
+from hexrd.xrd.Rotations import mapAngle
+from hexrd.xrd.Rotations import rotMatOfExpMap
+from hexrd.xrd.Rotations import rotMatOfExpMap, arccosSafe
 from hexrd.quadrature import q1db
 from hexrd.quadrature import q2db
 from hexrd.matrixUtils import unitVector
 from hexrd import valUnits
-        
+
 havePlotWrap = True
 try:
     from hexrd import plotWrap
@@ -73,18 +73,18 @@ d2r = piby180 = num.pi/180.
 r2d = 1.0/d2r
 
 bsize = 25000
-        
+
 def angToXYIdeal(tTh, eta, workDist):
     rho = num.tan(tTh) * workDist
     x   = rho * num.cos(eta)
     y   = rho * num.sin(eta)
     return x, y
-    
+
 def mapAngs(eta):
     if num.all(num.cos(eta) < 0.):
         eta = mapAngle(eta, (0, 2*num.pi), units='radians')
     return eta
-    
+
 class FmtCoordIdeal:
     def __init__(self, planeData, workDist):
         self.planeData = planeData
@@ -123,16 +123,16 @@ class FmtCoordIdeal:
 class ThreadReadFrame(threading.Thread):
     def __init__(self, img, readArgs, castArgs):
         threading.Thread.__init__(self)
-        
+
         self.img   = img
         # self.dtype = dtype
         # self.count = count
         self.readArgs = readArgs
         self.castArgs = castArgs
-        
+
         self.data = None
         # self.success  = None
-        
+
         return
 
     def run(self):
@@ -213,7 +213,7 @@ class Reader(object):
             vmax = range[1]
         else:
             thr    = dROI.mean()
-            vmin = max(0,            thr-range/2) # max(dROI.min(), thr-range/2) 
+            vmin = max(0,            thr-range/2) # max(dROI.min(), thr-range/2)
             vmax = min(cls.maxVal(), thr+range/2)
         return vmin, vmax
     @classmethod
@@ -224,7 +224,7 @@ class Reader(object):
             range = kwargs.pop('range')
         if kwargs.has_key('cmap'):
             cmap  = kwargs.pop('cmap')
-            
+
         roiMin = dROI.min()
         roiMax = dROI.max()
         #
@@ -246,17 +246,17 @@ class Reader(object):
         #
         if cmap is None:
             cmap = getCMap(centered)
-        
+
         return vmin, vmax, cmap
     @classmethod
-    def display(cls, 
+    def display(cls,
                 thisframe,
                 roi = None,
                 pw  = None,
                 **kwargs
                 ):
         # ... interpolation method that looks like max() so that do not miss pixels?
-        
+
         if roi is not None:
             dROI   = thisframe[ roi[0][0]:roi[0][1], roi[1][0]:roi[1][1] ]
         else:
@@ -277,14 +277,14 @@ class Reader(object):
         #     retval = pylab.imshow(dROI, vmin=vmin, vmax=vmax, cmap=cm.bone)
         else:
             raise RuntimeError, 'no plotting pacakge available'
-        
+
         retval = p
         return retval
 
 class ReadGE(Reader):
     """
     Read in raw GE files; this is the class version of the foregoing functions
-    
+
     NOTES
 
     *) The flip axis ('v'ertical) was verified on 06 March 2009 by
@@ -302,8 +302,8 @@ class ReadGE(Reader):
     *) In multiframe images where background subtraction is requested but no
        dark is specified, attempts to use the
        empty frame(s).	An error is returned if there are not any specified.
-       If there are multiple empty frames, the average is used.	   
-    
+       If there are multiple empty frames, the average is used.
+
     """
     __nbytes_header    = 8192
     __idim             = 2048
@@ -317,41 +317,41 @@ class ReadGE(Reader):
     __useThreading = True and haveThreading
     __location = '  ReadGE'
     __readArgs = {
-        'dtype' : __frame_dtype_read, 
+        'dtype' : __frame_dtype_read,
         'count' : __idim**2
         }
     __castArgs = {
         'dtype' : __frame_dtype_dflt
         }
     __inParmDict = {
-        'omegaStart':None, 
+        'omegaStart':None,
         'omegaDelta':None,
-        'subtractDark':False, 
-        'mask':None, 
-        'useMask':None, 
-        'dark':None, 
+        'subtractDark':False,
+        'mask':None,
+        'useMask':None,
+        'dark':None,
         'dead':None,
         'nDarkFrames':1,
-        'doFlip':True, 
+        'doFlip':True,
         'flipArg':'v',
         }
     # 'readHeader':False
-    def __init__(self, 
-                 fileInfo, 
+    def __init__(self,
+                 fileInfo,
                  *args,
                  **kwargs):
         """
         meant for reading a series of frames from an omega sweep, with fixed delta-omega
         for each frame
-        
+
         omegaStart and omegaDelta can follow fileInfo or be specified in whatever order by keyword
-        
+
         fileInfo: string, (string, nempty), or list of (string, nempty) for multiple files
-        
+
         for multiple files and no dark, dark is formed only from empty
         frames in the first file
         """
-        
+
         # defaults
         self.__kwPassed = {}
         for parm, val in self.__inParmDict.iteritems():
@@ -368,7 +368,7 @@ class ReadGE(Reader):
             self.omegaDelta = args[1]
         else:
             raise RuntimeError, 'do not know what to do with args : '+str(args)
-        
+
         # initialization
         self.omegas = None
         self.img = None
@@ -376,9 +376,9 @@ class ReadGE(Reader):
         self.fileInfo      = None
         self.nFramesRemain = None # remaining in current file
         self.iFrame = -1 # counter for last global frame that was read
-        
+
         if self.dark is not None:
-            if not self.__kwPassed['subtractDark']: 
+            if not self.__kwPassed['subtractDark']:
                 'subtractDark was not explicitly passed, set it True'
                 self.subtractDark = True
             if isinstance(self.dark, str):
@@ -395,7 +395,7 @@ class ReadGE(Reader):
                 self.__log('got dark from ndarray input')
             else:
                 raise RuntimeError, 'do not know what to do with dark of type : '+str(type(self.dark))
-        
+
         self.__setupRead(fileInfo, self.subtractDark, self.mask, self.omegaStart, self.omegaDelta)
 
         return
@@ -471,17 +471,17 @@ class ReadGE(Reader):
         return retval
 
     def __setupRead(self, fileInfo, subtractDark, mask, omegaStart, omegaDelta):
-        
+
         self.fileInfo = fileInfo
         self.fileListR = self.__convertFileInfo(self.fileInfo)
         self.fileListR.reverse() # so that pop reads in order
-        
+
         self.subtractDark = subtractDark
         self.mask         = mask
-        
+
         if self.dead is not None:
             self.deadFlipped = self.__flip(self.dead)
-        
+
         assert (omegaStart is None) == (omegaDelta is None),\
             'must provide either both or neither of omega start and delta'
         if omegaStart is not None:
@@ -498,9 +498,9 @@ class ReadGE(Reader):
             self.omegaMax = max(omegaStart, omegaEnd)
             self.omegaDelta = omegaDelta
             self.omegaStart = omegaStart
-            
+
         self.__nextFile()
-        
+
         return
     @classmethod
     def getEmptyMask(cls):
@@ -573,7 +573,7 @@ class ReadGE(Reader):
             retval = True
         else:
             assert len(self.useMask) == self.getNFrames(),\
-                   "len(useMask) must be %d; yours is %d" % (self.getNFrames(), len(self.useMask))    
+                   "len(useMask) must be %d; yours is %d" % (self.getNFrames(), len(self.useMask))
             retval = self.useMask[self.iFrame]
         return retval
     @classmethod
@@ -585,22 +585,22 @@ class ReadGE(Reader):
             raise RuntimeError, 'file size not correctly calculated'
         return nFrames
     def __nextFile(self):
-        
+
         # close in case already have a file going
         self.close()
-        
+
         fname, nempty = self.fileListR.pop()
-        
+
         # open file
         fileBytes = os.stat(fname).st_size
         self.img = open(fname, mode='rb')
-        
+
         # skip header for now
         self.img.seek(self.__nbytes_header, 0)
-        
+
         # figure out number of frames
         self.nFramesRemain = self.__getNFrames(fileBytes)
-        
+
         if nempty > 0:  # 1 or more empty frames
             if self.dark is None:
                 scale = 1.0 / nempty
@@ -614,10 +614,10 @@ class ReadGE(Reader):
             else:
                 self.img.seek(self.__nbytes_frame*nempty, 1)
             self.nFramesRemain -= nempty
-        
+
         if self.subtractDark and self.dark is None:
             raise RuntimeError, "Requested dark field subtraction, but no file or empty frames specified!"
-        
+
         return
     @staticmethod
     def __convertFileInfo(fileInfo):
@@ -637,7 +637,7 @@ class ReadGE(Reader):
     def readBBox(self, bbox, raw=True, doFlip=None):
         """
         with raw=True, read more or less raw data, with bbox = [(iLo,iHi),(jLo,jHi),(fLo,fHi)]
-        
+
         careful: if raw is True, must set doFlip if want frames
         potentially flipped; can set it to a reader instance to pull
         the doFlip value from that instance
@@ -646,13 +646,13 @@ class ReadGE(Reader):
         if raw:
             if hasattr(doFlip,'doFlip'):
                 'probably a ReadGe instance, pull doFlip from it'
-                doFlip = doFlip.doFlip 
+                doFlip = doFlip.doFlip
             doFlip = doFlip or False # set to False if is None
             reader = self.getRawReader(doFlip=doFlip)
         else:
             assert doFlip is None, 'do not specify doFlip if raw is True'
             reader = self.makeNew()
-        
+
         nskip = bbox[2][0]
         bBox = num.array(bbox)
         sl_i = slice(*bBox[0])
@@ -690,29 +690,29 @@ class ReadGE(Reader):
         """
         sumImg can be set to True or to something like numpy.maximum
         """
-        
+
         'get iFrame ready for how it is used here'
         self.iFrame = num.atleast_1d(self.iFrame)[-1]
         iFrameList = []
         multiframe = nframes > 1
-        
+
         nFramesInv = 1.0 / nframes
         doDarkSub = self.subtractDark # and self.dark is not None
 
         if doDarkSub:
             assert self.dark is not None, 'self.dark is None'
-        
+
         # assign storage array
         if sumImg:
             sumImgCallable = hasattr(sumImg,'__call__')
             imgOut = self.frame(dtype=self.__frame_dtype_float, mask=self.dead)
         elif multiframe:
             imgOut = self.frame(nframes=nframes, dtype=self.__frame_dtype_dflt, mask=self.dead)
-        
-        
+
+
         # now read data frames
         for i in range(nframes):
-            
+
             #data = self.__readNext(nskip=nskip)
             #thisframe = data.reshape(self.__idim, self.__idim)
             data = self.__readNext(nskip=nskip) # .reshape(self.__nrows, self.__ncols)
@@ -722,20 +722,20 @@ class ReadGE(Reader):
             # dark subtraction
             if doDarkSub:
                 'used to have self.__frame_dtype_float here, but self.__frame_dtype_dflt does the trick'
-                thisframe = self.frame(buffer=data, 
+                thisframe = self.frame(buffer=data,
                                        dtype=self.__frame_dtype_dflt, mask=self.dead) - self.dark
             else:
-                thisframe = self.frame(buffer=data, 
+                thisframe = self.frame(buffer=data,
                                        mask=self.dead)
-            
+
             # flipping
             thisframe = self.__flip(thisframe)
-            
+
             # masking (True get zeroed)
             if self.mask is not None:
                 if self.getFrameUseMask():
                     thisframe[self.mask] = 0
-    
+
             # assign output
             if sumImg:
                 if sumImgCallable:
@@ -745,13 +745,13 @@ class ReadGE(Reader):
             elif multiframe:
                 imgOut[i, :, :] = thisframe[:, :]
         'end of loop over nframes'
-        
+
         if sumImg:
             # imgOut = imgOut / nframes # now taken care of above
             pass
         elif not multiframe:
             imgOut = thisframe
-        
+
         if multiframe:
             'make iFrame a list so that omega or whatever can be averaged appropriately'
             self.iFrame = iFrameList
@@ -771,7 +771,7 @@ class ReadGE(Reader):
                     self.__log('--- existing thread has finished (%g seconds)' % (dt))
                 else:
                     self.__log('existing thread already finished')
-            # if done: 
+            # if done:
             #    self.th = None
         return
     def __thCheck(self):
@@ -786,14 +786,14 @@ class ReadGE(Reader):
                 self.th = None
         return data
     def __readNext(self, nskip=0):
-        
+
         if self.img is None:
             raise RuntimeError, 'no image file set'
 
         nHave = 0
         if self.__useThreading:
             data = self.__thCheck()
-        
+
         nskipThis = nskip
         if nskipThis > 0 and data is not None:
             nskipThis = nskipThis - 1
@@ -809,13 +809,13 @@ class ReadGE(Reader):
             # advance counter past empty frames
             self.img.seek(self.__nbytes_frame*nskipThis, 1)
             self.nFramesRemain -= nskipThis
-        
+
         if data is None:
             # grab current frame
             data = num.fromfile(self.img, **self.__readArgs)
             data = num.array(data, **self.__castArgs)
             self.nFramesRemain -= 1
-        
+
         if self.__useThreading:
             'try to get next frame'
             if self.nFramesRemain < 1:
@@ -875,14 +875,14 @@ class ReadGE(Reader):
 class ReadMar165(Reader):
     """
     placeholder; not yet really implemented
-    
+
     """
     __frame_dtype_read = 'uint16'
     __frame_dtype_dflt = 'int16' # good for doing subtractions
     def __init__(self, mode):
         if not isinstance(mode, int) or not [1,2,4,8].count(mode):
             raise RuntimeError, 'unknown mode : '+str(mode)
-        
+
         self.__mode = mode
         self.__idim = mar165IDim(mode)
         return
@@ -891,13 +891,13 @@ class ReadMar165(Reader):
             msg = "PIL Image module is required for this operation, "\
                 "but not loaded\n"
             raise NameError(msg)
-        
+
         i = Image.open(filename, mode='r')
         a = num.array(i, dtype=self.__frame_dtype_read)
         frame = num.array(a, dtype=self.__frame_dtype_dflt)
         return frame
-        
-    
+
+
 class ReadMar165NB1(ReadMar165):
     def __init__(self, *args, **kwargs):
         ReadMar165.__init__(1, *args, **kwargs)
@@ -955,9 +955,9 @@ class Peak1DAtLoc:
           self.xVecDflt = xVecDflt
       return
   def getNParams(self):
-    raise NotImplementedError    
+    raise NotImplementedError
   def guessXVec(self, xs, vals, w=None):
-      raise NotImplementedError    
+      raise NotImplementedError
   def getNPeaks(self):
     return len(self.centers)
   def setCenters(self, centers):
@@ -965,10 +965,10 @@ class Peak1DAtLoc:
       self.centers = centers
     else:
       self.centers = [centers]
-    return 
+    return
   def __call__(self, xVec, p):
       # if newCenters is not None:
-      #     self.setCenters(newCenters)          
+      #     self.setCenters(newCenters)
       if xVec is None or len(xVec) == 0:
           assert self.xVecDflt is not None,\
               'xVec is empty and xVecDflt is None'
@@ -992,8 +992,8 @@ class Peak1DAtLoc:
   def d_dCenters(self, xVec, p):
     'derivative of call with respect to centers'
     raise NotImplementedError
-  def fitFloatingCenter(self, tThVals, intensityVals, 
-                        xVecGuess=None, centersGuess=None, 
+  def fitFloatingCenter(self, tThVals, intensityVals,
+                        xVecGuess=None, centersGuess=None,
                         weights=4, tThWidth=None,
                         fitGoodnessTol=0.5):
       '''
@@ -1001,7 +1001,7 @@ class Peak1DAtLoc:
       actually change the centers of the function you need to call
       setCenters(cFit) after calling this function
       '''
-      
+
       func = self
 
       if isinstance(weights, int):
@@ -1029,7 +1029,7 @@ class Peak1DAtLoc:
           raise RuntimeError, 'do not know what to do with weights of type '+str(type(weights))
 
       nPeaks = func.getNPeaks()
-      
+
       if xVecGuess is None:
           #xVecGuess = func.xVecDflt
           xVecGuess = func.guessXVec(tThQP, intensityVals, w=w2d)
@@ -1037,13 +1037,13 @@ class Peak1DAtLoc:
           centersGuess = func.centers
       assert nPeaks == len(centersGuess), 'failed sanity check'
       xVec0 = num.hstack( (xVecGuess, centersGuess) )
-      
+
       'keep centers so that can restore them later'
       centersRef = copy.deepcopy(func.centers)
-      
+
       if len(xVec0) > len(intensityVals):
           raise RuntimeError, 'more DOF than equations'
-      
+
       def _f_leastsq(x):
           # retval = num.empty(nBins)
           xFit = x[:-nPeaks]
@@ -1068,14 +1068,14 @@ class Peak1DAtLoc:
           for iC in range(0,len(cFit)):
               retval[:,len(xFit)+iC] = num.sum(d_evalQP_d_centers[:,:,iC] * w2d, axis=1)
           return retval
-            
+
       x, ier = \
           leastsq(_f_leastsq, xVec0, Dfun=_df_leastsq)
       if not [1,2,3,4].count(ier):
           print >> sys.stderr, \
               'error code %d from leastsq' % (ier)
           raise RuntimeError, 'error from leastsq'
-      
+
       xFit = x[:-nPeaks]
       cFit = x[-nPeaks:] # copy.deepcopy(func.centers)
       'return evalIntensity so caller does not have to monkey with changing centers back and forth'
@@ -1138,7 +1138,7 @@ class PeakPV1DAtLoc(Peak1DAtLoc):
             xn = xVec[2+iPeak*3+2]
             n  = 0.5 + 0.5 * num.tanh(xn)
             delx = (p - center)
-            
+
             fl = self.Al/H * 1 / (1 + self.C1*delx**2 / H**2)
             fg = self.Ag/H * num.exp(-self.C0*delx**2 / H**2)
 
@@ -1149,15 +1149,15 @@ class PeakPV1DAtLoc(Peak1DAtLoc):
         ps = p.shape
         p = p.reshape(p.size)
         retval = num.zeros((p.size, len(xVec)))
-        
+
         # B  = xVec[0]
         # retval =  num.tile(B, num.shape(p))
         retval[:,0] = 1.0e0
-        
+
         # dB = xVec[1]
         # retval += dB * (p - self.bRef)
         retval[:,1] = p - self.bRef
-        
+
         for iPeak, center in enumerate(self.centers):
             A  = xVec[2+iPeak*3]
             H  = xVec[2+iPeak*3+1]
@@ -1172,39 +1172,39 @@ class PeakPV1DAtLoc(Peak1DAtLoc):
             # some intermediate partials
             dfl_dH = ( 2.0 * self.C1 * delx**2 * fl/(self.Al*H) - 1.0 ) * (fl / H)
             dfg_dH = ( 2.0 * self.C0 * delx**2 / H**2 - 1.0 ) * (fg / H)
-            
+
             dfl_dx0 = 2.0 * self.C1 * delx * fl**2 / (self.Al * H)
             dfg_dx0 = 2.0 * self.C0 * delx * fg / H**2
 
-            # mixing parm 
+            # mixing parm
             dn_dxn = 0.5 * (1.0/num.cosh(xn)**2)
             #####################
-            
+
             # amplitude
             df_dA = (n*fl + (1.0 - n)*fg)
-            
+
             # FWHM
             df_dH = A * ( n*dfl_dH + (1.0 - n)*dfg_dH )
 
             # mixing parm
             df_dxn = A * ( fl - fg ) * dn_dxn
-            
+
             # assign jacobian vals
             retval[:,2+iPeak*3]   = df_dA
             retval[:,2+iPeak*3+1] = df_dH
             retval[:,2+iPeak*3+2] = df_dxn
-        
+
         retval = retval.reshape(num.hstack((ps,len(xVec))))
         return retval
     def d_dp(self, xVec, p):
         retval = num.zeros(p.shape)
-        
+
         # B  = xVec[0]
         dB = xVec[1]
         # retval =  num.tile(B, num.shape(p))
         # retval += dB * (p - self.bRef)
         retval = dB
-        
+
         for iPeak, center in enumerate(self.centers):
             A  = xVec[2+iPeak*3]
             H  = xVec[2+iPeak*3+1]
@@ -1214,10 +1214,10 @@ class PeakPV1DAtLoc(Peak1DAtLoc):
 
             fl = self.Al/H * 1 / (1 + self.C1*delx**2 / H**2)
             fg = self.Ag/H * num.exp(-self.C0*delx**2 / H**2)
-            
+
             dfl_dp = -(2.0 * self.C1) * delx * fl**2 / (self.Al*H)
             dfg_dp = -(2.0 * self.C0) * delx * fg / H**2
-            
+
             retval += A * ( n*dfl_dp + (1.0 - n)*dfg_dp )
         return retval
     def d_dCenters(self, xVec, p):
@@ -1230,10 +1230,10 @@ class PeakPV1DAtLoc(Peak1DAtLoc):
             xn = xVec[2+iPeak*3+2]
             n  = 0.5 + 0.5 * num.tanh(xn)
             delx = (p - center).flatten()
-            
+
             fl = self.Al/H * 1 / (1 + self.C1*delx**2 / H**2)
             fg = self.Ag/H * num.exp(-self.C0*delx**2 / H**2)
-            
+
             dfl_dc = (2.0 * self.C1) * delx * fl**2 / (self.Al*H)
             dfg_dc = (2.0 * self.C0) * delx * fg / H**2
 
@@ -1268,7 +1268,7 @@ class PeakLorentzian1DAtLoc(Peak1DAtLoc):
         for iPeak, center in enumerate(self.centers):
             A = xVec[2+iPeak*2]
             w = xVec[2+iPeak*2+1]
-            dist = (p - center) 
+            dist = (p - center)
             retval += A * (0.5*w) / ( dist*dist + (0.5*w)**2  )
         return retval
     def d_dx(self, xVec, p):
@@ -1276,40 +1276,40 @@ class PeakLorentzian1DAtLoc(Peak1DAtLoc):
         ps = p.shape
         p = p.reshape(p.size)
         retval = num.zeros((p.size, len(xVec)))
-        
+
         # B  = xVec[0]
         # retval =  num.tile(B, num.shape(p))
         retval[:,0] = 1.0e0
-        
+
         # dB = xVec[1]
         # retval += dB * (p - self.bRef)
         retval[:,1] = p - self.bRef
-        
+
         for iPeak, center in enumerate(self.centers):
             A = xVec[2+iPeak*2]
             w = xVec[2+iPeak*2+1]
-            dist = (p - center) 
-            
+            dist = (p - center)
+
             # retval += A * num.exp( self.expFact * ( dist * dist) )
             evalLtz = (0.5*w) / ( dist*dist + (0.5*w)**2  )
             retval[:,2+iPeak*2]   =  evalLtz
             retval[:,2+iPeak*2+1] = A * (evalLtz / w - evalLtz * evalLtz)
-        
+
         retval = retval.reshape(num.hstack((ps,len(xVec))))
         return retval
     def d_dp(self, xVec, p):
         retval = num.zeros(p.shape)
-        
+
         # B  = xVec[0]
         dB = xVec[1]
         # retval =  num.tile(B, num.shape(p))
         # retval += dB * (p - self.bRef)
         retval = dB
-        
+
         for iPeak, center in enumerate(self.centers):
             A = xVec[2+iPeak*2]
             w = xVec[2+iPeak*2+1]
-            dist = (p - center) 
+            dist = (p - center)
             evalLtz = (0.5*w) / ( dist*dist + (0.5*w)**2  )
             # retval += A * num.exp( self.expFact * ( dist * dist) )
             retval += -1.0 * A * 4.0 * evalLtz * evalLtz * dist * (1/w)
@@ -1317,7 +1317,7 @@ class PeakLorentzian1DAtLoc(Peak1DAtLoc):
     def d_dCenters(self, xVec, p):
         ps = p.shape
         retval = num.zeros((p.size,len(self.centers)))
-        
+
         for iPeak, center in enumerate(self.centers):
             A = xVec[2+iPeak*2]
             w = xVec[2+iPeak*2+1]
@@ -1328,7 +1328,7 @@ class PeakLorentzian1DAtLoc(Peak1DAtLoc):
         return retval
 
 class PeakGauss1DAtLoc(Peak1DAtLoc):
-    
+
     def __init__(self, *args, **kwargs):
         linBG=True
         if kwargs.has_key('linBG'):
@@ -1349,7 +1349,7 @@ class PeakGauss1DAtLoc(Peak1DAtLoc):
             xGauss = getGaussNDParams([xs], v=vals, w=w)
             xVec[0] = xGauss[3]
             width = (xs.max()-xs.min())/len(self.centers)
-            if self.linBG : 
+            if self.linBG :
                 xVec[1] = 0.0e0
             iPeak = 0
             xVec[self.nPBG+iPeak*2]   = xGauss[2]
@@ -1357,7 +1357,7 @@ class PeakGauss1DAtLoc(Peak1DAtLoc):
         else:
             xVec[0] = num.min(vals)
             width = (xs.max()-xs.min())/len(self.centers)
-            if self.linBG : 
+            if self.linBG :
                 xVec[1] = 0.0e0
             for iPeak in range(len(self.centers)):
                 xVec[self.nPBG+iPeak*2]   = num.max(vals) # maxs[iPeak]
@@ -1365,10 +1365,10 @@ class PeakGauss1DAtLoc(Peak1DAtLoc):
         return xVec
     def eval(self, xVec, p):
         B  = xVec[0]
-        if self.linBG: 
+        if self.linBG:
             dB = xVec[1]
         retval =  num.tile(B, num.shape(p))
-        if self.linBG: 
+        if self.linBG:
             retval += dB * (p - self.bRef)
         for iPeak, center in enumerate(self.centers):
             A = xVec[self.nPBG+iPeak*2]
@@ -1381,43 +1381,43 @@ class PeakGauss1DAtLoc(Peak1DAtLoc):
         ps = p.shape
         p = p.reshape(p.size)
         retval = num.zeros((p.size, len(xVec)))
-        
+
         # B  = xVec[0]
         # retval =  num.tile(B, num.shape(p))
         iXBase = 0
         retval[:,iXBase] = 1.0e0
         iXBase += 1
-                    
+
         if self.linBG:
             # dB = xVec[1]
             # retval += dB * (p - self.bRef)
             retval[:,iXBase] = p - self.bRef
             iXBase += 1
-        
+
         for iPeak, center in enumerate(self.centers):
             A = xVec[self.nPBG+iPeak*2]
             w = xVec[self.nPBG+iPeak*2+1]
             dist = (p - center) / w
-            
+
             # retval += A * num.exp( self.expFact * ( dist * dist) )
             evalExp = num.exp( self.expFact * ( dist * dist) )
             retval[:,iXBase+iPeak*2]   = evalExp
             retval[:,iXBase+iPeak*2+1] = A * evalExp * self.expFact * 2.0e0 * dist * (-1.0*dist/w)
         iXBase += len(self.centers)*2
         assert iXBase == len(xVec), 'bookkeeping error'
-        
+
         retval = retval.reshape(num.hstack((ps,len(xVec))))
         return retval
     def d_dp(self, xVec, p):
         retval = num.zeros(p.shape)
-        
+
         # B  = xVec[0]
         # retval =  num.tile(B, num.shape(p))
         # retval += dB * (p - self.bRef)
         if self.linBG:
             dB = xVec[1]
             retval = dB
-        
+
         for iPeak, center in enumerate(self.centers):
             A = xVec[self.nPBG+iPeak*2]
             w = xVec[self.nPBG+iPeak*2+1]
@@ -1430,7 +1430,7 @@ class PeakGauss1DAtLoc(Peak1DAtLoc):
         ps = p.shape
         #retval = num.zeros(num.hstack((p.shape,len(self.centers))))
         retval = num.zeros((p.size,len(self.centers)))
-        
+
         for iPeak, center in enumerate(self.centers):
             A = xVec[self.nPBG+iPeak*2]
             w = xVec[self.nPBG+iPeak*2+1]
@@ -1442,16 +1442,16 @@ class PeakGauss1DAtLoc(Peak1DAtLoc):
 class MultiRingBinned:
     """
     like MultiRingEval, but works with polar rebinned (or 'caked') images
-    
+
     no funcXVecList to init because expectation is that always pulled from dataFrame
-    
-    should work fine whether or not corrected is True in polarRebinKWArgs; 
+
+    should work fine whether or not corrected is True in polarRebinKWArgs;
     but note that default is changed to True
-    
+
     if etaRange is not specified in polarRebinKWArgs (or is None),
     then the etaRange is calculated based on numEta so that the first
     eta bin is centered around an angle of zero
-    
+
     note that this works by matching intesities for binned 1D
     functions in a least sqaures problem; one could probably instead
     form a residual on the two-theta values of the image frame
@@ -1460,7 +1460,7 @@ class MultiRingBinned:
 
     KEYWORD ARGS
 
-    funcType = funcTypeDflt, 
+    funcType = funcTypeDflt,
     refineParamsDG = True,
     refineParamsL = False,
     targetNRho = 30,
@@ -1470,7 +1470,7 @@ class MultiRingBinned:
     samplingFactor = 0.25,
     singleRebin = True,
     distortionFreeRefDG = False,
-    log=None:  if not None, then a file-like object with a "write" method; 
+    log=None:  if not None, then a file-like object with a "write" method;
 
     """
 
@@ -1478,7 +1478,7 @@ class MultiRingBinned:
     __location = '  MultiRingBinned'
     def __init__(self, detectorGeom, planeData,
                  dataFrame, # None
-                 funcType = funcTypeDflt, 
+                 funcType = funcTypeDflt,
                  refineParamsDG = True,
                  refineParamsL = False,
                  targetNRho = None,
@@ -1492,9 +1492,9 @@ class MultiRingBinned:
                  ):
 
         if log is not None: self.logfile = log
-        
+
         ticMethod = time.time()
-        
+
         # if copyFrame:
         #     self.dataFrame = copy.deepcopy(dataFrame)
         # else:
@@ -1509,18 +1509,18 @@ class MultiRingBinned:
             'verbose'   : False,
             'npdiv'     : None,
             'log'       : self.logfile
-            } 
+            }
         "things from the user"
         prbkw.update(polarRebinKWArgs)
         "keep track of the actual values for subsequent manipulations"
-        self.corrected = prbkw['corrected'] 
+        self.corrected = prbkw['corrected']
         self.ROI       = prbkw['ROI']
         self.etaRange  = prbkw['etaRange']
         self.numEta    = prbkw['numEta']
         if prbkw['etaRange'] is None:
             prbkw['etaRange'] = num.array([0.,2*num.pi]) - num.pi/self.numEta
-        
-        '''groupings of rings could change if planeData.lparms is changing, but 
+
+        '''groupings of rings could change if planeData.lparms is changing, but
         need to keep fixed number of degrees of freedom so just use initial values'''
         iHKLLists = detectorGeom.makeTThRanges(planeData, cullDupl=True)
         tThs = planeData.getTTh()
@@ -1530,13 +1530,13 @@ class MultiRingBinned:
         iHKLToRing[iRingToHKL] = num.arange(len(iRingToHKL))
         self.floatingCentersTTh = num.zeros([self.numEta, len(iRingToHKL)])
         self.floatingCentersIJ  = num.zeros([self.numEta, len(iRingToHKL), 2])
-        
+
         'make a reference detector geom'
         self.refDG   = detectorGeom.makeNew()
         if distortionFreeRefDG:
             'make the reference detector geom be distortion free'
             self.refDG.setDParamZero()
-        
+
         nParamCur = 0
         if refineParamsDG:
             nParamDG = detectorGeom.getNParams()
@@ -1544,20 +1544,20 @@ class MultiRingBinned:
             nParamDG = 0
         self.xIndDG = range(nParamCur, nParamCur+nParamDG)
         nParamCur += nParamDG
-        
+
         if refineParamsL:
             nParamL = len(planeData.lparms)
         else:
             nParamL = 0
         self.xIndL = range(nParamCur, nParamCur+nParamL)
         nParamCur += nParamL
-        
+
         def computeBinning_l(iRingSet, npdivDflt):
             iHKLList = iHKLLists[iRingSet]
             tThMin   = num.min(tThRanges[iHKLList,0])
             tThMax   = num.max(tThRanges[iHKLList,1])
             nPeaks   = len(iHKLList)
-            
+
             rhoMin     = num.tan(tThMin) * self.refDG.workDist
             rhoMax     = num.tan(tThMax) * self.refDG.workDist
             rhoPxRange = num.array([rhoMin, rhoMax])/self.refDG.pixelPitch
@@ -1568,7 +1568,7 @@ class MultiRingBinned:
                 numRho = rhoPxEff
             else:
                 numRho = targetNRho*nPeaks
-            
+
             if numRho <= rhoPxEff:
                 if npdiv == None:
                     npdiv = 1
@@ -1583,18 +1583,18 @@ class MultiRingBinned:
                 else:
                     if rhoPxEff < numRho * 0.5:
                         raise RuntimeError, 'rhoPx %d for %d peaks is less than half of target' % (rhoPx, nPeaks)
-            
+
             return numRho, npdiv, rhoPxRange
 
         polImgSingle = None
         if singleRebin:
             prbkwThis = {}
             prbkwThis.update(prbkw)
-            
+
             'use innermost ring set to figure out how many rho bins are wanted across the whole range'
             iRingSet = 0
             numRhoRS0, prbkwThis['npdiv'], rhoPxRangeRS0 = computeBinning_l(iRingSet, prbkw['npdiv'])
-            
+
             tThMin     = num.min(tThRanges)
             tThMax     = num.max(tThRanges)
             rhoMin     = num.tan(tThMin) * self.refDG.workDist
@@ -1605,7 +1605,7 @@ class MultiRingBinned:
             if self.__print:
                 self.__log(' for ring set %d have %d peak(s) and %d rho bins' % (iRingSet, len(iHKLLists[iRingSet]), numRhoRS0))
                 self.__log(' for all rings have %d peak(s) and %d rho bins' % (len(iRingToHKL), numRho))
-            
+
             prbkwThis['rhoRange'] = rhoPxRange; prbkwThis['numRho'] = numRho;
             if self.__print:
                 self.__log('  doing polar rebin of frame data, with npdiv %d' % (prbkwThis['npdiv']))
@@ -1624,47 +1624,47 @@ class MultiRingBinned:
             nPeaks   = len(iHKLList)
             tThMin   = num.min(tThRanges[iHKLList,0])
             tThMax   = num.max(tThRanges[iHKLList,1])
-            
+
             if singleRebin:
                 polImg = polImgSingle
 
                 'tth values for figuring out where the rings fall'
                 tThVals      = num.arctan2(polImg['radius'], self.refDG.workDist)
-                
+
                 deltaRho = polImgSingle['deltaRho']
                 rhoBinIndices = num.where(num.logical_and(
                         tThVals > tThMin, tThVals < tThMax
                         ))[0]
-                
+
             else:
                 prbkwThis = {}
                 prbkwThis.update(prbkw)
-                
+
                 prbkwThis['numRho'], prbkwThis['npdiv'], prbkwThis['rhoRange'] = computeBinning_l(iRingSet, prbkw['npdiv'])
                 if self.__print:
                     self.__log('  doing polar rebin of frame data, with npdiv %d' % (prbkwThis['npdiv']))
                     self.__log('  polar rebin call keyword arguments : %s' % (str(prbkwThis)))
                 tic = time.time()
                 polImg = self.refDG.polarRebin(dataFrame, **prbkwThis)
-                toc = time.time(); dt = toc - tic; dtPRTot += dt; 
+                toc = time.time(); dt = toc - tic; dtPRTot += dt;
                 if self.__print:
                     self.__log(' polar rebin call took %g seconds' % (dt))
-                
+
                 deltaRho = polImg['deltaRho']
                 rhoBinIndices = range(0, prbkwThis['numRho'])
-            
+
             etaVals           = num.array(polImg['azimuth'])
             rhoVals           = num.array(polImg['radius'])
             dataFrameRebinned = num.array(polImg['intensity']) # (numEta, numRho)
-            
+
             xi, w = q1db.qLoc(quadr)
             'xi are in [0,1], so need to be centered'
             xi = (xi - 0.5) * deltaRho # to cover rho bin size
             nQP = len(w)
-            
+
             etaList = []
             for iEta, etaThis in enumerate(etaVals):
-                
+
                 xVecDflt = None
                 if funcType is 'pv':
                     func = PeakPV1DAtLoc(tThs[(iHKLList)], xVecDflt=xVecDflt)
@@ -1673,8 +1673,8 @@ class MultiRingBinned:
                 elif funcType is 'gaussFlatBG':
                     func = PeakGauss1DAtLoc(tThs[(iHKLList)], xVecDflt=xVecDflt, linBG=False)
                 elif funcType is 'lorentz':
-                    func = PeakLorentzian1DAtLoc(tThs[(iHKLList)], xVecDflt=xVecDflt)  
-                else: 
+                    func = PeakLorentzian1DAtLoc(tThs[(iHKLList)], xVecDflt=xVecDflt)
+                else:
                     raise RuntimeError,  'unknown funcType : '+str(funcType)
 
                 # fold quadrature in to get pixel locations
@@ -1682,11 +1682,11 @@ class MultiRingBinned:
                 etaQP = etaThis * num.ones((nPx, nQP))
                 rhoQP = num.tile(rhoVals[rhoBinIndices], (nQP,1)).T + num.tile(xi, (nPx,1))
                 # binEtas, binRhos = num.meshgrid(self.etaVals, self.rhoVals)
-                # binEtas = binEtas.T; binRhos = binRhos.T; 
+                # binEtas = binEtas.T; binRhos = binRhos.T;
                 # nope # iQP, jQP = self.refDG.polarToPixel(rhoQP, etaQP, ROI=self.ROI, corrected=self.corrected)
                 iQP, jQP = self.refDG.polarToPixel(rhoQP, etaQP, corrected=self.corrected)
                 wQP = num.tile(w, (nPx,1))
-                
+
                 'leastsq to do fit, with floating center'
                 binnedIntensity = dataFrameRebinned[iEta,rhoBinIndices]
                 tThQP, etaQP_temp = self.refDG.xyoToAng(iQP, jQP)
@@ -1700,9 +1700,9 @@ class MultiRingBinned:
                 self.floatingCentersTTh[iEta, iHKLToRing[iHKLList]]    = cFit
                 self.floatingCentersIJ [iEta, iHKLToRing[iHKLList], 0] = iCFit
                 self.floatingCentersIJ [iEta, iHKLToRing[iHKLList], 1] = jCFit
-                
+
                 normalization = 1.0/num.mean(dataFrameRebinned[iEta,rhoBinIndices])
-                
+
                 nPoints += nPx
                 etaList.append((func, iQP, jQP, wQP, rhoBinIndices, normalization))
             'done with iEta'
@@ -1717,8 +1717,8 @@ class MultiRingBinned:
             if self.__print:
                 self.__log(' all together polar rebin calls took %g seconds' % (dtPRTot))
 
-        
-        'store stuff' 
+
+        'store stuff'
         self.detectorGeom = detectorGeom
         self.planeData    = planeData
         self.nParamDG     = nParamDG
@@ -1729,13 +1729,13 @@ class MultiRingBinned:
         self.iHKLLists    = iHKLLists
         self.iRingToHKL   = iRingToHKL
         self.iHKLToRing   = iHKLToRing
-        
+
         assert self.nParam > 0, \
             'do not have any free parameters'
-      
+
         # do not yet have analytic derivatives for detector, so do not bother with Dfun
         self.useDFun = False
-        
+
         tocMethod = time.time(); dt = tocMethod - ticMethod;
         if self.__print:
             self.__log(' init method took %g seconds' % (dt))
@@ -1781,13 +1781,13 @@ class MultiRingBinned:
         """
         careful: this updates the settings in detectorGeom and planeData
         """
-        
+
         retval = num.empty(self.nPoints)
-        
+
         'first update the detector geometry'
         if self.nParamDG > 0:
             self.detectorGeom.updateParams(*xVec[self.xIndDG])
-        
+
         if self.nParamL > 0:
             self.planeData.lparms = xVec[self.xIndL] # property, calls set_lparms
             tThs = self.planeData.getTTh()
@@ -1797,29 +1797,29 @@ class MultiRingBinned:
                     #func, iQP, jQP, wQP, rhoBinIndices, normalization = etaFuncData
                     func = etaFuncData[0]
                     func.setCenters(tThs[(iHKLList)])
-        
+
         nPoints = 0
         for iRingSet in range(len(self.iHKLLists)):
             for iEta, etaFuncData in enumerate(self.ringDataList[iRingSet]['etaFuncData']):
                 func, iQP, jQP, wQP, rhoBinIndices, normalization = etaFuncData
-                nPointsThis = wQP.shape[0] # len(data)              
-                
+                nPointsThis = wQP.shape[0] # len(data)
+
                 tThQP, etaQP = self.detectorGeom.xyoToAng(iQP, jQP)
                 evalQP       = func(None, tThQP)
                 evalP        = num.sum(evalQP * wQP, axis=1)
                 retval[nPoints:nPoints+nPointsThis] = evalP
-                
-                nPoints += nPointsThis    
-        
+
+                nPoints += nPointsThis
+
         return retval
-        
+
     def __call__(self, xVec, makePlots=False, etaPlotIndices=None):
         'meant for call in leastsq type algorithm, see doFit'
-        
+
         retval = num.empty(self.nPoints)
-        
+
         evalAllRings = self.eval(xVec)
-        
+
         if makePlots:
             if isinstance(etaPlotIndices, bool):
                 plotEta = num.ones(self.numEta, dtype=bool)
@@ -1827,33 +1827,33 @@ class MultiRingBinned:
             else:
                 etaPlotIndices = num.atleast_1d(etaPlotIndices)
                 plotEta = num.array(
-                    [num.any(etaPlotIndices == iEta) for iEta in range(self.numEta) ], 
+                    [num.any(etaPlotIndices == iEta) for iEta in range(self.numEta) ],
                     dtype=bool)
-            
+
             plotTitlePrefix = ''
             if not num.any(plotEta):
                 plotTitlePrefix='eta with worse errors'
             plotWinRadial = self.makePlotWin(sqrtIntensity=True,
                                              plotTitlePrefix=plotTitlePrefix)
-        
+
         nPoints = 0
         errsByEta = num.zeros(self.numEta)
         for iRingSet, ringData in enumerate(self.ringDataList): # range(len(self.iHKLLists)):
             dataFrameRebinned = ringData['dataFrameRebinned']
             for iEta, etaFuncData in enumerate(ringData['etaFuncData']):
                 func, iQP, jQP, wQP, rhoBinIndices, normalization = etaFuncData
-                nPointsThis = wQP.shape[0] # len(data)              
+                nPointsThis = wQP.shape[0] # len(data)
 
                 evalThisEta  = evalAllRings[nPoints:nPoints+nPointsThis]
                 dataThisEta = dataFrameRebinned[iEta, rhoBinIndices]
                 diff  = evalThisEta - dataThisEta
                 retval[nPoints:nPoints+nPointsThis] = normalization * diff
                 errsByEta[iEta] += num.linalg.norm(retval[nPoints:nPoints+nPointsThis])
-                
+
                 if makePlots and plotEta[iEta]:
-                    self.plotByRingEta(iRingSet, iEta, 
+                    self.plotByRingEta(iRingSet, iEta,
                                        sqrtIntensity=True, win=plotWinRadial)
-            
+
                 nPoints += nPointsThis
             'iEta'
         'iRingSet'
@@ -1862,30 +1862,30 @@ class MultiRingBinned:
             iEta = num.argmax(errsByEta)
             if not plotEta[iEta]:
                 for iRingSet, ringData in enumerate(self.ringDataList):
-                    self.plotByRingEta(iRingSet, iEta, 
+                    self.plotByRingEta(iRingSet, iEta,
                                        sqrtIntensity=True, win=plotWinRadial)
-            
+
             plotWinRadial.show()
         if self.__print:
             self.__log(' norm : '+str(num.linalg.norm(retval)))
         return retval
 
     def makePlotWin(self, sqrtIntensity=True, plotTitlePrefix=''):
-        plotWinRadial = plotWrap.PlotWin(2,1, relfigsize=(8,3), 
+        plotWinRadial = plotWrap.PlotWin(2,1, relfigsize=(8,3),
                                          title=plotTitlePrefix+'ring evaluation results')
         'using twinx() might be better, but not plumbed for that'
         if sqrtIntensity:
             ylabel='sqrt(intensity)'
         else:
             ylabel='intensity'
-        pwREval = plotWrap.PlotWrap(window=plotWinRadial, ylabel=ylabel, 
+        pwREval = plotWrap.PlotWrap(window=plotWinRadial, ylabel=ylabel,
                                     showByDefault=False)
         pwRDiff = plotWrap.PlotWrap(window=plotWinRadial, ylabel='relative error',
-                                    showByDefault=False, axprops={'sharex':pwREval.a})        
+                                    showByDefault=False, axprops={'sharex':pwREval.a})
         return plotWinRadial
     def plotByRingEta(self, iRingSet, iEta, win=None, sqrtIntensity=True, alpha=0.25):
         'may have redundant work here, but assume this is not a big deal if doing plots'
-        
+
         if win is None:
             win = self.makePlotWin(sqrtIntensity=sqrtIntensity)
             retval = win
@@ -1893,16 +1893,16 @@ class MultiRingBinned:
             retval = None
         aEval, pwREval = win.getAxes(0, withPW=True)
         aDiff, pwRDiff = win.getAxes(1, withPW=True)
-        
+
         etaFuncData = self.ringDataList[iRingSet]['etaFuncData'][iEta]
         func, iQP, jQP, wQP, rhoBinIndices, normalization = etaFuncData
-        
+
         tThQP, etaQP = self.detectorGeom.xyoToAng(iQP, jQP)
         evalQP       = func(None, tThQP)
         evalP        = num.sum(evalQP * wQP, axis=1)
         tThCen = num.sum(tThQP * wQP, axis=1)
         width = num.mean(tThCen[1:] - tThCen[:-1])
-        
+
         dataThisEta = self.ringDataList[iRingSet]['dataFrameRebinned'][iEta, rhoBinIndices]
 
         if sqrtIntensity:
@@ -1911,7 +1911,7 @@ class MultiRingBinned:
         else:
             def mapData(v):
                 return v
-        
+
         pwREval.a.bar(tThCen, mapData(dataThisEta), width=width, align='center', alpha=alpha)
         '''have not set things up to match line styles with drawRings, so make all lines black;
         might be able to fix this if switch drawRings to do something like cullDupl too
@@ -1920,7 +1920,7 @@ class MultiRingBinned:
         scaling = dataThisEta
         scaling[num.where(scaling==0)] = 1.0
         pwRDiff(tThCen, (evalP - dataThisEta) / scaling, style='kx-')
-        
+
         if retval is not None:
             retval.show()
         return retval
@@ -1928,7 +1928,7 @@ class MultiRingBinned:
         """
         lsKWArgs can have things like ftol and xtol for leastsq
         """
-        
+
         if xVec0 is None:
             xVec0 = self.guessXVec()
         tic = time.time()
@@ -1964,9 +1964,9 @@ class MultiRingBinned:
         """
         tThFloating, etaFloating = self.detectorGeom.xyoToAng(
             self.floatingCentersIJ[:,:,0], self.floatingCentersIJ[:,:,1] )
-        
+
         tThs = self.planeData.getTTh()[self.iRingToHKL]
-        
+
         if units == 'd-spacing' or units == 'strain':
             dspFloating = self.planeData.wavelength / ( 2. * num.sin(0.5 * tThFloating) )
             dsp         = self.planeData.getPlaneSpacings()
@@ -1989,7 +1989,7 @@ class MultiRingBinned:
                  errs = tThErrs
         else:
             raise RuntimeError, "units keyword '%s' is not recognized" % units
-        
+
         if plot:
             if hasattr(plot, '__call__'):
                 'assume is a PlotWrap instance or the like'
@@ -1997,13 +1997,13 @@ class MultiRingBinned:
             else:
                 pwTThE = plotWrap.PlotWrap(title='line position errors', xlabel='eta index', ylabel=ylabel)
                 retval = [errs, pwTThE]
-            
+
             for iTTh in range(errs.shape[1]):
                 pwTThE(num.arange(self.numEta), errs[:,iTTh], noShow=True)
             pwTThE.show()
         else:
-            retval = errs    
-        
+            retval = errs
+
         return retval
 
 class MultiRingEval:
@@ -2012,39 +2012,39 @@ class MultiRingEval:
     """
     __debug = False
     __print = True
-    
+
     '''
     check_func in minpack.py calls atleast_1d on the output from Dfun, which hoses the shape output
     (and probably plenty of other things) with sparse matrices
     '''
     __dSparse = False
-    
+
     def __init__(self, detectorGeom, planeData,
                  indicesList = None, iHKLLists = None,
-                 dataFrame = None, 
-                 funcType = funcTypeDflt, 
+                 dataFrame = None,
+                 funcType = funcTypeDflt,
                  refineParamsDG = True,
                  refineParamsL = False,
-                 funcXVecList = None, 
+                 funcXVecList = None,
                  copyFrame = False,
                  quadr = 3):
       """
       Mostly meant for use with DetectorGeomGE.fit
-      
+
       If funcXVecList is passed, then entries in this list are used for peak
-      function forms, and these peak function forms do not appear in the 
+      function forms, and these peak function forms do not appear in the
       degrees of freedom
-      
+
       Note that ranges for 2-thetas from planeData need to be such that
       rings are adequately covered
 
       Can optionally pass indicesList and iHKLLists if they are already handy
-  
+
       if copyFrame is True, then data in dataFrame is copied
       """
-  
+
       refineParamsXVec = funcXVecList is None
-      
+
       if dataFrame is not None:
           self.setupForCall = True
           if copyFrame:
@@ -2054,7 +2054,7 @@ class MultiRingEval:
       else:
           self.setupForCall = False
           self.dataFrame = None
-      
+
       self.quadr = quadr
       xi, w = q2db.qLoc(quadr)
       'xi are in [0,1], so need to be centered'
@@ -2062,15 +2062,15 @@ class MultiRingEval:
       self.xi = xi
       self.w  = w
       nQP = len(w)
-      
+
       assert (indicesList is None) == (iHKLLists is None), 'inconsistent arguments for indicesList and iHKLLists'
       if indicesList is None:
-          '''groupings of rings could change if planeData.lparms is changing, but 
+          '''groupings of rings could change if planeData.lparms is changing, but
           need to keep fixed number of degrees of freedom so just use initial values'''
           indicesList, iHKLLists = detectorGeom.makeIndicesTThRanges(planeData, cullDupl=True)
       tThs = planeData.getTTh()
       tThRanges = planeData.getTThRanges()
-      
+
       guessFXVL = False
       if not refineParamsXVec:
           if hasattr(funcXVecList,'__len__'):
@@ -2078,7 +2078,7 @@ class MultiRingEval:
                   'funcXVecList needs to have length '+str(len(iHKLLists))
           else:
               guessFXVL = True
-      
+
       nParamCur = 0
       if refineParamsDG:
           nParamDG = detectorGeom.getNParams()
@@ -2086,20 +2086,20 @@ class MultiRingEval:
           nParamDG = 0
       self.xIndDG = range(nParamCur, nParamCur+nParamDG)
       nParamCur += nParamDG
-      
+
       if refineParamsL:
           nParamL = len(planeData.lparms)
       else:
           nParamL = 0
       self.xIndL = range(nParamCur, nParamCur+nParamL)
       nParamCur += nParamL
-  
+
       funcDataList = []
       nPoints = 0
       for iRingSet in range(len(iHKLLists)):
         iHKLList = iHKLLists[iRingSet]
         frameIndices  = indicesList[iRingSet]
-        
+
         xVecDflt = None
         if not refineParamsXVec and not guessFXVL:
             xVecDflt = funcXVecList[iRingSet]
@@ -2110,8 +2110,8 @@ class MultiRingEval:
         elif funcType is 'gaussFlatBG':
             func = PeakGauss1DAtLoc(tThs[(iHKLList)], xVecDflt=xVecDflt, linBG=False)
         elif funcType is 'lorentz':
-            func = PeakLorentzian1DAtLoc(tThs[(iHKLList)], xVecDflt=xVecDflt)  
-        else: 
+            func = PeakLorentzian1DAtLoc(tThs[(iHKLList)], xVecDflt=xVecDflt)
+        else:
             raise RuntimeError,  'unknown funcType : '+str(funcType)
         if not refineParamsXVec and guessFXVL:
             if self.dataFrame is None:
@@ -2120,25 +2120,25 @@ class MultiRingEval:
             else:
                 tThIJ, etaIJ = detectorGeom.xyoToAng(frameIndices[0], frameIndices[1])
                 'histogram with floats so that do not overflow int16 data types'
-                hist, bin_edges = num.histogram(tThIJ, 
-                                                weights=num.array(self.dataFrame[frameIndices], dtype=float), 
+                hist, bin_edges = num.histogram(tThIJ,
+                                                weights=num.array(self.dataFrame[frameIndices], dtype=float),
                                                 bins=10)
                 binCenters = (bin_edges[1:] + bin_edges[:1])*0.5
                 func.setXVecDflt(func.guessXVec(binCenters, hist))
-        
+
         if refineParamsXVec:
             nParam   = func.getNParams()
             xIndices = range(nParamCur, nParamCur+nParam)
         else:
             nParam   = 0
-            xIndices = [] # slice(-1,-1,1) 
+            xIndices = [] # slice(-1,-1,1)
         if self.dataFrame is not None:
             #data = copy.deepcopy(dataFrame[frameIndices])
             normalization = 1.0/num.mean(self.dataFrame[frameIndices])
         else:
             #data = None
             normalization = 1.0
-        
+
         nPx = len(frameIndices[0])
         iQP = num.tile(frameIndices[0], (nQP,1)).T + num.tile(xi[:,0], (nPx,1))
         jQP = num.tile(frameIndices[1], (nQP,1)).T + num.tile(xi[:,1], (nPx,1))
@@ -2148,8 +2148,8 @@ class MultiRingEval:
         funcDataList.append((func, xIndices, iQP, jQP, wQP, frameIndices, normalization))
         nPoints += nPx
         nParamCur += nParam
-      
-      'store stuff' 
+
+      'store stuff'
       self.detectorGeom = detectorGeom
       self.planeData    = planeData
       self.nParamDG     = nParamDG
@@ -2158,10 +2158,10 @@ class MultiRingEval:
       self.nParam       = nParamCur
       self.nPoints      = nPoints
       self.iHKLLists    = iHKLLists
-      
+
       if self.nParam == 0:
           print >> sys.stderr, 'WARNING: have 0 free parameters in '+str(self.__class__.__name__)
-    
+
       self.useDFun = True
       if refineParamsDG and not refineParamsL and not refineParamsXVec:
           'only doing dg params, derivatives are by finite differencing, so do not bother with Dfun'
@@ -2187,13 +2187,13 @@ class MultiRingEval:
                 else:
                     tThIJ, etaIJ = detectorGeom.xyoToAng(frameIndices[0], frameIndices[1])
                     'histogram with floats so that do not overflow int16 data types'
-                    hist, bin_edges = num.histogram(tThIJ, 
-                                                    weights=num.array(self.dataFrame[frameIndices], dtype=float), 
+                    hist, bin_edges = num.histogram(tThIJ,
+                                                    weights=num.array(self.dataFrame[frameIndices], dtype=float),
                                                     bins=10)
                     binCenters = (bin_edges[1:] + bin_edges[:1])*0.5
                     xVec[(xIndices)] = func.guessXVec(binCenters, hist)
       self.xVecGuess = xVec
-      
+
       return
     def getFuncXVecList(self, xVec):
         funcXVecList = []
@@ -2212,7 +2212,7 @@ class MultiRingEval:
             assert len(xIndices) == 0, \
                 'setting funcXVecList for instance with DOF for funcs'
             func.setXVecDflt(funcXVecList[iFunc])
-        return 
+        return
     def guessXVec(self):
       return self.xVecGuess
     def getNParam(self):
@@ -2232,7 +2232,7 @@ class MultiRingEval:
             xVecDG_p = copy.deepcopy(xVecDG)
             thisPert = pert * dGScalings[iX]
             xVecDG_p[iX] = xVal + thisPert
-            self.detectorGeom.updateParams(*xVecDG_p)          
+            self.detectorGeom.updateParams(*xVecDG_p)
             tThQP_p, etaQP = self.detectorGeom.xyoToAng(iQP, jQP)
             J[:,:,iX] = (tThQP_p - tThQP_ref) / thisPert
         return tThQP_ref, J
@@ -2241,7 +2241,7 @@ class MultiRingEval:
       useful to pass, for example, as Dfun to leastsq;
       bit of a misnomer in that deval is the derivative of __call__, not eval
       '''
-      
+
       retvalShape = (self.nPoints,len(xVec))
       if self.__dSparse:
           # retval = sparse.dok_matrix(retvalShape)
@@ -2249,7 +2249,7 @@ class MultiRingEval:
           retval = sparse.coo_matrix(retvalShape)
       else:
           retval = num.zeros(retvalShape)
-      
+
       if self.nParamDG > 0:
           if self.__debug: print 'xIndDG : '+str(self.xIndDG)
           self.detectorGeom.updateParams(*xVec[self.xIndDG])
@@ -2267,50 +2267,50 @@ class MultiRingEval:
               func, xIndices, iQP, jQP, wQP, frameIndices, normalization = self.funcDataList[iRingSet]
               func.setCenters(tThs[(iHKLList)])
               d_centers_d_lparms.append(d_tThs_d_lparms[(iHKLList)])
-      
+
       nPoints = 0
       for iRingSet in range(len(self.iHKLLists)):
         func, xIndices, iQP, jQP, wQP, frameIndices, normalization = self.funcDataList[iRingSet]
         nPointsThis = wQP.shape[0] # len(data)
         if self.__debug: print 'xIndices : '+str(xIndices)
-        
+
         if self.nParamDG > 0:
             tThQP, d_tThQP_d_xVecDG = self.__dgfd(xVec, dGScalings, iQP, jQP)
         else:
             tThQP, etaQP = self.detectorGeom.xyoToAng(iQP, jQP)
-        
+
         if len(xIndices) > 0:
             #evalQP       = func(xVec[(xIndices)], tThQP)
             d_evalQP_d_x = func.d_dx(xVec[(xIndices)], tThQP)
             d_evalQP_d_p = func.d_dp(xVec[(xIndices)], tThQP)
-  
+
             if self.nParamL > 0:
                 d_evalQP_d_centers = func.d_dCenters(xVec[(xIndices)], tThQP)
-            
+
             #eval          = normalization * num.sum(evalQP * wQP, axis=1)
             for iXInd, xInd in enumerate(xIndices):
                 temp = normalization * num.sum(d_evalQP_d_x[:,:,iXInd] * wQP, axis=1)
                 if self.__dSparse:
                     i = num.mgrid[nPoints:nPoints+nPointsThis,xInd:xInd+1]
                     retval = retval + sparse.coo_matrix(
-                        (temp.flatten(), (i[0].flatten(), i[1].flatten())), 
+                        (temp.flatten(), (i[0].flatten(), i[1].flatten())),
                         shape=retvalShape)
                 else:
                     retval[nPoints:nPoints+nPointsThis,xInd] = temp
-        else: 
+        else:
             'not len(xIndices) > 0'
             if self.nParamDG > 0:
                 d_evalQP_d_p       = func.d_dp(func.xVecDflt, tThQP)
             if self.nParamL > 0:
                 d_evalQP_d_centers = func.d_dCenters(func.xVecDflt, tThQP)
-                
+
         for iXInd, xInd in enumerate(self.xIndDG):
             'should only end up in here if self.nParamDG > 0'
             temp = normalization * num.sum((d_evalQP_d_p * d_tThQP_d_xVecDG[:,:,iXInd]) * wQP, axis=1)
             if self.__dSparse:
                 i = num.mgrid[nPoints:nPoints+nPointsThis,xInd:xInd+1]
                 retval = retval + sparse.coo_matrix(
-                    (temp.flatten(), (i[0].flatten(), i[1].flatten())), 
+                    (temp.flatten(), (i[0].flatten(), i[1].flatten())),
                     shape=retvalShape)
             else:
                 retval[nPoints:nPoints+nPointsThis,xInd] = temp
@@ -2320,26 +2320,26 @@ class MultiRingEval:
             if self.__dSparse:
                 i = num.mgrid[nPoints:nPoints+nPointsThis,xInd:xInd+1]
                 retval = retval + sparse.coo_matrix(
-                    (temp.flatten(), (i[0].flatten(), i[1].flatten())), 
+                    (temp.flatten(), (i[0].flatten(), i[1].flatten())),
                     shape=retvalShape)
             else:
                 retval[nPoints:nPoints+nPointsThis,xInd] = temp
-        
-        nPoints += nPointsThis    
-      
+
+        nPoints += nPointsThis
+
       if self.__dSparse:
           retval = retval.tocsr() # or tocsr would be better?
       return retval
-      
+
     def eval(self, xVec, thisframe=None):
       'if thisframe is passed, the put values on the frame'
-  
+
       retval = num.empty(self.nPoints)
-      
+
       'first update the detector geometry'
       if self.nParamDG > 0:
           self.detectorGeom.updateParams(*xVec[self.xIndDG])
-  
+
       if self.nParamL > 0:
           self.planeData.lparms = xVec[self.xIndL] # property, calls set_lparms
           tThs = self.planeData.getTTh()
@@ -2347,59 +2347,59 @@ class MultiRingEval:
               iHKLList = self.iHKLLists[iRingSet]
               func, xIndices, iQP, jQP, wQP, frameIndices, normalization = self.funcDataList[iRingSet]
               func.setCenters(tThs[(iHKLList)])
-  
+
       nPoints = 0
       for func, xIndices, iQP, jQP, wQP, frameIndices, normalization in self.funcDataList:
         nPointsThis = wQP.shape[0] # len(data)
-      
+
         tThQP, etaQP = self.detectorGeom.xyoToAng(iQP, jQP)
         evalQP       = func(xVec[(xIndices)], tThQP) # if xVec ends up being [], xVecDflt gets used
         eval         = num.sum(evalQP * wQP, axis=1)
         retval[nPoints:nPoints+nPointsThis] = eval
         if thisframe is not None:
           thisframe[frameIndices] = eval
-        
-        nPoints += nPointsThis    
-        
+
+        nPoints += nPointsThis
+
       return retval
     def __call__(self, xVec, makePlots=False, plotTitlePrefix=''):
         'meant for call in leastsq type algorithm'
-        
+
         assert self.setupForCall, 'not setup for call'
-        
+
         retval = num.empty(self.nPoints)
-        
+
         evalAllRings = self.eval(xVec)
-        
+
         if makePlots:
             frameData = self.detectorGeom.frame()
             frameEval = self.detectorGeom.frame()
             frameDiff = self.detectorGeom.frame(dtype='float')
-            
-            plotWinRadial = plotWrap.PlotWin(2,1, relfigsize=(8,3), 
+
+            plotWinRadial = plotWrap.PlotWin(2,1, relfigsize=(8,3),
                                              title=plotTitlePrefix+'ring evaluation results')
             'using twinx() might be better, but not plumbed for that'
             pwREval = plotWrap.PlotWrap(window=plotWinRadial, showByDefault=False)
             pwRDiff = plotWrap.PlotWrap(window=plotWinRadial, showByDefault=False, axprops={'sharex':pwREval.a})
-        
+
         nPoints = 0
         for iFunc, funcData in enumerate(self.funcDataList):
           func, xIndices, iQP, jQP, wQP, frameIndices, normalization = funcData
           nPointsThis = wQP.shape[0] # len(data)
-          
+
           data = self.dataFrame[frameIndices]
-          
+
           eval  = evalAllRings[nPoints:nPoints+nPointsThis]
           diff  = eval - data
-        
+
           retval[nPoints:nPoints+nPointsThis] = normalization * diff
-          
+
           if makePlots:
-            
+
             frameData[frameIndices] = data
             frameEval[frameIndices] = eval
             frameDiff[frameIndices] = diff
-            
+
             histTThCen, histIntensity, width = self.__radialBinData(iFunc, data)
             evalIntensity = func(xVec[(xIndices)], histTThCen)
             pwREval.a.bar(histTThCen, histIntensity, width=width, align='center', alpha=0.5)
@@ -2408,21 +2408,21 @@ class MultiRingEval:
             '''
             pwREval(histTThCen, evalIntensity, style='k-')
             pwRDiff(histTThCen, (evalIntensity - histIntensity) / histIntensity, style='k-')
-            
+
           nPoints += nPointsThis
         if makePlots:
-          
+
           plotWinFrames = plotWrap.PlotWin(1,3,title='ring evaluation results')
           #
-          pwData  = plotWrap.PlotWrap(window=plotWinFrames, 
+          pwData  = plotWrap.PlotWrap(window=plotWinFrames,
                                       title='data; max() = %g' % (num.max(frameData))
                                       )
           axprops = {'sharex':pwData.a, 'sharey':pwData.a}
-          pwEval  = plotWrap.PlotWrap(window=plotWinFrames, 
-                                      title='eval', 
+          pwEval  = plotWrap.PlotWrap(window=plotWinFrames,
+                                      title='eval',
                                       axprops=axprops)
-          pwDiff  = plotWrap.PlotWrap(window=plotWinFrames, 
-                                      title='diff; max(abs()) = %g' % (num.max(num.abs(frameDiff))), 
+          pwDiff  = plotWrap.PlotWrap(window=plotWinFrames,
+                                      title='diff; max(abs()) = %g' % (num.max(num.abs(frameDiff))),
                                       axprops=axprops)
           #
           ReadGE.display(frameData, pw=pwData)
@@ -2431,7 +2431,7 @@ class MultiRingEval:
           self.detectorGeom.drawRings(pwData, self.planeData, legendLoc=None)
           self.detectorGeom.drawRings(pwEval, self.planeData, legendLoc=None)
           self.detectorGeom.drawRings(pwDiff, self.planeData, legendLoc=None)
-          
+
           plotWinFrames.show()
           plotWinRadial.show()
         if self.__print:
@@ -2460,7 +2460,7 @@ class MultiRingEval:
         if dataFrame is None:
             dataFrame = self.dataFrame
         assert dataFrame is not None, 'need data to work with'
-        
+
         pwREval = plotWrap.PlotWrap(showByDefault=False, title=plotTitlePrefix+'ring evaluation results')
         for iFunc, funcData in enumerate(self.funcDataList):
             func, xIndices, iQP, jQP, wQP, frameIndices, normalization = funcData
@@ -2471,13 +2471,13 @@ class MultiRingEval:
     def radialFitXVec(self, dataFrame=None, plot=False, plotTitlePrefix='', quadr1d=None):
         """
         if dataFrame is not provided, use self.dataFrame
-        
+
         if quadr1d is not specified, use quadr specified in init
         """
         if dataFrame is None:
             dataFrame = self.dataFrame
         assert dataFrame is not None, 'need data to work with'
-        
+
         quadr = self.quadr
         if quadr1d is not None:
             quadr = quadr1d
@@ -2488,7 +2488,7 @@ class MultiRingEval:
             plotList = []
             plotRetval = plotList
         elif plot:
-            pw = plotWinRadial = plotWrap.PlotWin(2,1, relfigsize=(8,3), 
+            pw = plotWinRadial = plotWrap.PlotWin(2,1, relfigsize=(8,3),
                                              title=plotTitlePrefix+'ring evaluation results')
             #pw = plotWrap.PlotWrap(title=plotTitlePrefix+'radial fit results', showByDefault=False,
             #                       figsize=(8,2))
@@ -2516,7 +2516,7 @@ class MultiRingEval:
                 else:
                     pwREval.a.bar(histTThCen, histIntensity, width=width, align='center', alpha=0.5)
                     pwREval(histTThCen, evalIntensity, style='k-')
-                    pwRDiff(histTThCen, evalIntensity-histIntensity, style='k-')                  
+                    pwRDiff(histTThCen, evalIntensity-histIntensity, style='k-')
         if plot:
             if pw is not None:
                 pw.show()
@@ -2524,22 +2524,22 @@ class MultiRingEval:
         else:
             retval = funcXVecList, cFitList
         return retval
-    def __radialBinData(self, iFunc, data, 
+    def __radialBinData(self, iFunc, data,
                         nBinsPerPeak = 30,
                         fitFuncXVec=False):
         """
         useful for checking on ring positions, and for fitting funcXVec
-        
+
         data needs to be collected for the iFunc in question, as by doing
         self.dataFrame[frameIndices]
         """
-        
+
         func, xIndices, iQP, jQP, wQP, frameIndices, normalization = self.funcDataList[iFunc]
         assert len(data) == len(frameIndices[0]),\
             'data is wrong length for iFunc'
-        
-        tThQP, etaQP = self.detectorGeom.xyoToAng(iQP, jQP)      
-        
+
+        tThQP, etaQP = self.detectorGeom.xyoToAng(iQP, jQP)
+
         """
         NOTE: if wQP is made to have dv contributions, then may
         need to change the following;
@@ -2548,12 +2548,12 @@ class MultiRingEval:
         to look at
         """
         #
-        weights = wQP * num.tile(data, (wQP.shape[1],1)).T 
+        weights = wQP * num.tile(data, (wQP.shape[1],1)).T
         #
         'Do not do the following because need to renormalize'
         # histIntensity, histTThBins, histPatches = \
-        #     pwREval.a.hist(tThQP.flatten(), weights=weights.flatten(), 
-        #                    bins=60, 
+        #     pwREval.a.hist(tThQP.flatten(), weights=weights.flatten(),
+        #                    bins=60,
         #                    histtype='bar', alpha=0.5)
         range = (tThQP.min(), tThQP.max())
         nBins = nBinsPerPeak*func.getNPeaks()
@@ -2563,28 +2563,28 @@ class MultiRingEval:
         histW,  bin_edges = num.histogram(tThQP.flatten(), range=range, bins=bins, weights=wQP.flatten())
         histTThCen   = 0.5 * (bins[:-1] + bins[1:]) # bin centers
         histIntensity = histIW / histW
-        
+
         if fitFuncXVec:
-            
+
             quadr = 1
             if isinstance(fitFuncXVec,int):
                 quadr = int(fitFuncXVec)
-            
+
             if len(xIndices) > 0:
                 xVecGuess = self.xVecGuess[(xIndices)]
             else:
                 xVecGuess = func.xVecDflt
-            
+
             tThs = self.planeData.getTTh()
             iHKLList = self.iHKLLists[iFunc]
-            
+
             xFit, cFit, evalIntensity = func.fitFloatingCenter(
                 histTThCen, histIntensity, xVecGuess, tThs[(iHKLList)], weights=quadr, tThWidth=width)
-        
+
         retval = [histTThCen, histIntensity, width]
         if fitFuncXVec:
             retval += xFit, cFit, evalIntensity
-        
+
         return retval
 
 class DetectorBase(object):
@@ -2601,7 +2601,7 @@ class DetectorBase(object):
         self.__readerClass = readerClass
         self.refineFlags = self.getRefineFlagsDflt()
         return
-    
+
     def set_readerClass(self, readerClass):
         raise RuntimeError, 'set of readerClass not allowed'
     def get_readerClass(self):
@@ -2611,11 +2611,11 @@ class DetectorBase(object):
     def frame(self, *args, **kwargs):
         retval = self.readerClass.frame(*args, **kwargs)
         return retval
-    
+
     @classmethod
     def getRefineFlagsDflt(cls):
         raise NotImplementedError
-    
+
     def setupRefinement(self, flags):
         assert len(flags) == len(self.refineFlags), 'flags wrong length, do you know what you are doing?'
         self.refineFlags = num.array(flags, dtype='bool')
@@ -2639,21 +2639,21 @@ class Detector2DRC(DetectorBase):
     """
     base class for 2D row-column detectors
     """
-    
+
     __pixelPitchUnit = 'mm'
-    
+
     tilt = num.zeros(3)   # must initialize tilt to ndarray
 
     chiTilt = None
-    
+
     def __init__(self, ncols, nrows, pixelPitch, readerClass, *args, **kwargs):
-        
+
         DetectorBase.__init__(self, readerClass)
-        
+
         self.__ncols = ncols
         self.__nrows = nrows
         self.__pixelPitch = pixelPitch
-        
+
         if len(args) == 0:
             self.__initWithDefault(**kwargs)
         elif hasattr(args[0], 'xyoToAng'): # this should work ok (JVB)
@@ -2668,9 +2668,9 @@ class Detector2DRC(DetectorBase):
         else:
             self.__initFromParams(*args, **kwargs)
         self.pVecUncertainties = None
-                
+
         return
-    
+
     def set_ncols(self, ncols):
         raise RuntimeError, 'set of ncols not allowed'
     def get_ncols(self):
@@ -2694,37 +2694,37 @@ class Detector2DRC(DetectorBase):
     def get_nrows(self):
         return self.__nrows
     nrows = property(get_nrows, set_nrows, None)
-    
+
     def getSize(self):
         retval = self.ncols * self.nrows
         return retval
     def __len__(self):
         return self.getSize()
-    
+
     def getShape(self):
         return (self.ncols, self.nrows)
     def setShape(self):
         raise RuntimeError, 'what are you thinking'
     shape = property(getShape, setShape, None)
-    
+
     def getExtent(self):
         return num.array([self.ncols, self.nrows]) * self.pixelPitch
     def setExtent(self):
         raise RuntimeError, 'what are you thinking'
     extent = property(getExtent, setExtent, None)
-    
+
     # methods that a specific detector geometry needs to implement:
-    def getDParamDflt(self):    
-        raise NotImplementedError        
-    def setDParamZero(self):    
-        raise NotImplementedError        
-    def getDParamScalings(self):    
-        raise NotImplementedError        
+    def getDParamDflt(self):
+        raise NotImplementedError
+    def setDParamZero(self):
+        raise NotImplementedError
+    def getDParamScalings(self):
+        raise NotImplementedError
     def getDParamRefineDflt(self):
-        raise NotImplementedError 
+        raise NotImplementedError
     def radialDistortion(self, xin, yin, invert=False):
-        raise NotImplementedError 
-    
+        raise NotImplementedError
+
     # methods that may want to override for a specific detector geometry
     def getParamDflt(self):
         xc        = 0.5*self.ncols*self.pixelPitch
@@ -2735,21 +2735,21 @@ class Detector2DRC(DetectorBase):
         zTilt     = 0.0
         dparms    = self.getDParamDflt()
         return (xc, yc, workDist, xTilt, yTilt, zTilt, dparms)
-    
+
     def __initFromParams(self, xc, yc, workDist, xTilt, yTilt, zTilt, distortionParams=None):
         """
         inputs:
         xc, yc : beam center, relative to pixel centers, so that
-                 (xc, yc) = (0,0) puts the beam center in the 
+                 (xc, yc) = (0,0) puts the beam center in the
                  _center_ of the corner pixel
         workDist : working distance, as valWUnit instance, eg:
         workDist = valUnits.valWUnit('workDist', 'length', 1.9365, 'meter')
         distortionParams : distortion parameters
-        
+
         eventually, may want to have this be able to determine
         geometric parameters from other input data
         """
-        
+
         if hasattr(xc, 'getVal'):
             self.xc        = xc.getVal(self.pixelPitchUnit)
             self.yc        = yc.getVal(self.pixelPitchUnit)
@@ -2769,17 +2769,17 @@ class Detector2DRC(DetectorBase):
         assert len(self.dparms) == len(dParamDflt), 'wrong length for distortion parameters'
 
         self.__initBase()
-        
+
         return
-    
+
     def getRefineFlagsDflt(cls):
         # for refinement
         # --------------->       (   xc,    yc,     D,    xt,    yt,    zt)
         retval = num.atleast_1d(
-            tuple( [True,  True,  True,  True,  True, False] + 
+            tuple( [True,  True,  True,  True,  True, False] +
                    list(cls.getDParamRefineDflt())
                    ) )
-        return retval 
+        return retval
     def __makePList(self, flatten=True):
         pList = [self.xc, self.yc, self.workDist, self.xTilt, self.yTilt, self.zTilt, self.dparms]
         if flatten:
@@ -2821,13 +2821,13 @@ class Detector2DRC(DetectorBase):
         return plistScalings[num.array(self.refineFlags)]
 
     def __initBase(self):
-        
+
         ' no precession by default init'
         self.pVec = None
-        
+
         self.refineFlags = self.getRefineFlagsDflt()
-        
-        'stuff for drawing and fitting rings' 
+
+        'stuff for drawing and fitting rings'
         self.withRanges = True
         self.asMasked = False
         self.withTThWidth = True
@@ -2839,12 +2839,12 @@ class Detector2DRC(DetectorBase):
             'linewidth' : 0.5
             }
         return
-    
+
     def __initWithDefault(self):
-        
+
         self.__updateFromPList(self.getParamDflt())
         self.__initBase()
-        
+
         return
     def __initFromDG(self, detectorGeomOther, pVec=None):
         self.__initFromParams( *detectorGeomOther.__makePList(flatten=False) )
@@ -2854,7 +2854,7 @@ class Detector2DRC(DetectorBase):
 
     def setTilt(self, tilt):
         self.tilt = num.array(tilt)
-        
+
         # tilt angles
         gX = self.tilt[0]
         gY = self.tilt[1]
@@ -2862,10 +2862,10 @@ class Detector2DRC(DetectorBase):
 
         # rotation 1: gX about Xl
         ROTX = rotMatOfExpMap(gX * self.Xl)
-        
+
         # the transformed Yl axis (Yd)
         Yd = num.dot(ROTX, self.Yl)
-        
+
         # rotation 2: gY about Yd
         ROTY = rotMatOfExpMap(gY * Yd)
 
@@ -2877,10 +2877,10 @@ class Detector2DRC(DetectorBase):
 
         # change of basis matrix from hatPrime to Prime
         self.ROT_l2d = num.dot(ROTZ, num.dot(ROTY, ROTX))
-        
+
         # tilted X-Y plane normal
         self.N = Zd
-        
+
         return
     def getXTilt(self):
         return self.tilt[0]
@@ -2913,57 +2913,57 @@ class Detector2DRC(DetectorBase):
         angCorners = num.array(self.xyoToAngMap(*xyoCorners))
         unc = num.max(angCorners, axis=1) - num.min(angCorners, axis=1)
         return unc
-    
+
     def cartesianCoordsOfPixelIndices(self, row, col, ROI=None):
         """
         converts [i, j] pixel array indices to cartesian spatial coords
         where the lower left corner of the image is (0, 0)
-        
+
         Output units are in the pixel pitch units (see self.pixelPitch)
-        
+
         Will optionally take the upper left-hand corner (min row, min col) of
         a ROI when dealing with subregions on the detector as in when zooming in on
         diffraction spots...
-        
+
         *) explicitly enforce this to be self-consistent with radial distortion correction, etc...
         """
-        
+
         # properly offset in case
         if ROI is not None:
             assert len(ROI) is 2, 'wrong length for ROI; should be 2 integers representing the UL corner'
-            row = row + ROI[0] 
+            row = row + ROI[0]
             col = col + ROI[1]
-            
+
         xout = self.pixelPitch*(col + 0.5)
         yout = self.pixelPitch*(self.__nrows - (row + 0.5))
-        
+
         return xout, yout
 
     def pixelIndicesOfCartesianCoords(self, x, y, ROI=None):
         """
         converts [i, j] pixel array indices to cartesian spatial coords
         where the lower left corner of the image is (0, 0)
-        
+
         Output units are in the pixel pitch units (see self.pixelPitch)
-        
+
         Will optionally take the upper left-hand corner (min row, min col) of
         a ROI when dealing with subregions on the detector as in when zooming in on
         diffraction spots...
-        
+
         *) explicitly enforce this to be self-consistent with radial distortion correction, etc...
         """
-        
+
         row = (self.__nrows - 0.5) - y/self.pixelPitch
         col = x/self.pixelPitch - 0.5
 
         # properly offset in case
         if ROI is not None:
             assert len(ROI) is 2, 'wrong length for ROI; should be 2 integers representing the UL corner'
-            row = row - ROI[0] 
+            row = row - ROI[0]
             col = col - ROI[1]
-            
+
         return row, col
-    
+
     #
     # Real geometric stuff below -- proceed at own risk
     #
@@ -2971,13 +2971,13 @@ class Detector2DRC(DetectorBase):
         """
         opposite of xyoToAng
         """
-        
+
         outputDV              = False
         outputForGve          = False
         rhoRange              = ()
         toPixelUnits          = True
         applyRadialDistortion = True
-                
+
         outputShape = num.shape(tth)
         tth         = num.asarray(tth).flatten()
         eta_l       = num.asarray(eta_l).flatten()
@@ -2988,7 +2988,7 @@ class Detector2DRC(DetectorBase):
             ome = num.atleast_1d(args[0])
 
         nzeros = num.zeros(numPts)
-    
+
         # argument handling
         kwarglen = len(kwargs)
         if kwarglen > 0:
@@ -3024,7 +3024,7 @@ class Detector2DRC(DetectorBase):
         if self.pVec is None:
             XC = nzeros
             YC = nzeros
-            
+
             D  = num.tile(self.workDist, numPts)
         else:
             assert len(ome) == numPts, 'with precession, omega argument consistent with ' \
@@ -3040,46 +3040,46 @@ class Detector2DRC(DetectorBase):
                 raise RuntimeError, 'pVec must be array-like'
 
             self.pVec = num.asarray(self.pVec)
-            
+
             grainCM_l = num.dot(R_s2l, self.pVec.reshape(3, 1))
             if grainCM_l.ndim == 3:
                 grainCM_l = grainCM_l.squeeze().T
-                
+
             XC = grainCM_l[0, :]
             YC = grainCM_l[1, :]
-            
+
             D  = self.workDist + grainCM_l[2, :] # now array of D's
 
         # make radii
         rho_l = D * num.tan(tth)
-        
-        # 
+
+        #
         # ------- ASSIGN POINT COORD'S AND FORM ROTATION
-        # 
+        #
         # origins of the scattering (P1) and lab (P2) frames
         #   - the common frame for arithmatic is the scattering frame
         P1 = num.vstack([XC, YC, D])
         P2 = num.zeros((3, numPts))
-        
+
         # tilt calculations moved into setTilt
-        
+
         # Convert to cartesian coord's in lab frame
         P3 = num.vstack( [ rho_l * num.cos(eta_l) + XC, rho_l * num.sin(eta_l) + YC, nzeros ] )
-        
-        # 
+
+        #
         # ------- SOLVE FOR RAY-PLANE INTERSECTION
-        # 
+        #
         u = num.tile( num.dot(self.N.T, (P2 - P1)) / num.dot(self.N.T, P3 - P1), (3, 1) )
-        
+
         P4_l = P1 + u * (P3 - P1)
-        
+
         P4_d = num.dot(self.ROT_l2d.T, P4_l)
-        
+
         if applyRadialDistortion:
             X_d, Y_d = self.radialDistortion(P4_d[0, :], P4_d[1, :], invert=True)
             # note that the Z comps should all be zeros anyhow
             P4_d = num.vstack( [X_d, Y_d, nzeros] )
-            
+
         if len(rhoRange) is 2:
             rhoMin = min(rhoRange)
             rhoMax = max(rhoRange)
@@ -3093,12 +3093,12 @@ class Detector2DRC(DetectorBase):
 
         # full comps in ref cartesian frame on image (origin in lower left)
         P4_i  = P4_d + num.tile( [self.xc, self.yc, 0], (numPts, 1) ).T
-        
+
         if toPixelUnits:
             xout, yout = self.pixelIndicesOfCartesianCoords(P4_i[0, :], P4_i[1, :], ROI=None)
         else:
             xout, yout = (P4_i[0, :], P4_i[1, :])
-            
+
         # assign the return value here
         retval = [xout.reshape(outputShape), yout.reshape(outputShape)]
         if len(ome) > 0:
@@ -3149,7 +3149,7 @@ class Detector2DRC(DetectorBase):
         except:
             # case of nonarray as arg
             return self.angToXYO_V(x0, y0, *args, **kwargs)
-        
+
         # don't forget about the pass-through ome arg
         if len(args) is not 0:
             haveOme = True
@@ -3162,9 +3162,9 @@ class Detector2DRC(DetectorBase):
         # need this in case something asks for the dV values...
         if kwargs.has_key('outputDV'):
             wantDV = kwargs['outputDV']
-            
+
         extraRows = sum([haveOme, wantDV])
-        
+
         sofar = 0; tmpRetv = num.zeros((2+extraRows, lenx0))
         while lenx0 > sofar:
             #
@@ -3183,9 +3183,9 @@ class Detector2DRC(DetectorBase):
                 pass
             sofar = newsofar
             pass
-        
+
         # ... inShape should be set properly from above
-        return [tmpRetv[i, :].reshape(inShape) for i in range(tmpRetv.shape[0])]    
+        return [tmpRetv[i, :].reshape(inShape) for i in range(tmpRetv.shape[0])]
 
     def xyoToAng(self, x0, y0, *args, **kwargs):
         """convert Cartesian to polar
@@ -3210,7 +3210,7 @@ class Detector2DRC(DetectorBase):
         except:
             # case of nonarray as arg
             return self.xyoToAng_V(x0, y0, *args, **kwargs)
-        
+
         # don't forget about the pass-through ome arg
         if len(args) is not 0:
             haveOme = True
@@ -3223,9 +3223,9 @@ class Detector2DRC(DetectorBase):
         # need this in case something asks for the dV values...
         if kwargs.has_key('outputDV'):
             wantDV = kwargs['outputDV']
-            
+
         extraRows = sum([haveOme, wantDV])
-        
+
         sofar = 0; tmpRetv = num.zeros((2+extraRows, lenx0))
         while lenx0 > sofar:
             #
@@ -3244,20 +3244,20 @@ class Detector2DRC(DetectorBase):
                 pass
             sofar = newsofar
             pass
-        
+
         # ... inShape should be set properly from above
         return [tmpRetv[i, :].reshape(inShape) for i in range(tmpRetv.shape[0])]
-    
+
     def xyoToAng_V(self, x0, y0, *args, **kwargs):
         """
         Convert radial spectra obtained from polar
         rebinned powder diffraction images to angular spectra.
-        
+
         USAGE:
         mappedData = XFormRadialSpectra(t, D, tilt, xydata, azim, tthRange, radDistFuncHandle, radDistArgs)
-        
+
         INPUTS:
-        
+
         1) t is 2 x 1 (double), the origin translation.
         The convention is from `true' to `estimated' centers.
         2) D is 1 x 1 (double), the sample-to-detector distance in mm.
@@ -3269,12 +3269,12 @@ class Detector2DRC(DetectorBase):
         6) azim
         7) tthRange
         8) radDistFuncHandle
-        
+
         OUTPUT:
-        
+
         1) mappedData is 1 x n (cell), the cell array of mapped radial
         data corresponding to the input `xydata'.
-        
+
         """
 
         outputDV              = False
@@ -3285,12 +3285,12 @@ class Detector2DRC(DetectorBase):
         outputShape = num.shape(x0)
         x0          = num.asarray(x0).flatten()
         y0          = num.asarray(y0).flatten()
-        
+
         numPts = len(x0)                # ... no check for y0 or omega
         ome = ()
         if len(args) is not 0:
             ome = num.atleast_1d(args[0])
-        
+
         nzeros = num.zeros(numPts)
 
         # argument handling
@@ -3318,7 +3318,7 @@ class Detector2DRC(DetectorBase):
                         applyRadialDistortion = kwargs[argkeys[i]]
                 else:
                     raise RuntimeError, 'Unrecognized keyword argument: ' + str(argkeys[i])
-        
+
         # make center-based cartesian coord's
         #   - SHOULD BE IN PIXEL PITCH UNITS (MM)
         #   ... maybe add hard check on this in future
@@ -3333,7 +3333,7 @@ class Detector2DRC(DetectorBase):
 
             XC = nzeros
             YC = nzeros
-            
+
             D = num.tile(self.workDist, numPts)
         else:
             assert len(ome) == numPts, 'with precession, omega argument consistent with ' \
@@ -3343,17 +3343,17 @@ class Detector2DRC(DetectorBase):
             #   - ome is taken as a CCW (+) rotation of the SAMPLE FRAME about Y
             #   - when the BASIS is transformed by R, vector comp's must transform by R'
             R_s2l = rotMatOfExpMap( num.tile(ome, (3, 1)) * num.tile(self.Yl, (1, numPts)) )
-            
+
             if not hasattr(self.pVec, '__len__'):
                 raise RuntimeError, 'pVec must be array-like'
-            
+
             self.pVec = num.asarray(self.pVec)
-            
+
             # array of rotated precession vector components
             grainCM_l = num.dot(R_s2l, self.pVec.reshape(3, 1))
             if grainCM_l.ndim == 3:
                 grainCM_l = grainCM_l.squeeze().T
-            
+
             # precession-corrected polar detector coord's
             # X_d = x0 - (self.xc + grainCM_l[0, :]) # is 1-d!
             # Y_d = y0 - (self.yc + grainCM_l[1, :]) # is 1-d!
@@ -3362,77 +3362,77 @@ class Detector2DRC(DetectorBase):
 
             XC = grainCM_l[0, :]
             YC = grainCM_l[1, :]
-            
+
             D = self.workDist + grainCM_l[2, :] # now array of D's
 
         if applyRadialDistortion:
             # apply distortion
             X_d, Y_d = self.radialDistortion(X_d, Y_d, invert=False)
-            
-        # 
+
+        #
         # ------- ASSIGN POINT COORD'S AND FORM ROTATION
-        # 
+        #
         # origins of the scattering (P1) and lab (P2) frames
         #   - the common frame for arithmatic is the scattering frame
         P1 = num.vstack([XC, YC, D])
         # P2 = num.vstack([XC, YC, nzeros])
         P2 = num.zeros((3, numPts))
-        
+
         # tilt calculations moved into setTilt
-        
+
         # full 3-d components in tilted the detector frame
         P4_d = num.vstack( (X_d, Y_d, nzeros) )
-        
+
         # rotate components into the lab frame
         P4_l = num.dot(self.ROT_l2d, P4_d)
-        
+
         # apply translation to get equations of diffracted rays in lab frame
         rays = P4_l - P1
-        
+
         # solve for P3 coord's in lab frame
-        u = num.tile( num.dot(self.N.T, (P2 - P1)) / num.dot(self.N.T, rays), (3, 1) ) 
-       
-        
+        u = num.tile( num.dot(self.N.T, (P2 - P1)) / num.dot(self.N.T, rays), (3, 1) )
+
+
         P3 = P1 + u * rays
-        
+
         # X-Y components of P3 in lab frame
         X_l = P3[0, :] - XC
         Y_l = P3[1, :] - YC
-        
+
         # polar coords in lab frame
-        rho_l = num.sqrt(X_l*X_l + Y_l*Y_l) 
+        rho_l = num.sqrt(X_l*X_l + Y_l*Y_l)
         eta_l = num.arctan2(Y_l, X_l)
-        
+
         # get two-theta from dot products with lab-frame beam direction
         dotProds = num.dot(-self.Zl.T, unitVector(rays)).squeeze()
-        
+
         # two-theta
         measTTH = arccosSafe(dotProds)
-        
+
         # transform data
         tmpData = num.vstack( [measTTH, eta_l] )
-        
+
         if len(tthRange) is 2:
             tthMin = min(tthRange)
             tthMax = max(tthRange)
-            
+
             minidx = r2d*tmpData[0, :] >= tthMin
             maxidx = r2d*tmpData[0, :] <= tthMax
-            
+
             arein  = minidx and maxidx
-            
+
             tmpData = tmpData[:, arein]
 
         retval = [tmpData[0, :].reshape(outputShape), tmpData[1, :].reshape(outputShape)]
         if len(ome) > 0:
             retval.append(ome.reshape(outputShape))
-            
+
         if outputDV:
             dv = num.ones(outputShape)
             retval.append(dv)
-        
+
         return retval
-    
+
     def makeMaskTThRanges(self, planeData):
         """
         Mask in the sense that reader with the mask will exclude all else
@@ -3469,7 +3469,7 @@ class Detector2DRC(DetectorBase):
     def makeTThRanges(self, planeData, cullDupl=False):
         tThs      = planeData.getTTh()
         tThRanges = planeData.getTThRanges()
-        
+
         nonoverlapNexts = num.hstack((tThRanges[:-1,1] < tThRanges[1:,0], True))
         iHKLLists = []
         hklsCur = []
@@ -3484,7 +3484,7 @@ class Detector2DRC(DetectorBase):
             hklsCur.append(iHKL)
             iHKLLists.append(hklsCur)
             hklsCur = []
-        
+
         return iHKLLists
     def makeIndicesTThRanges(self, planeData, cullDupl=False):
         """
@@ -3492,14 +3492,14 @@ class Detector2DRC(DetectorBase):
         to plot, can do something like:
         	mask = self.readerClass.getEmptyMask()
           mask[indices] = True
-        
+
         With cullDupl set true, eliminate HKLs with duplicate 2-thetas
         """
         tThs      = planeData.getTTh()
         tThRanges = planeData.getTThRanges()
-        
+
         iHKLLists = self.makeTThRanges(planeData, cullDupl=cullDupl)
-        
+
         indicesList = []
         twoTheta, eta = self.xyoToAngAll()
         for iHKLList in iHKLLists:
@@ -3522,23 +3522,23 @@ class Detector2DRC(DetectorBase):
     def getRings(self, planeData, ranges=False):
         """
         Return a list of rings for the given hkls
-        
+
         Already filters on the exclusions.
         """
         rList = []
         nEta = self.nEta
         dEta = 2*math.pi/nEta
-        
+
         etaRing = num.arange(0., 2.0*math.pi+dEta/2., dEta)
         nEta    = len(etaRing) # why this?
-        
+
         excl   = num.array(planeData.exclusions)
-        
+
         # grab full tThs and tile if ranges are desired
         tThs = planeData.getTTh()
         if ranges:
             tThs = planeData.getTThRanges().flatten()
-            
+
         # grab the relevant hkls and loop
         for i in range(len(tThs)):
             tThRing = num.tile(tThs[i], nEta)
@@ -3555,26 +3555,26 @@ class Detector2DRC(DetectorBase):
 
         for etas, right now assumes stopEta > startEta, CCW
         """
-        startEta = polarRebinKWArgs['etaRange'][0] 
+        startEta = polarRebinKWArgs['etaRange'][0]
         stopEta  = polarRebinKWArgs['etaRange'][1]
         numEta   = polarRebinKWArgs['numEta']
-        
+
         startRho = polarRebinKWArgs['rhoRange'][0]*self.pixelPitch
         stopRho  = polarRebinKWArgs['rhoRange'][1]*self.pixelPitch
-        
+
         nrows = self.nrows   # total number of rows in the full image
         ncols = self.ncols   # total number of columns in the full image
-        
+
         nEtaRing = round(self.nEta * abs(stopEta - startEta) / (2*num.pi))
         dEta     = abs(stopEta - startEta) / nEtaRing
-        
+
         # DEBUGGING # print 'nEtaRing: %d' %(nEtaRing)
         # DEBUGGING # print 'dEta: %f' %(dEta * 180. / num.pi)
-        
+
         # this is the generic ring segment
         etaRing = num.arange(startEta, stopEta + 0.5*dEta, dEta)
         # print etaRing, startRho, stopRho
-        
+
         # arc segments as [rho, eta] pairs (vstacked)
         innerArc_pol = num.vstack([startRho * num.ones(len(etaRing)), etaRing])
         outerArc_pol = num.vstack([stopRho  * num.ones(len(etaRing)), etaRing])
@@ -3587,7 +3587,7 @@ class Detector2DRC(DetectorBase):
         # print innerArc_pol, outerArc_pol
         del(innerArc_pol)
         del(outerArc_pol)
-        
+
         sector_dEta = abs(stopEta - startEta) / numEta
         sectorEtas = num.arange(startEta, stopEta + 0.5*sector_dEta, sector_dEta).tolist()
         # sector edges
@@ -3613,7 +3613,7 @@ class Detector2DRC(DetectorBase):
             edge_pixL = zip(edge_pixI.tolist(),
                             edge_pixJ.tolist())
             pass
-        
+
         # DEBUGGING # import pdb; pdb.set_trace()
         # pixI = innerArc_pixI.tolist() + outerArc_pixI.tolist() + edge_pixI
         # pixJ = innerArc_pixJ.tolist() + outerArc_pixJ.tolist() + edge_pixJ
@@ -3626,13 +3626,13 @@ class Detector2DRC(DetectorBase):
         """
         given either angBBox or angCOM (angular center) and angPM (+-values), compute the bounding box on the image frame
         """
-        
+
         units  = kwargs.setdefault('units', 'pixels')
         # reader = kwargs.get('reader', None)
         reader = None
         if kwargs.has_key('reader'):
             reader = kwargs.pop('reader')
-        
+
         if len(args) == 1:
             angBBox = args[0]
         elif len(args) == 2:
@@ -3644,14 +3644,14 @@ class Detector2DRC(DetectorBase):
                 )
         else:
             raise RuntimeError, 'specify either angBBox or angCOM, angPM'
-        
+
         'along eta, try multiple points if the spread is wide enough so that do not mis apex of arc'
         delAng = 0.1 # about 6 degrees
         nTest = max(int(math.ceil((angBBox[1][1]-angBBox[1][0]) / delAng)), 1) + 1
         etas = num.hstack( (num.linspace(angBBox[1][0], angBBox[1][1], nTest), angBBox[1][0], angBBox[1][1] ) )
         tths = num.hstack( (num.tile(angBBox[0][1],                    nTest), angBBox[0][0], angBBox[0][0] ) )
         x, y = self.angToXYO(tths, etas, **kwargs)
-        
+
         xyoBBox = [
             ( x.min(), x.max() ),
             ( y.min(), y.max() ),
@@ -3659,10 +3659,10 @@ class Detector2DRC(DetectorBase):
             ]
         if units == 'pixels':
             'make into integers'
-            xyoBBox[0] = ( max(int(math.floor(xyoBBox[0][0])), 0), 
+            xyoBBox[0] = ( max(int(math.floor(xyoBBox[0][0])), 0),
                            min(int(math.floor(xyoBBox[0][1])), self.nrows-1),
                            )
-            xyoBBox[1] = ( max(int(math.floor(xyoBBox[1][0])), 0), 
+            xyoBBox[1] = ( max(int(math.floor(xyoBBox[1][0])), 0),
                            min(int(math.floor(xyoBBox[1][1])), self.ncols-1),
                            )
         if reader is not None:
@@ -3671,32 +3671,32 @@ class Detector2DRC(DetectorBase):
                            num.hstack( (reader.getNFrames()-1, reader.omegaToFrameRange(xyoBBox[2][1]) ) )[-1]
                            )
         return xyoBBox
-    
+
     def drawRings(self, drawOn, planeData, withRanges=False, legendLoc=(0.05,0.5), legendMaxLen=10,
                   ideal=None, range=None, lineType=None, lineWidth=1.0):
         """
-        If drawOn is a PlotWrap instance, draw on the existing instance, 
-        otherwise pass drawOn to display and return the resulting 
+        If drawOn is a PlotWrap instance, draw on the existing instance,
+        otherwise pass drawOn to display and return the resulting
         PlotWrap instance
-        
+
         planeData.exclusions can be used to work with a subset of rings;
-        
+
         set legendLoc to None or False to skip making the legend
-        
+
         removes any existing lines in the axes
-        
+
         if pass ideal, then display rings on an ideal detector with the working distance taken from the value of the ideal argument
         """
         nEta = self.nEta
         dEta = 2*math.pi/nEta
-        
+
         if ideal is None:
             workDist = self.workDist
             angToXY = self.angToXYO
         else:
             workDist = ideal
             angToXY = lambda tTh_l, eta_l: angToXYIdeal(tTh_l, eta_l, workDist)
-        
+
         if isinstance(drawOn, plotWrap.PlotWrap):
             pw = drawOn
             retval = None
@@ -3707,18 +3707,18 @@ class Detector2DRC(DetectorBase):
             else:
                 pw = self.displayIdeal(drawOn, planeData=planeData, workDist=workDist, range=range)
                 retval = pw
-        
+
         'get rid of any existing lines and legends'
         pw.removeLines()
-        
+
         tThs      = planeData.getTTh()
         hkls      = planeData.getHKLs(asStr=True)
-        
+
         if lineType is not None:
             lineStyles = LineStyles(lt=lineType)
         else:
             lineStyles = LineStyles()
-        
+
         etaRing   = num.arange(0., 2.0*math.pi+dEta/2., dEta)
         nEta      = len(etaRing)
         # omegaRing = num.zeros([nEta]) # 'omega is arbitrary'
@@ -3739,7 +3739,7 @@ class Detector2DRC(DetectorBase):
             'remove of legends not supported'
             # for legend in pw.f.legends:
             #     legend.remove()
-            # 
+            #
             #pw.a.legend(linesForLegend, hkls, loc=legendLoc)
             if legendMaxLen and len(linesForLegend) > legendMaxLen:
                 linesForLegend = linesForLegend[0:legendMaxLen]
@@ -3759,18 +3759,18 @@ class Detector2DRC(DetectorBase):
         suitable for use with pcolormesh(xim, yim, zi), with xim, yim = num.meshgrid(xi, yi);
         note that pcolormesh is used instead of pcolor because zi may be a masked array
         """
-        
+
         nlump = nlump or 4
         workDist = workDist or self.workDist
         assert nlump >= 2,\
             'due to histogram2d based method, this make not work well for nlump < 2'
-        
+
         nx = float(self.shape[0])/float(nlump)+1
         ny = float(self.shape[1])/float(nlump)+1
 
         # 'figure out the range for plotting, assuming the corners bound things well enough'
         # tthBox, etaBox = self.xyoToAngCorners()
-        
+
         'create data on the ideal plane, ends up being irregularly spaced'
         tTh, eta = self.xyoToAngAll()
         x, y = angToXYIdeal(tTh, eta, workDist)
@@ -3786,17 +3786,17 @@ class Detector2DRC(DetectorBase):
         'interpolate'
         # have tried other things, like interpolate.interp2d and mlab.griddata without much luck
         # xim, yim = num.meshgrid(xi, yi)
-        # zi = mlab.griddata(x.flatten(),y.flatten(),thisframe.flatten(),xim,yim)        
+        # zi = mlab.griddata(x.flatten(),y.flatten(),thisframe.flatten(),xim,yim)
         h, xedges, yedges = num.histogram2d(
             x.flatten(), y.flatten(), bins=[xi,yi], weights=thisframe.flatten())
         c, xedges, yedges = num.histogram2d(x.flatten(), y.flatten(), bins=[xi,yi])
         mask = c == 0
         h[-mask] = h[-mask] / c[-mask]
-        
+
         return h, xedges, yedges, mask
-    
-    def displayIdeal(self, thisframe, planeData=None, 
-                     workDist=None, nlump=None, 
+
+    def displayIdeal(self, thisframe, planeData=None,
+                     workDist=None, nlump=None,
                      **kwargs):
         """
         render and display frame on ideal detector plane;
@@ -3805,14 +3805,14 @@ class Detector2DRC(DetectorBase):
 
         h, xedges, yedges, mask = self.renderIdeal(thisframe, workDist=workDist, nlump=nlump)
         workDist = workDist or self.workDist
-        
+
         if kwargs.has_key('pw'):
             pw = kwargs.pop('pw')
         else:
             pwKWArgs = plotWrap.PlotWrap.popKeyArgs(kwargs)
             pw = plotWrap.PlotWrap(**pwKWArgs)
         retval = pw
-        
+
         vmin, vmax, cmap = self.readerClass.getDisplayArgs(h, kwargs)
         pw.a.set_axis_bgcolor('white')
         cmap.set_under(color='white', alpha=0.0)
@@ -3828,20 +3828,20 @@ class Detector2DRC(DetectorBase):
         pw.a.set_aspect('equal')
         pw.a.set_autoscale_on(False)
         pw.show()
-                  
+
         fmtCoord = FmtCoordIdeal(planeData, workDist)
         fmtCoord.addDetectorData(1, xedges, yedges, h, mask)
         pw.a.format_coord = fmtCoord
-        
+
         return retval
-    
+
     def display(self, thisframe, planeData=None, **kwargs):
         """
         wrap reader display method;
         display coordinates as 2-theta and eta given that self knows how to do this
 
         if pass planeData, then it is used to list HKLs overlapping the given 2-theta location
-        
+
         ...*** option for drawing lab-frame glyph
         """
         pw = self.readerClass.display(thisframe, **kwargs)
@@ -3876,7 +3876,7 @@ class Detector2DRC(DetectorBase):
         'pass planeData to display so that HKLs for the 2-theta at the cursor position are shown'
         pw = self.display(thisframe, figsize=(7,7), planeData=planeData, **displayKWArgs)
         pw.a.set_position([buttonsXArea, sliderYArea, 1.0-buttonsXArea, 1.0-sliderYArea], which='original')
-        
+
         delxy = min(self.__nrows, self.__ncols) * 0.1 * sliderRangeFactor * self.pixelPitch
         axcolor = 'lightgoldenrodyellow'
         #
@@ -3886,17 +3886,17 @@ class Detector2DRC(DetectorBase):
         ax_xc    = pw.f.add_axes(rect_cur, axisbg=axcolor)
         s_xc     = Slider(ax_xc, 'xc', self.xc-delxy, self.xc+delxy, valinit=self.xc, dragging=doDragging)
         rect_cur[1] = rect_cur[1] + rect_dy
-        #        
+        #
         ax_yc    = pw.f.add_axes(rect_cur, axisbg=axcolor)
         s_yc     = Slider(ax_yc, 'yc', self.yc-delxy, self.yc+delxy, valinit=self.yc, dragging=doDragging)
         rect_cur[1] = rect_cur[1] + rect_dy
-        #        
+        #
         ref      = self.workDist
         delwd    = 2.0*sliderRangeFactor
         ax_wd    = pw.f.add_axes(rect_cur, axisbg=axcolor)
         s_wd     = Slider(ax_wd, 'D ', ref/delwd, ref*delwd, valinit=ref, dragging=doDragging)
         rect_cur[1] = rect_cur[1] + rect_dy
-        #        
+        #
         deltilt  = max(0.2*sliderRangeFactor, abs(self.xTilt)*1.2, abs(self.yTilt)*1.2)
         #
         ref      = 0.
@@ -3910,7 +3910,7 @@ class Detector2DRC(DetectorBase):
         s_yt     = Slider(ax_yt, 'yt', ref-deltilt, ref+deltilt, valinit=ref, dragging=doDragging)
         s_yt.set_val(self.yTilt)
         rect_cur[1] = rect_cur[1] + rect_dy
-        #        
+        #
         if planeData.tThWidth is None:
             self.withTThWidth = False
             ref = planeData.strainMag
@@ -3942,11 +3942,11 @@ class Detector2DRC(DetectorBase):
         b_fit    = Button(ax_fit, 'Fit')
         #
         legendLoc = (0.03, sliderYArea+0.02) # 'center left'
-        
+
         def undo_mask():
             self.asMasked = False
             self.display(thisframe,  pw=pw, **displayKWArgs)
-            self.drawRings(pw, planeData, 
+            self.drawRings(pw, planeData,
                            withRanges=self.withRanges, legendLoc=None)
         def update_self(val):
             if self.asMasked:
@@ -3956,7 +3956,7 @@ class Detector2DRC(DetectorBase):
             self.workDist = s_wd.val
             self.xTilt = s_xt.val
             self.yTilt = s_yt.val
-            self.drawRings(pw, planeData, 
+            self.drawRings(pw, planeData,
                            withRanges=self.withRanges, legendLoc=None)
             pw.show()
         def update_range(val):
@@ -3964,7 +3964,7 @@ class Detector2DRC(DetectorBase):
               self.withRanges = False
             else:
               self.withRanges = True
-            self.drawRings(pw, planeData, 
+            self.drawRings(pw, planeData,
                            withRanges=self.withRanges, legendLoc=None)
             pw.show()
         def update_stw(val):
@@ -3979,8 +3979,8 @@ class Detector2DRC(DetectorBase):
             mask = -self.makeMaskTThRanges(planeData)
             maskedframe = copy.deepcopy(thisframe)
             maskedframe[mask] = 0
-            self.display(maskedframe, pw=pw, **displayKWArgs)            
-            self.drawRings(pw, planeData, 
+            self.display(maskedframe, pw=pw, **displayKWArgs)
+            self.drawRings(pw, planeData,
                            withRanges=self.withRanges, legendLoc=None)
             pw.show()
         def update_tw(val):
@@ -3991,18 +3991,18 @@ class Detector2DRC(DetectorBase):
             if self.asMasked:
               'call do_mask so that masking is redone'
               do_mask(None)
-            self.drawRings(pw, planeData, 
+            self.drawRings(pw, planeData,
                            withRanges=self.withRanges, legendLoc=None)
             pw.show()
         def do_fit(event):
-            """ ... consider only allowing fit if b_range is 'Ranges', so that know 
+            """ ... consider only allowing fit if b_range is 'Ranges', so that know
             the user at least could have done the sanity check to see that rings are
             covered;
             or could code 'smart' adjustment of strainMag -- increase until stuff that
             is being added looks like background
             """
             self.fitRings(thisframe, planeData, funcType=funcType)
-            '''calling set_val on the sliders causes trouble; 
+            '''calling set_val on the sliders causes trouble;
             inside of set_val they call their observers, so update_self
             which do not want called before slide values are set;
             but the following is not ideal either in that it sets the
@@ -4022,7 +4022,7 @@ class Detector2DRC(DetectorBase):
             s_xt.reset()
             s_yt.reset()
             s_tw.reset()
-        
+
         s_xc.on_changed(update_self)
         s_yc.on_changed(update_self)
         s_wd.on_changed(update_self)
@@ -4034,11 +4034,11 @@ class Detector2DRC(DetectorBase):
         b_mask.on_clicked(do_mask)
         b_reset.on_clicked(do_reset)
         b_fit.on_clicked(do_fit)
-        
+
         'only draw legend the first time as legend.remove does not currently work'
-        self.drawRings(pw, planeData, 
+        self.drawRings(pw, planeData,
                        withRanges=self.withRanges, legendLoc=legendLoc)
-        
+
         pw.show()
         matplotlib.interactive(True)
         return pw
@@ -4048,10 +4048,10 @@ class Detector2DRC(DetectorBase):
         return
     def fitRings(self, thisframe, planeData, xVec0=None,
                  funcType=funcTypeDflt, quadr=1, makePlots=False):
-      
+
       # 'free up memory'
       # self.fitRingsFunc = None
-      
+
       func = MultiRingEval(self, planeData, dataFrame=thisframe,
                            funcType=funcType, quadr=quadr)
 
@@ -4062,9 +4062,9 @@ class Detector2DRC(DetectorBase):
           else:
               xVec0 = func.guessXVec()
       self.xFitRings = None
-      
+
       x = func.doFit(xtol=1.0e-4)
-      
+
       self.xFitRings = x
       # self.fitRingsFunc = func
       'call func one more time to make sure that parameters are set to values from x solution'
@@ -4072,22 +4072,22 @@ class Detector2DRC(DetectorBase):
           funcEval = func(x, makePlots=makePlots,
                           plotTitlePrefix='(auxiliary, not of prime importance for fits!) ') # self.updateParams(x[range(func.nParamBase)])
       print 'fit detector parameters : ' + str(self.getParams()) + '\n'
-      
-      return 
-    
+
+      return
+
     def pixelToPolar(self, rowInd, colInd, corrected=False, startEta=None):
 
         # WTF?! # if ROI is None:
         # WTF?! #     ROI = [0, 0, self.nrows, self.ncols]  # integer pixels indices
-        # WTF?! # 
+        # WTF?! #
         # WTF?! # rowInd = ROI[0] + num.arange(ROI[2])
         # WTF?! # colInd = ROI[1] + num.arange(ROI[3])
-        
+
         pixelGrid = num.meshgrid( num.atleast_1d(rowInd),
                                   num.atleast_1d(colInd) )
         pixelIs = pixelGrid[0].T.flatten()
         pixelJs = pixelGrid[1].T.flatten()
-        
+
         # convert to cartesian frame
         #     - ouput is in self.pixelPitchUnit
         #     - origin is LOWER LEFT CORNER
@@ -4096,7 +4096,7 @@ class Detector2DRC(DetectorBase):
 
 
         if corrected:
-            
+
             # do conversion to tTh
             tTh, eta = self.xyoToAng(x0, y0, units=self.pixelPitchUnit)
 
@@ -4113,14 +4113,14 @@ class Detector2DRC(DetectorBase):
             # move to center
             x = (x0 - self.xc).flatten()
             y = (y0 - self.yc).flatten()
-        
+
             # convert to polar
             #   - map eta into specified monotonic range
             rho = num.sqrt( x*x + y*y )
             eta = num.arctan2(y, x)
             if not startEta is None:
                 eta = mapAngle(eta, [startEta, 2*num.pi + startEta], units='radians')
-        
+
         return rho, eta, x, y
     def polarToPixel(self, rho, eta, corrected=False):
         # WTF ?! # if not ROI is None:
@@ -4160,43 +4160,43 @@ class Detector2DRC(DetectorBase):
         ROI=None - region of interest (four vector)
         corrected=False - uses 2-theta instead of rho
         verbose=True,
-                   
+
         """
 
-        startEta = etaRange[0] 
+        startEta = etaRange[0]
         stopEta  = etaRange[1]
-        
+
         startRho = rhoRange[0]*self.pixelPitch
         stopRho  = rhoRange[1]*self.pixelPitch
-        
+
         nrows = self.nrows   # total number of rows in the full image
         ncols = self.ncols   # total number of columns in the full image
-        
+
         subPixArea = 1/float(npdiv)**2 # areal rescaling for subpixel intensities
-        
+
         # import pdb;pdb.set_trace()
-        
+
         if ROI is None:
             ROI = [0, 0, nrows, ncols]  # integer pixels indices
-        
+
         # MASTER COORDINATES
         #   - in pixel indices, UPPER LEFT PIXEL is [0, 0] --> (row, col)
         #   - in fractional pixels, UPPER LEFT CORNER is [-0.5, -0.5] --> (row, col)
         #   - in cartesian frame, the LOWER LEFT CORNER is [0, 0] --> (col, row)
-        
+
         rowInd = ROI[0] + num.arange(ROI[2])
         colInd = ROI[1] + num.arange(ROI[3])
-        
+
         # ROI data in proper shape
         roiData = thisFrame[num.ix_(rowInd, colInd)].flatten()
-        
+
         rho, eta, x, y = self.pixelToPolar(rowInd, colInd, corrected=corrected, startEta=startEta)
 
 
         # MAKE POLAR BIN CENTER ARRAY
         deltaEta = (stopEta - startEta) / numEta
         deltaRho = (stopRho - startRho) / numRho
-        
+
         rowEta = startEta + deltaEta * ( num.arange(numEta) + 0.5 )
         colRho = startRho + deltaRho * ( num.arange(numRho) + 0.5 )
 
@@ -4208,7 +4208,7 @@ class Detector2DRC(DetectorBase):
         polImg['deltaRho']  = deltaRho
 
 
-        if verbose: 
+        if verbose:
             msg = "INFO: Masking pixels\n"
             if log:
                 log.write(msg)
@@ -4220,9 +4220,9 @@ class Detector2DRC(DetectorBase):
         rhoF = stopRho + 1
         inAnnulus = num.where( (rho >= rhoI) & (rho <= rhoF) )[0]
         for i in range(numEta):
-            if verbose: 
+            if verbose:
                 msg = "INFO: Processing sector %d of %d\n" % (i+1, numEta)
-                if log:  
+                if log:
                     log.write(msg)
                 else:
                     print msg
@@ -4236,7 +4236,7 @@ class Detector2DRC(DetectorBase):
             inSector = num.where( (tmpEta >= etaI) & (tmpEta <= etaF) )[0]
 
             nptsIn = len(inSector)
-            
+
             tmpX = x[ inAnnulus[inSector] ]
             tmpY = y[ inAnnulus[inSector] ]
             tmpI = roiData[ inAnnulus[inSector] ]
@@ -4251,7 +4251,7 @@ class Detector2DRC(DetectorBase):
 
             intX = num.tile(intX.flatten(), (nptsIn, 1)).T
             intY = num.tile(intY.flatten(), (nptsIn, 1)).T
-            
+
             # expand coords using pixel subdivision
             tmpX = num.tile(tmpX, (npdiv**2, 1)) + (intX - 0.5)*self.pixelPitch
             tmpY = num.tile(tmpY, (npdiv**2, 1)) + (intY - 0.5)*self.pixelPitch
@@ -4261,7 +4261,7 @@ class Detector2DRC(DetectorBase):
             # if corrected:
             #     # do conversion to tTh instead
             #     tempTTh, tmpEta = self.xyoToAng(tmpX+self.xc, tmpY+self.yc, units=self.pixelPitchUnit)
-            #     
+            #
             #     # can get rho in ideal frame
             #     tmpRho = self.workDist * num.tan(tempTTh)
             #     tmpEta = mapAngle(tmpEta, [startEta, 2*num.pi + startEta], units='radians')
@@ -4270,14 +4270,14 @@ class Detector2DRC(DetectorBase):
             #   - map eta into specified monotonic range
             tmpRho = num.sqrt( tmpX*tmpX + tmpY*tmpY )
             tmpEta = mapAngle(num.arctan2(tmpY, tmpX), [startEta, 2*num.pi + startEta], units='radians')
-            
+
             inSector2 = ( (tmpRho >= startRho) & (tmpRho <= stopRho) ) \
                         & ( (tmpEta >= etaI) & (tmpEta <= etaF) )
 
             # import pdb;pdb.set_trace()
             tmpRho = tmpRho[inSector2]
             tmpI   = tmpI[inSector2]
-            
+
             binId = num.floor( ( tmpRho - startRho ) / deltaRho )
             nSubpixelsIn = len(binId)
 
@@ -4286,14 +4286,14 @@ class Detector2DRC(DetectorBase):
                 ( tmpI, (binId, num.arange(nSubpixelsIn)) ), shape=(numRho, nSubpixelsIn) )
             binId = sparse.csc_matrix( \
                 ( num.ones(nSubpixelsIn), (binId, num.arange(nSubpixelsIn)) ), shape=(numRho, nSubpixelsIn) )
-                
+
             # Normalized contribution to the ith sector's radial bins
             polImg['intensity'][i, :] = (tmpI.sum(1) / binId.sum(1)).T
-            
+
         return polImg
 
 
-def mar165IDim(mode):    
+def mar165IDim(mode):
     if not isinstance(mode, int) or not [1,2,4,8].count(mode):
         raise RuntimeError, 'unknown mode : '+str(mode)
     idim = 4096 / mode
@@ -4302,28 +4302,28 @@ def mar165IDim(mode):
 class DetectorGeomMar165(Detector2DRC):
     __idimMax = 4096
     def __init__(self, *args, **kwargs):
-        
+
         mode = 1
         if kwargs.has_key('mode'):
             mode = kwargs.pop('mode')
         readerClass = eval('ReadMar165NB%d' % (mode))
         idim = mar165IDim(mode)
-        nrows = ncols = idim 
+        nrows = ncols = idim
         pixelPitch = 165.0 / idim # mm
-        
+
         self.mode = mode
-        
-        Detector2DRC.__init__(self, 
+
+        Detector2DRC.__init__(self,
                               nrows, ncols, pixelPitch,
                               readerClass,
                               *args, **kwargs)
         return
 
-    def getDParamDflt(self):    
-        return 
+    def getDParamDflt(self):
+        return
     def getDParamDflt(self):
         return []
-    def getDParamScalings(self):    
+    def getDParamScalings(self):
         return []
     def getDParamRefineDflt(self):
         return []
@@ -4338,7 +4338,7 @@ class DetectorGeomGE(Detector2DRC):
     x and y are in pixels, as is rho;
     pixels are numbered from (0,0);
     """
-    
+
     # 200 x 200 micron pixels
     __pixelPitch     = 0.2      # in mm
     __idim           = ReadGE._ReadGE__idim
@@ -4348,68 +4348,68 @@ class DetectorGeomGE(Detector2DRC):
     __dParamZero     = [   0.0,      0.0,     0.0,      2.0,      2.0,      2.0]
     __dParamScalings = [   1.0,      1.0,     1.0,      1.0,      1.0,      1.0]
     __dParamRefineDflt = (True,     True,    True,    False,    False,    False)
-    
+
     def __init__(self, *args, **kwargs):
-        
-        Detector2DRC.__init__(self, 
+
+        Detector2DRC.__init__(self,
                               self.__nrows, self.__ncols, self.__pixelPitch,
                               ReadGE,
                               *args, **kwargs)
         return
-    
+
     def getDParamDflt(self):
         return self.__dParamDflt
     def setDParamZero(self):
         self.dparm = self.__dParamZero
-        return 
-    def getDParamScalings(self):    
+        return
+    def getDParamScalings(self):
         return self.__dParamScalings
     def getDParamRefineDflt(self):
         return self.__dParamRefineDflt
     def radialDistortion(self, xin, yin, invert=False):
-        """    
+        """
         Apply radial distortion to polar coordinates on GE detector
-        
+
         xin, yin are 1D arrays or scalars, assumed to be relative to self.xc, self.yc
         Units are [mm, radians].  This is the power-law based function of Bernier.
-        
+
         Available Keyword Arguments :
-        
+
         invert = True or >False< :: apply inverse warping
         """
         # canonical max radius based on perfectly centered beam
         #   - 204.8 in mm or 1024 in pixel indices
         rhoMax = self.__idim * self.__pixelPitch / 2
-        
+
         # make points relative to detector center
         x0 = (xin + self.xc) - rhoMax
         y0 = (yin + self.yc) - rhoMax
-        
+
         # detector relative polar coordinates
         #   - this is the radius that gets rescaled
         rho0 = num.sqrt( x0*x0 + y0*y0 )
         eta0 = num.arctan2( y0, x0 )
-                
+
         if invert:
             # in here must do nonlinear solve for distortion
-            
+
             # must loop to call fsolve individually for each point
             rho0   = num.atleast_1d(rho0)
             rShape = rho0.shape
             rho0   = num.atleast_1d(rho0).flatten()
             rhoOut = num.zeros(len(rho0), dtype=float)
-            
+
             eta0   = num.atleast_1d(eta0).flatten()
-            
+
             rhoSclFunc = lambda ri, ni, ro, p=self.dparms, rx=rhoMax: \
                 (p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
                  p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
-                 p[2]*(ri/rx)**p[5] + 1)*ri - ro 
-            
+                 p[2]*(ri/rx)**p[5] + 1)*ri - ro
+
             for iRho in range(len(rho0)):
                 rhoOut[iRho] = fsolve(rhoSclFunc, rho0[iRho], args=(eta0[iRho], rho0[iRho]))
                 pass
-            rhoOut = rhoOut.reshape(rShape)            
+            rhoOut = rhoOut.reshape(rShape)
         else:
             # usual case: calculate scaling to take you from image to detector plane
             # 1 + p[0]*(ri/rx)**p[2] * num.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
@@ -4417,27 +4417,27 @@ class DetectorGeomGE(Detector2DRC):
                          p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
                          p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
                          p[2]*(ri/rx)**p[5] + 1
-            
+
             rhoOut = num.squeeze( rho0 * rhoSclFunc(rho0) )
-            
+
         xout = rhoOut * num.cos(eta0) + rhoMax - self.xc
         yout = rhoOut * num.sin(eta0) + rhoMax - self.yc
-        
+
         return xout, yout
 
 class DetectorGeomQuadGE(DetectorBase):
     """
-    No global parameters -- all detector parameters hang off of the sub-detectors; 
+    No global parameters -- all detector parameters hang off of the sub-detectors;
     although some data are stored off of this higher level class for convenience
     """
-    
+
     __inParmDict = {
         'quadAngle'   : -53.0*(num.pi/180.), # 53 degrees, converted to radians
         'quadPad'     : 20., # in-plane distance between active surfaces of detectors; in pixelPitchUnit
         'quadShift'   : 100., # in-plane shift of detectors to allow for central opening; in pixelPitchUnit
         'quadOffsets' : 'hydra',
         }
-    
+
     # order by diagram numbering
     __quadHydraLQuad    = [0,3,1,2] # draw ones in front first
     __quadHydraPush     = [0.,98.,0.,98.] # offset in working distance to overlap detector frames; in pixelPitchUnit
@@ -4445,28 +4445,28 @@ class DetectorGeomQuadGE(DetectorBase):
     __quadHydraIPad     = [ [0,0], [1,0], [0,-1], [1,-1] ]
     __quadHydraIXShift  = [ 0,  0,  1,  1 ]
     __quadHydraIYShift  = [ 0,  1,  0,  1 ]
-    
+
     def __init__(self, *args, **kwargs):
-        
+
         'pass ReadGE as the readerClass for now; perhaps make a ReadQuadGE class later if it turns out to be needed'
         DetectorBase.__init__(self, ReadGE)
-        
-        # defaults and kwargs parsing        
+
+        # defaults and kwargs parsing
         for parm, val in self.__inParmDict.iteritems():
             if kwargs.has_key(parm):
                 val = kwargs.pop(parm)
             self.__setattr__(parm, val)
-        
+
         dgDummy = DetectorGeomGE()
-        
+
         'cleanup after auto-parsing of keyword args'
         self.quadAngle = valUnits.toFloat(self.quadAngle, 'radians')
         self.quadPad   = valUnits.toFloat(self.quadPad,   dgDummy.pixelPitchUnit)
         self.quadShift = valUnits.toFloat(self.quadShift, dgDummy.pixelPitchUnit)
         # self.quadPush  = valUnits.toFloat(self.quadPush,  dgDummy.pixelPitchUnit)
-        
+
         iRefQuad = 0
-        
+
         if len(args) == 1:
             if hasattr(args[0], 'xyoToAng'):
                 dgIn = args[0]
@@ -4489,7 +4489,7 @@ class DetectorGeomQuadGE(DetectorBase):
         else:
             raise RuntimeError, 'do not know how to parse arguments'
         dRef = self.detectors[iRefQuad]
-        
+
         if self.quadOffsets == 'hydra':
             'do not do quadAngle rotation in centers, as rotation happens _after_ translation'
             self.lQuad = self.__quadHydraLQuad
@@ -4517,11 +4517,11 @@ class DetectorGeomQuadGE(DetectorBase):
             self.quadOffsets = num.atleast_2d(self.quadOffsets)
             assert self.quadOffsets.shape == (4,3), \
                 'quadOffsets wrong shape, should be (4,3) and is : '+str(self.quadOffsets)
-        
+
         self.setCentersFromRef(iRefQuad=iRefQuad)
-        
+
         return
-    
+
     @classmethod
     def getRefineFlagsDflt(cls):
         '''
@@ -4533,7 +4533,7 @@ class DetectorGeomQuadGE(DetectorBase):
 
     def getTThMax(self):
         '''
-        min over sub-detectors, where for each sub-detector max two-theta is evaluated as 
+        min over sub-detectors, where for each sub-detector max two-theta is evaluated as
         the max over points checked in getTThMax for the sub-detector
         '''
         tThMaxList = [ self.detectors[iQuad].getTThMax(func=num.max) for iQuad in self.lQuad ]
@@ -4551,7 +4551,7 @@ class DetectorGeomQuadGE(DetectorBase):
             dg.yc       = dRef.yc       + ( self.quadOffsets[iRefQuad][1] - self.quadOffsets[iQuad][1] )
             dg.workDist = dRef.workDist + ( self.quadOffsets[iRefQuad][2] - self.quadOffsets[iQuad][2] )
         return
-    
+
     def setQuadOffsets(self, iRefQuad=0):
         'this assumes all of the tilts are the same'
         lQuad = copy.copy(self.lQuad)
@@ -4560,8 +4560,8 @@ class DetectorGeomQuadGE(DetectorBase):
         self.quadOffsets[iRefQuad][:] = num.zeros(3)
         for iQuad in lQuad:
             dg = self.detectors[iQuad]
-            self.quadOffsets[iQuad][0] = self.quadOffsets[iRefQuad][0]  + dRef.xc        - dg.xc      
-            self.quadOffsets[iQuad][1] = self.quadOffsets[iRefQuad][1]  + dRef.yc        - dg.yc      
+            self.quadOffsets[iQuad][0] = self.quadOffsets[iRefQuad][0]  + dRef.xc        - dg.xc
+            self.quadOffsets[iQuad][1] = self.quadOffsets[iRefQuad][1]  + dRef.yc        - dg.yc
             self.quadOffsets[iQuad][2] = self.quadOffsets[iRefQuad][2]  + dRef.workDist  - dg.workDist
         return
 
@@ -4582,11 +4582,11 @@ class DetectorGeomQuadGE(DetectorBase):
         retval = dg.display(thisframe, planeData=planeData, labAxesGlyph=True, **kwargs)
         return retval
 
-    def displayIdeal(self, framesQuad, planeData=None, workDist=None, nlump=None, 
+    def displayIdeal(self, framesQuad, planeData=None, workDist=None, nlump=None,
                      doFmtCoord=True, **kwargs):
         """
         display all sub-detectors on an idealized detector plane
-        
+
         If matplotlib gets around to enabling the transform argument
         to imshow, that might be a much faster approach than what is
         currently done here, although what is done here is nice in
@@ -4600,25 +4600,25 @@ class DetectorGeomQuadGE(DetectorBase):
         """
         pwKWArgs = plotWrap.PlotWrap.popKeyArgs(kwargs)
         pw = plotWrap.PlotWrap(**pwKWArgs)
-        pw.a.set_axis_bgcolor('white')        
+        pw.a.set_axis_bgcolor('white')
         pw.a.set_aspect('equal')
         retval = pw
-        
+
         'unless specified, use working distance of 0th sub-detector'
         workDist = workDist or self.detectors[0].workDist
-        
+
         nlump = nlump or 4
-        
+
         cmap = None; vmin = None; vmax = None; norm = None;
-        
+
         if doFmtCoord:
             fmtCoord = FmtCoordIdeal(planeData, workDist)
         for iQuad in self.lQuad:
             dg = self.detectors[iQuad]
             thisframe = framesQuad[iQuad]
-            
+
             h, xedges, yedges, mask = dg.renderIdeal(thisframe, workDist=workDist, nlump=nlump)
-            
+
             if cmap is None:
                 vmin, vmax, cmap = dg.readerClass.getDisplayArgs(h, kwargs)
                 cmap.set_under(color='white', alpha=0.0)
@@ -4630,38 +4630,38 @@ class DetectorGeomQuadGE(DetectorBase):
                 '''
                 h[h < 0] =  vmin + (vmax-vmin)*0.001
                 h[mask]  = -vmax
-            
+
             pw.a.pcolor(xedges, yedges, h.T, cmap=cmap, norm=norm, **kwargs)
-            
+
             if doFmtCoord:
                 iDetector = iQuad+1 # people like things numbered from 1
                 fmtCoord.addDetectorData(iDetector, xedges, yedges, h, mask)
-            
+
             del thisframe
-        
+
         if doFmtCoord:
             pw.a.format_coord = fmtCoord
         pw.a.set_autoscale_on(False)
-        pw.show() 
+        pw.show()
         return retval
-    
-    def fitProcedureA(self, planeData, framesQuad, iRefQuad=0, 
-                      funcType=funcTypeDflt, funcXVecList = None, quadr=1, 
+
+    def fitProcedureA(self, planeData, framesQuad, iRefQuad=0,
+                      funcType=funcTypeDflt, funcXVecList = None, quadr=1,
                       doGUI=2):
         """
         A procedure for fitting the set of detectors;
         do not need to click 'fit' button in GUI -- done inside the procedure.
-        
+
         Watch out -- MultiRingEval instances a memory hogs, especially while creating Jacobian matrices!
 
         If want to just refine detector geometry and not the functional forms for the rings,
-        pass funcXVecList as True or as something like a list of arrays from MultiRingEval.getFuncXVecList() 
+        pass funcXVecList as True or as something like a list of arrays from MultiRingEval.getFuncXVecList()
         """
         from xrdBase import dataToFrame # move to beginning of module
-        
+
         assert len(framesQuad) == 4,\
             'need len(framesQuad) to be 4'
-        
+
         if funcXVecList:
             if hasattr(funcXVecList,'__len__'):
                 funcXVecListList = funcXVecList
@@ -4678,7 +4678,7 @@ class DetectorGeomQuadGE(DetectorBase):
         # refPos = num.array([dRef.xc, dRef.yc, dRef.workDist])
         'set quadOffsets from current centers, gets used in setCentersFromRef below'
         self.setQuadOffsets(iRefQuad)
-        
+
         iQuad = iRefQuad
         dg = self.detectors[iQuad]
         frame = dataToFrame(framesQuad[iQuad])
@@ -4690,7 +4690,7 @@ class DetectorGeomQuadGE(DetectorBase):
             del pw
         #
         'now go ahead and do fit'
-        mRing  = MultiRingEval(dg, planeData, frame, funcType=funcType, 
+        mRing  = MultiRingEval(dg, planeData, frame, funcType=funcType,
                                funcXVecList=funcXVecListList[iQuad])
         xFit   = mRing.doFit()
         if doGUI > 1:
@@ -4745,7 +4745,7 @@ def newDetector(detectorType):
     """Return a detector of the requested type
 
     INPUTS
-    
+
     detectorType - a string in the detector type list [see detectorList()]
 """
     dt = detectorType.lower()

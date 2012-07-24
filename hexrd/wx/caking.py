@@ -32,9 +32,9 @@ import wx
 
 import numpy
 
-from hexrd.XRD import detector
-from hexrd.XRD.Experiment  import PolarRebinOpts as prOpts
-from hexrd.XRD.xrdUtils    import CollapseOmeEta
+from hexrd.xrd import detector
+from hexrd.xrd.Experiment  import PolarRebinOpts as prOpts
+from hexrd.xrd.xrdUtils    import CollapseOmeEta
 
 from hexrd.wx.canvasUtilities import *
 from hexrd.wx.guiConfig    import WindowParameters as WP

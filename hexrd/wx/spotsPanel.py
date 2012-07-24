@@ -33,7 +33,7 @@ import wx
 from hexrd.wx.guiConfig    import WindowParameters as WP
 from hexrd.wx.guiUtilities import makeTitleBar
 
-from hexrd.XRD.crystallography    import processWavelength
+from hexrd.xrd.crystallography    import processWavelength
 #
 # ---------------------------------------------------CLASS:  spotsPanel
 #

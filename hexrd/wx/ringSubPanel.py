@@ -31,7 +31,7 @@
 import wx
 
 from hexrd.valUnits import valWUnit
-from hexrd.XRD.Material import Material
+from hexrd.xrd.Material import Material
 
 from hexrd.wx.guiConfig    import WindowParameters as WP
 from hexrd.wx.guiUtilities import makeTitleBar
@@ -39,8 +39,8 @@ from hexrd.wx.selectHKLs   import selectHKLsDialog as hklsDlg
 #
 #  Data
 #
-from hexrd.XRD.crystallography import dUnit as WAVELENGTH_UNIT
-from hexrd.XRD.crystallography import processWavelength
+from hexrd.xrd.crystallography import dUnit as WAVELENGTH_UNIT
+from hexrd.xrd.crystallography import processWavelength
 
 # AngstromTimesKev = 12.39854 # from APS site (lose digits accuracy this way)
 AngstromTimesKev = processWavelength(1.0)

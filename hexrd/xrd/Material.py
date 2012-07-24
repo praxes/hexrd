@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -29,13 +29,13 @@
 """Module for XRD material class
 
 Use the Material class directly for new materials.  Known
-materials are defined by name in materialDict.  
+materials are defined by name in materialDict.
 """
 from ConfigParser import SafeConfigParser as Parser
 import numpy
 
-from hexrd.XRD.crystallography import PlaneData as PData
-from hexrd.XRD.SpaceGroup      import SpaceGroup as SG
+from hexrd.xrd.crystallography import PlaneData as PData
+from hexrd.xrd.SpaceGroup      import SpaceGroup as SG
 
 from hexrd.valUnits   import valWUnit
 #
@@ -56,19 +56,19 @@ space group data.
 """
     DFLT_NAME   = 'material'
     DFLT_SGNUM  = 230
-    DFLT_LPARMS = [angstroms(1.0), angstroms(1.0), angstroms(1.0), 
+    DFLT_LPARMS = [angstroms(1.0), angstroms(1.0), angstroms(1.0),
                    degrees(90.0), degrees(90.0), degrees(90.0)]
     DFLT_SSMAX  = 50
-    
+
     DFLT_KEV    = valWUnit('wavelength', 'energy', 80.725e0, 'keV')
     DFLT_STR    = 0.002
     DFLT_TTH    = 0.002
     #
     def __init__(self, name=DFLT_NAME, cfgP=None):
         """Constructor for Material
-        
+
         name -- (str) name of material
-        cfgP -- (instance) configuration file parser with 
+        cfgP -- (instance) configuration file parser with
              -- the material name as a section
 """
         #
@@ -79,7 +79,7 @@ space group data.
             # Get values from configuration
             self._readCfg(cfgP)
             pass
-        else: 
+        else:
             # Use default values
             self._hklMax = Material.DFLT_SSMAX
             self._lparms = Material.DFLT_LPARMS
@@ -88,7 +88,7 @@ space group data.
             self.description = ''
 
             print 'using default values: ', self
-            
+
             pass
         #
         print 'New Material \n', self
@@ -132,7 +132,7 @@ space group data.
         self._hklMax = p.getint(self.name, 'hkls-ssmax')
         self._lparms = self._toSixLP(sgnum, lparams)
         self.sgnum   = sgnum
-        # 
+        #
         self.description = p.get(self.name, 'description')
 
         return
@@ -142,10 +142,10 @@ space group data.
         hkls = numpy.array(self.spaceGroup.getHKLs(self.hklMax)).T
         lprm = [self._lparms[i] for i in self.spaceGroup.reqParams]
         laue = self.spaceGroup.laueGroup
-        self._pData = PData(hkls, lprm, laue, 
+        self._pData = PData(hkls, lprm, laue,
                             Material.DFLT_KEV, Material.DFLT_STR,
                             tThWidth=Material.DFLT_TTH)
-        
+
         print 'defaults (tth/kev/str): ', \
               Material.DFLT_TTH, Material.DFLT_KEV, Material.DFLT_STR
         #
@@ -155,15 +155,15 @@ space group data.
             [1 for i in range(len(self._pData.exclusions))], dtype=bool)
         dflt_excl[:5] = False
         self._pData.exclusions = dflt_excl
-        
+
         return
 
     def _toSixLP(self, sgn, lp):
         """Generate all six lattice parameters, making sure units are attached."""
- 
+
         tmpSG = SG(sgn)
         lp6 = list(tmpSG.sixLatticeParams(lp))
-        
+
         for i in range(6): # make sure angles have attached units
             if not hasattr(lp6[i], 'getVal'):
                 if i in range(3):
@@ -172,7 +172,7 @@ space group data.
                     lp6[i] = degrees(lp6[i])
                     pass
                 pass
-            pass 
+            pass
 
         return lp6
     #
@@ -188,7 +188,7 @@ space group data.
         """(read only) Space group"""
         return self._spaceGroup
 
-    # property:  sgnum    
+    # property:  sgnum
 
     def _get_sgnum(self):
         """Get method for sgnum"""
@@ -248,7 +248,7 @@ On input, either all six or a minimal set is accepted.
 
 The values have units attached, i.e. they are valWunit instances.
 """
-    latticeParameters = property(_get_latticeParameters, _set_latticeParameters, 
+    latticeParameters = property(_get_latticeParameters, _set_latticeParameters,
                                  None, lpdoc)
 
     # property:  "name"
@@ -260,10 +260,10 @@ The values have units attached, i.e. they are valWunit instances.
     def _set_name(self, v):
         """Set method for name"""
         self._name = v
-        
+
         return
 
-    name = property(_get_name, _set_name, None, 
+    name = property(_get_name, _set_name, None,
                     "Name of material" )
     #
     #  ========== Methods
@@ -306,7 +306,7 @@ if __name__ == '__main__':
         pass
 
     ml = loadMaterialList(sys.argv[1])
-    
+
     print 'MATERIAL LIST\n'
     print '   from file:  ', sys.argv[1]
     for m in ml: print m

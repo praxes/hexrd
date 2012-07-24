@@ -37,9 +37,9 @@ from hexrd.wx.xrdMainFrame import xrdMainFrame
 #
 #  mdef Modules
 #
-from hexrd.XRD import detector as detectorModule
+from hexrd.xrd import detector as detectorModule
 
-from hexrd.XRD.Experiment import loadExp, ImageModes
+from hexrd.xrd.Experiment import loadExp, ImageModes
 #
 # ---------------------------------------------------CLASS:  xrdApp
 #
