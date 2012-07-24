@@ -40,7 +40,7 @@ import cPickle
 import numpy
 
 from hexrd.xrd import detector
-from hexrd.xrd import spotFinder
+from hexrd.xrd import spotfinder
 from hexrd.xrd import crystallography
 from hexrd.xrd import grain as G
 from hexrd.xrd import indexer

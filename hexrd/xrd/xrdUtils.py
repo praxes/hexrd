@@ -58,7 +58,7 @@ from hexrd.xrd.xrdBase import dataToFrame
 from hexrd.xrd.xrdBase import multiprocessing
 from hexrd.xrd import Rotations as rot
 from hexrd.xrd.rotations import mapAngle
-from hexrd.xrd import spotFinder
+from hexrd.xrd import spotfinder
 
 'quadr1d of 8 is probably overkill, but we are in 1d so it is inexpensive'
 quadr1dDflt = 8
@@ -2006,7 +2006,7 @@ def pullFromStack(reader, detectorGeom, tThMM, angWidth, angCen,
         pixelData = num.ma.masked_array(pixelData, mask=mask, hard_mask=True, copy=False)
 
     # ndimage.watershed_ift may be worth trying at some point
-    bin = spotFinder.getBin(pixelData, threshold, padSpot)
+    bin = spotfinder.getBin(pixelData, threshold, padSpot)
     labelStructure = ndimage.generate_binary_structure(pixelData.ndim,1)
     labels, numSpots = ndimage.label(bin, labelStructure)
     # labels may include masked pixels, but left them in on purpose so that spots would not get sliced by rows of bad pixels
@@ -2022,7 +2022,7 @@ def pullFromStack(reader, detectorGeom, tThMM, angWidth, angCen,
             for iSpot in range(numSpots):
                 index = iSpot+1
                 'this com is with respect to pixelData box, so add in xyfBBox_0'
-                comThis, vSumThis = spotFinder.getImCOM(pixelData, labels, objs, index, floor=0, getVSum=True)
+                comThis, vSumThis = spotfinder.getImCOM(pixelData, labels, objs, index, floor=0, getVSum=True)
                 vSum[iSpot] = vSumThis
                 com[iSpot,:] = comThis + xyfBBox_0
             comTTh, comEta, comOme = detectorGeom.xyoToAng(com[:,0], com[:,1], reader.frameToOmega(com[:,2]))
@@ -2067,7 +2067,7 @@ def spotFromStack(reader, detectorGeom, tThMM, angWidth, angCen, threshold,
         index = iSpot+1
         obj = objs[iSpot]
         # indices = list(num.where(labels[obj] == index))
-        indices = list(spotFinder.getIndices(pixelData, labels, objs[index-1], index)) # convert tuple to list so that can modify it
+        indices = list(spotfinder.getIndices(pixelData, labels, objs[index-1], index)) # convert tuple to list so that can modify it
         for iX in range(len(indices)):
             indices[iX] = indices[iX] + obj[iX].start
         xAll = []
@@ -2088,8 +2088,8 @@ def spotFromStack(reader, detectorGeom, tThMM, angWidth, angCen, threshold,
 
         if fullBackground:
             'add in pixels that are inside angWidth and are below background'
-            # indicesBkg = list(spotFinder.getIndices(pixelData, labels, None, 0)) # convert tuple to list so that can modify it
-            indicesBkg = spotFinder.getIndices(pixelData, labels, None, 0)
+            # indicesBkg = list(spotfinder.getIndices(pixelData, labels, None, 0)) # convert tuple to list so that can modify it
+            indicesBkg = spotfinder.getIndices(pixelData, labels, None, 0)
             'no need to add in obj[iX].start -- did full pixelData'
             xAllBkg = []
             for iX, xL in enumerate(indicesBkg):
@@ -2111,7 +2111,7 @@ def spotFromStack(reader, detectorGeom, tThMM, angWidth, angCen, threshold,
             retval = map(num.hstack, zip(data, dataBkg))
             pass
         pass
-    # spot = spotFinder.Spot(key, reader.getDeltaOmega(), data=data)
+    # spot = spotfinder.Spot(key, reader.getDeltaOmega(), data=data)
     return retval
 
 def collapse(vAll, eta, ome,
