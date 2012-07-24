@@ -53,7 +53,7 @@ from hexrd.wx.readerPanel    import readerPanel
 from hexrd.wx.detectorpanel import detectorPanel
 from hexrd.wx.spotsPanel    import spotsPanel
 from hexrd.wx.indexPanel    import indexPanel
-from hexrd.wx.grainPanel    import grainPanel
+from hexrd.wx.grainpanel    import grainPanel
 #
 # ---------------------------------------------------CLASS:  xrdNoteBook
 #
