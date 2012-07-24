@@ -34,8 +34,7 @@ Usage:
 from setuptools import setup
 
 APP = ['mainApp.py']
-DATA_FILES = [('Data', ['../Data/materials.cfg']), 
-              ('', ['Resources/units'])]
+DATA_FILES = [('data', ['../data/materials.cfg'])]
 OPTIONS = {'argv_emulation': False}
 
 setup(

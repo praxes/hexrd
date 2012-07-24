@@ -56,11 +56,11 @@ from hexrd.XRD import xrdUtils
 #  Defaults (will eventually make to a config file)
 #
 HERE = os.path.dirname(__file__)
-toMatFile    = os.path.join(HERE, '..', 'Data', 'materials.cfg')
+toMatFile    = os.path.join(HERE, '..', 'data', 'materials.cfg')
 DFLT_MATFILE = os.path.normpath(toMatFile) # check whether it exists
 matfileOK    = os.access(DFLT_MATFILE, os.F_OK)
 if not matfileOK:  # use relative path
-    DFLT_MATFILE = os.path.join('Data', 'materials.cfg')
+    DFLT_MATFILE = os.path.join('data', 'materials.cfg')
     pass
 matfileOK = os.access(DFLT_MATFILE, os.F_OK)
 if not matfileOK:  # set to null
