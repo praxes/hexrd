@@ -57,7 +57,7 @@ from hexrd.wx.guiconfig import WindowParameters as WP
 from hexrd.wx.guiutil import ResetChoice, AddSpacer, EmptyWindow, makeTitleBar
 from hexrd.wx.floatcontrol import *
 from hexrd.wx.logwindows   import logWindow
-from hexrd.wx.ringSubPanel import ringPanel
+from hexrd.wx.ringsubpanel import ringPanel
 from hexrd.wx.selectHKLs   import selectHKLsDialog as hklsDlg #TBR
 
 # AngstromTimesKev = 12.39854 # from APS site (lose digits accuracy this way)
