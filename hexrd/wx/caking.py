@@ -38,7 +38,7 @@ from hexrd.xrd.xrdUtils    import CollapseOmeEta
 
 from hexrd.wx.canvasutil import *
 from hexrd.wx.guiconfig    import WindowParameters as WP
-from hexrd.wx.guiUtilities import makeTitleBar
+from hexrd.wx.guiutil import makeTitleBar
 from hexrd.wx.ringSubPanel import ringPanel
 from hexrd.wx.selectHKLs   import selectHKLsDialog as hklsDlg
 from hexrd.wx.logwindows   import logWindow

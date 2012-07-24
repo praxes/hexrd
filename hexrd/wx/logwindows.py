@@ -32,7 +32,7 @@ import thread
 
 import wx
 
-from hexrd.wx.guiUtilities import makeTitleBar
+from hexrd.wx.guiutil import makeTitleBar
 #
 # ---------------------------------------------------CLASS:  logWindow
 #

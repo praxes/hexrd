@@ -41,7 +41,7 @@ from hexrd import copyright
 from hexrd.xrd.Experiment import *
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
-from hexrd.wx.guiUtilities import makeTitleBar
+from hexrd.wx.guiutil import makeTitleBar
 from hexrd.wx.xrdNoteBook  import xrdNoteBook
 from hexrd.wx.canvaspanel  import CanvasPanel
 from hexrd.wx.listeditor      import ListEditDlg

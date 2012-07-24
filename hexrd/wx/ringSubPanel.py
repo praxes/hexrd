@@ -34,7 +34,7 @@ from hexrd.valunits import valWUnit
 from hexrd.xrd.Material import Material
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
-from hexrd.wx.guiUtilities import makeTitleBar
+from hexrd.wx.guiutil import makeTitleBar
 from hexrd.wx.selectHKLs   import selectHKLsDialog as hklsDlg
 #
 #  Data

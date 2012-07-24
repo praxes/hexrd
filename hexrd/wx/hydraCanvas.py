@@ -43,7 +43,7 @@ from matplotlib                        import cm
 #  XRD package
 #
 from hexrd.wx.guiconfig  import WindowParameters as WP
-from hexrd.wx.guiUtilities import ResetChoice
+from hexrd.wx.guiutil import ResetChoice
 
 from hexrd.wx.floatcontrol import *
 #

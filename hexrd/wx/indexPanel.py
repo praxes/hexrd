@@ -31,7 +31,7 @@
 import wx
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
-from hexrd.wx.guiUtilities import makeTitleBar, callJoel
+from hexrd.wx.guiutil import makeTitleBar, callJoel
 #
 # ---------------------------------------------------CLASS:  indexPanel
 #
