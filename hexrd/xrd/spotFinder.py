@@ -62,7 +62,7 @@ from hexrd.xrd import detector
 from hexrd.xrd import xrdBase
 from hexrd.xrd.xrdBase import getGaussNDParams
 from hexrd.xrd import Rotations
-from hexrd.xrd.Rotations import mapAngle
+from hexrd.xrd.rotations import mapAngle
 
 
 debugDflt = False

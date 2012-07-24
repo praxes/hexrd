@@ -57,7 +57,7 @@ from hexrd.xrd import xrdBase
 from hexrd.xrd.xrdBase import dataToFrame
 from hexrd.xrd.xrdBase import multiprocessing
 from hexrd.xrd import Rotations as rot
-from hexrd.xrd.Rotations import mapAngle
+from hexrd.xrd.rotations import mapAngle
 from hexrd.xrd import spotFinder
 
 'quadr1d of 8 is probably overkill, but we are in 1d so it is inexpensive'

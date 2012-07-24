@@ -34,7 +34,7 @@ from scipy.linalg import inv, qr, svd
 
 import hexrd.matrixutil as mUtil
 from hexrd import valunits
-import hexrd.xrd.Rotations as rot
+import hexrd.xrd.rotations as rot
 import hexrd.xrd.Symmetry as sym
 import hexrd.xrd.crystallography as xtl # latticeParameters, latticeVectors, getFriedelPair
 from hexrd import XRD

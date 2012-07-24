@@ -38,8 +38,8 @@ import numpy as num
 import hexrd.matrixutil as mUtil
 import hexrd.xrd.grain
 from hexrd.xrd.grain import makeMeasuredScatteringVectors
-import hexrd.xrd.Rotations
-from hexrd.xrd.Rotations import mapAngle
+import hexrd.xrd.rotations
+from hexrd.xrd.rotations import mapAngle
 from hexrd.xrd.Symmetry import toFundamentalRegion
 from hexrd.xrd import xrdBase
 
@@ -300,7 +300,7 @@ def convertUToRotMat(Urows, U0, symTag='Oh'):
     Urows comes from grainspotter's gff output
     U0 comes from xrd.crystallography.latticeVectors.U0
     """
-    R = hexrd.xrd.Rotations
+    R = hexrd.xrd.rotations
 
     numU, testDim = Urows.shape
     assert testDim == 9, "Your input must have 9 columns; yours has %d" % (testDim)
@@ -332,7 +332,7 @@ def convertRotMatToRisoeU(rMats, U0, symTag='Oh'):
     Urows comes from grainspotter's gff output
     U0 comes from xrd.crystallography.latticeVectors.U0
     """
-    R = hexrd.xrd.Rotations # formerly import
+    R = hexrd.xrd.rotations # formerly import
 
     numU = num.shape(num.atleast_3d(rMats))[0]
 
@@ -377,7 +377,7 @@ def testThisQ(thisQ):
     and then different processes would have different data, unless spotsArray were made to be fancier
     """
     G = hexrd.xrd.grain
-    R = hexrd.xrd.Rotations
+    R = hexrd.xrd.rotations
 
     """
     kludge stuff so that this function is outside of fiberSearch
@@ -535,7 +535,7 @@ def fiberSearch(spotsArray, hklList,
     the output is a concatenated list of orientation matrices ((n, 3, 3) numpy.ndarray).
     """
     G = hexrd.xrd.grain
-    R = hexrd.xrd.Rotations
+    R = hexrd.xrd.rotations
     assert hasattr(hklList, '__len__'), "the HKL list must have length, and len(hklList) > 0."
 
     nHKLs = len(hklList)
@@ -761,7 +761,7 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
 
     ...make a new function that gets called by grain to do the g-vec angle computation?
     """
-    rot = hexrd.xrd.Rotations
+    rot = hexrd.xrd.rotations
 
     quats = num.atleast_2d(quats)
     if quats.size == 4:

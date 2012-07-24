@@ -55,9 +55,9 @@ from matplotlib.widgets import Slider, Button, RadioButtons
 
 from hexrd import XRD
 from hexrd.xrd.xrdBase import getGaussNDParams
-from hexrd.xrd.Rotations import mapAngle
-from hexrd.xrd.Rotations import rotMatOfExpMap
-from hexrd.xrd.Rotations import rotMatOfExpMap, arccosSafe
+from hexrd.xrd.rotations import mapAngle
+from hexrd.xrd.rotations import rotMatOfExpMap
+from hexrd.xrd.rotations import rotMatOfExpMap, arccosSafe
 from hexrd.quadrature import q1db
 from hexrd.quadrature import q2db
 from hexrd.matrixutil import unitVector
