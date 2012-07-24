@@ -37,7 +37,7 @@ import numpy
 from hexrd.xrd.crystallography import PlaneData as PData
 from hexrd.xrd.SpaceGroup      import SpaceGroup as SG
 
-from hexrd.valUnits   import valWUnit
+from hexrd.valunits   import valWUnit
 #
 __all__ = ['Material', 'loadMaterialList']
 #

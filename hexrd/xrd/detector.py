@@ -61,7 +61,7 @@ from hexrd.xrd.Rotations import rotMatOfExpMap, arccosSafe
 from hexrd.quadrature import q1db
 from hexrd.quadrature import q2db
 from hexrd.matrixutil import unitVector
-from hexrd import valUnits
+from hexrd import valunits
 
 havePlotWrap = True
 try:
@@ -2743,7 +2743,7 @@ class Detector2DRC(DetectorBase):
                  (xc, yc) = (0,0) puts the beam center in the
                  _center_ of the corner pixel
         workDist : working distance, as valWUnit instance, eg:
-        workDist = valUnits.valWUnit('workDist', 'length', 1.9365, 'meter')
+        workDist = valunits.valWUnit('workDist', 'length', 1.9365, 'meter')
         distortionParams : distortion parameters
 
         eventually, may want to have this be able to determine
@@ -4460,10 +4460,10 @@ class DetectorGeomQuadGE(DetectorBase):
         dgDummy = DetectorGeomGE()
 
         'cleanup after auto-parsing of keyword args'
-        self.quadAngle = valUnits.toFloat(self.quadAngle, 'radians')
-        self.quadPad   = valUnits.toFloat(self.quadPad,   dgDummy.pixelPitchUnit)
-        self.quadShift = valUnits.toFloat(self.quadShift, dgDummy.pixelPitchUnit)
-        # self.quadPush  = valUnits.toFloat(self.quadPush,  dgDummy.pixelPitchUnit)
+        self.quadAngle = valunits.toFloat(self.quadAngle, 'radians')
+        self.quadPad   = valunits.toFloat(self.quadPad,   dgDummy.pixelPitchUnit)
+        self.quadShift = valunits.toFloat(self.quadShift, dgDummy.pixelPitchUnit)
+        # self.quadPush  = valunits.toFloat(self.quadPush,  dgDummy.pixelPitchUnit)
 
         iRefQuad = 0
 

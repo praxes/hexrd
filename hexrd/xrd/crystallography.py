@@ -34,8 +34,8 @@ import numpy as num
 from scipy import constants as C
 
 from hexrd.matrixutil import *
-from hexrd import valUnits
-from hexrd.valUnits import toFloat
+from hexrd import valunits
+from hexrd.valunits import toFloat
 
 # module vars
 r2d = 180./pi
@@ -91,13 +91,13 @@ def processWavelength(arg):
                 # speed  = ...
                 # planck = ...
             e = arg.getVal('J')
-            retval = valUnits.valWUnit('wavelength', 'length', planck*speed/e, 'm').getVal(dUnit)
+            retval = valunits.valWUnit('wavelength', 'length', planck*speed/e, 'm').getVal(dUnit)
         else:
             raise RuntimeError, 'do not know what to do with '+str(arg)
     else:
         keV2J = 1.e3*C.e
         e = keV2J * arg
-        retval = valUnits.valWUnit('wavelength', 'length', C.h*C.c/e, 'm').getVal(dUnit)
+        retval = valunits.valWUnit('wavelength', 'length', C.h*C.c/e, 'm').getVal(dUnit)
 
     return retval
 

@@ -46,7 +46,7 @@ from hexrd import plotwrap
 from hexrd import tens
 from hexrd import matrixutil
 from hexrd import pfigutil
-from hexrd.valUnits import toFloat
+from hexrd.valunits import toFloat
 import hexrd.orientations as ors
 from hexrd.xrd import crystallography
 from hexrd.xrd.crystallography import latticeParameters, latticeVectors

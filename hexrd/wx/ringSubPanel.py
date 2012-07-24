@@ -30,7 +30,7 @@
 """
 import wx
 
-from hexrd.valUnits import valWUnit
+from hexrd.valunits import valWUnit
 from hexrd.xrd.Material import Material
 
 from hexrd.wx.guiConfig    import WindowParameters as WP

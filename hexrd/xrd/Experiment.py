@@ -48,8 +48,6 @@ from hexrd.xrd import indexer
 from hexrd.xrd.hydra    import Hydra
 from hexrd.xrd.Material import Material, loadMaterialList
 
-
-from hexrd import valUnits
 from hexrd.xrd import xrdUtils
 
 #

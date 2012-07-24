@@ -50,8 +50,8 @@ except:
 from hexrd import arrayutil
 from hexrd.quadrature import q3db, q2db
 from hexrd import tens
-from hexrd import valUnits
-from hexrd.valUnits import toFloat
+from hexrd import valunits
+from hexrd.valunits import toFloat
 from hexrd import matrixutil as mUtil
 from hexrd.matrixutil import rowNorm
 from hexrd import plotwrap
@@ -4051,8 +4051,8 @@ class Spots(object):
     def findFriedelPairsHKL(self, hkl,
                             phaseID=None,
                             tthTol=None,
-                            etaTol=valUnits.valWUnit('etaTol', 'angle', 0.25, 'degrees'),
-                            omeTol=valUnits.valWUnit('etaTol', 'angle', 1.00, 'degrees')):
+                            etaTol=valunits.valWUnit('etaTol', 'angle', 0.25, 'degrees'),
+                            omeTol=valunits.valWUnit('etaTol', 'angle', 1.00, 'degrees')):
 
         getFriedelPair = crystallography.getFriedelPair
         angularDifference = Rotations.angularDifference
@@ -4659,7 +4659,7 @@ def main(argv=[]):
 
     spot = sortedSpots[-1] # biggest spot
     # win = spot.display(cmap=None)
-    workDist = valUnits.valWUnit('workDist', 'length', 1.9365, 'meter')
+    workDist = valunits.valWUnit('workDist', 'length', 1.9365, 'meter')
     detectorGeom = detector.DetectorGeomGE(1024, 1024, workDist)
     fitX, vCalc = spot.fit(detectorGeom=detectorGeom)
     winData = spot.display(title='data')

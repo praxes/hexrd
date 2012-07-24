@@ -33,7 +33,7 @@ from scipy import optimize
 from scipy.linalg import inv, qr, svd
 
 import hexrd.matrixutil as mUtil
-from hexrd import valUnits
+from hexrd import valunits
 import hexrd.xrd.Rotations as rot
 import hexrd.xrd.Symmetry as sym
 import hexrd.xrd.crystallography as xtl # latticeParameters, latticeVectors, getFriedelPair
@@ -126,8 +126,8 @@ class Grain(object):
             findMatchesKWArgs = kwargs
 
         # convert units as necessary
-        self.omeTol = valUnits.valWithDflt(self.omeTol, self.__omeTolDflt, 'radians')
-        self.etaTol = valUnits.valWithDflt(self.etaTol, self.__etaTolDflt, 'radians')
+        self.omeTol = valunits.valWithDflt(self.omeTol, self.__omeTolDflt, 'radians')
+        self.etaTol = valunits.valWithDflt(self.etaTol, self.__etaTolDflt, 'radians')
 
         self.detectorGeom  = spots.detectorGeom.makeNew(pVec=pVec)
         self.planeData     = spots.getPlaneData(self.phaseID)
