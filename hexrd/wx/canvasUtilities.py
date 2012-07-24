@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -47,8 +47,8 @@ from matplotlib.figure                 import Figure
 from matplotlib                        import pyplot
 from matplotlib                        import cm
 
-from hexrd.GUI.guiConfig    import WindowParameters as WP
-from hexrd.GUI.guiUtilities import makeTitleBar
+from hexrd.wx.guiConfig    import WindowParameters as WP
+from hexrd.wx.guiUtilities import makeTitleBar
 
 __all__ = ['matplotlib',
            'FigureCanvas',
@@ -97,38 +97,38 @@ class cmapPanel(wx.Panel):
         #
         #  * choose colormap and vmin and vmax
         #
-        self.cmap_lab = wx.StaticText(self, wx.NewId(), 
-                                        'Colormap:  ', 
+        self.cmap_lab = wx.StaticText(self, wx.NewId(),
+                                        'Colormap:  ',
                                         style=wx.ALIGN_RIGHT)
-        
-        self.cmap_nameList = ['autumn', 'bone', 'bone_r', 'cool', 'copper', 
+
+        self.cmap_nameList = ['autumn', 'bone', 'bone_r', 'cool', 'copper',
                               'flag', 'gray', 'gray_r', 'hot', 'hot_r',
                               'hsv', 'jet', 'pink', 'prism', 'spring',
                               'summer', 'winter', 'spectral']
-        self.cmap_cho = wx.Choice(self, wx.NewId(), 
+        self.cmap_cho = wx.Choice(self, wx.NewId(),
                                   choices=self.cmap_nameList)
-        
+
         self.cmap_name = 'bone'
         self.cmap_cho.SetStringSelection(self.cmap_name)
-        
+
         self.cmin_val = 0
-        self.cmin_lab = wx.StaticText(self, wx.NewId(), 
-                                        'Minimum:  ', 
+        self.cmin_lab = wx.StaticText(self, wx.NewId(),
+                                        'Minimum:  ',
                                         style=wx.ALIGN_RIGHT)
-        self.cmin_txt = wx.TextCtrl(self, wx.NewId(), 
-                                       value=str(self.cmin_val), 
+        self.cmin_txt = wx.TextCtrl(self, wx.NewId(),
+                                       value=str(self.cmin_val),
                                        style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
         self.cmUnder_box = wx.CheckBox(self, wx.NewId(), 'show under')
 
         self.cmax_val = 2000
-        self.cmax_lab = wx.StaticText(self, wx.NewId(), 
-                                        'Maximum:  ', 
+        self.cmax_lab = wx.StaticText(self, wx.NewId(),
+                                        'Maximum:  ',
                                         style=wx.ALIGN_RIGHT)
-        self.cmax_txt = wx.TextCtrl(self, wx.NewId(), 
-                                       value=str(self.cmax_val), 
+        self.cmax_txt = wx.TextCtrl(self, wx.NewId(),
+                                       value=str(self.cmax_val),
                                        style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
         self.cmOver_box = wx.CheckBox(self, wx.NewId(), 'show over')
-        
+
 
         return
 
@@ -151,19 +151,19 @@ class cmapPanel(wx.Panel):
         #
         nrow = 1; ncol = 3; padx = 5; pady = 5
 	self.cmSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
-        
+
         self.cmSizer.Add(self.cmap_lab, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.Add(self.cmap_cho, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.AddSpacer(1)
-        
+
         self.cmSizer.Add(self.cmin_lab, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.Add(self.cmin_txt, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.Add(self.cmUnder_box, 0, wx.EXPAND | wx.ALIGN_RIGHT)
-        
+
         self.cmSizer.Add(self.cmax_lab, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.Add(self.cmax_txt, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.Add(self.cmOver_box, 0, wx.EXPAND | wx.ALIGN_RIGHT)
-	
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.cmSizer,   0, wx.EXPAND|wx.ALIGN_RIGHT)
@@ -177,7 +177,7 @@ class cmapPanel(wx.Panel):
     def update(self, **kwargs):
         """Call parent to update"""
         self.GetParent().update(**kwargs)
-        
+
         return
     #
     #                     ========== *** Event Callbacks
@@ -204,11 +204,11 @@ class cmapPanel(wx.Panel):
         if e.IsChecked():
             self.cmap.set_under('b')
             pass
-        
+
         self.update(newImage=True)
 
         return
-    
+
     def OnSetOver(self, e):
         """show values over threshold"""
         self.cmap = copy.deepcopy(getattr(cm, self.cmap_name))
@@ -216,11 +216,11 @@ class cmapPanel(wx.Panel):
         if e.IsChecked():
             self.cmap.set_over('r')
             pass
-        
+
         self.update(newImage=True)
 
         return
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  cmapPanel

@@ -1,49 +1,49 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 #
-"""GUI Utilities
+"""wx Utilities
 """
 import wx.html
 #
-from hexrd.GUI.guiConfig import WindowParameters as WP, onLinux
+from hexrd.wx.guiConfig import WindowParameters as WP, onLinux
 #
 def ResetChoice(cho, names, sname):
-    """Reset the choice interactor. 
-    
+    """Reset the choice interactor.
+
     Surprisingly, there is no wx function for this.
 
     INPUTS
     . cho   -- the choice control
     . names -- the list of strings to populate it with
     . sname  --(string) the selected name
-        
+
     OUTPUTS (NONE)
-        
+
     DESCRIPTION
     . Resets the choice list and sets the selection.
 """
@@ -59,17 +59,17 @@ def ResetChoice(cho, names, sname):
         pass
 
     cho.SetSelection(sel)
-    
+
     return
 
-    
+
 def AddSpacer(p, sizer, color):
     """Add a spacer to a sizer
 
     p     - parent window
     sizer - where to put the spacer
     color - color to use
-""" 
+"""
     #  *** convert to wx.StaticLine()
     pad   = 10
     vsize = 5
@@ -105,8 +105,8 @@ def makeTitleBar(p, t, **kwargs):
     We use a workaround by creating a sizer with colored boxes
     on either side.
 """
-    titlebar = wx.StaticText(p, wx.NewId(), t, 
-                             style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER) 
+    titlebar = wx.StaticText(p, wx.NewId(), t,
+                             style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
     #
     #  Keyword args
     #
@@ -130,7 +130,7 @@ def makeTitleBar(p, t, **kwargs):
         w2.SetBackgroundColour(bgColor)
 
         tsizer.Add(w1, 1, wx.EXPAND)
-        tsizer.Add(titlebar, 0, wx.ALIGN_CENTER) 
+        tsizer.Add(titlebar, 0, wx.ALIGN_CENTER)
         #                  10 pixel padding on bottom
         tsizer.Add(w2, 1, wx.EXPAND)
     else:
@@ -151,5 +151,5 @@ def callJoel(p):
 </html>
 """
     hpage.SetPage(msg)
-    
+
     return hpage

@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -40,13 +40,13 @@ from wx.lib.wordwrap import wordwrap
 from hexrd import copyright
 from hexrd.XRD.Experiment import *
 
-from hexrd.GUI.guiConfig    import WindowParameters as WP
-from hexrd.GUI.guiUtilities import makeTitleBar
-from hexrd.GUI.xrdNoteBook  import xrdNoteBook
-from hexrd.GUI.canvasPanel  import CanvasPanel
-from hexrd.GUI.ListEditor      import ListEditDlg
-from hexrd.GUI.hydraInterface  import HydraControlFrame
-from hexrd.GUI.caking          import cakingDialog
+from hexrd.wx.guiConfig    import WindowParameters as WP
+from hexrd.wx.guiUtilities import makeTitleBar
+from hexrd.wx.xrdNoteBook  import xrdNoteBook
+from hexrd.wx.canvasPanel  import CanvasPanel
+from hexrd.wx.ListEditor      import ListEditDlg
+from hexrd.wx.hydraInterface  import HydraControlFrame
+from hexrd.wx.caking          import cakingDialog
 #
 # ---------------------------------------------------CLASS:  xrdMainFrame
 #
@@ -112,20 +112,20 @@ class xrdMainFrame(wx.Frame):
         menuBar = wx.MenuBar()
 
         self.__makeFileMenu()
-        menuBar.Append(self.fileMenu,  "&File") 
+        menuBar.Append(self.fileMenu,  "&File")
 
         self.__makeMaterialMenu()
-        menuBar.Append(self.materialMenu,  "&Materials") 
-        
+        menuBar.Append(self.materialMenu,  "&Materials")
+
         self.__makeReaderMenu()
-        menuBar.Append(self.readerMenu,  "Reader") 
-        
+        menuBar.Append(self.readerMenu,  "Reader")
+
         self.__makeDetectorMenu()
-        menuBar.Append(self.detectorMenu,  "Detector") 
-        
+        menuBar.Append(self.detectorMenu,  "Detector")
+
         self.__makeHelpMenu()
-        menuBar.Append(self.helpMenu,  "Help") 
-        
+        menuBar.Append(self.helpMenu,  "Help")
+
         self.SetMenuBar(menuBar)  # Adding the MenuBar to the Frame content.
 
         return
@@ -145,7 +145,7 @@ class xrdMainFrame(wx.Frame):
         #
         self.fileMenu.Append(wx.ID_EXIT, "&Quit", "Quit the program")
         self.Bind(wx.EVT_MENU, self.OnQuit, id=wx.ID_EXIT)
-        
+
         self.fileMenu.AppendSeparator()
 
         return
@@ -158,20 +158,20 @@ class xrdMainFrame(wx.Frame):
         #
         #  ===== Load List
         self.materialMenu.IDload = wx.NewId()
-        self.materialMenu.Append(self.materialMenu.IDload, 
-                             "Load material list", 
+        self.materialMenu.Append(self.materialMenu.IDload,
+                             "Load material list",
                              "Load a saved material list")
         self.Bind(wx.EVT_MENU, self.OnMaterialsLoad, id=self.materialMenu.IDload)
         #  ===== Edit List
         self.materialMenu.IDedit = wx.NewId()
-        self.materialMenu.Append(self.materialMenu.IDedit, 
-                                  "Edit material list", 
+        self.materialMenu.Append(self.materialMenu.IDedit,
+                                  "Edit material list",
                                   "Rearrange/remove list items")
         self.Bind(wx.EVT_MENU, self.OnMaterialsEdit, id=self.materialMenu.IDedit)
         #  ===== Save List
         self.materialMenu.IDsave = wx.NewId()
-	self.materialMenu.Append(self.materialMenu.IDsave, 
-                           "Save material list", 
+	self.materialMenu.Append(self.materialMenu.IDsave,
+                           "Save material list",
                            "Save the material list to a file.")
         self.Bind(wx.EVT_MENU, self.OnMaterialsSave, id=self.materialMenu.IDsave)
 
@@ -183,20 +183,20 @@ class xrdMainFrame(wx.Frame):
 
         # ===== Load List
         self.readerMenu.IDloadl = wx.NewId()
-	self.readerMenu.Append(self.readerMenu.IDloadl, 
-                           "Load reader list", 
+	self.readerMenu.Append(self.readerMenu.IDloadl,
+                           "Load reader list",
                            "Load the reader list to from a file")
         self.Bind(wx.EVT_MENU, self.OnReadersLoad, id=self.readerMenu.IDloadl)
         # ===== Edit
         self.readerMenu.IDedit = wx.NewId()
-        self.readerMenu.Append(self.readerMenu.IDedit, 
-                                  "Edit reader list", 
+        self.readerMenu.Append(self.readerMenu.IDedit,
+                                  "Edit reader list",
                                   "Rearrange/remove list items")
         self.Bind(wx.EVT_MENU, self.OnReadersEdit, id=self.readerMenu.IDedit)
         # ===== Save List
         self.readerMenu.IDsave = wx.NewId()
-	self.readerMenu.Append(self.readerMenu.IDsave, 
-                           "Save reader list", 
+	self.readerMenu.Append(self.readerMenu.IDsave,
+                           "Save reader list",
                            "Save the reader list to a file")
         self.Bind(wx.EVT_MENU, self.OnReadersSave, id=self.readerMenu.IDsave)
         #
@@ -206,7 +206,7 @@ class xrdMainFrame(wx.Frame):
         #
         self.readerMenu.IDhydra = wx.NewId()
 	self.readerMenu.Append(self.readerMenu.IDhydra,
-                           "Hydra interface", 
+                           "Hydra interface",
                            "Open the hydra interface")
         self.Bind(wx.EVT_MENU, self.OnHydra, id=self.readerMenu.IDhydra)
         #
@@ -219,14 +219,14 @@ class xrdMainFrame(wx.Frame):
 
         # ===== Load
         self.detectorMenu.IDload = wx.NewId()
-	self.detectorMenu.Append(self.detectorMenu.IDload, 
-                           "Load detector", 
+	self.detectorMenu.Append(self.detectorMenu.IDload,
+                           "Load detector",
                            "Load a saved detector from a file")
         self.Bind(wx.EVT_MENU, self.OnDetectorLoad, id=self.detectorMenu.IDload)
         # ===== Save
         self.detectorMenu.IDsave = wx.NewId()
-	self.detectorMenu.Append(self.detectorMenu.IDsave, 
-                           "Save detector", 
+	self.detectorMenu.Append(self.detectorMenu.IDsave,
+                           "Save detector",
                            "Save the detector to a file")
         self.Bind(wx.EVT_MENU, self.OnDetectorSave, id=self.detectorMenu.IDsave)
         #
@@ -236,8 +236,8 @@ class xrdMainFrame(wx.Frame):
         #
         # ===== Save
         self.detectorMenu.IDcake = wx.NewId()
-	self.detectorMenu.Append(self.detectorMenu.IDcake, 
-                           "Polar Rebinning", 
+	self.detectorMenu.Append(self.detectorMenu.IDcake,
+                           "Polar Rebinning",
                            "Bring up a window for polar rebinning (caking)")
         self.Bind(wx.EVT_MENU, self.OnCaking, id=self.detectorMenu.IDcake)
 
@@ -255,7 +255,7 @@ class xrdMainFrame(wx.Frame):
 
     def __makeBindings(self):
         """Bind interactors"""
-        self.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, 
+        self.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED,
                   self.OnPageChange, self.nBook)
 
 
@@ -264,15 +264,15 @@ class xrdMainFrame(wx.Frame):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+
         self.hSizer = wx.BoxSizer(wx.HORIZONTAL)
-	self.hSizer.Add(self.nBook,       1, 
+	self.hSizer.Add(self.nBook,       1,
                         wx.EXPAND|wx.ALIGN_CENTER|wx.RIGHT, 10)
 	self.hSizer.Add(self.canvasPanel, 1,
                         wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 8)
 
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	#self.sizer.Add(self.tbarSizer, 0, 
+	#self.sizer.Add(self.tbarSizer, 0,
         #     wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 10)
 	self.sizer.Add(self.hSizer, 1, wx.EXPAND|wx.ALIGN_CENTER)
 
@@ -308,7 +308,7 @@ class xrdMainFrame(wx.Frame):
             #
             sec = 'load'
             if p.has_section(sec):
-                
+
                 opt = 'material-list'
                 try:
                     fname = p.get(sec, opt)
@@ -326,7 +326,7 @@ class xrdMainFrame(wx.Frame):
                 except:
                     wx.MessageBox('failed to autoload readers list')
                     pass
-                
+
                 opt = 'detector'
                 try:
                     fname = p.get(sec, opt)
@@ -348,7 +348,7 @@ class xrdMainFrame(wx.Frame):
                     pass
 
             pass
-        
+
         return
     #
     # ============================== API
@@ -377,8 +377,8 @@ class xrdMainFrame(wx.Frame):
         app = wx.GetApp()
         exp = app.ws
 
-        dlg = wx.FileDialog(self, 'Load Detector', 
-                            style=wx.FD_OPEN | 
+        dlg = wx.FileDialog(self, 'Load Detector',
+                            style=wx.FD_OPEN |
                                   wx.FD_FILE_MUST_EXIST)
         if dlg.ShowModal() == wx.ID_OK:
             f = dlg.GetPath()
@@ -392,7 +392,7 @@ class xrdMainFrame(wx.Frame):
         dlg.Destroy()
 
         self.updateFromExp()
-        
+
         return
 
     def OnDetectorSave(self, e):
@@ -414,12 +414,12 @@ class xrdMainFrame(wx.Frame):
 
         self.updateFromExp()
         return
-    
+
     def OnCaking(self, e):
         """Raise the caking window"""
         app = wx.GetApp()
         exp = app.ws
-        
+
         if exp.activeImage is None:
             wx.MessageBox('No Image is loaded')
             return
@@ -428,7 +428,7 @@ class xrdMainFrame(wx.Frame):
         dlg.ShowModal()
 
         app.getCanvas().update()
-        
+
         return
     #
     # ========== Readers MENU
@@ -442,7 +442,7 @@ class xrdMainFrame(wx.Frame):
         dlg.Destroy()
 
         self.updateFromExp()
-        
+
         return
 
     def OnReadersSave(self, e):
@@ -460,11 +460,11 @@ class xrdMainFrame(wx.Frame):
                 pass
             pass
 
-        
+
         dlg.Destroy()
 
         self.updateFromExp()
-        
+
         return
 
     def OnReadersLoad(self, e):
@@ -472,8 +472,8 @@ class xrdMainFrame(wx.Frame):
         app = wx.GetApp()
         exp = app.ws
 
-        dlg = wx.FileDialog(self, 'Load Readers', 
-                            style=wx.FD_OPEN | 
+        dlg = wx.FileDialog(self, 'Load Readers',
+                            style=wx.FD_OPEN |
                                   wx.FD_FILE_MUST_EXIST)
         if dlg.ShowModal() == wx.ID_OK:
             f = dlg.GetPath()
@@ -487,7 +487,7 @@ class xrdMainFrame(wx.Frame):
         dlg.Destroy()
 
         self.updateFromExp()
-        
+
         return
 
     def OnHydra(self, e):
@@ -503,7 +503,7 @@ class xrdMainFrame(wx.Frame):
         #  Remember to check for any unsaved things.
         #
         #  check! print "callback from XRD main frame"
-        self.Close(True)  
+        self.Close(True)
 
         return
 
@@ -523,8 +523,8 @@ class xrdMainFrame(wx.Frame):
         #
         app = wx.GetApp()
 
-        dlg = wx.FileDialog(self, 'Load Experiment', 
-                            style=wx.FD_OPEN | 
+        dlg = wx.FileDialog(self, 'Load Experiment',
+                            style=wx.FD_OPEN |
                                   wx.FD_FILE_MUST_EXIST |
                                   wx.FD_CHANGE_DIR)
         if dlg.ShowModal() == wx.ID_OK:
@@ -537,7 +537,7 @@ class xrdMainFrame(wx.Frame):
         except:
             wx.MessageBox('failed to load file')
             pass
-        
+
         self.updateFromExp()
 
         return
@@ -645,7 +645,7 @@ class xrdMainFrame(wx.Frame):
         aboutMsg = aboutMsg % (copyright.COPYRIGHT_TEXT)
 
         wx.MessageBox(aboutMsg)
-        
+
         return
 
     pass # end class

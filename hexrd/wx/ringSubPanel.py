@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -33,9 +33,9 @@ import wx
 from hexrd.valUnits import valWUnit
 from hexrd.XRD.Material import Material
 
-from hexrd.GUI.guiConfig    import WindowParameters as WP
-from hexrd.GUI.guiUtilities import makeTitleBar
-from hexrd.GUI.selectHKLs   import selectHKLsDialog as hklsDlg
+from hexrd.wx.guiConfig    import WindowParameters as WP
+from hexrd.wx.guiUtilities import makeTitleBar
+from hexrd.wx.selectHKLs   import selectHKLsDialog as hklsDlg
 #
 #  Data
 #
@@ -98,20 +98,20 @@ class ringPanel(wx.Panel):
         self.dfwv_but  = wx.Button(self, wx.NewId(), 'Make Default')
         self.dfwv_but.SetToolTipString(dfltToolTip)
 
-        self.wave_lab = wx.StaticText(self, wx.NewId(), 
-                                        'Wavelength:', 
+        self.wave_lab = wx.StaticText(self, wx.NewId(),
+                                        'Wavelength:',
                                         style=wx.ALIGN_RIGHT)
-        self.waveAng_txt = wx.TextCtrl(self, wx.NewId(), 
-                                       value='0', 
+        self.waveAng_txt = wx.TextCtrl(self, wx.NewId(),
+                                       value='0',
                                        style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
-        self.waveAng_lab = wx.StaticText(self, wx.NewId(), 
-                                         WAVELENGTH_UNIT, 
+        self.waveAng_lab = wx.StaticText(self, wx.NewId(),
+                                         WAVELENGTH_UNIT,
                                          style=wx.ALIGN_RIGHT)
-        self.waveKEV_txt = wx.TextCtrl(self, wx.NewId(), 
-                                       value='0', 
+        self.waveKEV_txt = wx.TextCtrl(self, wx.NewId(),
+                                       value='0',
                                        style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
-        self.waveKEV_lab = wx.StaticText(self, wx.NewId(), 
-                                         'keV', 
+        self.waveKEV_lab = wx.StaticText(self, wx.NewId(),
+                                         'keV',
                                          style=wx.ALIGN_RIGHT)
         #
         #  c.  Edit HKLs
@@ -123,13 +123,13 @@ class ringPanel(wx.Panel):
         self.dfwd_but  = wx.Button(self, wx.NewId(), 'Make Default')
         self.dfwd_but.SetToolTipString(dfltToolTip)
 
-        self.width_lab = wx.StaticText(self, wx.NewId(), 
-                                        'Ring Width:', 
+        self.width_lab = wx.StaticText(self, wx.NewId(),
+                                        'Ring Width:',
                                         style=wx.ALIGN_RIGHT)
         self.width_cho = wx.Choice(self, wx.NewId(), choices=widChoices)
 
-        self.width_txt = wx.TextCtrl(self, wx.NewId(), 
-                                     value='1.0e-3', 
+        self.width_txt = wx.TextCtrl(self, wx.NewId(),
+                                     value='1.0e-3',
                                      style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
         #
         self.updateFromExp()
@@ -140,7 +140,7 @@ class ringPanel(wx.Panel):
         """Bind interactors"""
         self.Bind(wx.EVT_TEXT_ENTER, self.OnAngstromsTxt,    self.waveAng_txt)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnKEVTxt,          self.waveKEV_txt)
-        
+
 	self.Bind(wx.EVT_CHOICE,     self.OnWidthChoice,     self.width_cho)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnWidthChoice,     self.width_txt)
 
@@ -190,7 +190,7 @@ class ringPanel(wx.Panel):
         self.sizer.Add(optSizer,       0, wx.EXPAND|wx.ALIGN_CENTER)
 
 	return
-    
+
     def __showWavelength(self):
         """Set wavelength values in boxes
 
@@ -198,7 +198,7 @@ class ringPanel(wx.Panel):
 """
         exp = wx.GetApp().ws
         ang = exp.activeMaterial.planeData.wavelength
-        
+
         kev = AngstromTimesKev/ang
 
         str_kev = '%.6g' % kev
@@ -213,7 +213,7 @@ class ringPanel(wx.Panel):
         app = wx.GetApp()
         exp = app.ws
         mpd = exp.activeMaterial.planeData
-        
+
         if mpd.tThWidth is None:
             self.width_cho.SetSelection(widStrain)
             self.width_txt.ChangeValue(str(mpd.strainMag))
@@ -269,7 +269,7 @@ class ringPanel(wx.Panel):
             msg = 'Failed to set wavelength:\n%s' % str(e)
             wx.MessageBox(msg)
             pass
-        
+
         self.__showWavelength()
 
         app.getCanvas().update()
@@ -293,7 +293,7 @@ class ringPanel(wx.Panel):
             msg = 'Failed to set wavelength:\n%s' % str(e)
             wx.MessageBox(msg)
             pass
-            
+
         self.__showWavelength()
 
         app.getCanvas().update()
@@ -301,7 +301,7 @@ class ringPanel(wx.Panel):
         evt.Skip()
 
         return
-    
+
     def OnWidthChoice(self, evt):
         """Two theta magnitude set"""
         app = wx.GetApp()
@@ -341,9 +341,9 @@ class ringPanel(wx.Panel):
         kev = float(self.waveKEV_txt.GetValue())
         Material.DFLT_KEV = valWUnit('wavelength', 'energy', kev, 'keV')
         print 'new default for kev', Material.DFLT_KEV
-        
+
         return
-    
+
     def OnDefaultWidth(self, e):
         """Make the current width (stran/2-theta) the default for the session"""
         cho = self.width_cho.GetSelection()
@@ -370,9 +370,9 @@ class ringPanel(wx.Panel):
         msg  = 'new default:  (tth) %s, (strain) %s'
         vals = (str(Material.DFLT_TTH), str(Material.DFLT_STR))
         print msg % vals
-        
+
         return
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  ringPanel

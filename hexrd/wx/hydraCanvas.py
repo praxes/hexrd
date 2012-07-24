@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -42,10 +42,10 @@ from matplotlib                        import cm
 #
 #  XRD package
 #
-from hexrd.GUI.guiConfig  import WindowParameters as WP
-from hexrd.GUI.guiUtilities import ResetChoice
+from hexrd.wx.guiConfig  import WindowParameters as WP
+from hexrd.wx.guiUtilities import ResetChoice
 
-from hexrd.GUI.FloatControl import *
+from hexrd.wx.FloatControl import *
 #
 # ---------------------------------------------------CLASS:  hydraCanvasPanel
 #
@@ -122,14 +122,14 @@ class hydraCanvasPanel(wx.Panel):
         self.toolbar = NavigationToolbar2WxAgg(self.canvas)
         self.toolbar.Realize()
         self.toolbar.update()
-        
+
         return
 
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t, 
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER) 
+	self.titlebar = wx.StaticText(self, -1, t,
+					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
 	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
         myToolTip = r"""
 PANEL FOR ...
@@ -144,7 +144,7 @@ PANEL FOR ...
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.canvas,   1, wx.LEFT | wx.TOP | wx.GROW)
@@ -158,11 +158,11 @@ PANEL FOR ...
     #
     def loadImages(self):
         """Load images into axes"""
-        exp = wx.GetApp().ws  
+        exp = wx.GetApp().ws
         h   = exp.hydra
         for i in range(4):
-            self.axes[i].imshow(h.images[i], 
-                                origin='upper', 
+            self.axes[i].imshow(h.images[i],
+                                origin='upper',
                                 interpolation='nearest',
                                 cmap=getattr(cm, 'bone'))
             self.axes[i].set_autoscale_on(False)
@@ -173,7 +173,7 @@ PANEL FOR ...
     #
     #                     ========== *** Event Callbacks
     #
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  hydraCanvasPanel
@@ -231,18 +231,18 @@ class hydraCanvasFrame(wx.Frame):
         #
         menuBar = wx.MenuBar()
         # self.CreateFileMenu()
-        # menuBar.Append(self.filemenu,  "&File") 
+        # menuBar.Append(self.filemenu,  "&File")
         # self.CreateTableMenu()
         # menuBar.Append(self.tablemenu, "&Table")
-        # 
+        #
         # self.SetMenuBar(menuBar)  # Adding the MenuBar to the Frame content.
 
         return
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t, 
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER) 
+	self.titlebar = wx.StaticText(self, -1, t,
+					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
 	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_FRAME)
         myToolTip = r"""
 FRAME FOR ...
@@ -257,7 +257,7 @@ FRAME FOR ...
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
 	self.sizer.Add(self.hcanvas, 1, wx.EXPAND|wx.ALIGN_CENTER)

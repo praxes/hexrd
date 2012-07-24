@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -51,14 +51,14 @@ from hexrd.XRD.Experiment import FitModes
 from hexrd.XRD.crystallography import dUnit as WAVELENGTH_UNIT
 from hexrd.XRD.crystallography import processWavelength
 #
-#  GUI Modules
+#  wx Modules
 #
-from hexrd.GUI.guiConfig    import WindowParameters as WP
-from hexrd.GUI.guiUtilities import ResetChoice, AddSpacer, EmptyWindow, makeTitleBar
-from hexrd.GUI.FloatControl import *
-from hexrd.GUI.LogWindows   import logWindow
-from hexrd.GUI.ringSubPanel import ringPanel
-from hexrd.GUI.selectHKLs   import selectHKLsDialog as hklsDlg #TBR
+from hexrd.wx.guiConfig    import WindowParameters as WP
+from hexrd.wx.guiUtilities import ResetChoice, AddSpacer, EmptyWindow, makeTitleBar
+from hexrd.wx.FloatControl import *
+from hexrd.wx.LogWindows   import logWindow
+from hexrd.wx.ringSubPanel import ringPanel
+from hexrd.wx.selectHKLs   import selectHKLsDialog as hklsDlg #TBR
 
 # AngstromTimesKev = 12.39854 # from APS site (lose digits accuracy this way)
 AngstromTimesKev = processWavelength(1.0)
@@ -107,9 +107,9 @@ class detectorPanel(wx.Panel):
         #
         #  Material Selection
         #
-        self.mats_lab = wx.StaticText(self, wx.NewId(), 
+        self.mats_lab = wx.StaticText(self, wx.NewId(),
                                         'Active Material', style=wx.ALIGN_CENTER)
-        self.mats_cho = wx.Choice(self, wx.NewId(), 
+        self.mats_cho = wx.Choice(self, wx.NewId(),
                                   choices=[m.name for m in exp.matList])
         #
         #  Rings panel
@@ -131,7 +131,7 @@ class detectorPanel(wx.Panel):
         self.float_xc = FloatControl(self, wx.NewId())
         self.float_xc.SetValue(det.xc)
         self.float_xc.SetDelta(0.5*det.pixelPitch)
-        
+
         name = 'y Center'
         self.cbox_yc  = wx.CheckBox(self, wx.NewId(), name)
         self.float_yc = FloatControl(self, wx.NewId())
@@ -162,41 +162,41 @@ class detectorPanel(wx.Panel):
         #  Distortion parameters
         #
         #  *) NOTE THAT THESE ARE SPECIFIC FOR THE GE
-        #  *) must break these out into a subpanel, as the 
+        #  *) must break these out into a subpanel, as the
         #     number (if any at all) will change for each
         #     detector type.
         name = 'p0'
         self.cbox_d1  = wx.CheckBox(self, wx.NewId(), name)
         self.float_d1 = FloatControl(self, wx.NewId())
         self.float_d1.SetValue(det.dparms[0])
-        
+
         name = 'p1'
         self.cbox_d2  = wx.CheckBox(self, wx.NewId(), name)
         self.float_d2 = FloatControl(self, wx.NewId())
         self.float_d2.SetValue(det.dparms[1])
-        
+
         name = 'p2'
         self.cbox_d3  = wx.CheckBox(self, wx.NewId(), name)
         self.float_d3 = FloatControl(self, wx.NewId())
         self.float_d3.SetValue(det.dparms[2])
-        
+
         name = 'n0'
         self.cbox_d4  = wx.CheckBox(self, wx.NewId(), name)
         self.float_d4 = FloatControl(self, wx.NewId())
         self.float_d4.SetValue(det.dparms[3])
-        
+
         name = 'n1'
         self.cbox_d5  = wx.CheckBox(self, wx.NewId(), name)
         self.float_d5 = FloatControl(self, wx.NewId())
         self.float_d5.SetValue(det.dparms[4])
-        
+
         name = 'n2'
         self.cbox_d6  = wx.CheckBox(self, wx.NewId(), name)
         self.float_d6 = FloatControl(self, wx.NewId())
         self.float_d6.SetValue(det.dparms[5])
         #
         #  Fitting method
-        # 
+        #
         self.fitLabelSizer = makeTitleBar(self, 'Fitting Method',
                                           color=WP.TITLEBAR_BG_COLOR_PANEL1)
         self.fitDir_rb = wx.RadioButton(self, wx.NewId(), 'Direct Fit',
@@ -205,11 +205,11 @@ class detectorPanel(wx.Panel):
         #
         #  III. Caking
         #
-        self.numEta_lab = wx.StaticText(self, wx.NewId(), 
-                                        'Azimuthal bins', 
+        self.numEta_lab = wx.StaticText(self, wx.NewId(),
+                                        'Azimuthal bins',
                                          style=wx.ALIGN_RIGHT)
-        self.numRho_lab = wx.StaticText(self, wx.NewId(), 
-                                        'Radial bins per ring', 
+        self.numRho_lab = wx.StaticText(self, wx.NewId(),
+                                        'Radial bins per ring',
                                          style=wx.ALIGN_RIGHT)
         self.numEta_spn = wx.SpinCtrl(self, wx.NewId(), min=12, initial=36)
         self.numRho_spn = wx.SpinCtrl(self, wx.NewId(), min=10, initial=20)
@@ -257,11 +257,11 @@ class detectorPanel(wx.Panel):
         self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_d4, self.cbox_d4)
         self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_d5, self.cbox_d5)
         self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_d6, self.cbox_d6)
-        
+
         # fitting section
         self.Bind(wx.EVT_RADIOBUTTON, self.OnFitDir, self.fitDir_rb)
         self.Bind(wx.EVT_RADIOBUTTON, self.OnFitBin, self.fitBin_rb)
-        
+
         self.Bind(wx.EVT_BUTTON, self.OnRunFit, self.runFit_but)
 
         return
@@ -278,7 +278,7 @@ class detectorPanel(wx.Panel):
         #  Geometry sizer
         #
         nrow = 10; ncol = 2; padx = 5; pady = 5
-        self.geoSizer = wx.FlexGridSizer(nrow, ncol, padx, pady) 
+        self.geoSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
         self.geoSizer.AddGrowableCol(0, 1)
         self.geoSizer.AddGrowableCol(1, 1)
         #  * x-center
@@ -356,7 +356,7 @@ class detectorPanel(wx.Panel):
         self.sizer.Add(self.runFit_but, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
 
 	return
-    
+
     def __initExclusions(self):
         """Nothing yet"""
         return
@@ -398,14 +398,14 @@ class detectorPanel(wx.Panel):
         self.__showCbox(self.cbox_d4, self.float_d4, det.refineFlags[9])
         self.__showCbox(self.cbox_d5, self.float_d5, det.refineFlags[10])
         self.__showCbox(self.cbox_d6, self.float_d6, det.refineFlags[11])
-        
+
         return
 
     def __showFitOpts(self):
         """Set option interactors"""
         exp = wx.GetApp().ws
         cin = exp.calInput
-        
+
         self.numRho_spn.SetValue(cin.numRho)
         self.numEta_spn.SetValue(cin.numEta)
 
@@ -418,7 +418,7 @@ class detectorPanel(wx.Panel):
             self.numRho_spn.Enable()
             self.numEta_spn.Enable()
             pass
-        
+
         return
     #
     # ============================== API
@@ -461,7 +461,7 @@ class detectorPanel(wx.Panel):
         #  Get workspace.
         #
         exp = wx.GetApp().ws
-        
+
         try:
             action = {
                 'exec': exp.calibrate,
@@ -474,7 +474,7 @@ class detectorPanel(wx.Panel):
         except Exception as e:
             wx.MessageBox(str(e))
             pass
-        
+
         self.Refresh()
         self.updateFromExp()
         #
@@ -484,7 +484,7 @@ class detectorPanel(wx.Panel):
         """Direct fit chosen"""
         exp = wx.GetApp().ws
         exp.calInput.fitType = FitModes.DIRECT
-        
+
         self.numRho_spn.Disable()
         self.numEta_spn.Disable()
         return
@@ -493,7 +493,7 @@ class detectorPanel(wx.Panel):
         """Binned fit chosen"""
         exp = wx.GetApp().ws
         exp.calInput.fitType = FitModes.MULTIRING
-        
+
         self.numRho_spn.Enable()
         self.numEta_spn.Enable()
         return
@@ -506,7 +506,7 @@ class detectorPanel(wx.Panel):
             a = wx.GetApp()
             a.ws.detector.xc = evt.floatValue
             a.getCanvas().update()
-            
+
         except Exception as e:
             msg = 'Failed to set x-center value: \n%s' % str(e)
             wx.MessageBox(msg)
@@ -674,7 +674,7 @@ class detectorPanel(wx.Panel):
         exp = wx.GetApp().ws
         exp.calInput.numRho = self.numRho_spn.GetValue()
         print 'changing numrho:', exp.calInput.numRho
-        
+
         return
 
     def OnNumEta(self, e):

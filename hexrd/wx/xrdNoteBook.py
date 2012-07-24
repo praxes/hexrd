@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -39,7 +39,7 @@ wxNB_BOTTOM 	Place tabs under instead of above the notebook pages.
 wxNB_FIXEDWIDTH 	(Windows only) All tabs will have same width.
 wxNB_MULTILINE 	(Windows only) There can be several rows of tabs.
 wxNB_NOPAGETHEME 	(Windows only) Display a solid colour on notebook pages, and not a gradient, which can reduce performance.
-wxNB_FLAT 	(Windows CE only) Show tabs in a flat style. 
+wxNB_FLAT 	(Windows CE only) Show tabs in a flat style.
 
 
 EVT_NOTEBOOK_PAGE_CHANGED
@@ -47,13 +47,13 @@ EVT_NOTEBOOK_PAGE_CHANGING
 """
 import wx
 
-from hexrd.GUI.guiConfig import WindowParameters as WP
-from hexrd.GUI.materialsPanel import matPanel
-from hexrd.GUI.readerPanel    import readerPanel
-from hexrd.GUI.detectorPanel import detectorPanel
-from hexrd.GUI.spotsPanel    import spotsPanel
-from hexrd.GUI.indexPanel    import indexPanel
-from hexrd.GUI.grainPanel    import grainPanel
+from hexrd.wx.guiConfig import WindowParameters as WP
+from hexrd.wx.materialsPanel import matPanel
+from hexrd.wx.readerPanel    import readerPanel
+from hexrd.wx.detectorPanel import detectorPanel
+from hexrd.wx.spotsPanel    import spotsPanel
+from hexrd.wx.indexPanel    import indexPanel
+from hexrd.wx.grainPanel    import grainPanel
 #
 # ---------------------------------------------------CLASS:  xrdNoteBook
 #
@@ -91,15 +91,15 @@ class xrdNoteBook(wx.Notebook):
         self.pageDict[title] = self.spotsPanel
         #
         #
-        self.AddPage(indexPanel(self, wx.NewId()), 
+        self.AddPage(indexPanel(self, wx.NewId()),
                      'Indexing')
-        self.AddPage(grainPanel(self, wx.NewId()), 
+        self.AddPage(grainPanel(self, wx.NewId()),
                      'Grains')
         #
         #  Make sure page is updated on page change.
         #
         self.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.OnPageChange, self)
-        
+
 	#
 	return
     #

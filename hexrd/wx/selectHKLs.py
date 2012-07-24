@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -34,7 +34,7 @@ import math
 import wx
 #import wx.lib.mixins.listctrl  as  listMixins
 
-from hexrd.GUI.guiConfig import WindowParameters as WP
+from hexrd.wx.guiConfig import WindowParameters as WP
 #
 # ---------------------------------------------------CLASS:  selectHKLsPanel.py
 #
@@ -81,8 +81,8 @@ class selectHKLsPanel(wx.Panel):
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t, 
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER) 
+	self.titlebar = wx.StaticText(self, -1, t,
+					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
 	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
         myToolTip = r"""
 PANEL FOR ...
@@ -113,7 +113,7 @@ PANEL FOR ...
         print 'exclusions:\n', excl
         print len(hkls)
         print hkls[0]
-        
+
         n = pdat.getNhklRef()
         for i in range(n):
             hklData = hkls[i]
@@ -149,7 +149,7 @@ PANEL FOR ...
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
 	self.sizer.Add(self.listctrl, 1, wx.EXPAND|wx.ALIGN_CENTER)
@@ -172,10 +172,10 @@ PANEL FOR ...
     #
     def OnSelection(self, e):
         """List control selection has changed"""
-        
+
         return
 
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  selectHKLsPanel.py
@@ -189,17 +189,17 @@ class selectHKLsDialog(wx.Dialog):
 	#
         myCaption = 'HKL Selector'
         myStyle   = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER
-	wx.Dialog.__init__(self, parent, id, 
+	wx.Dialog.__init__(self, parent, id,
                            style=myStyle, title=myCaption)
 	#
 	#  Data Objects.
 	#
-	
+
 	#
 	#  Windows.
 	#
-	self.titlebar = wx.StaticText(self, -1, 'selectHKLsDialog', 
-				      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER) 
+	self.titlebar = wx.StaticText(self, -1, 'selectHKLsDialog',
+				      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
         self.dataPanel = selectHKLsPanel(self, wx.NewId(), mat)
         self.dataPanel.SetMinSize((400,400))
 	#
@@ -216,7 +216,7 @@ class selectHKLsDialog(wx.Dialog):
 	#
 	#  Events.
 	#
-	
+
 	#
 	return
     #

@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -37,11 +37,11 @@ import numpy
 #
 #  XRD package
 #
-from hexrd.GUI.guiConfig import WindowParameters as WP
-from hexrd.GUI.guiUtilities import ResetChoice,makeTitleBar
-from hexrd.GUI.canvasUtilities import *
+from hexrd.wx.guiConfig import WindowParameters as WP
+from hexrd.wx.guiUtilities import ResetChoice,makeTitleBar
+from hexrd.wx.canvasUtilities import *
 
-from hexrd.GUI.FloatControl import *
+from hexrd.wx.FloatControl import *
 #
 #  Data
 #
@@ -87,7 +87,7 @@ class CanvasPanel(wx.Panel):
         #  Make options sizer
         #
         nrow = 0; ncol = 2; padx = 5; pady = 5
-	self.optSizer = wx.FlexGridSizer(nrow, ncol, padx, pady) 
+	self.optSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
 	#self.optSizer.AddGrowableCol(num, proportion)
 	#self.optSizer.AddGrowableRow(num, proportion)
         #
@@ -95,7 +95,7 @@ class CanvasPanel(wx.Panel):
         #
         #  * show image
         #
-        self.showImage_box = wx.CheckBox(self, wx.NewId(), 
+        self.showImage_box = wx.CheckBox(self, wx.NewId(),
                                          'Show Image')
         self.showImage_box.SetValue(True)
         self.optSizer.Add(self.showImage_box, 0, wx.LEFT | wx.EXPAND)
@@ -103,7 +103,7 @@ class CanvasPanel(wx.Panel):
         #
         #  * show rings
         #
-        self.showCalRings_box = wx.CheckBox(self, wx.NewId(), 
+        self.showCalRings_box = wx.CheckBox(self, wx.NewId(),
                                             'Show Rings')
         self.showCalRings_box.SetValue(False) # default
         self.optSizer.Add(self.showCalRings_box, 0, wx.LEFT | wx.EXPAND)
@@ -111,7 +111,7 @@ class CanvasPanel(wx.Panel):
         #
         #  * show ranges
         #
-        self.showCalRanges_box = wx.CheckBox(self, wx.NewId(), 
+        self.showCalRanges_box = wx.CheckBox(self, wx.NewId(),
                                             'Show Ranges')
         self.showCalRanges_box.SetValue(False) # default
         self.optSizer.Add(self.showCalRanges_box, 0, wx.LEFT | wx.EXPAND)
@@ -136,7 +136,7 @@ class CanvasPanel(wx.Panel):
             pd  = exp.activeMaterial.planeData
             img = exp.activeImage
             if img is None:  return
-            
+
             mainFrame = wx.GetApp().GetTopWindow()
             if hasattr(event, 'xdata') and event.xdata:
                 x = event.xdata; xadj = x + 0.5; xint = numpy.floor(xadj)
@@ -151,7 +151,7 @@ class CanvasPanel(wx.Panel):
                 hkls = str(pd.getHKLs(asStr=True, allHKLs=True, thisTTh=tth))
                 statText = "px=%g, py=%g, x=%g, y=%g, rho=%g, d=%g, tth=%g, eta=%g, int=%g, HKLs=%s" %\
                            (x, y, cartx, carty, rho, dsp, r2d*tth, r2d*eta, intens, hkls)
-                
+
                 mainFrame.SetStatusText(statText)
                 pass
             pass
@@ -167,7 +167,7 @@ class CanvasPanel(wx.Panel):
         self.toolbar = NavigationToolbar2WxAgg(self.canvas)
         self.toolbar.Realize()
         self.toolbar.update()
-        
+
         return
 
     def __makeBindings(self):
@@ -180,9 +180,9 @@ class CanvasPanel(wx.Panel):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, 
+	self.sizer.Add(self.tbarSizer, 0,
                        wx.EXPAND| wx.BOTTOM, 10)
         self.sizer.Add(self.optSizer, 0, wx.LEFT | wx.TOP | wx.GROW)
         self.sizer.Add(self.cmPanel,  0, wx.LEFT | wx.TOP | wx.GROW)
@@ -205,7 +205,7 @@ class CanvasPanel(wx.Panel):
         else:
             pdat = mat.planeData
             pass
-        
+
         xyRings = exp.detector.getRings(pdat)
         opts = dict(linewidth=2, color='g', linestyle='-')
         self.addXYplot(xyRings, opts=opts)
@@ -224,7 +224,7 @@ class CanvasPanel(wx.Panel):
         else:
             pdat = mat.planeData
             pass
-        
+
         xyRings = exp.detector.getRings(pdat, ranges=True)
         opts = dict(linewidth=2, color='y', linestyle='--')
         self.addXYplot(xyRings, opts=opts)
@@ -248,14 +248,14 @@ class CanvasPanel(wx.Panel):
         KEYWORD ARGS
         newImage -- if True then display image for first time on these axes
 """
-        # 
+        #
         #  Show image if box is checked.
         #
         app = wx.GetApp()
         exp = app.ws
         img = exp.activeImage
 
-        if img is None: 
+        if img is None:
             #wx.MessageBox('no image'); return
             pass
         else:
@@ -273,7 +273,7 @@ class CanvasPanel(wx.Panel):
                 self.axes.images = []
                 # show new image
                 self.axes.imshow(img,
-                                 origin='upper', 
+                                 origin='upper',
                                  interpolation='nearest',
                                  cmap=self.cmPanel.cmap,
                                  vmin=self.cmPanel.cmin_val,
@@ -288,11 +288,11 @@ class CanvasPanel(wx.Panel):
                 img0.set_visible(si)
                 pass
             pass
-        # 
+        #
         #  Show calibrant rings/ranges if box is checked.
         #
         self.__clearAxesLines()
-        
+
         if (self.showCalRings_box.IsChecked()):  self.__drawRings()
         if (self.showCalRanges_box.IsChecked()):  self.__drawRanges()
         #
@@ -307,7 +307,7 @@ class CanvasPanel(wx.Panel):
 
     def draw(self): self.canvas.draw()
 
-    def clear(self):  
+    def clear(self):
         """Clear axes (including imag"""
 
         self.axes.cla()
@@ -340,7 +340,7 @@ class CanvasPanel(wx.Panel):
             if 'color' in opts:
                 colorS = opts['color']
                 pass
-            
+
             pass
 
         for xy in rings:

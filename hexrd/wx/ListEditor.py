@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -28,14 +28,14 @@
 #
 """List Editor
 
-Basic panel to  be used for managing generic 
+Basic panel to  be used for managing generic
 lists, including reordering and deletion of items.
 """
 import copy
 
 import wx
 
-from hexrd.GUI.guiConfig import WindowParameters as WP
+from hexrd.wx.guiConfig import WindowParameters as WP
 
 from hexrd.XRD.Experiment import newName  # need better place for newName function
 #
@@ -75,7 +75,7 @@ class ListEditor(wx.Panel):
         """Add interactors"""
 
         #self.__makeTitleBar('List Editor')
-        self.main_lbx =  wx.ListBox(self, wx.NewId(), 
+        self.main_lbx =  wx.ListBox(self, wx.NewId(),
                                     style = wx.LB_SINGLE,
                                     choices = [item.name for item in self.mylist])
         self.up_but   = wx.Button(self, wx.NewId(), 'up')
@@ -87,8 +87,8 @@ class ListEditor(wx.Panel):
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t, 
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER) 
+	self.titlebar = wx.StaticText(self, -1, t,
+					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
 	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
         myToolTip = r"""
 PANEL FOR ...
@@ -125,7 +125,7 @@ PANEL FOR ...
 	self.sizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
 	self.sizer.AddGrowableCol(0, 1)
 	self.sizer.AddGrowableRow(0, 1)
-        
+
         self.sizer.Add(self.main_lbx,  1, wx.EXPAND | wx.ALIGN_CENTER | wx.RIGHT, 5)
         self.sizer.Add(self.butSizer,  0)
 
@@ -142,7 +142,7 @@ PANEL FOR ...
         tmp = self.mylist[i]
         self.mylist[i] = self.mylist[j]
         self.mylist[j] = tmp
-        
+
         return
     #
     # ============================== API
@@ -162,7 +162,7 @@ PANEL FOR ...
         self.main_lbx.SetSelection(newSel)
 
         return
-    
+
     def OnUpButton(self, e):
         """Up button pressed"""
         sel = self.main_lbx.GetSelection()
@@ -175,7 +175,7 @@ PANEL FOR ...
             pass
 
         return
-    
+
     def OnDownButton(self, e):
         """Up button pressed"""
         sel = self.main_lbx.GetSelection()
@@ -188,7 +188,7 @@ PANEL FOR ...
             pass
 
         return
-    
+
     def OnDelButton(self, e):
         """Up button pressed"""
         sel = self.main_lbx.GetSelection()
@@ -207,7 +207,7 @@ PANEL FOR ...
         self.main_lbx.SetSelection(newsel)
 
         return
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  ListEditor
@@ -218,7 +218,7 @@ class ListEditDlg(wx.Dialog):
     def __init__(self, parent, id, mylist, **kwargs):
 	"""Constructor for ListEditDlg"""
 	#
-	wx.Dialog.__init__(self, parent, id, 
+	wx.Dialog.__init__(self, parent, id,
                            style=wx.RESIZE_BORDER|wx.DEFAULT_DIALOG_STYLE)
 	#
 	#  Data Objects.
@@ -226,8 +226,8 @@ class ListEditDlg(wx.Dialog):
 	#
 	#  Windows.
 	#
-	self.titlebar = wx.StaticText(self, -1, 'List Editor', 
-				      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER) 
+	self.titlebar = wx.StaticText(self, -1, 'List Editor',
+				      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
         #
 	self.list_ed = ListEditor(self, wx.NewId(), mylist)
 	#
@@ -244,7 +244,7 @@ class ListEditDlg(wx.Dialog):
 	#
 	#  Events.
 	#
-	
+
 	#
 	return
 
@@ -259,7 +259,7 @@ class ListEditDlg(wx.Dialog):
 	self.sizer.Add(self.list_ed,  1, wx.EXPAND|wx.ALIGN_CENTER)
 
 	return
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  ListEditDlg

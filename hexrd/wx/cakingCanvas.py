@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -34,9 +34,9 @@ import numpy
 
 from hexrd.XRD.Experiment  import PolarRebinOpts as prOpts
 
-from hexrd.GUI.guiConfig import WindowParameters as WP
-from hexrd.GUI.guiUtilities import makeTitleBar
-from hexrd.GUI.canvasUtilities import *
+from hexrd.wx.guiConfig import WindowParameters as WP
+from hexrd.wx.guiUtilities import makeTitleBar
+from hexrd.wx.canvasUtilities import *
 #
 # ---------------------------------------------------CLASS:  cakeCanvas
 #
@@ -49,9 +49,9 @@ class cakeCanvas(wx.Panel):
         cakeType -- full caking, ring-based or spherical (omega-eta map)
         data     -- caking output, depending on cakeType
                  .. for rings case, a MultiRingBinned instance
-        
+
         OUTPUTS
-        
+
         DESCRIPTION
         Shows data on output canvas.
 """
@@ -104,7 +104,7 @@ class cakeCanvas(wx.Panel):
         elif self.cakeType == prOpts.CAKE_SPH:
             # omega-eta panel
             pass
-        
+
         self.__makeFigureCanvas()
         #
 
@@ -121,7 +121,7 @@ class cakeCanvas(wx.Panel):
         self.toolbar = NavigationToolbar2WxAgg(self.canvas)
         self.toolbar.Realize()
         self.toolbar.update()
-        
+
         return
 
     def __makeBindings(self):
@@ -130,7 +130,7 @@ class cakeCanvas(wx.Panel):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
         #
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
@@ -157,12 +157,12 @@ class cakeDisplay(wx.Frame):
     #
     def __init__(self, parent, id, cakeType, data, title=''):
         """
-        INPUTS 
+        INPUTS
         cakeType -- full caking, ring-based or spherical (omega-eta map)
         data     -- caking output, depending on cakeType
-        
+
         OUTPUTS
-        
+
         DESCRIPTION
         Passes args to cakeCanvas
 """
@@ -188,7 +188,7 @@ class cakeDisplay(wx.Frame):
 	#
 	self.__makeSizers()
 	#
-	self.SetAutoLayout(True)    
+	self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.Show(True)
@@ -204,7 +204,7 @@ class cakeDisplay(wx.Frame):
         #
         #  Add canvas panel
         #
-        self.cpan = cakeCanvas(self, wx.NewId(),  self.cakeType, self.data)    
+        self.cpan = cakeCanvas(self, wx.NewId(),  self.cakeType, self.data)
 	#
         # A Statusbar in the bottom of the window
         #
@@ -214,10 +214,10 @@ class cakeDisplay(wx.Frame):
         #
         # menuBar = wx.MenuBar()
         # self.CreateFileMenu()
-        # menuBar.Append(self.filemenu,  "&File") 
+        # menuBar.Append(self.filemenu,  "&File")
         # self.CreateTableMenu()
         # menuBar.Append(self.tablemenu, "&Table")
-        # 
+        #
         # self.SetMenuBar(menuBar)  # Adding the MenuBar to the Frame content.
 
         return
@@ -228,7 +228,7 @@ class cakeDisplay(wx.Frame):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
 	self.sizer.Add(self.cpan,      1, wx.EXPAND|wx.ALIGN_CENTER)
@@ -245,13 +245,13 @@ class cakeDisplay(wx.Frame):
     #
     pass # class
 #
-# -----------------------------------------------END CLASS:  
+# -----------------------------------------------END CLASS:
 # ---------------------------------------------------CLASS:  rngOpts
 #
 class rngOpts(wx.Panel):
     """rngOpts """
     unitList = ['d-spacing', 'radians', 'strain', 'degrees']
-    
+
     def __init__(self, parent, id, **kwargs):
 	"""Constructor for rngOpts."""
 	#
@@ -275,7 +275,7 @@ class rngOpts(wx.Panel):
 	#
 	self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-        
+
 	return
     #
     # ============================== Internal Methods
@@ -288,7 +288,7 @@ class rngOpts(wx.Panel):
         self.unit_cho = wx.Choice(self, wx.NewId(), choices=rngOpts.unitList)
         self.exp_but  = wx.Button(self, wx.NewId(), 'Export')
 	#self.Bind(wx.EVT_CHOICE, self.OnChoice, self.choice)
-        
+
         return
 
     def __makeBindings(self):
@@ -299,13 +299,13 @@ class rngOpts(wx.Panel):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Show(self.tbarSizer, False)
         self.sizer.Add(self.unit_cho, 0, wx.ALIGN_LEFT)
         self.sizer.Add(self.exp_but,  0, wx.ALIGN_LEFT|wx.TOP, 5)
-        
+
 	return
     #
     # ============================== API
@@ -316,17 +316,17 @@ class rngOpts(wx.Panel):
         """Update canvas"""
         p = self.GetParent()
         u = self.unit_cho.GetStringSelection()
-        
+
         self.errs = p.data.getTThErrors(units=u)
-        
+
         p.figure.delaxes(p.axes)
         p.axes   = p.figure.gca()
         p.axes.plot(self.errs)
         p.axes.set_title('Errors')
         p.axes.set_ylabel(u)
-        
+
         p.canvas.draw()
-        
+
         return
     #
     #                     ========== *** Event Callbacks
@@ -335,7 +335,7 @@ class rngOpts(wx.Panel):
         """Update canvas"""
         self.update()
         return
-    
+
     def OnExport(self, e):
         """Export results to a text file"""
         # export self.errs to a file
@@ -353,7 +353,7 @@ class rngOpts(wx.Panel):
         dlg.Destroy()
 
         return
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  rngOpts

@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -36,14 +36,14 @@ from hexrd.XRD import detector
 from hexrd.XRD.Experiment  import PolarRebinOpts as prOpts
 from hexrd.XRD.xrdUtils    import CollapseOmeEta
 
-from hexrd.GUI.canvasUtilities import *
-from hexrd.GUI.guiConfig    import WindowParameters as WP
-from hexrd.GUI.guiUtilities import makeTitleBar
-from hexrd.GUI.ringSubPanel import ringPanel
-from hexrd.GUI.selectHKLs   import selectHKLsDialog as hklsDlg
-from hexrd.GUI.LogWindows   import logWindow
-from hexrd.GUI.FloatControl import *
-from hexrd.GUI.cakingCanvas import cakeDisplay
+from hexrd.wx.canvasUtilities import *
+from hexrd.wx.guiConfig    import WindowParameters as WP
+from hexrd.wx.guiUtilities import makeTitleBar
+from hexrd.wx.ringSubPanel import ringPanel
+from hexrd.wx.selectHKLs   import selectHKLsDialog as hklsDlg
+from hexrd.wx.LogWindows   import logWindow
+from hexrd.wx.FloatControl import *
+from hexrd.wx.cakingCanvas import cakeDisplay
 #
 #  Module Data
 #
@@ -110,7 +110,7 @@ class cakingPanel(wx.Panel):
         #
 	self.Bind(wx.EVT_CHOICE, self.OnChooseMethod, self.method_cho)
         self.Bind(wx.EVT_BUTTON, self.OnRun,    self.run_but)
-        
+
         return
 
     def __makeSizers(self):
@@ -142,7 +142,7 @@ class cakingPanel(wx.Panel):
         self.modeSizer.Add(self.ctrlSizer, 0, wx.ALIGN_RIGHT)
         self.modeSizer.Add(sep, 0,
                            wx.EXPAND|wx.ALIGN_CENTER|wx.LEFT|wx.RIGHT, 10)
-        self.modeSizer.Add(self.optSizer,  1, wx.EXPAND|wx.ALIGN_CENTER)        
+        self.modeSizer.Add(self.optSizer,  1, wx.EXPAND|wx.ALIGN_CENTER)
         #
         #  Main Sizer
         #
@@ -162,7 +162,7 @@ class cakingPanel(wx.Panel):
 """
         exp = wx.GetApp().ws
         det = exp.detector
-        
+
         action = {
             'exec'  : self.__makeImgInfo,
             'args'  : (),
@@ -171,7 +171,7 @@ class cakingPanel(wx.Panel):
         logwin = logWindow(self, wx.NewId(), action, 'Standard Polar Rebinning')
         logwin.ShowModal()
 
-        return 
+        return
         #
         #  ==============================
         #  Show rebin output on new window
@@ -181,12 +181,12 @@ class cakingPanel(wx.Panel):
         #
         self.axes   = self.figure.gca()
         self.axes.set_aspect('equal')
-        
+
         intensity = self.img_info['intensity']
-        
+
         self.axes.images = []
         # show new image
-        self.axes.imshow(intensity, origin='upper', 
+        self.axes.imshow(intensity, origin='upper',
                          interpolation='nearest',
                          cmap=self.cmPanel.cmap,
                          vmin=self.cmPanel.cmin_val,
@@ -194,9 +194,9 @@ class cakingPanel(wx.Panel):
                          aspect='auto')
         #self.axes.set_aspect('equal')
         self.axes.set_autoscale_on(False)
-        
+
         self.canvas.draw()
-        
+
         #
         pass
 
@@ -212,7 +212,7 @@ class cakingPanel(wx.Panel):
             }
         logwin = logWindow(self, wx.NewId(), action, 'Multiring Binning')
         logwin.ShowModal()
-        
+
         # ====================
 
         cCan = cakeDisplay(self, wx.NewId(), prOpts.CAKE_RNG, self.mrb)
@@ -232,7 +232,7 @@ class cakingPanel(wx.Panel):
         rhoMax = self.std_pan.rmax_spn.GetValue()
         numEta = self.std_pan.enum_spn.GetValue()
         numRho = self.std_pan.rnum_spn.GetValue()
-        
+
         correct = self.std_pan.corr_cbox.GetValue()
 
         kwa = {
@@ -248,25 +248,25 @@ class cakingPanel(wx.Panel):
         log.write('\ndone', done=True)
 
         return
-    
+
     def __makeMRB(self, log=None):
         """routine for calling MultiRingBinned"""
         exp = wx.GetApp().ws
         det = exp.detector
         pdat = exp.activeMaterial.planeData
         img  = exp.activeImage
-        
+
         nrho = self.mrb_pan.numRho_spn.GetValue()
         neta = self.mrb_pan.numEta_spn.GetValue()
         etaMin = self.mrb_pan.emin*piBy180
         etaMax = self.mrb_pan.emax*piBy180
-        
+
         cakeArgs = {'verbose'  : True,
                     'numEta'   : neta,
                     'corrected': True,
                     'etaRange' : [etaMin, etaMax]}
 
-        self.mrb = detector.MultiRingBinned(det, pdat, img, 
+        self.mrb = detector.MultiRingBinned(det, pdat, img,
                                             targetNRho=nrho,
                                             polarRebinKWArgs=cakeArgs,
                                             log=log)
@@ -292,7 +292,7 @@ class cakingPanel(wx.Panel):
             nEtaBins=nbins,
             threshold=thresh,
             debug=True)
-        
+
         omeEta = CollapseOmeEta(reader, pdata, hklIDs, det, **kwargs)
 
         print omeEta
@@ -314,12 +314,12 @@ class cakingPanel(wx.Panel):
             pointLists=pList,
             rangeVV=(0., 150.),
             drawColorbar=False,
-            pfigDisplayKWArgs={'doY90Rot':False}          
+            pfigDisplayKWArgs={'doY90Rot':False}
             )
         pfig = omeEta.display(**kwargs)
 
         print pfig, dir(pfig)
-        
+
         return
     #
     # ============================== API
@@ -329,7 +329,7 @@ class cakingPanel(wx.Panel):
     def update(self, showImg=False):
         """Update figure"""
         #  off for now ...
-        
+
         return
 
     #
@@ -338,19 +338,19 @@ class cakingPanel(wx.Panel):
     def OnChooseMethod(self, e):
         """Binning method has changed"""
         #self.sizer.Show(self.canvas, False)
-        
+
         s = self.method_cho.GetStringSelection()
         print 'rebin method:  ', s
         if s == prOpts.CAKE_IMG:
             self.optSizer.Show(self.mrb_pan, False)
             self.optSizer.Show(self.sph_pan, False)
             self.optSizer.Show(self.std_pan)
-            
+
         elif s == prOpts.CAKE_RNG:
             self.optSizer.Show(self.std_pan, False)
             self.optSizer.Show(self.sph_pan, False)
             self.optSizer.Show(self.mrb_pan)
-            
+
         elif s == prOpts.CAKE_SPH:
             self.optSizer.Show(self.std_pan, False)
             self.optSizer.Show(self.mrb_pan, False)
@@ -360,18 +360,18 @@ class cakingPanel(wx.Panel):
         self.sizer.Layout()
 
         self.update(showImg=True)
-        
+
         #self.sizer.Show(self.canvas, True)
 
         self.sizer.Layout()
 
         return
-    
+
     def OnRun(self, e):
         """Run caking"""
 
         s = self.method_cho.GetStringSelection()
-        
+
         if s == prOpts.CAKE_IMG:
             self.__cake_img()
         elif s == prOpts.CAKE_RNG:
@@ -379,9 +379,9 @@ class cakingPanel(wx.Panel):
         elif s == prOpts.CAKE_SPH:
             self.__cake_sph()
             pass
-        
+
         return
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  cakingPanel
@@ -397,11 +397,11 @@ class cakingDialog(wx.Dialog):
 	#
 	#  Data Objects.
 	#
-	
+
 	#
 	#  Windows.
 	#
-	self.titlebar = wx.StaticText(self, -1, 'cakingDialog', 
+	self.titlebar = wx.StaticText(self, -1, 'cakingDialog',
 				      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
         self.dataPanel = cakingPanel(self, wx.NewId())
 	#
@@ -418,7 +418,7 @@ class cakingDialog(wx.Dialog):
 	#
 	#  Events.
 	#
-	
+
 	#
 	return
     #
@@ -435,7 +435,7 @@ class cakingDialog(wx.Dialog):
 	self.sizer.Add(self.dataPanel, 1, wx.EXPAND|wx.ALIGN_CENTER)
         #
         self.sizer.Show(self.titlebar, False)
-        
+
 	return
     #
     # ============================== API
@@ -446,7 +446,7 @@ class cakingDialog(wx.Dialog):
     #
     #                     ========== *** Event Callbacks
     #
-    
+
 
     pass # end class
 #
@@ -520,11 +520,11 @@ class standardOptsPanel(wx.Panel):
         self.frame_lab = wx.StaticText(self, wx.NewId(), 'frame',
                                        style=wx.ALIGN_CENTER)
         self.frame_cho = wx.Choice(self, wx.NewId(), choices=['frame 1'])
-        
+
         return
 
     def __makeBindings(self):
-        """Bind interactors"""#  SpinCtrl Events:  
+        """Bind interactors"""#  SpinCtrl Events:
         self.Bind(wx.EVT_SPINCTRL, self.OnRminSpn, self.rmin_spn)
         self.Bind(wx.EVT_SPINCTRL, self.OnRminSpn, self.rmax_spn)
         self.Bind(wx.EVT_SPINCTRL, self.OnRminSpn, self.emin_spn)
@@ -598,7 +598,7 @@ class standardOptsPanel(wx.Panel):
         app    = wx.GetApp()
         exp    = app.ws
         canvas = app.getCanvas()
-        
+
         etaMin = self.emin_spn.GetValue()*piBy180
         etaMax = self.emax_spn.GetValue()*piBy180
         rhoMin = self.rmin_spn.GetValue()
@@ -619,21 +619,21 @@ class standardOptsPanel(wx.Panel):
         canvas.clearLines()
         canvas.addXYplot(xyRings, opts=opts)
         return
-    
+
     #
     #                     ========== *** Event Callbacks
     #
     def OnRminSpn(self, e):
         """Rho min has changed"""
         self.update()
-        
+
         return
 #OnRmaxSpn
 #OnEminSpn
 #OnEmaxSpn
 #OnEnumSpn
 
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  standardOptsPanel
@@ -679,24 +679,24 @@ class multiringOptsPanel(wx.Panel):
 
         self.ring_pan = ringPanel(self, wx.NewId())
 
-        self.emin_lab = wx.StaticText(self, wx.NewId(), 
-                                      'Eta min', 
+        self.emin_lab = wx.StaticText(self, wx.NewId(),
+                                      'Eta min',
                                       style=wx.ALIGN_RIGHT)
-        self.emax_lab = wx.StaticText(self, wx.NewId(), 
-                                      'Eta max', 
+        self.emax_lab = wx.StaticText(self, wx.NewId(),
+                                      'Eta max',
                                       style=wx.ALIGN_RIGHT)
-        self.emin_txt = wx.TextCtrl(self, wx.NewId(), 
-                                    value='0', 
+        self.emin_txt = wx.TextCtrl(self, wx.NewId(),
+                                    value='0',
                                     style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
-        self.emax_txt = wx.TextCtrl(self, wx.NewId(), 
-                                    value='360', 
-                                    style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)        
-        self.numEta_lab = wx.StaticText(self, wx.NewId(), 
-                                        'Number of Eta Bins', 
+        self.emax_txt = wx.TextCtrl(self, wx.NewId(),
+                                    value='360',
+                                    style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
+        self.numEta_lab = wx.StaticText(self, wx.NewId(),
+                                        'Number of Eta Bins',
                                          style=wx.ALIGN_RIGHT)
-        self.numRho_lab = wx.StaticText(self, wx.NewId(), 
-                                        'Rho Bins Per Ring', 
-                                         style=wx.ALIGN_RIGHT)        
+        self.numRho_lab = wx.StaticText(self, wx.NewId(),
+                                        'Rho Bins Per Ring',
+                                         style=wx.ALIGN_RIGHT)
         self.numEta_spn = wx.SpinCtrl(self, wx.NewId(), min=1, value=str(36) )
         self.numRho_spn = wx.SpinCtrl(self, wx.NewId(), min=1, value=str(20) )
 
@@ -710,10 +710,10 @@ class multiringOptsPanel(wx.Panel):
         self.Bind(wx.EVT_SPINCTRL, self.OnUpdate, self.numRho_spn)
 
         rp = self.ring_pan
-        
+
         self.Bind(wx.EVT_TEXT_ENTER, self.OnUpdate, rp.waveAng_txt)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnUpdate, rp.waveKEV_txt)
-        
+
 	self.Bind(wx.EVT_CHOICE,     self.OnUpdate, rp.width_cho)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnUpdate, rp.width_txt)
 
@@ -739,7 +739,7 @@ class multiringOptsPanel(wx.Panel):
         self.cakeSizer.Add(self.emin_txt, 0, wx.ALIGN_LEFT)
         self.cakeSizer.Add(self.emax_lab, 1, wx.ALIGN_RIGHT)
         self.cakeSizer.Add(self.emax_txt, 0, wx.ALIGN_LEFT)
-	
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
 	self.sizer.Add(self.cakeSizer,  0, wx.EXPAND|wx.ALIGN_CENTER)
@@ -757,13 +757,13 @@ class multiringOptsPanel(wx.Panel):
         exp    = app.ws
         pdat   = exp.activeMaterial.planeData
         canvas = app.getCanvas()
-        
+
         xyRings = exp.detector.getRings(pdat, ranges=True)
 
         opts = {'color': 'r'}
         canvas.clearLines()
         canvas.addXYplot(xyRings, opts=opts)
-        
+
         return
     #
     #                     ========== *** Event Callbacks
@@ -771,23 +771,23 @@ class multiringOptsPanel(wx.Panel):
     def OnUpdate(self, e):
         """Update image"""
         self.update()
-        
+
         return
     def OnEMinTxt(self, e):
         """Callback for emin_txt choice"""
         self.emin = float(self.emin_txt.GetValue())
         print 'setting Eta min: ', self.emin
         self.update()
-        
+
         return
     def OnEMaxTxt(self, e):
         """Callback for emin_txt choice"""
         self.emax = float(self.emax_txt.GetValue())
         print 'setting Eta min: ', self.emax
         self.update()
-        
+
         return
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  multiringOptsPanel
@@ -855,22 +855,22 @@ class sphericalOptsPanel(wx.Panel):
         self.angle_lab = wx.StaticText(self, wx.NewId(), name, style=wx.ALIGN_CENTER)
         self.angle_flt = FloatControl(self, wx.NewId())
         self.angle_flt.SetValue(1.0)
-        
+
         name = 'axis x'
         self.axis1_lab = wx.StaticText(self, wx.NewId(), name, style=wx.ALIGN_CENTER)
         self.axis1_flt = FloatControl(self, wx.NewId())
         self.axis1_flt.SetValue(1.0)
-        
+
         name = 'axis y'
         self.axis2_lab = wx.StaticText(self, wx.NewId(), name, style=wx.ALIGN_CENTER)
         self.axis2_flt = FloatControl(self, wx.NewId())
         self.axis2_flt.SetValue(1.0)
-        
+
         name = 'axis z'
         self.axis3_lab = wx.StaticText(self, wx.NewId(), name, style=wx.ALIGN_CENTER)
         self.axis3_flt = FloatControl(self, wx.NewId())
         self.axis3_flt.SetValue(1.0)
-        
+
 
         return
 
@@ -879,7 +879,7 @@ class sphericalOptsPanel(wx.Panel):
         self.Bind(wx.EVT_CHOICE, self.OnChooseMatl, self.matl_cho)
         self.Bind(wx.EVT_CHOICE, self.OnChooseReader, self.read_cho)
         self.Bind(wx.EVT_BUTTON, self.OnSelectHKLs, self.hkls_but)
-        
+
         return
 
     def __makeSizers(self):
@@ -900,7 +900,7 @@ class sphericalOptsPanel(wx.Panel):
         self.sz_cho.Add(self.hkls_but,  0, wx.ALIGN_CENTER|wx.TOP, 5)
 
         nrow = 0; ncol = 2; padx = pady = 5
-	self.sz_orient = wx.FlexGridSizer(nrow, ncol, padx, pady) 
+	self.sz_orient = wx.FlexGridSizer(nrow, ncol, padx, pady)
 	self.sz_orient.AddGrowableCol(1, 1)
         self.sz_orient.Add(self.angle_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT|wx.RIGHT, 10)
         self.sz_orient.Add(self.angle_flt, 1, wx.EXPAND|wx.ALIGN_LEFT)
@@ -954,7 +954,7 @@ class sphericalOptsPanel(wx.Panel):
         exp.activeMaterial = self.matl_cho.GetStringSelection()
 
         return
-    
+
     def OnChooseReader(self, e):
         """Change reader"""
         app = wx.GetApp()
@@ -962,7 +962,7 @@ class sphericalOptsPanel(wx.Panel):
         exp.activeReader = self.matl_cho.GetStringSelection()
 
         return
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  sphericalOptsPanel

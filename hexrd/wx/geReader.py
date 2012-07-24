@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -35,9 +35,9 @@ import wx.lib.mixins.listctrl  as  listMixins
 from hexrd.XRD import detector
 from hexrd.XRD.Experiment import *
 
-from hexrd.GUI.guiConfig    import WindowParameters as WP
-from hexrd.GUI.guiUtilities import ResetChoice, makeTitleBar
-from hexrd.GUI.canvasPanel  import CanvasPanel
+from hexrd.wx.guiConfig    import WindowParameters as WP
+from hexrd.wx.guiUtilities import ResetChoice, makeTitleBar
+from hexrd.wx.canvasPanel  import CanvasPanel
 #
 #  DATA
 #
@@ -89,8 +89,8 @@ FLIP_MODE_DICT_INV = dict(zip(ReaderInput.FLIP_MODES, FLIP_CHOICES))
 #  Utility vFunctions
 #
 def getValStr(r, i):
-    """Return a string of values for display 
-    
+    """Return a string of values for display
+
     r -- a list of tuples
     i -- index
 
@@ -106,14 +106,14 @@ def getValStr(r, i):
     return s
 
 def updVals(r, ind, s):  # Is this used?
-    """Return a set of values from a string 
-    
+    """Return a set of values from a string
+
     r   -- a list of tuples, to be modified
     s   -- a string showing tuple-element i from each member of r
     ind -- index
 
     RETURNS
-    
+
     rn -- the new, updated r
 """
     rn = []
@@ -167,28 +167,28 @@ class geReaderPanel(wx.Panel):
         """Add interactors"""
         exp = wx.GetApp().ws
 
-        self.tbarSizer = makeTitleBar(self, 'GE Reader Panel', 
+        self.tbarSizer = makeTitleBar(self, 'GE Reader Panel',
                                       color=WP.TITLEBAR_BG_COLOR_PANEL1)
         #
         #  Reader List
         #
-        self.curr_lab = wx.StaticText(self, wx.NewId(), 
+        self.curr_lab = wx.StaticText(self, wx.NewId(),
                                         'Current Reader', style=wx.ALIGN_CENTER)
-        self.rdrs_cho = wx.Choice(self, wx.NewId(), 
+        self.rdrs_cho = wx.Choice(self, wx.NewId(),
                                   choices=[r.name for r in exp.savedReaders])
         #self.save_but = wx.Button(self, wx.NewId(), 'Save Reader')
         self.new_but  = wx.Button(self, wx.NewId(), 'New Reader')
         #
         #  Reader Name
         #
-        self.name_lab = wx.StaticText(self, wx.NewId(), 
+        self.name_lab = wx.StaticText(self, wx.NewId(),
                                         'READER NAME', style=wx.ALIGN_CENTER)
-        self.name_txt = wx.TextCtrl(self, wx.NewId(), value=ReaderInput.DFLT_NAME, 
+        self.name_txt = wx.TextCtrl(self, wx.NewId(), value=ReaderInput.DFLT_NAME,
                                       style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
-        # 
+        #
         #  Mode interactors
         #
-        self.mode_lab = wx.StaticText(self, wx.NewId(), 'Image Mode', 
+        self.mode_lab = wx.StaticText(self, wx.NewId(), 'Image Mode',
                                       style=wx.ALIGN_RIGHT)
         self.mode_cho = wx.Choice(self, wx.NewId(), choices=MODE_CHOICES)
         #
@@ -198,35 +198,35 @@ class geReaderPanel(wx.Panel):
         self.img_but    = wx.Button(self, wx.NewId(), 'Select Image Files')
         self.dir_but    = wx.Button(self, wx.NewId(), 'Change Image Folder')
 
-        self.drk_lab = wx.StaticText(self, wx.NewId(), 'Dark Mode', 
+        self.drk_lab = wx.StaticText(self, wx.NewId(), 'Dark Mode',
                                       style=wx.ALIGN_RIGHT)
         self.drk_cho = wx.Choice(self, wx.NewId(), choices=DARK_CHOICES)
         self.drk_but = wx.Button(self, wx.NewId(), 'Select Dark File')
         #
         #  Aggregation
         #
-        self.agg_lab = wx.StaticText(self, wx.NewId(), 'Frame Aggregation', 
+        self.agg_lab = wx.StaticText(self, wx.NewId(), 'Frame Aggregation',
                                       style=wx.ALIGN_RIGHT)
         self.agg_cho = wx.Choice(self, wx.NewId(), choices=AGG_CHOICES)
         #
         #  Action buttons
         #
-        self.files_lab = wx.StaticText(self, wx.NewId(), 'Image Files', 
+        self.files_lab = wx.StaticText(self, wx.NewId(), 'Image Files',
                                       style=wx.ALIGN_RIGHT)
-        self.read_lab = wx.StaticText(self, wx.NewId(), 'Read', 
+        self.read_lab = wx.StaticText(self, wx.NewId(), 'Read',
                                       style=wx.ALIGN_RIGHT)
 
         self.read_but   = wx.Button(self, wx.NewId(), 'Load')
-        self.browse_lab = wx.StaticText(self, wx.NewId(), 'Browse Frames', 
+        self.browse_lab = wx.StaticText(self, wx.NewId(), 'Browse Frames',
                                       style=wx.ALIGN_RIGHT)
         self.browse_spn = wx.SpinCtrl(self, wx.NewId(), min=0, initial=0)
-        self.browse_inf = wx.TextCtrl(self, wx.NewId(), value='', 
+        self.browse_inf = wx.TextCtrl(self, wx.NewId(), value='',
                                       style=wx.RAISED_BORDER|wx.TE_READONLY)
 	self.sizer = wx.BoxSizer(wx.HORIZONTAL|wx.VERTICAL)
         #
         #  Orientation
         #
-        self.flip_lab = wx.StaticText(self, wx.NewId(), 'Image Orientation', 
+        self.flip_lab = wx.StaticText(self, wx.NewId(), 'Image Orientation',
                                       style=wx.ALIGN_RIGHT)
         self.flip_cho = wx.Choice(self, wx.NewId(), choices=FLIP_CHOICES)
         #
@@ -263,7 +263,7 @@ class geReaderPanel(wx.Panel):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+
         nrow = 9; ncol = 4; padx = 5; pady = 5
 	self.fgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
 	self.fgsizer.AddGrowableCol(2, 1)
@@ -274,7 +274,7 @@ class geReaderPanel(wx.Panel):
         self.fgsizer.Add(self.rdrs_cho, 0, wx.ALIGN_RIGHT)
         #self.fgsizer.Add(self.save_but, 0, wx.ALIGN_RIGHT)
         self.fgsizer.Add(self.new_but,  0, wx.ALIGN_RIGHT)
-            
+
         self.fgsizer.Add(self.name_lab,       0, wx.ALIGN_RIGHT)
         self.fgsizer.Add(wx.Window(self, -1), 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.fgsizer.Add(wx.Window(self, -1), 0, wx.EXPAND|wx.ALIGN_CENTER)
@@ -316,8 +316,8 @@ class geReaderPanel(wx.Panel):
         self.fgsizer.Add(self.browse_inf,       0, wx.ALIGN_CENTER | wx.EXPAND)
 
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, 
-                       wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 10) 
+	self.sizer.Add(self.tbarSizer, 0,
+                       wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 10)
 	self.sizer.Add(self.fgsizer,    0, wx.EXPAND|wx.ALIGN_RIGHT)
 
 	self.sizer.Add(self.sp_single,   0, wx.EXPAND|wx.ALIGN_RIGHT)
@@ -387,7 +387,7 @@ class geReaderPanel(wx.Panel):
         self.sp_info.update()
 
         self.sizer.Layout()
-        
+
         return
 
     updateFromExp = update
@@ -396,7 +396,7 @@ class geReaderPanel(wx.Panel):
     #
     def NotYetImpl(self, e):
         """Not implemented"""
-        
+
         print dir(e)
         wx.MessageBox('not yet implemented')
 
@@ -432,7 +432,7 @@ class geReaderPanel(wx.Panel):
         if sel >= 0:
             exp.activeReader = sel
             self.update()
-            
+
             self.browse_inf.Enable(False)
             self.browse_spn.Enable(False)
 
@@ -506,7 +506,7 @@ class geReaderPanel(wx.Panel):
         #  Update info window
 
         self.sp_info.update()
-        
+
         return
 
     def OnModeChoice(self, e):
@@ -547,7 +547,7 @@ class geReaderPanel(wx.Panel):
                 pass
             pass
         dlg.Destroy()
-        
+
         return
 
     def OnImgBut(self, e):
@@ -575,7 +575,7 @@ class geReaderPanel(wx.Panel):
             self.update()
             pass
         dlg.Destroy()
-        
+
         return
 
     def OnDrkSubtract(self, e):
@@ -617,7 +617,7 @@ class geReaderPanel(wx.Panel):
 
         self.browse_inf.Enable()
         self.browse_spn.Enable()
-        
+
         self.browse_inf.SetValue('total frames: %d' % exp.numFramesTotal)
         self.browse_spn.SetValue(exp.curFrameNumber)
         self.browse_spn.SetRange(1, exp.numFramesTotal)
@@ -625,7 +625,7 @@ class geReaderPanel(wx.Panel):
         mainFrame.SetStatusText('done')
 
         return
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  geReaderPanel
@@ -640,7 +640,7 @@ class MF_Subpanel(wx.Panel):
 	#
         #  Data
         #
-        
+
         #
 	#  Window Objects.
 	#
@@ -669,7 +669,7 @@ class MF_Subpanel(wx.Panel):
 
         #
         self.file_lctrl =  self.__makeListCtrl()
-        
+
 
         return
 
@@ -704,7 +704,7 @@ class MF_Subpanel(wx.Panel):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 
 	self.sizer.Add(self.tbarSizer,  0, wx.EXPAND|wx.ALIGN_CENTER)
@@ -736,9 +736,9 @@ class MF_Subpanel(wx.Panel):
 
         exp = wx.GetApp().ws
         exp.activeReader.imageNameD[fname] = (int(numEm), omin, omax, odel)
-        
+
         return
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  MF_Subpanel
@@ -804,7 +804,7 @@ class SF_Subpanel(wx.Panel):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
@@ -866,14 +866,14 @@ class infoPanel(wx.Panel):
         #  File lists for display.
         #
 
-        self.drk_txt_lab = wx.StaticText(self, wx.NewId(), 'Dark File', 
+        self.drk_txt_lab = wx.StaticText(self, wx.NewId(), 'Dark File',
                                          style=wx.ALIGN_CENTER)
-        self.drk_txt = wx.TextCtrl(self, wx.NewId(), value='<no dark file>', 
+        self.drk_txt = wx.TextCtrl(self, wx.NewId(), value='<no dark file>',
                                    style=wx.RAISED_BORDER)
 
-        self.img_txt_lab = wx.StaticText(self, wx.NewId(), 'Image Directory', 
+        self.img_txt_lab = wx.StaticText(self, wx.NewId(), 'Image Directory',
                                          style=wx.ALIGN_CENTER)
-        self.img_txt = wx.TextCtrl(self, wx.NewId(), value='<no images loaded>', 
+        self.img_txt = wx.TextCtrl(self, wx.NewId(), value='<no images loaded>',
                                    style=wx.RAISED_BORDER)
 
         return
@@ -891,7 +891,7 @@ class infoPanel(wx.Panel):
 
 	self.fgsizer.Add(self.img_txt_lab, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
 	self.fgsizer.Add(self.img_txt,     1, wx.EXPAND|wx.ALIGN_CENTER)
-	
+
 	self.fgsizer.Add(self.drk_txt_lab, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
 	self.fgsizer.Add(self.drk_txt,     1, wx.EXPAND|wx.ALIGN_CENTER)
         #
@@ -918,13 +918,13 @@ class infoPanel(wx.Panel):
     #
     #                     ========== *** Event Callbacks
     #
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  infoPanel
 # ---------------------------------------------------CLASS:  ListCtrl
 #
-class myListCtrl(wx.ListCtrl, 
+class myListCtrl(wx.ListCtrl,
                  listMixins.ListCtrlAutoWidthMixin,
                  listMixins.TextEditMixin):
     """myListCtrl:  subclassing to include mixins"""
@@ -935,9 +935,9 @@ class myListCtrl(wx.ListCtrl,
         listMixins.ListCtrlAutoWidthMixin.__init__(self)
         listMixins.TextEditMixin.__init__(self)
 	#
-	
+
 	return
-    
+
     def CloseEditor(self, e=None):
         exp = wx.GetApp().ws
 
@@ -967,7 +967,7 @@ class myListCtrl(wx.ListCtrl,
 
         exp.activeReader.imageNameD[fname] = (numEm, omin, omax, odel)
         return
-        
+
 
     pass # end class
 #

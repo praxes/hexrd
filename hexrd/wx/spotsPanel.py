@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -30,8 +30,8 @@
 """
 import wx
 
-from hexrd.GUI.guiConfig    import WindowParameters as WP
-from hexrd.GUI.guiUtilities import makeTitleBar
+from hexrd.wx.guiConfig    import WindowParameters as WP
+from hexrd.wx.guiUtilities import makeTitleBar
 
 from hexrd.XRD.crystallography    import processWavelength
 #
@@ -77,38 +77,38 @@ class spotsPanel(wx.Panel):
 
         # Material Choice
 
-	self.mat_lab = wx.StaticText(self, -1, 'material', 
-                                     style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER) 
+	self.mat_lab = wx.StaticText(self, -1, 'material',
+                                     style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
         self.mat_cho = wx.Choice(self, wx.NewId(), choices=exp.matNames)
-        
+
         # Beam Energy
 
         self.beam_lab = wx.StaticText(
-            self, wx.NewId(), 
+            self, wx.NewId(),
             'Beam Energy (keV)', style=wx.ALIGN_CENTER)
         self.beam_txt = wx.TextCtrl(
-            self, wx.NewId(), value='', 
+            self, wx.NewId(), value='',
             style=wx.RAISED_BORDER)
 
         # Threshold
 
         self.thresh_lab = wx.StaticText(
-            self, wx.NewId(), 
+            self, wx.NewId(),
             'Threshold', style=wx.ALIGN_CENTER)
         self.thresh_txt = wx.TextCtrl(
-            self, wx.NewId(), value='', 
+            self, wx.NewId(), value='',
             style=wx.RAISED_BORDER)
 
         # Min PX
 
         self.minpx_lab = wx.StaticText(
-            self, wx.NewId(), 
+            self, wx.NewId(),
             'Min PX', style=wx.ALIGN_CENTER)
         self.minpx_txt = wx.TextCtrl(
-            self, wx.NewId(), value='', 
+            self, wx.NewId(), value='',
             style=wx.RAISED_BORDER)
 
-        self.run  = wx.Button(self, wx.NewId(), 'Find Spots')        
+        self.run  = wx.Button(self, wx.NewId(), 'Find Spots')
 
         return
 
@@ -126,7 +126,7 @@ class spotsPanel(wx.Panel):
     def __makeSizers(self):
 	"""Lay out the interactors"""
         nrow = 3; ncol = 2; padx = 5; pady = 5
-        self.fgSizer = wx.FlexGridSizer(nrow, ncol, padx, pady) 
+        self.fgSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
         self.fgSizer.AddGrowableCol(1, 1)
         #  1. material selector
         self.fgSizer.Add(self.mat_lab,       0, wx.ALIGN_RIGHT)
@@ -202,7 +202,7 @@ class spotsPanel(wx.Panel):
         """Callback for run"""
         #wx.GetApp().ws.findSpots()
         return
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  spotsPanel

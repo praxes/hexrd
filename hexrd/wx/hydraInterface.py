@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -30,9 +30,9 @@
 """
 import wx
 
-from hexrd.GUI.guiConfig import WindowParameters as WP
+from hexrd.wx.guiConfig import WindowParameters as WP
 
-from hexrd.GUI.hydraCanvas import hydraCanvasFrame
+from hexrd.wx.hydraCanvas import hydraCanvasFrame
 #
 # ---------------------------------------------------CLASS:  HydraControlPanel
 #
@@ -75,19 +75,19 @@ class HydraControlPanel(wx.Panel):
         #
         exp = wx.GetApp().ws
         #
-        self.img1_lab = wx.StaticText(self, wx.NewId(), 'Image 1', 
+        self.img1_lab = wx.StaticText(self, wx.NewId(), 'Image 1',
                                       style=wx.ALIGN_CENTER)
         self.img1_cho = wx.Choice(self, wx.NewId(), choices=exp.readerNames)
         #
-        self.img2_lab = wx.StaticText(self, wx.NewId(), 'Image 2', 
+        self.img2_lab = wx.StaticText(self, wx.NewId(), 'Image 2',
                                       style=wx.ALIGN_CENTER)
         self.img2_cho = wx.Choice(self, wx.NewId(), choices=exp.readerNames)
         #
-        self.img3_lab = wx.StaticText(self, wx.NewId(), 'Image 3', 
+        self.img3_lab = wx.StaticText(self, wx.NewId(), 'Image 3',
                                       style=wx.ALIGN_CENTER)
         self.img3_cho = wx.Choice(self, wx.NewId(), choices=exp.readerNames)
         #
-        self.img4_lab = wx.StaticText(self, wx.NewId(), 'Image 4', 
+        self.img4_lab = wx.StaticText(self, wx.NewId(), 'Image 4',
                                       style=wx.ALIGN_CENTER)
         self.img4_cho = wx.Choice(self, wx.NewId(), choices=exp.readerNames)
         #
@@ -99,8 +99,8 @@ class HydraControlPanel(wx.Panel):
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t, 
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER) 
+	self.titlebar = wx.StaticText(self, -1, t,
+					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
 	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
         myToolTip = r"""
 PANEL FOR ...
@@ -135,10 +135,10 @@ PANEL FOR ...
         #
         self.fgsizer.Add(wx.Window(self, -1), 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.fgsizer.Add(self.load_but, 0, wx.EXPAND|wx.ALIGN_CENTER)
-        
+
 	#self.fgsizer.AddGrowableCol(num, proportion)
 	#self.fgsizer.AddGrowableRow(num, proportion)
-	
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
 	self.sizer.Add(self.fgsizer,  0, wx.EXPAND|wx.ALIGN_CENTER)
@@ -251,18 +251,18 @@ class HydraControlFrame(wx.Frame):
         #
         menuBar = wx.MenuBar()
         # self.CreateFileMenu()
-        # menuBar.Append(self.filemenu,  "&File") 
+        # menuBar.Append(self.filemenu,  "&File")
         # self.CreateTableMenu()
         # menuBar.Append(self.tablemenu, "&Table")
-        # 
+        #
         # self.SetMenuBar(menuBar)  # Adding the MenuBar to the Frame content.
 
         return
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t, 
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER) 
+	self.titlebar = wx.StaticText(self, -1, t,
+					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
 	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_FRAME)
         myToolTip = r"""
 FRAME FOR: hydra user controls
@@ -277,7 +277,7 @@ FRAME FOR: hydra user controls
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-	
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.hydraPanel, 0, wx.EXPAND|wx.ALIGN_CENTER)
 
