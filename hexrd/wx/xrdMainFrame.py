@@ -44,7 +44,7 @@ from hexrd.wx.guiConfig    import WindowParameters as WP
 from hexrd.wx.guiUtilities import makeTitleBar
 from hexrd.wx.xrdNoteBook  import xrdNoteBook
 from hexrd.wx.canvasPanel  import CanvasPanel
-from hexrd.wx.ListEditor      import ListEditDlg
+from hexrd.wx.listeditor      import ListEditDlg
 from hexrd.wx.hydraInterface  import HydraControlFrame
 from hexrd.wx.caking          import cakingDialog
 #
