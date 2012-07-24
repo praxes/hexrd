@@ -52,8 +52,8 @@ from hexrd.quadrature import q3db, q2db
 from hexrd import tens
 from hexrd import valUnits
 from hexrd.valUnits import toFloat
-from hexrd import matrixUtils as mUtil
-from hexrd.matrixUtils import rowNorm
+from hexrd import matrixutil as mUtil
+from hexrd.matrixutil import rowNorm
 from hexrd import plotWrap
 
 from hexrd import XRD

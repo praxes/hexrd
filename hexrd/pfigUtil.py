@@ -30,7 +30,7 @@ import copy
 from hexrd import arrayutil
 from hexrd.arrayutil import getMem
 from hexrd.arrayutil import num # import numpy as num
-from hexrd import matrixUtils
+from hexrd import matrixutil
 import hexrd.orientations as ors
 
 def sph2n(coords_sph):
@@ -179,7 +179,7 @@ def drawLines(pw, pointLists=[],
     'done with drawing net'
 
     for points, pwKWArgs in pointLists:
-        nVecs  = matrixUtils.unitVector(points)
+        nVecs  = matrixutil.unitVector(points)
         if rMat is not None:
             'rotate as did elsewhere'
             nVecs = num.dot(rMat, nVecs)

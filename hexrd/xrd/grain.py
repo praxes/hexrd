@@ -32,14 +32,14 @@ import numpy as num
 from scipy import optimize
 from scipy.linalg import inv, qr, svd
 
-import hexrd.matrixUtils as mUtil
+import hexrd.matrixutil as mUtil
 from hexrd import valUnits
 import hexrd.xrd.Rotations as rot
 import hexrd.xrd.Symmetry as sym
 import hexrd.xrd.crystallography as xtl # latticeParameters, latticeVectors, getFriedelPair
 from hexrd import XRD
 from hexrd.xrd.xrdUtils import calculateBiotStrain, makeMeasuredScatteringVectors
-from hexrd.matrixUtils import columnNorm
+from hexrd.matrixutil import columnNorm
 
 # constants
 r2d = 180./num.pi
@@ -384,7 +384,7 @@ class Grain(object):
         """
         Sets stretch tensor properly from a 6-vector in the Mandel-Voigt notation.
 
-        SEE ALSO: matrixUtils.vecMVToSymm()
+        SEE ALSO: matrixutil.vecMVToSymm()
         """
         uVec = num.atleast_1d(vVec).flatten()
         assert len(vVec) == 6, 'wrong length U vector'

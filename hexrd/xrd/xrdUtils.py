@@ -44,7 +44,7 @@ import matplotlib.collections as collections
 
 from hexrd import plotWrap
 from hexrd import tens
-from hexrd import matrixUtils
+from hexrd import matrixutil
 from hexrd import pfigUtil
 from hexrd.valUnits import toFloat
 import hexrd.orientations as ors
@@ -816,7 +816,7 @@ def makeNVecs(tth, etaIn, omeIn, asGrid=False):
         num.asarray(eta).flatten(),
         num.asarray(ome).flatten())
     # qVecs is 3xN
-    nVecs  = matrixUtils.unitVector(qVecs)
+    nVecs  = matrixutil.unitVector(qVecs)
     return nVecs
 
 def omeEtaGridToNVecs(tTh, omegas, etas):

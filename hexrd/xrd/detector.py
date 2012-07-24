@@ -60,7 +60,7 @@ from hexrd.xrd.Rotations import rotMatOfExpMap
 from hexrd.xrd.Rotations import rotMatOfExpMap, arccosSafe
 from hexrd.quadrature import q1db
 from hexrd.quadrature import q2db
-from hexrd.matrixUtils import unitVector
+from hexrd.matrixutil import unitVector
 from hexrd import valUnits
 
 havePlotWrap = True

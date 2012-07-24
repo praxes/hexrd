@@ -1,24 +1,24 @@
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -38,14 +38,14 @@ from numpy import \
 from numpy import float_ as nFloat
 from numpy import int_ as nInt
 
-from hexrd.matrixUtils import columnNorm, unitVector, skewMatrixOfVector, \
+from hexrd.matrixutil import columnNorm, unitVector, skewMatrixOfVector, \
     multMatArray, nullSpace
 #
 #  Module Data
 tinyRotAng   = finfo(float).eps         # ~2e-16
 angularUnits = 'radians'                # module-level angle units
 I3           = array([[1., 0., 0.],     # (3, 3) identity
-                      [0., 1., 0.], 
+                      [0., 1., 0.],
                       [0., 0., 1.]])
 #
 periodDict = {'degrees': 360.0, 'radians': 2*numpy.pi}
@@ -62,7 +62,7 @@ def arccosSafe(temp):
     elif type(temp) is ndarray:
         if len(temp.shape) == 0:
             temp = temp.reshape(1)
-    
+
     if (temp > 1.00001).any():
         print >> sys.stderr, "attempt to take arccos of %s" % temp
         raise RuntimeError, "unrecoverable error"
@@ -75,7 +75,7 @@ def arccosSafe(temp):
 
     temp[gte1] =  1
     temp[lte1] = -1
-    
+
     ang = arccos(temp)
 
     return ang
@@ -91,15 +91,15 @@ def fixQuat(q):
         l, m, n = q.shape
         assert m is 4, 'your 3-d quaternion array isn\'t the right shape'
         q = q.transpose(0, 2, 1).reshape(l*n, 4).T
-        
+
     qfix = unitVector(q)
-    
+
     q0negative = qfix[0, ] < 0
     qfix[:, q0negative] = -1*qfix[:, q0negative]
 
     if qdims == 3:
         qfix = qfix.T.reshape(l, n, 4).transpose(0, 2, 1)
-    
+
     return qfix
 
 def invertQuat(q):
@@ -107,7 +107,7 @@ def invertQuat(q):
     silly little routine for inverting a quaternion
     """
     numq = q.shape[1]
-    
+
     imat = tile(vstack([-1, 1, 1, 1]), (1, numq))
 
     qinv = imat * q
@@ -121,10 +121,10 @@ def misorientation(q1, q2, *args):
     """
     if not isinstance(q1, ndarray) or not isinstance(q2, ndarray):
         raise RuntimeError, "quaternion args are not of type `numpy ndarray'"
-    
+
     if q1.ndim is not 2 or q2.ndim is not 2:
         raise RuntimeError, "quaternion args are the wrong shape; must be 2-d (columns)"
-    
+
     if q1.shape[1] is not 1:
         raise RuntimeError, "first argument should be a single quaternion"
 
@@ -144,24 +144,24 @@ def misorientation(q1, q2, *args):
                 raise RuntimeError, "symmetry arguments are not an numpy arrays"
         elif len(sym) > 2:
             raise RuntimeError, "symmetry argument has %d entries; should be 1 or 2" % (len(sym))
-    
+
     # set some lengths
-    n = q2.shape[1]             # length of misorientation list 
+    n = q2.shape[1]             # length of misorientation list
     m = sym[0].shape[1]         # crystal (right)
     p = sym[1].shape[1]         # sample  (left)
-    
+
     # tile q1 inverse
     q1i = quatProductMatrix( invertQuat( q1 ), mult='right' ).squeeze()
-    
+
     # convert symmetries to (4, 4) qprod matrices
     rsym = quatProductMatrix(sym[0], mult='right')
     lsym = quatProductMatrix(sym[1], mult='left')
-    
-    # Do R * Gc, store as 
+
+    # Do R * Gc, store as
     # [q2[:, 0] * Gc[:, 0:m], ..., q2[:, n-1] * Gc[:, 0:m]]
     q2 = dot(rsym, q2).transpose(2, 0, 1).reshape(m*n, 4).T
-    
-    # Do Gs * (R * Gc), store as 
+
+    # Do Gs * (R * Gc), store as
     # [Gs[:, 0:p] * q[:,   0] * Gc[:, 0], ... , Gs[:, 0:p] * q[:,   0] * Gc[:, m-1], ...
     #  Gs[:, 0:p] * q[:, n-1] * Gc[:, 0], ... , Gs[:, 0:p] * q[:, n-1] * Gc[:, m-1]]
     q2 = dot(lsym, q2).transpose(2, 0, 1).reshape(p*m*n, 4).T
@@ -170,23 +170,23 @@ def misorientation(q1, q2, *args):
     # classes for q1 and q2.  Note the use of the fact that the application
     # of the symmetry groups is an isometry.
     eqvMis = fixQuat( dot(q1i, q2) )
-    
+
     # Reshape scalar comp columnwise by point in q2 (and q1, if applicable)
     sclEqvMis = eqvMis[0, :].reshape(n, p*m).T
-    
+
     # Find misorientation closest to origin for each n equivalence classes
     #   - fixed quats so garaunteed that sclEqvMis is nonnegative
     qmax = sclEqvMis.max(0)
-    
+
     # remap indices to use in eqvMis
     qmaxInd = ( sclEqvMis == qmax ).nonzero()
     qmaxInd = c_[ qmaxInd[0], qmaxInd[1] ]
-    
+
     eqvMisColInd = sort( qmaxInd[:, 0] + qmaxInd[:, 1]*p*m )
-    
-    # store Rmin in q 
+
+    # store Rmin in q
     mis = eqvMis[ix_(range(4), eqvMisColInd)]
-    
+
     angle = 2 * arccosSafe( qmax )
 
     return angle, mis
@@ -194,19 +194,19 @@ def misorientation(q1, q2, *args):
 def quatProduct(q1, q2):
     """
     Product of two unit quaternions.
-    
+
     qp = quatProduct(q2, q1)
-    
+
     q2, q1 are 4 x n, arrays whose columns are
            quaternion parameters
-           
+
     qp is 4 x n, an array whose columns are the
        quaternion parameters of the product; the
        first component of qp is nonnegative
-       
+
     If R(q) is the rotation corresponding to the
-    quaternion parameters q, then 
-    
+    quaternion parameters q, then
+
     R(qp) = R(q2) R(q1)
     """
     n1 = q1.shape[1]
@@ -220,42 +220,42 @@ def quatProduct(q1, q2):
         else:
             q2 = tile(q2, (1, n1))
             nq = n1
-    
+
     a = q2[0, ]; a3 = tile(a, (3, 1))
     b = q1[0, ]; b3 = tile(b, (3, 1))
-    
+
     avec = q2[1:, ]
     bvec = q1[1:, ]
-    
+
     axb = zeros((3, nq))
     for i in range(nq):
         axb[:, i] = cross(avec[:, i], bvec[:, i])
-    
+
     qp = vstack([a*b - diag(dot(avec.T, bvec)),
                  a3*bvec + b3*avec + axb])
-    
+
     return fixQuat(qp)
 
 def quatProductMatrix(quats, mult='right'):
     """
     Form 4 x 4 arrays to perform the quaternion product
-    
+
     USAGE
         qmats = quatProductMatrix(quats, mult='right')
-        
+
     INPUTS
         1) quats is (4, n), a numpy ndarray array of n quaternions
-           horizontally concatenated 
+           horizontally concatenated
         2) mult is a keyword arg, either 'left' or 'right', denoting
            the sense of the multiplication:
-            
+
                        / quatProductMatrix(h, mult='right') * q
            q * h  --> <
-                       \ quatProductMatrix(q, mult='left') * h 
+                       \ quatProductMatrix(q, mult='left') * h
 
     OUTPUTS
         1) qmats is (n, 4, 4), the left or right quaternion product
-           operator 
+           operator
 
     NOTES
        *) This function is intended to replace a cross-product based
@@ -266,28 +266,28 @@ def quatProductMatrix(quats, mult='right'):
 
     if quats.shape[0] != 4:
         raise RuntimeError, "input is the wrong size along the 0-axis"
-    
+
     nq = quats.shape[1]
-    
+
     q0 = quats[0, :].copy()
     q1 = quats[1, :].copy()
     q2 = quats[2, :].copy()
     q3 = quats[3, :].copy()
-    
+
     if mult == 'right':
-        qmats = array([[ q0], [ q1], [ q2], [ q3], 
+        qmats = array([[ q0], [ q1], [ q2], [ q3],
                        [-q1], [ q0], [-q3], [ q2],
                        [-q2], [ q3], [ q0], [-q1],
                        [-q3], [-q2], [ q1], [ q0]])
     elif mult == 'left':
-        qmats = array([[ q0], [ q1], [ q2], [ q3], 
+        qmats = array([[ q0], [ q1], [ q2], [ q3],
                        [-q1], [ q0], [ q3], [-q2],
                        [-q2], [-q3], [ q0], [ q1],
                        [-q3], [ q2], [-q1], [ q0]])
-    
+
     # some fancy reshuffling...
     qmats = qmats.T.reshape(nq, 4, 4).transpose(0, 2, 1)
-    
+
     return qmats
 
 def quatOfAngleAxis(angle, rotaxis):
@@ -304,19 +304,19 @@ def quatOfAngleAxis(angle, rotaxis):
     else:
         raise RuntimeError, "angle argument is of incorrect type.  " \
             "must be a list, int, float, or ndarray."
-    
+
     if rotaxis.shape[1] == 1:
 	rotaxis = tile(rotaxis, (1, n))
     else:
         if rotaxis.shape[1] != n:
             raise RuntimeError, "rotation axes argument has incompatible shape"
-        
+
     halfangle = 0.5*angle
     cphiby2 = cos(halfangle)
     sphiby2 = sin(halfangle)
-    
+
     quat = vstack([cphiby2, tile(sphiby2, (3, 1)) * unitVector(rotaxis)])
-    
+
     return fixQuat(quat)
 
 def quatOfExpMap(expMap):
@@ -341,7 +341,7 @@ def rotMatOfExpMap_opt(expMap):
     """
     if expMap.ndim == 1:
         expMap = expMap.reshape(3, 1)
-    phi = atleast_1d(columnNorm(expMap)) # angles of rotation from exponential maps 
+    phi = atleast_1d(columnNorm(expMap)) # angles of rotation from exponential maps
     W   = skewMatrixOfVector(expMap)     # skew matrices of exponential maps
 
     # Find tiny angles to avoid divide-by-zero and apply limits in expressions
@@ -350,9 +350,9 @@ def rotMatOfExpMap_opt(expMap):
 
 
     # first term
-    C1 = sin(phi) / phi  
+    C1 = sin(phi) / phi
     C1[zeroIndex] = 1  # is this right?  might be OK since C1 multiplies W
-    
+
     # second term
     C2 = (1 - cos(phi)) / phi**2
     C2[zeroIndex] = 0.5 # won't matter because W^2 is small
@@ -405,17 +405,17 @@ def rotMatOfExpMap_orig(expMap):
                 numObjs = 1
                 expMap = asarray(expMap).reshape(3, 1)
 
-    phi = columnNorm(expMap)            # angles of rotation from exponential maps 
+    phi = columnNorm(expMap)            # angles of rotation from exponential maps
     W    = skewMatrixOfVector(expMap)   # skew matrices of exponential maps
 
     # Find tiny angles to avoid divide-by-zero and apply limits in expressions
     zeroIndex = phi < tinyRotAng
-    phi[zeroIndex] = 1 
+    phi[zeroIndex] = 1
 
     # first term
     C1 = sin(phi) / phi
     C1[zeroIndex] = 1
-    
+
     # second term
     C2 = (1 - cos(phi)) / phi**2
     C2[zeroIndex] = 1
@@ -426,7 +426,7 @@ def rotMatOfExpMap_orig(expMap):
         rmat = zeros((numObjs, 3, 3))
         for i in range(numObjs):
             rmat[i, :, :] = I3 + C1[i] * W[i, :, :] + C2[i] * dot(W[i, :, :], W[i, :, :])
-    
+
     return rmat
 
 # Donald Boyce's
@@ -448,10 +448,10 @@ def rotMatOfQuat(quat):
     else:
         if quat.shape[0] != 4:
             raise RuntimeError, "input is the wrong shape"
-    
+
     n    = quat.shape[1]
     rmat = zeros((n, 3, 3), dtype='float64')
-    
+
     a = quat[0, :].reshape(n, 1)
     b = quat[1, :].reshape(n, 1)
     c = quat[2, :].reshape(n, 1)
@@ -466,7 +466,7 @@ def rotMatOfQuat(quat):
            2*b*d - 2*a*c,
            2*a*b + 2*c*d,
            a**2 - b**2 - c**2 + d**2]
-    
+
     if n > 1:
         rmat = R.reshape(n, 3, 3)
     else:
@@ -474,21 +474,21 @@ def rotMatOfQuat(quat):
 
     # for i in range(n):
     #     theta = 2. * arccosSafe(quat[0, i])
-    #     
+    #
     #     # find axial vector
     #     if (theta > tinyRotAng):
     #         a = sin(theta) / theta
     #         b = (1. - cos(theta)) / theta**2
     #         w = (theta / sin(0.5 * theta)) * quat[1:4, i]
-    #         
+    #
     #         wskew = array([[   0., -w[2],  w[1]],
     #                        [ w[2],    0., -w[0]],
     #                        [-w[1],  w[0],    0.]])
-    #         
+    #
     #         rmat[i, :, :] = I3 + a * wskew + b * dot(wskew, wskew)
     #     else:
     #         rmat[i, :, :] = I3
-    
+
     return rmat
 
 def angleAxisOfRotMat(R):
@@ -507,7 +507,7 @@ def angleAxisOfRotMat(R):
             raise RuntimeError, \
                   "R array must be (3, 3) or (n, 3, 3); input has dimension %d" \
                   % (rdim)
-    
+
     #
     #  Find angle of rotation.
     #
@@ -533,26 +533,26 @@ def angleAxisOfRotMat(R):
         R[:, 0, 2] - R[:, 2, 0],
         R[:, 1, 0] - R[:, 0, 1] ] )
     raxis[:, anear0] = 1
-    
+
     special = angle > pi - tol
     nspec   = special.sum()
     if nspec > 0:
         tmp  = R[special, :, :] + tile(I3, (nspec, 1, 1))
         tmpr = tmp.transpose(0, 2, 1).reshape(nspec*3, 3).T
-        
+
         tmpnrm = (tmpr*tmpr).sum(0).reshape(3, nspec)
         mx     = tmpnrm.max(0)
-        
-        # remap indices 
+
+        # remap indices
         maxInd = ( tmpnrm == mx ).nonzero()
         maxInd = c_[ maxInd[0], maxInd[1] ]
-    
+
         tmprColInd = sort( maxInd[:, 0] + maxInd[:, 1]*nspec )
-        
+
         saxis = tmpr[:, tmprColInd]
-        
+
         raxis[:, special] = saxis
-        
+
     return angle, unitVector(raxis)
 #
 #  ==================== Fiber
@@ -567,7 +567,7 @@ def distanceToFiber(c, s, q, qsym, **kwargs):
 
     if len(c) != 3 or len(s) != 3:
         raise RuntimeError, 'c and/or s are not 3-vectors'
-    
+
     # argument handling
     if arglen > 0:
         argkeys = kwargs.keys()
@@ -581,11 +581,11 @@ def distanceToFiber(c, s, q, qsym, **kwargs):
                                    % (argkeys[i]))
 
     c = unitVector( dot(B, asarray(c)) )
-    s = unitVector( asarray(s).reshape(3, 1) ) 
-    
+    s = unitVector( asarray(s).reshape(3, 1) )
+
     nq    = q.shape[1]                  # number of quaternions
     rmats = rotMatOfQuat(q)             # (nq, 3, 3)
-    
+
     csym = applySym(c, qsym, csymFlag)  # (3, m)
     m    = csym.shape[1]                # multiplicity
 
@@ -599,14 +599,14 @@ def distanceToFiber(c, s, q, qsym, **kwargs):
         sdotrc = dot( s.T, rc.swapaxes(1, 2).reshape(nq*m, 3).T ).reshape(nq, m).max(1)
 
     d = arccosSafe( array(sdotrc) )
-    
+
     return d
 
 def discreteFiber(c, s, B=I3, ndiv=120, invert=False, csym=None, ssym=None):
     """
     """
     import Symmetry as S
-    
+
     ztol = 1.e-8
 
     # arg handling for c
@@ -650,7 +650,7 @@ def discreteFiber(c, s, B=I3, ndiv=120, invert=False, csym=None, ssym=None):
                 s = asarray(s).T
     else:
         raise RuntimeError, 'input must be array-like'
-    
+
     nptc = c.shape[1]
     npts = s.shape[1]
 
@@ -701,21 +701,21 @@ def mapAngle(ang, *args, **kwargs):
     """
     period   = 2.*pi                    # radians
     units    = angularUnits             # usually
-    
+
     kwargKeys = kwargs.keys()
     for iArg in range(len(kwargKeys)):
         if kwargKeys[iArg] == 'units':
             units = kwargs[ kwargKeys[iArg] ]
         else:
             raise RuntimeError, "Unknown keyword argument: " + str(kwargKeys[iArg])
-        
+
     if units.lower() == 'degrees':
         period = 360.
     elif units.lower() != 'radians':
         raise RuntimeError, "unknown angular units: " + str( kwargs[ kwargKeys[iArg] ] )
-        
+
     ang = atleast_1d(nFloat( ang ) )
-    
+
     # if we have a specified angular range, use that
     if len(args) > 0:
         angRange = atleast_1d(nFloat( args[0] ) )
@@ -725,10 +725,10 @@ def mapAngle(ang, *args, **kwargs):
 
         lb = angRange.min()
         ub = angRange.max()
-        
+
         if abs(ub - lb) != period:
             raise RuntimeError, 'range is incomplete!'
-        
+
         lbi = ang < lb
         while lbi.sum() > 0:
             ang[lbi] = ang[lbi] + period
@@ -762,7 +762,7 @@ def angularDifference_orig(angList0, angList1, units=angularUnits):
 
     # take difference as arrays
     diffAngles = asarray(angList0) - asarray(angList1)
-    
+
     return abs(mod(diffAngles + 0.5*period, period) - 0.5*period)
 
 def angularDifference_opt(angList0, angList1, units=angularUnits):
@@ -788,7 +788,7 @@ from Symmetry import applySym
 def printTestName(num, name): print '==================== Test %d:  %s' % (num, name)
 def testRotMatOfExpMap(numpts):
     """Test rotation matrix from axial vector"""
-    
+
     print '* checking case of 1D vector input'
     map = numpy.zeros(3)
     rmat_1 = rotMatOfExpMap_orig(map)
@@ -816,7 +816,7 @@ def testRotMatOfExpMap(numpts):
     drmat = numpy.absolute(rmat_2 - rmat_1)
     print 'maximum difference between results'
     print numpy.amax(drmat, 0)
-    
+
     return
 #
 if __name__ == '__main__':
@@ -855,5 +855,5 @@ if __name__ == '__main__':
     dd = numpy.absolute(d2 - d1)
     print 'maximum difference between results'
     print numpy.max(dd, 0).max()
-    
+
     pass

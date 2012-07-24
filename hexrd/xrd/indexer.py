@@ -35,7 +35,7 @@ import time
 
 import numpy as num
 
-import hexrd.matrixUtils as mUtil
+import hexrd.matrixutil as mUtil
 import hexrd.xrd.grain
 from hexrd.xrd.grain import makeMeasuredScatteringVectors
 import hexrd.xrd.Rotations
