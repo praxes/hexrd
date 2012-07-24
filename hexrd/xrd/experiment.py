@@ -46,7 +46,7 @@ from hexrd.xrd import grain as G
 from hexrd.xrd import indexer
 
 from hexrd.xrd.hydra    import Hydra
-from hexrd.xrd.Material import Material, loadMaterialList
+from hexrd.xrd.material import Material, loadMaterialList
 
 from hexrd.xrd import xrdUtils
 

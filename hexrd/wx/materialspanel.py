@@ -33,7 +33,7 @@
 #
 import wx
 
-from hexrd.xrd.Material import Material
+from hexrd.xrd.material import Material
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
 from hexrd.wx.guiutil import ResetChoice, AddSpacer
