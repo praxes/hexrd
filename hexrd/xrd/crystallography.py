@@ -491,7 +491,7 @@ class PlaneData(object):
                  hkls,
                  *args,
                  **kwargs):
-        import Symmetry as S
+        import symmetry as S
 
         self.phaseID = None
         self.__doTThSort = True
@@ -542,7 +542,7 @@ class PlaneData(object):
         return
 
     def __calc(self):
-        import Symmetry as S
+        import symmetry as S
         symmGroup = S.ltypeOfLaueGroup(self.__laueGroup)
         latPlaneData, latVecOps, hklDataList = PlaneData.makePlaneData(
             self.__hkls, self.__lparms, self.__qsym, symmGroup, self.__strainMag, self.wavelength)
@@ -682,13 +682,13 @@ class PlaneData(object):
         """
         hkls       : need to work with crystallography.latticePlanes
         lparms     : need to work with crystallography.latticePlanes
-        laueGroup  : see Symmetry module
+        laueGroup  : see symmetry module
         wavelength : wavelength
         strainMag  : swag of strian magnitudes
         """
         import crystallography
         crystallography.tempSetOutputDegrees(False)
-        import Symmetry as S
+        import symmetry as S
 
         latPlaneData = crystallography.latticePlanes(hkls, lparms, ltype=symmGroup,
                                            strainMag=strainMag,
@@ -738,13 +738,13 @@ class PlaneData(object):
         return latPlaneData, latVecOps, hklDataList
     def getLatticeType(self):
         """This is the lattice type"""
-        import Symmetry as S
+        import symmetry as S
         return S.ltypeOfLaueGroup(self.__laueGroup)
     def getLaueGroup(self):
         """This is the Schoenflies tag"""
         return self.__laueGroup
     def getQSym(self):
-        #import Symmetry as S
+        #import symmetry as S
         return self.__qsym # S.quatOfLaueGroup(self.__laueGroup)
     def getPlaneSpacings(self):
         """

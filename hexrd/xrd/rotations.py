@@ -605,7 +605,7 @@ def distanceToFiber(c, s, q, qsym, **kwargs):
 def discreteFiber(c, s, B=I3, ndiv=120, invert=False, csym=None, ssym=None):
     """
     """
-    import Symmetry as S
+    import symmetry as S
 
     ztol = 1.e-8
 
@@ -780,7 +780,7 @@ angularDifference = angularDifference_opt
 #######################################################
 # Module containing functions relevant to symmetry ops
 #   - must place here to enforce circular import
-from Symmetry import applySym
+from symmetry import applySym
 #######################################################
 #
 #  Tests

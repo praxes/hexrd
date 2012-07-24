@@ -40,7 +40,7 @@ import hexrd.xrd.grain
 from hexrd.xrd.grain import makeMeasuredScatteringVectors
 import hexrd.xrd.rotations
 from hexrd.xrd.rotations import mapAngle
-from hexrd.xrd.Symmetry import toFundamentalRegion
+from hexrd.xrd.symmetry import toFundamentalRegion
 from hexrd.xrd import xrdBase
 
 if xrdBase.haveMultiProc:
