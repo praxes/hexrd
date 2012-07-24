@@ -45,7 +45,7 @@ import matplotlib.collections as collections
 from hexrd import plotWrap
 from hexrd import tens
 from hexrd import matrixutil
-from hexrd import pfigUtil
+from hexrd import pfigutil
 from hexrd.valUnits import toFloat
 import hexrd.orientations as ors
 from hexrd.xrd import crystallography
@@ -900,10 +900,10 @@ class OmeEtaPfig(object):
             if not self.__nVecsPatches(nP):
                 'render to a regular grid'
                 vals = data.flatten()
-                pfigR = pfigUtil.renderEAProj(nVecs, vals, nP)
+                pfigR = pfigutil.renderEAProj(nVecs, vals, nP)
                 if opacity is not None:
                     norm = matplotlib.colors.Normalize(vmin=self.vmin, vmax=self.vmax)
-                    wData = pfigUtil.renderEAProj(nVecs, opacity.flatten(), nP)
+                    wData = pfigutil.renderEAProj(nVecs, opacity.flatten(), nP)
                     vMM_w = Reader.getVMM(wData, range=rangeVV_w)
                     norm_w = matplotlib.colors.Normalize(vmin=vMM_w[0], vmax=vMM_w[1])
                     # pfigR.T here instead of ijAsXY=True
@@ -924,7 +924,7 @@ class OmeEtaPfig(object):
                     assert opacity.dtype == bool, 'for non-rendered pole figure, make opacities boolean'
                 # if opacity is not None:
                 #     raise RuntimeError, 'not coded: opacity for non-rendered pole figure, specify integer-valued nP'
-                eaProj = pfigUtil.n2eap(nVecs, flip=False)
+                eaProj = pfigutil.n2eap(nVecs, flip=False)
                 if opacity is None:
                     col = collections.QuadMesh(len(etaEdges)-1,
                                                len(omeEdges)-1,
@@ -946,7 +946,7 @@ class OmeEtaPfig(object):
                             'quad is not to be drawn'
                             continue
                         nVecsPatch = nVecs[(slice(3), quadConn)] # 3x4
-                        eaProjPatch = pfigUtil.n2eap(nVecsPatch, flip=False)
+                        eaProjPatch = pfigutil.n2eap(nVecsPatch, flip=False)
                         #verts[iQuad, :, :] = eaProjPatch.T
                         vertsN.append(eaProjPatch.T)
                         valsN.append(vals[iQuad])
@@ -984,18 +984,18 @@ class OmeEtaPfig(object):
 
                     opacity = opacity.flatten()
                     norm = matplotlib.colors.Normalize(vmin=self.vmin, vmax=self.vmax)
-                    wDataN = pfigUtil.renderEAProj(nVecsN, opacity[northern], nP)
-                    wDataS = pfigUtil.renderEAProj(nVecsS, opacity[southern], nP)
+                    wDataN = pfigutil.renderEAProj(nVecsN, opacity[northern], nP)
+                    wDataS = pfigutil.renderEAProj(nVecsS, opacity[southern], nP)
                     vMM_w = Reader.getVMM(num.vstack((wDataN,wDataS)), range=rangeVV_w)
                     norm_w = matplotlib.colors.Normalize(vmin=vMM_w[0], vmax=vMM_w[1])
                     #
-                    pfigR = pfigUtil.renderEAProj(nVecsN, vals[northern], nPw)
+                    pfigR = pfigutil.renderEAProj(nVecsN, vals[northern], nPw)
                     cData = self.cmap(norm(pfigR.T,clip=True))
                     cData[:,:,3] = norm_w(wDataN.T, clip=True)
                     im = self.pList[0](cData, ijAsXY=False)
                     self.colList.append(im)
                     #
-                    pfigR = pfigUtil.renderEAProj(nVecsS, vals[southern], nP)
+                    pfigR = pfigutil.renderEAProj(nVecsS, vals[southern], nP)
                     cData = self.cmap(norm(pfigR.T,clip=True))
                     cData[:,:,3] = norm_w(wDataS.T, clip=True)
                     im = self.pList[1](cData, ijAsXY=False)
@@ -1007,11 +1007,11 @@ class OmeEtaPfig(object):
                     forColorBar = mappable
 
                 else:
-                    pfigR = pfigUtil.renderEAProj(nVecsN, vals[northern], nP)
+                    pfigR = pfigutil.renderEAProj(nVecsN, vals[northern], nP)
                     im = self.pList[0](pfigR, cmap=self.cmap, vmin=self.vmin, vmax=self.vmax, ijAsXY=True)
                     self.colList.append(im)
                     #
-                    pfigR = pfigUtil.renderEAProj(nVecsS, vals[southern], nP)
+                    pfigR = pfigutil.renderEAProj(nVecsS, vals[southern], nP)
                     im = self.pList[1](pfigR, cmap=self.cmap, vmin=self.vmin, vmax=self.vmax, ijAsXY=True)
                     self.colList.append(im)
             else:
@@ -1043,12 +1043,12 @@ class OmeEtaPfig(object):
                         else:
                             'rotate about vertical axis in plane of pole figure'
                             nVecsPatch = num.vstack((-nVecsPatch[0,:], nVecsPatch[1,:], -nVecsPatch[2,:]))
-                        eaProjPatch = pfigUtil.n2eap(nVecsPatch, flip=False)
+                        eaProjPatch = pfigutil.n2eap(nVecsPatch, flip=False)
                         #verts[iQuad, :, :] = eaProjPatch.T
                         vertsS.append(eaProjPatch.T)
                         valsS.append(vals[iQuad])
                     else:
-                        eaProjPatch = pfigUtil.n2eap(nVecsPatch, flip=False)
+                        eaProjPatch = pfigutil.n2eap(nVecsPatch, flip=False)
                         #verts[iQuad, :, :] = eaProjPatch.T
                         vertsN.append(eaProjPatch.T)
                         valsN.append(vals[iQuad])
@@ -1246,13 +1246,13 @@ class OmeEtaPfig(object):
             r = 0.5 * float(nP)
             auxKWArgs = {'origin':(r,r), 'r':r}
         pw = self.pList[0]
-        pfigUtil.drawLines(pw, self.pointLists,
+        pfigutil.drawLines(pw, self.pointLists,
                            rMat=rMat,
                            netStyle=self.netStyle, netNDiv=self.netNDiv, netAlpha=self.netAlpha,
                            **auxKWArgs)
         if not self.allNorthern:
             pw = self.pList[1]
-            pfigUtil.drawLines(pw, self.pointLists,
+            pfigutil.drawLines(pw, self.pointLists,
                                rMat=rMat,
                                netStyle=self.netStyle, netNDiv=self.netNDiv, netAlpha=self.netAlpha,
                                southern=True, invertFromSouthern=self.invertFromSouthern,
