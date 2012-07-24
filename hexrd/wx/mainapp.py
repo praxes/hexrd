@@ -33,7 +33,7 @@ import os, sys
 import wx
 
 from hexrd.wx import guiconfig
-from hexrd.wx.xrdMainFrame import xrdMainFrame
+from hexrd.wx.xrdmainframe import xrdMainFrame
 #
 #  mdef Modules
 #
