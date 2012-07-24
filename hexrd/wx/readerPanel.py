@@ -33,7 +33,7 @@ import wx
 from hexrd.wx.guiConfig    import WindowParameters as WP
 from hexrd.wx.guiUtilities import makeTitleBar
 
-from hexrd.wx.geReader import geReaderPanel
+from hexrd.wx.gereader import geReaderPanel
 
 DET_GE      = 'ge'
 DET_CHOICES = [DET_GE]
