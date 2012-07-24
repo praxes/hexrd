@@ -35,7 +35,7 @@ from ConfigParser import SafeConfigParser as Parser
 import numpy
 
 from hexrd.xrd.crystallography import PlaneData as PData
-from hexrd.xrd.SpaceGroup      import SpaceGroup as SG
+from hexrd.xrd.spacegroup      import SpaceGroup as SG
 
 from hexrd.valunits   import valWUnit
 #
