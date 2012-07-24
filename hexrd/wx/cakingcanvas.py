@@ -36,7 +36,7 @@ from hexrd.xrd.Experiment  import PolarRebinOpts as prOpts
 
 from hexrd.wx.guiConfig import WindowParameters as WP
 from hexrd.wx.guiUtilities import makeTitleBar
-from hexrd.wx.canvasUtilities import *
+from hexrd.wx.canvasutil import *
 #
 # ---------------------------------------------------CLASS:  cakeCanvas
 #

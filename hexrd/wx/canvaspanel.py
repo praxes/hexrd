@@ -39,7 +39,7 @@ import numpy
 #
 from hexrd.wx.guiConfig import WindowParameters as WP
 from hexrd.wx.guiUtilities import ResetChoice,makeTitleBar
-from hexrd.wx.canvasUtilities import *
+from hexrd.wx.canvasutil import *
 
 from hexrd.wx.floatcontrol import *
 #

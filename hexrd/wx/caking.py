@@ -36,7 +36,7 @@ from hexrd.xrd import detector
 from hexrd.xrd.Experiment  import PolarRebinOpts as prOpts
 from hexrd.xrd.xrdUtils    import CollapseOmeEta
 
-from hexrd.wx.canvasUtilities import *
+from hexrd.wx.canvasutil import *
 from hexrd.wx.guiConfig    import WindowParameters as WP
 from hexrd.wx.guiUtilities import makeTitleBar
 from hexrd.wx.ringSubPanel import ringPanel
