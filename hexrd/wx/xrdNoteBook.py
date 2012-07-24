@@ -49,7 +49,7 @@ import wx
 
 from hexrd.wx.guiconfig import WindowParameters as WP
 from hexrd.wx.materialspanel import matPanel
-from hexrd.wx.readerPanel    import readerPanel
+from hexrd.wx.readerpanel    import readerPanel
 from hexrd.wx.detectorpanel import detectorPanel
 from hexrd.wx.spotsPanel    import spotsPanel
 from hexrd.wx.indexpanel    import indexPanel
