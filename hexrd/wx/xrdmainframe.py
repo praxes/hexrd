@@ -38,7 +38,7 @@ import wx
 from wx.lib.wordwrap import wordwrap
 
 from hexrd import copyright
-from hexrd.xrd.Experiment import *
+from hexrd.xrd.experiment import *
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
 from hexrd.wx.guiutil import makeTitleBar

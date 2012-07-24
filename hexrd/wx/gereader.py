@@ -33,7 +33,7 @@ import wx
 import wx.lib.mixins.listctrl  as  listMixins
 
 from hexrd.xrd import detector
-from hexrd.xrd.Experiment import *
+from hexrd.xrd.experiment import *
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
 from hexrd.wx.guiutil import ResetChoice, makeTitleBar

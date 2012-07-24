@@ -33,7 +33,7 @@ import wx
 import numpy
 
 from hexrd.xrd import detector
-from hexrd.xrd.Experiment  import PolarRebinOpts as prOpts
+from hexrd.xrd.experiment  import PolarRebinOpts as prOpts
 from hexrd.xrd.xrdUtils    import CollapseOmeEta
 
 from hexrd.wx.canvasutil import *
