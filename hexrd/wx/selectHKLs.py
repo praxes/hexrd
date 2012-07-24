@@ -34,7 +34,7 @@ import math
 import wx
 #import wx.lib.mixins.listctrl  as  listMixins
 
-from hexrd.wx.guiConfig import WindowParameters as WP
+from hexrd.wx.guiconfig import WindowParameters as WP
 #
 # ---------------------------------------------------CLASS:  selectHKLsPanel.py
 #

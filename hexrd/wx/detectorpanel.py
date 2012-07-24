@@ -53,7 +53,7 @@ from hexrd.xrd.crystallography import processWavelength
 #
 #  wx Modules
 #
-from hexrd.wx.guiConfig    import WindowParameters as WP
+from hexrd.wx.guiconfig import WindowParameters as WP
 from hexrd.wx.guiUtilities import ResetChoice, AddSpacer, EmptyWindow, makeTitleBar
 from hexrd.wx.floatcontrol import *
 from hexrd.wx.logwindows   import logWindow

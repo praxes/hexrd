@@ -32,7 +32,7 @@ Includes EVT_FIT_PARAM as new event.
 """
 import wx
 
-from hexrd.wx.guiConfig import WindowParameters as WP
+from hexrd.wx.guiconfig import WindowParameters as WP
 #
 #  Module Data
 #

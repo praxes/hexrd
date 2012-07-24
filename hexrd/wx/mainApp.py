@@ -32,7 +32,7 @@ import os, sys
 
 import wx
 
-from hexrd.wx import guiConfig
+from hexrd.wx import guiconfig
 from hexrd.wx.xrdMainFrame import xrdMainFrame
 #
 #  mdef Modules

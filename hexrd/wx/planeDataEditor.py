@@ -34,7 +34,7 @@ OBSOLETE:  due to be removed, but currently saving for reference
 import wx
 import numpy
 
-from hexrd.wx.guiConfig import WindowParameters as WP
+from hexrd.wx.guiconfig import WindowParameters as WP
 #
 #  Module data
 #

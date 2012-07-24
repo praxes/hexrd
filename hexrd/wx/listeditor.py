@@ -35,7 +35,7 @@ import copy
 
 import wx
 
-from hexrd.wx.guiConfig import WindowParameters as WP
+from hexrd.wx.guiconfig import WindowParameters as WP
 
 from hexrd.xrd.Experiment import newName  # need better place for newName function
 #

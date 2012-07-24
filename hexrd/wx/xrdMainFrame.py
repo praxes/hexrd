@@ -40,7 +40,7 @@ from wx.lib.wordwrap import wordwrap
 from hexrd import copyright
 from hexrd.xrd.Experiment import *
 
-from hexrd.wx.guiConfig    import WindowParameters as WP
+from hexrd.wx.guiconfig    import WindowParameters as WP
 from hexrd.wx.guiUtilities import makeTitleBar
 from hexrd.wx.xrdNoteBook  import xrdNoteBook
 from hexrd.wx.canvaspanel  import CanvasPanel

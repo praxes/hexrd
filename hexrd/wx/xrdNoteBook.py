@@ -47,7 +47,7 @@ EVT_NOTEBOOK_PAGE_CHANGING
 """
 import wx
 
-from hexrd.wx.guiConfig import WindowParameters as WP
+from hexrd.wx.guiconfig import WindowParameters as WP
 from hexrd.wx.materialsPanel import matPanel
 from hexrd.wx.readerPanel    import readerPanel
 from hexrd.wx.detectorpanel import detectorPanel

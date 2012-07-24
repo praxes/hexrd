@@ -30,7 +30,7 @@
 """
 import wx
 
-from hexrd.wx.guiConfig import WindowParameters as WP
+from hexrd.wx.guiconfig import WindowParameters as WP
 from hexrd.wx.guiUtilities import makeTitleBar, callJoel
 #
 # ---------------------------------------------------CLASS:  grainPanel
