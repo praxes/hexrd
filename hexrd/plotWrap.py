@@ -1,24 +1,24 @@
 # ============================================================
-# Copyright (c) 2007-2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2007-2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -30,7 +30,7 @@ For now, plotWrap is hardwired for TkAgg
 this is not great, but also not a high priority to fix for now;
 PlotWinP might be the start of a decent fix
 
-but plotWrap was built with the idea that you could have a plot without a window, and pyplot relies on the new_figure_manager functions in the backends, which always make a window; 
+but plotWrap was built with the idea that you could have a plot without a window, and pyplot relies on the new_figure_manager functions in the backends, which always make a window;
 what we need is something to make the figure and the canvas without the figure manager
 ... but FigureCanvasMac
 
@@ -82,7 +82,7 @@ class PlotWin:
     __softDestroy = False
     def __init__(self,
                  numRows=1, numCols=-1,
-                 title='PlotWin window', 
+                 title='PlotWin window',
                  figure=None,
                  relfigsize=(3,3),
                  axesList=None,
@@ -93,7 +93,7 @@ class PlotWin:
         If pass negative numCols, then numRows is the number of plots
         and the layout is done automatically
         '''
-        
+
         self.dpi = dpi
         self.f = None
         self.iaCur = 0
@@ -128,12 +128,12 @@ class PlotWin:
         #
         self.title = title
         self.root = None # dead = True
-        
+
         self.provideToolbar = self.__provideToolbarDflt
 
         self.f = figure
         self.__checkWin()
-        
+
         if self.__debug:
             print 'nr, nc, len(axesList): %g %g %g' % (self.nr, self.nc, len(self.axesList))
         if len(self.axesList) == 0 and not noAutoAxesList:
@@ -166,13 +166,13 @@ class PlotWin:
             self.root.wm_geometry(newGeom)
             self.canvas.get_tk_widget().pack(side=Tk.TOP, fill=Tk.BOTH, expand=1)
             self.canvas.show()
-            
+
             # wInch = max(1,self.nc)*3
             # hInch = max(1,self.nr)*3
             # # self.f.set_size_inches((wInch,hInch))
             # #self.canvas.resize(wInch*self.dpi, hInch*self.dpi)
-            # #self.canvas.show() 
-            # myResizeEvent = MyResizeEvent('autoNRC_resize', self.canvas, 
+            # #self.canvas.show()
+            # myResizeEvent = MyResizeEvent('autoNRC_resize', self.canvas,
             #                               wInch*self.dpi, hInch*self.dpi)
             # self.canvas.resize(myResizeEvent)
         return
@@ -193,9 +193,9 @@ class PlotWin:
         consider going to something like PlotWinP
         '''
         import sys
-        
+
         if self.root is not None: return  # if not self.dead: return
-        
+
         useTkAgg = True
         if 'matplotlib.backends' in sys.modules:
             if matplotlib.get_backend() != 'TkAgg':
@@ -203,7 +203,7 @@ class PlotWin:
         if not useTkAgg:
             #self.root = matplotlib.get_backend()
             # assert len(self.axesList) == 1, 'plotWrap case note coded, axesList len : %d' % (len(self.axesList))
-            # self.root = PlotWinP(axes=self.axesList, figsize=self.figsize, dpi=self.dpi, 
+            # self.root = PlotWinP(axes=self.axesList, figsize=self.figsize, dpi=self.dpi,
             #                     title=self.title)
             assert self.f is None, 'self.f is not None'
             self.root = PlotWinP(axes=self.axesList, figsize=self.figsize, dpi=self.dpi)
@@ -212,19 +212,19 @@ class PlotWin:
         else:
             # matplotlib.use('TkAgg') # moved this back to above
             from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
-            
+
             import Tkinter as Tk
-    
+
             self.root = root = Tk.Tk() # pops up a little window
             root.wm_title(self.title)
             root.wm_resizable(width=True, height=True)
             #self.dead = False
-            
+
             if self.__softDestroy:
-                def destroy(e): 
+                def destroy(e):
                     self.root = None # self.dead = True
                 root.bind("<Destroy>", destroy)
-            
+
             # a tk.DrawingArea
             if self.f is None: # if figure is None:
                 from matplotlib.figure import Figure
@@ -232,13 +232,13 @@ class PlotWin:
                                 dpi=self.dpi)
 
             self.canvas = canvas = FigureCanvasTkAgg(self.f, master=root)
-            #if self.showByDefault: 
+            #if self.showByDefault:
             canvas.show()
             canvas.get_tk_widget().pack(side=Tk.TOP, fill=Tk.BOTH, expand=1) # actually displays something now!
-            
+
             #if self.showByDefault: canvas.show() # updates display
             canvas.show() # updates display
-            
+
             if self.provideToolbar:
                 toolbar = NavigationToolbar2TkAgg( self.canvas, root )
                 toolbar.update()
@@ -251,10 +251,10 @@ class PlotWin:
                 self.pwList[iPW] = PlotWrap(window=self)
         return
     def haveXLabels(self):
-        self.f.subplots_adjust(bottom=0.2,hspace=0.3) 
+        self.f.subplots_adjust(bottom=0.2,hspace=0.3)
         return
     def haveYLabels(self):
-        self.f.subplots_adjust(left=0.2,wspace=0.3) 
+        self.f.subplots_adjust(left=0.2,wspace=0.3)
         return
     def destroy(self):
         if self.root is not None: # not self.dead:
@@ -306,10 +306,10 @@ class PlotWin:
                 self.pwList.append(None)
             else:
                 if plotNum < len(self.axesList):
-                    'replacing existing' 
+                    'replacing existing'
                     aCur = self.f.add_subplot(self.nr, self.nc, plotNum+1, **axprops)
                 else:
-                    'just add more axes, instead of fussing!' 
+                    'just add more axes, instead of fussing!'
                     self.__autoNRC(plotNum+1, resizeFig=True)
                     aCur = self.f.add_subplot(self.nr, self.nc, self.iaCur+1, **axprops)
                     self.axesList.append(aCur)
@@ -342,27 +342,27 @@ class PlotWinLite:
         return self.axes
     def haveXLabels(self):
         'may want to turn off any functionality in this method'
-        self.f.subplots_adjust(bottom=0.2,hspace=0.3) 
+        self.f.subplots_adjust(bottom=0.2,hspace=0.3)
         return
     def haveYLabels(self):
         'may want to turn off any functionality in this method'
-        self.f.subplots_adjust(left=0.2,wspace=0.3) 
+        self.f.subplots_adjust(left=0.2,wspace=0.3)
         return
     def destroy(self):
         raise RuntimeError, 'should not call destroy on PlotWinLite instances'
         return
-    
+
 class PlotWinP:
     '''
     Just wrap pyplot
     '''
-    def __init__(self, axes=None, as3D=False, 
-                 title=None, 
+    def __init__(self, axes=None, as3D=False,
+                 title=None,
                  **kwargs):
         import matplotlib.pyplot as plt
-        
+
         self.iaCur = 0
-        
+
         figsize = None
         dpi = None
         if kwargs.has_key('figsize'):
@@ -371,7 +371,7 @@ class PlotWinP:
             dpi = kwargs.pop('dpi')
         self.f = plt.figure(figsize=figsize, dpi=dpi)
         self.c = self.f.canvas
-        
+
         if axes is None:
             if as3D:
                 import mpl_toolkits.mplot3d.axes3d as p3
@@ -385,12 +385,12 @@ class PlotWinP:
             else:
                 self.a = [axes]
         self.pwList = [None for a in self.a]
-        
+
         'for now, punt on setting a title'
         # if title is not None:
         #     'not sure how to set title on window, so settle for axes title'
         #     self.a.set_title(title)
-        
+
         return
     def getNextAxes(self, rect=None, attachPW=None, **axprops):
         if self.iaCur < len(self.a):
@@ -411,11 +411,11 @@ class PlotWinP:
         return self.a[plotNum]
     def haveXLabels(self):
         'may want to turn off any functionality in this method'
-        self.f.subplots_adjust(bottom=0.2,hspace=0.3) 
+        self.f.subplots_adjust(bottom=0.2,hspace=0.3)
         return
     def haveYLabels(self):
         'may want to turn off any functionality in this method'
-        self.f.subplots_adjust(left=0.2,wspace=0.3) 
+        self.f.subplots_adjust(left=0.2,wspace=0.3)
         return
     def destroy(self):
         import matplotlib.pyplot as plt
@@ -425,9 +425,9 @@ class PlotWinP:
         self.c = None
         self.f = None
         return
-    
-    
-        
+
+
+
 class PlotWrap(object):
     __debug = False
     __keyArgDict =  {
@@ -437,8 +437,8 @@ class PlotWrap(object):
         'xticks' : None,
         'ylabel' : None,
         'yticks' : None,
-        'ylog' : False, 
-        'xlog' : False, 
+        'ylog' : False,
+        'xlog' : False,
         'ybound' : (None,None),
         'xbound' : (None,None),
         'legend' : None,
@@ -461,7 +461,7 @@ class PlotWrap(object):
     def __init__(self,
                  **keyArgs
                  ):
-        
+
         # defaults
         for parm, val in self.__keyArgDict.iteritems():
             self.__setattr__(parm, val)
@@ -481,14 +481,14 @@ class PlotWrap(object):
         #
         axes = self.axes
         del self.axes
-        
+
         self.x_prev = None
         self.x_store = [[],[]]
 
         self.win = None
         self.a   = None
         self.canvas = None
-        
+
         self.ownCanvas = True
         if window is None:
             self.ownCanvas = True
@@ -513,7 +513,7 @@ class PlotWrap(object):
                     self.a = self.f.add_subplot(1, 1, 1, **self.axprops)
                 else:
                     self.a = self.f.add_axes(self.axesRect, **self.axprops)
-                
+
             if axes is not None:
                 raise RuntimeError, 'do not specify axes when have not passed a window'
         else:
@@ -543,7 +543,7 @@ class PlotWrap(object):
             self.agingNumAge = max(int(log(self.alphaMin)/log(self.aging)),1)
         self.plotProps = {}
         # self.lineListList = [] # not needed, can, and should, use a.lines
-        
+
         self.asImIJ = False
         # self.transform = None
         self.axIm = None
@@ -572,7 +572,7 @@ class PlotWrap(object):
         if self.canvas is not None: return
 
         from matplotlib.backends.backend_tkagg import FigureCanvasAgg
-        
+
         self.canvas = FigureCanvasAgg(self.f)
         if hasattr(self.a,'mouse_init'):
             self.a.mouse_init()
@@ -631,7 +631,7 @@ class PlotWrap(object):
             self.__checkWin()
         if self.a is not None:
             if hasattr(self.a,'mouse_init'):
-                'doing a.clear() seems like it causes trouble with plotting collections?' 
+                'doing a.clear() seems like it causes trouble with plotting collections?'
                 self.a.clear() # self.a.cla()
                 self.a.set_autoscale_on(True)
             else:
@@ -687,7 +687,7 @@ class PlotWrap(object):
         specify filename or prefix keyword argument
         '''
         import numpy as num
-        
+
         filename = None
         prefix = None
         if keyArgs.has_key('filename'):
@@ -695,19 +695,19 @@ class PlotWrap(object):
         if keyArgs.has_key('prefix'):
             prefix = keyArgs.pop('prefix')
             filename = prefix+'.pdf' # .eps
-        
+
         if prefix is not None:
             'export data'
             if len(self.x_store[0]) > 0:
                 dataFilename = prefix+'.data'
-                from hexrd import arrayUtil
+                from hexrd import arrayutil
                 try:
-                    arrayUtil.writeArray(dataFilename, num.array(self.x_store))
+                    arrayutil.writeArray(dataFilename, num.array(self.x_store))
                 except:
                     import sys
                     print 'problem writing to '+dataFilename+' : '+str(self.x_store)
                     sys.exit(1)
-        
+
         if not self.ownCanvas:
             if self.__debug:
                 print 'skipping print_figure because this plot does not own its canvas'
@@ -717,7 +717,7 @@ class PlotWrap(object):
                 raise RuntimeError, 'need filename or prefix entry in keyArgs'
             #self.canvas.print_figure(filename, **keyArgs)
             self.f.savefig(filename, **keyArgs)
-        
+
         return
     def destroy(self):
         'does not clean up self.a, just kills the window if this plot owns the window'
@@ -779,7 +779,7 @@ class PlotWrap(object):
             if self.showByDefault:
                 self.show()
         return retVal
-    def callImage(self, filename, 
+    def callImage(self, filename,
                   **keyArgs):
         import Image
         im = Image.open(filename)
@@ -789,11 +789,11 @@ class PlotWrap(object):
         rgb = num.resize(rgb, (im.size[1], im.size[0], 3)) # resize to RGB array
         retval = self.callIm(rgb, **keyArgs)
         return retval
-    def callIm(self, im, 
-               interpolation='nearest', aspect='equal', 
+    def callIm(self, im,
+               interpolation='nearest', aspect='equal',
                ijAsXY=False,
                clear=True, **keyArgs):
-        if clear: 
+        if clear:
             self.clear()
         self.a.axis('off')
         self.a.set_autoscale_on(True)
@@ -804,8 +804,8 @@ class PlotWrap(object):
                 imT = im.transpose(1,0,2)
             else:
                 imT = im.T
-            axIm = self.a.imshow(imT, 
-                                 interpolation=interpolation, aspect=aspect, origin='lower', 
+            axIm = self.a.imshow(imT,
+                                 interpolation=interpolation, aspect=aspect, origin='lower',
                                  # transform=self.transform,
                                  **keyArgs)
             self.a.format_coord = lambda x,y: 'i=%d; j=%d; val=%s' % \
@@ -813,8 +813,8 @@ class PlotWrap(object):
         else:
             self.asImIJ = True
             'imshow does not yet really support transform'
-            axIm = self.a.imshow(im, 
-                                 interpolation=interpolation, aspect=aspect, 
+            axIm = self.a.imshow(im,
+                                 interpolation=interpolation, aspect=aspect,
                                  # transform=self.transform,
                                  **keyArgs)
             self.a.format_coord = lambda x,y: 'i=%d; j=%d; val=%s' % \
@@ -824,7 +824,7 @@ class PlotWrap(object):
         self.mappable = axIm
         self.a.set_autoscale_on(False)
         return axIm
-    def callContour(self, X, Y, data, 
+    def callContour(self, X, Y, data,
                     interpolation=None, aspect=None,
                     **keyArgs):
         pp = {}
@@ -834,7 +834,7 @@ class PlotWrap(object):
         'imshow does not yet really support transform'
         self.a.set_autoscale_on(True)
         cont = self.a.imshow(data, origin='lower',
-                             extent=(X[0,0],X[0,-1],Y[0,0],Y[-1,0]), 
+                             extent=(X[0,0],X[0,-1],Y[0,0],Y[-1,0]),
                              interpolation=interpolation,
                              aspect=aspect,
                              # transform=self.transform,
@@ -886,7 +886,7 @@ class PlotWrap(object):
                                 **pp)
         else:
             #self.lineListList.append(self.a.plot(x,y,**pp))
-            lines = self.a.plot(xUse, yUse, 
+            lines = self.a.plot(xUse, yUse,
                                 # transform=self.transform,
                                 **pp)
         if self.bball is not None:
@@ -897,7 +897,7 @@ class PlotWrap(object):
             if self.x_accum:
                 self.x_prev = [x, y]
             self.x_store[0] = self.x_store[0] + list(x)
-            self.x_store[1] = self.x_store[1] + list(y) 
+            self.x_store[1] = self.x_store[1] + list(y)
         else:
             self.x_prev = None
             if len(x) == len(self.x_store[0]):
@@ -905,7 +905,7 @@ class PlotWrap(object):
                 self.x_store.append(list(y))
             else:
                 self.x_store[0] = list(x)
-                self.x_store[1] = list(y) 
+                self.x_store[1] = list(y)
         return
     def setVMM(self, vMM):
         if type(vMM) == int:
@@ -942,8 +942,8 @@ class PlotWrap(object):
                          bbox[0,1], # bottom
                          rect[0]-bbox[0,0]-0.02, # width
                          bbox[1,1]-bbox[0,1], # height
-                         ) 
-                self.a.set_position(arect) 
+                         )
+                self.a.set_position(arect)
         self.show()
         return
 
@@ -959,7 +959,7 @@ def hist2D(xVals, yVals, bins, hRange = None, weights = None,
 
 def plotHist2D(
     xedges, yedges, H,
-    hRange=None, 
+    hRange=None,
     logScale = False,
     minCount=1,
     win=None,
@@ -1020,7 +1020,7 @@ def makeHist2D(xVals, yVals, bins, hRange = None, weights = None):
         weights=weights,
         bins=bins, range=hR)
     return xedges, yedges, H
-    
+
 def main():
     # self referential import ??? Is this necessary?
     import plotWrap
@@ -1050,14 +1050,14 @@ def main():
                 pw([t[iSub]],[s[iSub]])
         else:
             pw(t, s)
-    
+
     pWin = plotWrap.PlotWin(2,1,title='test PlotWin')
     p1 = plotWrap.PlotWrap(window=pWin,ylabel='s')
     p2 = plotWrap.PlotWrap(window=pWin,ylabel='c')
     p1(t,s,label='sin')
     p2(t,c,label='cos')
-    
-    if interactive: 
+
+    if interactive:
         import pylab as p
         p.ion()
         p.show()
@@ -1069,5 +1069,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-

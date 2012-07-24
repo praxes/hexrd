@@ -47,7 +47,7 @@ try:
 except:
     haveSciKits = False
 
-from hexrd import arrayUtil
+from hexrd import arrayutil
 from hexrd.quadrature import q3db, q2db
 from hexrd import tens
 from hexrd import valUnits
@@ -4645,7 +4645,7 @@ def main(argv=[]):
         ]
     culledSpots = spotFinder.Spot.cullSpots(spots, tests)
     #
-    sortedSpots = arrayUtil.structuredSort( map(len, culledSpots), culledSpots )
+    sortedSpots = arrayutil.structuredSort( map(len, culledSpots), culledSpots )
 
     plotSpots = False
     if plotSpots:
