@@ -54,7 +54,7 @@ from hexrd import valUnits
 from hexrd.valUnits import toFloat
 from hexrd import matrixutil as mUtil
 from hexrd.matrixutil import rowNorm
-from hexrd import plotWrap
+from hexrd import plotwrap
 
 from hexrd import XRD
 from hexrd.xrd import crystallography
@@ -317,7 +317,7 @@ def spotFinderSingle(
     threshold can be a scalar or defined over of same dimension as thisframe;
     minPx is the minimum number of pixels to be kept as a spot;
     weightedCOM is true to use thisframe data for weighting center-of-mass position;
-    if pw is present, it is used for plotting (assumed to be plotWrap.PlotWrap instance)
+    if pw is present, it is used for plotting (assumed to be plotwrap.PlotWrap instance)
     """
 
     needCOM = debug or pw is not None
@@ -2595,7 +2595,7 @@ class Spot(object):
         yNZ = self.yAll-ybound[0]
         A = sparse.coo_matrix(   (vAll, (xNZ, yNZ)),
                                  shape=(nX,nY))
-        pw = plotWrap.PlotWrap(**kwargs)
+        pw = plotwrap.PlotWrap(**kwargs)
         pw(A.todense(), vmin=vmin, vmax=vmax, cmap=cmap)
         Z = num.ones((nX,nY), dtype=int)
         # xNZ, yNZ = A.nonzero() # allows for badness when have done keepWithinBBox
@@ -2662,7 +2662,7 @@ class Spot(object):
         nY = ybound[1]-ybound[0]+1
         if cmap is None:
             cmap = detector.getCMap(centered)
-        win = plotWrap.PlotWin(numRows=nFrames, numCols=-1, relfigsize=relfigsize, **kwargs)
+        win = plotwrap.PlotWin(numRows=nFrames, numCols=-1, relfigsize=relfigsize, **kwargs)
         for iFrame, omega in enumerate(omegas):
             these = num.where(self.oAll == omega)
 
@@ -2670,7 +2670,7 @@ class Spot(object):
             yNZ = self.yAll[these]-ybound[0]
             A = sparse.coo_matrix(   (vAll[these], (xNZ, yNZ)),
                                      shape=(nX,nY))
-            pw = plotWrap.PlotWrap(window=win, showByDefault=False) # xbound=xbound, ybound=ybound
+            pw = plotwrap.PlotWrap(window=win, showByDefault=False) # xbound=xbound, ybound=ybound
             pw(A.todense(), vmin=vmin, vmax=vmax, cmap=cmap)
             Z = num.ones((nX,nY), dtype=int)
             # xNZ, yNZ = A.nonzero() # allows for badness when have done keepWithinBBox
@@ -4575,7 +4575,7 @@ class SpotsIterator:
 ######################################################################
 
 def testSingle(fileInfo):
-    pw = plotWrap.PlotWrap()
+    pw = plotwrap.PlotWrap()
 
     reader = detector.ReadGE(fileInfo, subtractDark=True)
 

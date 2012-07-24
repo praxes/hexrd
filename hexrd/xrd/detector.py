@@ -65,7 +65,7 @@ from hexrd import valUnits
 
 havePlotWrap = True
 try:
-    from hexrd import plotWrap
+    from hexrd import plotwrap
 except:
     havePlotWrap = False
 
@@ -265,7 +265,7 @@ class Reader(object):
 
         if havePlotWrap:
             if pw is None:
-                p = plotWrap.PlotWrap(**kwargs)
+                p = plotwrap.PlotWrap(**kwargs)
                 kwargs = {}
             else:
                 p = pw
@@ -273,7 +273,7 @@ class Reader(object):
             # 'turn off format_coord because have not made this one report correctly'
             # p.a.format_coord = lambda x,y: ''
         # elif havePylab:
-        #     assert pw is None, 'do not specify pw without plotWrap'
+        #     assert pw is None, 'do not specify pw without plotwrap'
         #     retval = pylab.imshow(dROI, vmin=vmin, vmax=vmax, cmap=cm.bone)
         else:
             raise RuntimeError, 'no plotting pacakge available'
@@ -1871,16 +1871,16 @@ class MultiRingBinned:
         return retval
 
     def makePlotWin(self, sqrtIntensity=True, plotTitlePrefix=''):
-        plotWinRadial = plotWrap.PlotWin(2,1, relfigsize=(8,3),
+        plotWinRadial = plotwrap.PlotWin(2,1, relfigsize=(8,3),
                                          title=plotTitlePrefix+'ring evaluation results')
         'using twinx() might be better, but not plumbed for that'
         if sqrtIntensity:
             ylabel='sqrt(intensity)'
         else:
             ylabel='intensity'
-        pwREval = plotWrap.PlotWrap(window=plotWinRadial, ylabel=ylabel,
+        pwREval = plotwrap.PlotWrap(window=plotWinRadial, ylabel=ylabel,
                                     showByDefault=False)
-        pwRDiff = plotWrap.PlotWrap(window=plotWinRadial, ylabel='relative error',
+        pwRDiff = plotwrap.PlotWrap(window=plotWinRadial, ylabel='relative error',
                                     showByDefault=False, axprops={'sharex':pwREval.a})
         return plotWinRadial
     def plotByRingEta(self, iRingSet, iEta, win=None, sqrtIntensity=True, alpha=0.25):
@@ -1995,7 +1995,7 @@ class MultiRingBinned:
                 'assume is a PlotWrap instance or the like'
                 pwTThE = plot
             else:
-                pwTThE = plotWrap.PlotWrap(title='line position errors', xlabel='eta index', ylabel=ylabel)
+                pwTThE = plotwrap.PlotWrap(title='line position errors', xlabel='eta index', ylabel=ylabel)
                 retval = [errs, pwTThE]
 
             for iTTh in range(errs.shape[1]):
@@ -2376,11 +2376,11 @@ class MultiRingEval:
             frameEval = self.detectorGeom.frame()
             frameDiff = self.detectorGeom.frame(dtype='float')
 
-            plotWinRadial = plotWrap.PlotWin(2,1, relfigsize=(8,3),
+            plotWinRadial = plotwrap.PlotWin(2,1, relfigsize=(8,3),
                                              title=plotTitlePrefix+'ring evaluation results')
             'using twinx() might be better, but not plumbed for that'
-            pwREval = plotWrap.PlotWrap(window=plotWinRadial, showByDefault=False)
-            pwRDiff = plotWrap.PlotWrap(window=plotWinRadial, showByDefault=False, axprops={'sharex':pwREval.a})
+            pwREval = plotwrap.PlotWrap(window=plotWinRadial, showByDefault=False)
+            pwRDiff = plotwrap.PlotWrap(window=plotWinRadial, showByDefault=False, axprops={'sharex':pwREval.a})
 
         nPoints = 0
         for iFunc, funcData in enumerate(self.funcDataList):
@@ -2412,16 +2412,16 @@ class MultiRingEval:
           nPoints += nPointsThis
         if makePlots:
 
-          plotWinFrames = plotWrap.PlotWin(1,3,title='ring evaluation results')
+          plotWinFrames = plotwrap.PlotWin(1,3,title='ring evaluation results')
           #
-          pwData  = plotWrap.PlotWrap(window=plotWinFrames,
+          pwData  = plotwrap.PlotWrap(window=plotWinFrames,
                                       title='data; max() = %g' % (num.max(frameData))
                                       )
           axprops = {'sharex':pwData.a, 'sharey':pwData.a}
-          pwEval  = plotWrap.PlotWrap(window=plotWinFrames,
+          pwEval  = plotwrap.PlotWrap(window=plotWinFrames,
                                       title='eval',
                                       axprops=axprops)
-          pwDiff  = plotWrap.PlotWrap(window=plotWinFrames,
+          pwDiff  = plotwrap.PlotWrap(window=plotWinFrames,
                                       title='diff; max(abs()) = %g' % (num.max(num.abs(frameDiff))),
                                       axprops=axprops)
           #
@@ -2461,7 +2461,7 @@ class MultiRingEval:
             dataFrame = self.dataFrame
         assert dataFrame is not None, 'need data to work with'
 
-        pwREval = plotWrap.PlotWrap(showByDefault=False, title=plotTitlePrefix+'ring evaluation results')
+        pwREval = plotwrap.PlotWrap(showByDefault=False, title=plotTitlePrefix+'ring evaluation results')
         for iFunc, funcData in enumerate(self.funcDataList):
             func, xIndices, iQP, jQP, wQP, frameIndices, normalization = funcData
             histTThCen, histIntensity, width = self.__radialBinData(iFunc, dataFrame[frameIndices])
@@ -2488,12 +2488,12 @@ class MultiRingEval:
             plotList = []
             plotRetval = plotList
         elif plot:
-            pw = plotWinRadial = plotWrap.PlotWin(2,1, relfigsize=(8,3),
+            pw = plotWinRadial = plotwrap.PlotWin(2,1, relfigsize=(8,3),
                                              title=plotTitlePrefix+'ring evaluation results')
-            #pw = plotWrap.PlotWrap(title=plotTitlePrefix+'radial fit results', showByDefault=False,
+            #pw = plotwrap.PlotWrap(title=plotTitlePrefix+'radial fit results', showByDefault=False,
             #                       figsize=(8,2))
-            pwREval = plotWrap.PlotWrap(window=plotWinRadial, showByDefault=False)
-            pwRDiff = plotWrap.PlotWrap(window=plotWinRadial, showByDefault=False, axprops={'sharex':pwREval.a})
+            pwREval = plotwrap.PlotWrap(window=plotWinRadial, showByDefault=False)
+            pwRDiff = plotwrap.PlotWrap(window=plotWinRadial, showByDefault=False, axprops={'sharex':pwREval.a})
             plotRetval = plotWinRadial
         hkls = self.planeData.getHKLs(asStr=True)
         for iFunc, funcData in enumerate(self.funcDataList):
@@ -2508,7 +2508,7 @@ class MultiRingEval:
             if plot:
                 iHKLList = self.iHKLLists[iFunc]
                 if plot > 1:
-                    pw = plotWrap.PlotWrap(title=plotTitlePrefix+str(hkls[(iHKLList)]))
+                    pw = plotwrap.PlotWrap(title=plotTitlePrefix+str(hkls[(iHKLList)]))
                     pw.a.bar(histTThCen, histIntensity, width=width, align='center', alpha=0.5)
                     pw(histTThCen, evalIntensity, style='k-')
                     plotList.append(pw)
@@ -3697,7 +3697,7 @@ class Detector2DRC(DetectorBase):
             workDist = ideal
             angToXY = lambda tTh_l, eta_l: angToXYIdeal(tTh_l, eta_l, workDist)
 
-        if isinstance(drawOn, plotWrap.PlotWrap):
+        if isinstance(drawOn, plotwrap.PlotWrap):
             pw = drawOn
             retval = None
         else:
@@ -3809,8 +3809,8 @@ class Detector2DRC(DetectorBase):
         if kwargs.has_key('pw'):
             pw = kwargs.pop('pw')
         else:
-            pwKWArgs = plotWrap.PlotWrap.popKeyArgs(kwargs)
-            pw = plotWrap.PlotWrap(**pwKWArgs)
+            pwKWArgs = plotwrap.PlotWrap.popKeyArgs(kwargs)
+            pw = plotwrap.PlotWrap(**pwKWArgs)
         retval = pw
 
         vmin, vmax, cmap = self.readerClass.getDisplayArgs(h, kwargs)
@@ -4598,8 +4598,8 @@ class DetectorGeomQuadGE(DetectorBase):
         tr.rotate(self.zTilt)
         imshow( , transform=tr)
         """
-        pwKWArgs = plotWrap.PlotWrap.popKeyArgs(kwargs)
-        pw = plotWrap.PlotWrap(**pwKWArgs)
+        pwKWArgs = plotwrap.PlotWrap.popKeyArgs(kwargs)
+        pw = plotwrap.PlotWrap(**pwKWArgs)
         pw.a.set_axis_bgcolor('white')
         pw.a.set_aspect('equal')
         retval = pw

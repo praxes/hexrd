@@ -26,11 +26,11 @@
 # ============================================================
 '''
 ***
-For now, plotWrap is hardwired for TkAgg
+For now, plotwrap is hardwired for TkAgg
 this is not great, but also not a high priority to fix for now;
 PlotWinP might be the start of a decent fix
 
-but plotWrap was built with the idea that you could have a plot without a window, and pyplot relies on the new_figure_manager functions in the backends, which always make a window;
+but plotwrap was built with the idea that you could have a plot without a window, and pyplot relies on the new_figure_manager functions in the backends, which always make a window;
 what we need is something to make the figure and the canvas without the figure manager
 ... but FigureCanvasMac
 
@@ -64,10 +64,10 @@ def autoTicks(x, n, format='%0.2e'):
 
 def argToPW(arg):
     local = True
-    if hasattr(arg, 'callXY'): # isinstance(arg, plotWrap.PlotWrap):
+    if hasattr(arg, 'callXY'): # isinstance(arg, plotwrap.PlotWrap):
         retval = arg
         local = False
-    elif hasattr(arg, 'getNextAxes'): # isinstance(arg, plotWrap.PlotWin):
+    elif hasattr(arg, 'getNextAxes'): # isinstance(arg, plotwrap.PlotWin):
         retval = PlotWrap(window=arg)
     elif arg is None:
         retval = PlotWrap()
@@ -202,7 +202,7 @@ class PlotWin:
                 useTkAgg = False
         if not useTkAgg:
             #self.root = matplotlib.get_backend()
-            # assert len(self.axesList) == 1, 'plotWrap case note coded, axesList len : %d' % (len(self.axesList))
+            # assert len(self.axesList) == 1, 'plotwrap case note coded, axesList len : %d' % (len(self.axesList))
             # self.root = PlotWinP(axes=self.axesList, figsize=self.figsize, dpi=self.dpi,
             #                     title=self.title)
             assert self.f is None, 'self.f is not None'
@@ -329,7 +329,7 @@ class PlotWin:
 
 class PlotWinLite:
     '''
-    Lightweight PlotWin substitute for when windows are being controlled by code outside of plotWrap
+    Lightweight PlotWin substitute for when windows are being controlled by code outside of plotwrap
     '''
     def __init__(self, canvas, figure, axes):
         self.c = canvas
@@ -1023,7 +1023,7 @@ def makeHist2D(xVals, yVals, bins, hRange = None, weights = None):
 
 def main():
     # self referential import ??? Is this necessary?
-    import plotWrap
+    import plotwrap
     import numpy as num
     import math
     inBits = True
@@ -1035,14 +1035,14 @@ def main():
     c = num.cos(2*math.pi*t)
 
     if withPoints:
-        pw = plotWrap.PlotWrap(style='ro',aging=0.75)
+        pw = plotwrap.PlotWrap(style='ro',aging=0.75)
         if inBits:
             for iSub in range(len(t)):
                 pw([t[iSub]],[s[iSub]])
         else:
             pw(t, s)
     else:
-        pw = plotWrap.PlotWrap(style='r-',aging=0.75,alphaMin=0.2,agingCull=False,bball='ro')
+        pw = plotwrap.PlotWrap(style='r-',aging=0.75,alphaMin=0.2,agingCull=False,bball='ro')
         if inBits:
             #for iSub in range(len(t)-1):
                 #pw(t[iSub:iSub+2],s[iSub:iSub+2])
@@ -1051,9 +1051,9 @@ def main():
         else:
             pw(t, s)
 
-    pWin = plotWrap.PlotWin(2,1,title='test PlotWin')
-    p1 = plotWrap.PlotWrap(window=pWin,ylabel='s')
-    p2 = plotWrap.PlotWrap(window=pWin,ylabel='c')
+    pWin = plotwrap.PlotWin(2,1,title='test PlotWin')
+    p1 = plotwrap.PlotWrap(window=pWin,ylabel='s')
+    p2 = plotwrap.PlotWrap(window=pWin,ylabel='c')
     p1(t,s,label='sin')
     p2(t,c,label='cos')
 

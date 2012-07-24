@@ -1,24 +1,24 @@
 # ============================================================
-# Copyright (c) 2007-2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2007-2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -40,21 +40,21 @@ if haveSidl:
 
    import warnings
    warnings.simplefilter('ignore',DeprecationWarning)
-   
+
    def getMem(shape,asOnes=False,asZeros=False,typeInt=False):
      if typeInt:
        if asOnes:
          mem = sidlPyArrays.createInt(shape, ordering='column', value=1)
        elif asZeros:
          mem = sidlPyArrays.createInt(shape, ordering='column', value=0)
-       else:    
+       else:
          mem = sidlPyArrays.createInt(shape, ordering='column')
      else:
        if asOnes:
          mem = sidlPyArrays.createDouble(shape, ordering='column', value=1.0e0)
        elif asZeros:
          mem = sidlPyArrays.createDouble(shape, ordering='column', value=0.0e0)
-       else:    
+       else:
          mem = sidlPyArrays.createDouble(shape, ordering='column')
      return mem
 else:
@@ -67,7 +67,7 @@ else:
        mem = num.ones(shape, dtype=dtype)
      elif asZeros:
        mem = num.zeros(shape, dtype=dtype)
-     else:    
+     else:
        mem = num.empty(shape, dtype=dtype)
      return mem
 
@@ -75,7 +75,7 @@ dtypeI = getMem([1],typeInt=True).dtype.name
 dtypeF = getMem([1],typeInt=False).dtype.name
 def toArray(a):
   numa = num.array(a) # wasteful?
-  kind = numa.dtype.kind 
+  kind = numa.dtype.kind
   if kind == 'i':
     #mem = num.array(a,dtype=dtypeI)
     #numa.dtype = dtypeI
@@ -88,7 +88,7 @@ def toArray(a):
     raise RuntimeError, 'unknown data type'
 
   return mem
-  
+
 def writeArray(fid, *args, **dargs):
   '''
   Print to file, pasting arrays together;
@@ -179,10 +179,9 @@ def histoFit(data, nBins, plot=False):
   dataHist = dataHist[notNan]
 
   if plot:
-    import hexrd.plotWrap as plotWrap
-    pw = plotWrap.PlotWrap()
+    import hexrd.plotwrap as plotwrap
+    pw = plotwrap.PlotWrap()
     pw(data[:,0],data[:,1],style='rx')
     pw(xCen, dataHist, style='k-')
 
   return xCen, dataHist
-  

@@ -42,7 +42,7 @@ from matplotlib.widgets import Slider, Button, RadioButtons
 from matplotlib import cm, colors
 import matplotlib.collections as collections
 
-from hexrd import plotWrap
+from hexrd import plotwrap
 from hexrd import tens
 from hexrd import matrixutil
 from hexrd import pfigutil
@@ -418,7 +418,7 @@ def displayPathVariants(data, rMatRef, fromPhase,
                         hklIDs=None, pw=None):
     '''
     '''
-    pw, local = plotWrap.argToPW(pw)
+    pw, local = plotwrap.argToPW(pw)
     if local and data is not None:
         frame = dataToFrame(data, sumImg=num.maximum)
         planeData=None
@@ -1174,14 +1174,14 @@ class OmeEtaPfig(object):
         kwArgs.update(winKWArgs)
         kwArgs.setdefault('relfigsize',relfigsize)
         kwArgs.setdefault('noAutoAxesList',True)
-        win = plotWrap.PlotWin(1,2, **kwArgs)
-        self.pList.append(plotWrap.PlotWrap(window=win,
+        win = plotwrap.PlotWin(1,2, **kwArgs)
+        self.pList.append(plotwrap.PlotWrap(window=win,
                                         axesRect=axesRectList[0], # title='northern hemisphere'
                                         showByDefault=False, makeWinByDefault=True,
                                         )
                       )
         if not self.allNorthern:
-            self.pList.append(plotWrap.PlotWrap(window=win,
+            self.pList.append(plotwrap.PlotWrap(window=win,
                                                 axesRect=axesRectList[1], # title='southern hemisphere'
                                                 showByDefault=False, makeWinByDefault=True,
                                                 )
@@ -1192,7 +1192,7 @@ class OmeEtaPfig(object):
         'now have pList'
         for pw in self.pList:
             if hasattr(pw,'getAxes'):
-                'plotWin type thing instead of plotWrap type thing'
+                'plotWin type thing instead of plotwrap type thing'
                 continue
             pw.a.set_aspect('equal')
             pw.a.format_coord = lambda x,y:''
@@ -1225,7 +1225,7 @@ class OmeEtaPfig(object):
         'get rid of any existing lines and legends'
         for pw in self.pList:
             if hasattr(pw,'getAxes'):
-                'plotWin type thing instead of plotWrap type thing'
+                'plotWin type thing instead of plotwrap type thing'
                 continue
             lines = pw.a.get_lines()
             for line in lines:
@@ -1238,7 +1238,7 @@ class OmeEtaPfig(object):
 
         # for pw in self.pList:
         #     if hasattr(pw,'getAxes'):
-        #         'plotWin type thing instead of plotWrap type thing'
+        #         'plotWin type thing instead of plotwrap type thing'
         #         continue
 
         auxKWArgs = {}
@@ -1484,7 +1484,7 @@ class CollapseOmeEta(object):
         planeData
 
         pointList, if specified is a list of tuples of the form (3xn
-        ndarray, style) where style gets passed to plotWrap
+        ndarray, style) where style gets passed to plotwrap
 
         can set tTh to 'withOpacity' if the 2-theta plot should be
         made with opacity (alpha) constructed from the intensity
@@ -1523,7 +1523,7 @@ class CollapseOmeEta(object):
 
         else: # pfig
             if pw is None:
-                pw = plotWrap.PlotWrap(
+                pw = plotwrap.PlotWrap(
                     winTitle=winTitle,
                     showByDefault=False, makeWinByDefault=True,
                     **winKWArgs
@@ -1773,7 +1773,7 @@ def grainPolesGUI(omeEtaPfigs):
     execfile('examples/feSynthSpotsPfig.py')
     gui = xrdUtils.grainPolesGUI([pwSB])
     """
-    win = plotWrap.PlotWin(-1,
+    win = plotwrap.PlotWin(-1,
                            title='rotation sliders',
                            relfigsize=(8,2),
                            )
@@ -2233,8 +2233,8 @@ def displaySparse(a,
 
     pw = kwargs.pop('pw',None)
     if pw is None:
-        pwKWArgs = plotWrap.PlotWrap.popKeyArgs(kwargs)
-        pw = plotWrap.PlotWrap(**pwKWArgs)
+        pwKWArgs = plotwrap.PlotWrap.popKeyArgs(kwargs)
+        pw = plotwrap.PlotWrap(**pwKWArgs)
     retval = pw
     #
     if len(kwargs) > 0:
@@ -2467,7 +2467,7 @@ def pfigFromSpots(spots, iHKL, phaseID=None,
 
         if plot:
             fmt = FormatEtaOme(etasCen, omesCen, intensVals.todense())
-            #pw = plotWrap.PlotWrap()
+            #pw = plotwrap.PlotWrap()
             #pw(intensVals.todense())
             pw = displaySparse(intensVals, fmt=fmt, colorUnder=(0.5,0.5,0.5), cmap=cm.jet)
             if plotPrefix is not None:
