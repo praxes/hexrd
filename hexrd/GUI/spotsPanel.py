@@ -75,20 +75,13 @@ class spotsPanel(wx.Panel):
 
         app = wx.GetApp(); exp = app.ws
 
-        # Material Choice
+        # Booleans
 
-	self.mat_lab = wx.StaticText(self, -1, 'material', 
-                                     style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER) 
-        self.mat_cho = wx.Choice(self, wx.NewId(), choices=exp.matNames)
-        
-        # Beam Energy
+        self.disc_box  = wx.CheckBox(self, wx.NewId(), 'Discard at bounds')
+        self.bbox_box  = wx.CheckBox(self, wx.NewId(), 'Keep in bounding box')
+        self.pado_box  = wx.CheckBox(self, wx.NewId(), 'Pad Omega')
+        self.pads_box  = wx.CheckBox(self, wx.NewId(), 'Pad Spots')
 
-        self.beam_lab = wx.StaticText(
-            self, wx.NewId(), 
-            'Beam Energy (keV)', style=wx.ALIGN_CENTER)
-        self.beam_txt = wx.TextCtrl(
-            self, wx.NewId(), value='', 
-            style=wx.RAISED_BORDER)
 
         # Threshold
 
@@ -114,8 +107,6 @@ class spotsPanel(wx.Panel):
 
     def __makeBindings(self):
         """Bind interactors"""
-	self.Bind(wx.EVT_CHOICE,     self.OnChooseMat,  self.mat_cho)
-        self.Bind(wx.EVT_TEXT_ENTER, self.OnBeamEnergy, self.beam_txt)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnThreshold,  self.thresh_txt)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnMinPX,      self.minpx_txt)
 
@@ -125,27 +116,34 @@ class spotsPanel(wx.Panel):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-        nrow = 3; ncol = 2; padx = 5; pady = 5
+        padtop = 10
+        
+        # ========== Checkboxes
+        
+        self.cbsizer = wx.BoxSizer(wx.VERTICAL)  
+        self.cbsizer.Add(self.disc_box, 0, wx.ALIGN_LEFT)
+        self.cbsizer.Add(self.bbox_box, 0, wx.ALIGN_LEFT)
+        self.cbsizer.Add(self.pado_box, 0, wx.ALIGN_LEFT)
+        self.cbsizer.Add(self.pads_box, 0, wx.ALIGN_LEFT)
+        
+        # ========== Valued options
+
+        nrow = 0; ncol = 2; padx = 5; pady = 5
         self.fgSizer = wx.FlexGridSizer(nrow, ncol, padx, pady) 
         self.fgSizer.AddGrowableCol(1, 1)
-        #  1. material selector
-        self.fgSizer.Add(self.mat_lab,       0, wx.ALIGN_RIGHT)
-        self.fgSizer.Add(self.mat_cho,       0, wx.ALIGN_RIGHT)
-        #  2. beam energy
-        self.fgSizer.Add(self.beam_lab,       0, wx.ALIGN_RIGHT)
-        self.fgSizer.Add(self.beam_txt,       0, wx.ALIGN_RIGHT)
-        #  3. threshold
+        #  threshold
         self.fgSizer.Add(self.thresh_lab,       0, wx.ALIGN_RIGHT)
         self.fgSizer.Add(self.thresh_txt,       0, wx.ALIGN_RIGHT)
-        #  4. min PX
+        #  min PX
         self.fgSizer.Add(self.minpx_lab,       0, wx.ALIGN_RIGHT)
         self.fgSizer.Add(self.minpx_txt,       0, wx.ALIGN_RIGHT)
-	#
-        #  ========== Main Sizer
-        #
+
+        # ========== Main Sizer
+
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
-        self.sizer.Add(self.fgSizer,   1, wx.ALIGN_RIGHT)
+        self.sizer.Add(self.cbsizer,   0, wx.ALIGN_RIGHT|wx.TOP, padtop)
+        self.sizer.Add(self.fgSizer,   1, wx.ALIGN_RIGHT|wx.TOP, padtop)
         self.sizer.Add(self.run,       0, wx.ALIGN_RIGHT)
 
 	return

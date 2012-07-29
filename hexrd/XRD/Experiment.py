@@ -166,7 +166,7 @@ class Experiment(object):
         findSOS = spotFinder.Spots.findSpotsOmegaStack
         opts = self.spotOpts
         #
-        self._spots = findSOS(self.activeReader, 
+        self._spots = findSOS(self.activeReader.makeReader(), 
                               opts.nframes,
                               opts.thresh, 
                               opts.minPix, 
