@@ -170,8 +170,6 @@ class cakingPanel(wx.Panel):
             }
         logwin = logWindow(self, wx.NewId(), action, 'Standard Polar Rebinning')
         logwin.ShowModal()
-
-        return 
         #
         #  ==============================
         #  Show rebin output on new window
@@ -179,24 +177,7 @@ class cakingPanel(wx.Panel):
         #
         #  Now draw
         #
-        self.axes   = self.figure.gca()
-        self.axes.set_aspect('equal')
-        
-        intensity = self.img_info['intensity']
-        
-        self.axes.images = []
-        # show new image
-        self.axes.imshow(intensity, origin='upper', 
-                         interpolation='nearest',
-                         cmap=self.cmPanel.cmap,
-                         vmin=self.cmPanel.cmin_val,
-                         vmax=self.cmPanel.cmax_val,
-                         aspect='auto')
-        #self.axes.set_aspect('equal')
-        self.axes.set_autoscale_on(False)
-        
-        self.canvas.draw()
-        
+        cCan = cakeDisplay(self, wx.NewId(), prOpts.CAKE_IMG, self.img_info)
         #
         pass
 
