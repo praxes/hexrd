@@ -45,15 +45,9 @@ for dirpath, dirnames, filenames in os.walk('hexrd'):
     else:
         del(dirnames[:])
 
-with open('hexrd/__init__.py') as f:
-    for line in f:
-        if line[:11] == '__version__':
-            exec(line)
-            break
-
 setup(
     name = 'hexrd',
-    version = __version__,
+    version = '0.0.0',
     author = 'Joel Bernier, et al.',
     author_email = 'bernier2@llnl.gov',
     description = 'High energy diffraction microscopy',

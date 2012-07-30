@@ -38,7 +38,7 @@ import hexrd.XRD.Rotations as rot
 import hexrd.XRD.Symmetry as sym
 import hexrd.XRD.crystallography as xtl # latticeParameters, latticeVectors, getFriedelPair
 from hexrd import XRD
-from hexrd.XRD.xrdUtils import calculateBiotStrain, makeMeasuredScatteringVectors
+from hexrd.XRD.xrdUtils import calculateBiotStrain, makeMeasuredScatteringVectors, validateQVecAngles
 from hexrd.matrixUtils import columnNorm
 
 # constants
@@ -112,6 +112,8 @@ class Grain(object):
                  grainData=None,
                  **kwargs):
         
+        chiTilt=spots.detectorGeom.chiTilt # need to grab this off of spots
+        
         kwHasVMat = kwargs.has_key('vMat')
         for parm, val in self.__inParmDict.iteritems():
             if kwargs.has_key(parm):
@@ -129,13 +131,16 @@ class Grain(object):
         self.omeTol = valUnits.valWithDflt(self.omeTol, self.__omeTolDflt, 'radians')
         self.etaTol = valUnits.valWithDflt(self.etaTol, self.__etaTolDflt, 'radians')
         
-        self.detectorGeom  = spots.detectorGeom.makeNew(pVec=pVec)
+        self.detectorGeom  = spots.detectorGeom.makeNew(pVec=pVec, chiTilt=chiTilt)
         self.planeData     = spots.getPlaneData(self.phaseID)
         self.spots         = spots
              
         # process ome range(s)
         self.omeMin        = spots.getOmegaMins()
         self.omeMax        = spots.getOmegaMaxs()
+        
+        # reference maxTTh for complete rings (for completeness calc)
+        self.refTThMax     = spots.detectorGeom.getTThMax()
         
         # lattice operators
         self.__latticeOperators = self.planeData.getLatticeOperators()
@@ -598,6 +603,20 @@ class Grain(object):
                 reflInRange0 = num.logical_and( reflInRange0, validateQVecAngles(predQAng0[iHKL][1, :], etaMin, etaMax) )
                 reflInRange1 = num.logical_and( reflInRange1, validateQVecAngles(predQAng1[iHKL][1, :], etaMin, etaMax) )
 
+            if num.any(predQAng0[iHKL][0, :] > self.refTThMax):
+                # now test if it falls on the detector in "corners"
+                iRow0, jCol0, ome0_scr = self.detectorGeom.angToXYO(predQAng0[iHKL][0, :], predQAng0[iHKL][1, :], predQAng0[iHKL][2, :])
+                iRow1, jCol1, ome1_scr = self.detectorGeom.angToXYO(predQAng1[iHKL][0, :], predQAng1[iHKL][1, :], predQAng1[iHKL][2, :])
+                del(ome0_scr)
+                del(ome1_scr)
+                inCorners0 = num.logical_and(num.logical_and(iRow0 >= 0, iRow0 <= self.detectorGeom.nrows),
+                                             num.logical_and(jCol0 >= 0, jCol0 <= self.detectorGeom.ncols))
+                inCorners1 = num.logical_and(num.logical_and(iRow1 >= 0, iRow1 <= self.detectorGeom.nrows),
+                                             num.logical_and(jCol1 >= 0, jCol1 <= self.detectorGeom.ncols))
+                
+                reflInRange0 = num.logical_and( reflInRange0, inCorners0 )
+                reflInRange1 = num.logical_and( reflInRange1, inCorners1 )
+            
             # get culled angle and hkl lists for predicted spots
             culledTTh = num.r_[ predQAng0[iHKL][0, reflInRange0], predQAng1[iHKL][0, reflInRange1] ]
             culledEta = num.r_[ predQAng0[iHKL][1, reflInRange0], predQAng1[iHKL][1, reflInRange1] ]
@@ -851,7 +870,7 @@ class Grain(object):
                           '\tmeasTTh \tmeasEta \tmeasOme ' + \
                           '\tdiffTTh \tdiffEta \tdiffOme ' + \
                           '\tpredQx  \tpredQy  \tpredQz ' + \
-                          '\tmeasX   \tmeasY   \tmeasOme'
+                          '\t\tmeasX   \tmeasY   \tmeasOme'
             for i in range(len(reflInfo)):
                 if reflInfo['iRefl'][i] == self.__dummyIdxSpotM:
                     measAnglesString = '%f       \t%f       \t%f       \t' % tuple(r2d*reflInfo['measAngles'][i])
@@ -1381,42 +1400,3 @@ class Grain(object):
         self.spots     = other.spots
         self.planeData = other.planeData
         return
-
-def validateQVecAngles(angList, angMin, angMax):
-    angList = num.atleast_1d(angList)   # needs to have 'shape'
-    
-    angMin = num.atleast_1d(angMin)    # need to have len
-    angMax = num.atleast_1d(angMax)    # need to have len
-    
-    assert len(angMin) == len(angMax), "length of min and max angular limits must match!"
-
-    reflInRange = num.zeros(angList.shape, dtype=bool)
-
-    """
-    the algorithm won't work if the range is >= pi; therefore we have to pre-process
-    split up the ranges, and split them into chunks of, say, 90 degrees as necessary
-    """
-    angRange_l = []
-    for i in range(len(angMin)):
-        if abs(angMax[i] - angMin[i]) >= num.pi:
-            tmpRange = num.r_[num.arange(angMin[i], angMax[i], 0.5*num.pi), angMax[i]]
-            tmpRange = num.c_[tmpRange[:-1], tmpRange[1:]].tolist()
-            for j in range(len(tmpRange)):
-                angRange_l.append(tmpRange[j])
-        else:
-            angRange_l.append([angMin[i], angMax[i]])
-            pass
-        pass
-    for i in range(len(angRange_l)):
-        #
-        limVecMin = num.r_[num.cos(angRange_l[i][0]), num.sin(angRange_l[i][0])]
-        limVecMax = num.r_[num.cos(angRange_l[i][1]), num.sin(angRange_l[i][1])]
-        #
-        wedgeAngle = num.arccos( num.dot( limVecMin, limVecMax ) )
-        #
-        tVec = num.c_[ num.cos(angList), num.sin(angList) ]
-        #
-        dp = num.arccos( num.dot(tVec, limVecMin) ) + num.arccos( num.dot(tVec, limVecMax) )
-        #
-        reflInRange = reflInRange | ( abs(dp - wedgeAngle) <= num.sqrt(rot.tinyRotAng) )
-    return reflInRange

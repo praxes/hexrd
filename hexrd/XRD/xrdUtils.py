@@ -263,7 +263,9 @@ def fitDGX(data, detectorGeom, planeData,
 
     
 def textureToSpots(texture,
-                   planeData, detectorGeom, omeMin, omeMax,
+                   planeData, detectorGeom,
+                   omeMM=None,
+                   etaMM=None,
                    pVecs = None,
                    ):
     """
@@ -288,14 +290,19 @@ def textureToSpots(texture,
     rMats = rot.rotMatOfQuat(quats)
     #
     spotAngs = makeSynthSpots(rMats, pVecs, bMats, 
-                              planeData, detectorGeom, omeMin, omeMax)
+                              planeData, detectorGeom,
+                              omeMM=omeMM,
+                              etaMM=etaMM)
     
     return spotAngs
 
-def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom, omeMin, omeMax, hklList=None, beamSize=None):
+def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom,
+                   omeMM=[-num.pi, num.pi], etaMM=None,
+                   hklList=None, beamSize=None):
     """
     make synthetic spots
     """
+    chiTilt = detectorGeom.chiTilt
     if beamSize is not None:
         "the beam size shoud by [width (X), hieght (Y)]"
         omeAxis = num.c_[0, 1, 0].T     # ... may need to grab this from some global to be same!
@@ -304,9 +311,38 @@ def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom, omeMin, omeMax,
     assert rMats.shape[1] == 3 and rMats.shape[2] == 3,\
         'rMats is wrong shape'
     
-    omeMin = toFloat(num.atleast_1d(omeMin), 'radians')
-    omeMax = toFloat(num.atleast_1d(omeMax), 'radians')
+    'handle ome ranges'
+    # min
+    omeMin = num.atleast_1d(omeMM[0])
+    for i in range(len(omeMin)):
+        if hasattr(omeMin[i], 'getVal'):
+            omeMin[i] = omeMin[i].getVal('radians')
     
+    # max
+    omeMax = num.atleast_1d(omeMM[1])
+    for i in range(len(omeMax)):
+        if hasattr(omeMax[i], 'getVal'):
+            omeMax[i] = omeMax[i].getVal('radians')
+
+    assert len(omeMin) == len(omeMax), \
+           'oscillation angle ranges are not the same length'
+    
+    'handle eta ranges'
+    # min
+    if etaMM is not None:
+        etaMin = num.atleast_1d(etaMM[0])
+        for i in range(len(etaMin)):
+            if hasattr(etaMin[i], 'getVal'):
+                etaMin[i] = etaMin[i].getVal('radians')
+        
+        # max
+        etaMax = num.atleast_1d(etaMM[1])
+        for i in range(len(etaMax)):
+            if hasattr(etaMax[i], 'getVal'):
+                etaMax[i] = etaMax[i].getVal('radians')
+        assert len(etaMin) == len(etaMax), \
+               'azimuthal angle ranges are not the same length'
+        
     spotAngs = []
     completeGrains = num.ones(nGrains, dtype='bool')
     for i in range(nGrains):
@@ -318,21 +354,42 @@ def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom, omeMin, omeMax,
         # full set of symmetric HKLs subject to exclusions
         if hklList is None:
             qVec, qAng0, qAng1 = \
-                planeData.makeAllScatteringVectors(rMats[i, :, :], bMat=bMat)
+                planeData.makeAllScatteringVectors(rMats[i, :, :], bMat=bMat, chiTilt=chiTilt)
         else:
             qVec, qAng0, qAng1 = \
-                planeData.makeTheseScatteringVectors(hklList, rMats[i, :, :], bMat=bMat)
+                planeData.makeTheseScatteringVectors(hklList, rMats[i, :, :], bMat=bMat, chiTilt=chiTilt)
     
-        validAng0 = num.zeros(qVec.shape[1], dtype='bool')
-        validAng1 = num.zeros(qVec.shape[1], dtype='bool')
-        for j in range(len(omeMin)):
-            validAng0 = validAng0 | (
-                ( qAng0[2, :] >= omeMin[j] ) & ( qAng0[2, :] <= omeMax[j] ) )
-            validAng1 = validAng1 | (
-                ( qAng1[2, :] >= omeMin[j] ) & ( qAng1[2, :] <= omeMax[j] ) )
+        # filter using ome ranges
+        validAng0 = validateQVecAngles(qAng0[2, :], omeMin, omeMax)
+        validAng1 = validateQVecAngles(qAng1[2, :], omeMin, omeMax)
         
-        tmpAngs = num.hstack( [
-                qAng0[:, validAng0], qAng1[:, validAng1] ] )
+        # now eta (if applicable)
+        if etaMM is not None:
+            validAng0 = num.logical_and( validAng0, validateQVecAngles(qAng0[1, :], etaMin, etaMax) )
+            validAng1 = num.logical_and( validAng1, validateQVecAngles(qAng1[1, :], etaMin, etaMax) )
+
+        if num.any(qAng0[0, :] > detectorGeom.getTThMax()):
+            # now test if it falls on the detector in "corners"
+            iRow0, jCol0, ome0_scr = detectorGeom.angToXYO(qAng0[0, :], qAng0[1, :], qAng0[2, :])
+            iRow1, jCol1, ome1_scr = detectorGeom.angToXYO(qAng1[0, :], qAng1[1, :], qAng1[2, :])
+            del(ome0_scr); del(ome1_scr)
+            inCorners0 = num.logical_and(num.logical_and(iRow0 >= 0, iRow0 <= detectorGeom.nrows),
+                                         num.logical_and(jCol0 >= 0, jCol0 <= detectorGeom.ncols))
+            inCorners1 = num.logical_and(num.logical_and(iRow1 >= 0, iRow1 <= detectorGeom.nrows),
+                                         num.logical_and(jCol1 >= 0, jCol1 <= detectorGeom.ncols))
+            
+            validAng0 = num.logical_and( validAng0, inCorners0 )
+            validAng1 = num.logical_and( validAng1, inCorners1 )
+        
+        # validAng0 = num.zeros(qVec.shape[1], dtype='bool')
+        # validAng1 = num.zeros(qVec.shape[1], dtype='bool')
+        # for j in range(len(omeMin)):
+        #     validAng0 = validAng0 | (
+        #         ( qAng0[2, :] >= omeMin[j] ) & ( qAng0[2, :] <= omeMax[j] ) )
+        #     validAng1 = validAng1 | (
+        #         ( qAng1[2, :] >= omeMin[j] ) & ( qAng1[2, :] <= omeMax[j] ) )
+        
+        tmpAngs = num.hstack([qAng0[:, validAng0], qAng1[:, validAng1]])
     
         if pVecs is not None:
             tmpDG = detectorGeom.makeNew(pVec=pVecs[i, :])
@@ -1568,12 +1625,12 @@ class CollapseOmeEta(object):
     def getData(self, iData):
         return self.dataStore[iData,:,:]
 
-def makeMeasuredScatteringVectors(tTh, eta, ome, convention='LLNL', frame='sample'):
+def makeMeasuredScatteringVectors(tTh, eta, ome, convention='hexrd', frame='sample'):
     """
     Construct scattering vectors from angles (2theta, eta, ome)
-    will do LLNL/APS and Risoe frames, sample or lab.
+    will do HEXRD/APS and Fable frames, sample or lab.
 
-    for risoe frame geomtery, see:
+    for fable frame geomtery, see:
 
     http://sourceforge.net/apps/trac/fable/attachment/wiki/WikiStart/Geometry_version_1.0.8.pdf
     """
@@ -1583,7 +1640,7 @@ def makeMeasuredScatteringVectors(tTh, eta, ome, convention='LLNL', frame='sampl
     if not hasattr(convention, 'lower'):
         raise RuntimeError, "something is amiss with your keywork argument"
     else:
-        if convention.lower() == 'risoe':
+        if convention.lower() == 'fable':
             # must convert eta coordinate
             eta = 0.5*num.pi - eta
 
@@ -1597,7 +1654,7 @@ def makeMeasuredScatteringVectors(tTh, eta, ome, convention='LLNL', frame='sampl
                 -num.cos(0.5*tTh)*num.sin(eta),
                  num.cos(0.5*tTh)*num.cos(eta) ] )
 
-        elif convention.lower() == 'llnl':
+        elif convention.lower() == 'hexrd':
             'ome axis is lab Y'
             # raxis = num.c_[0, 1, 0].T
             rIndex = 1
@@ -2494,3 +2551,41 @@ def pfigFromSpots(spots, iHKL, phaseID=None,
         
     return retval
 
+def validateQVecAngles(angList, angMin, angMax):
+    angList = num.atleast_1d(angList)   # needs to have 'shape'
+    
+    angMin = num.atleast_1d(angMin)    # need to have len
+    angMax = num.atleast_1d(angMax)    # need to have len
+    
+    assert len(angMin) == len(angMax), "length of min and max angular limits must match!"
+
+    reflInRange = num.zeros(angList.shape, dtype=bool)
+
+    """
+    the algorithm won't work if the range is >= pi; therefore we have to pre-process
+    split up the ranges, and split them into chunks of, say, 90 degrees as necessary
+    """
+    angRange_l = []
+    for i in range(len(angMin)):
+        if abs(angMax[i] - angMin[i]) >= num.pi:
+            tmpRange = num.r_[num.arange(angMin[i], angMax[i], 0.5*num.pi), angMax[i]]
+            tmpRange = num.c_[tmpRange[:-1], tmpRange[1:]].tolist()
+            for j in range(len(tmpRange)):
+                angRange_l.append(tmpRange[j])
+        else:
+            angRange_l.append([angMin[i], angMax[i]])
+            pass
+        pass
+    for i in range(len(angRange_l)):
+        #
+        limVecMin = num.r_[num.cos(angRange_l[i][0]), num.sin(angRange_l[i][0])]
+        limVecMax = num.r_[num.cos(angRange_l[i][1]), num.sin(angRange_l[i][1])]
+        #
+        wedgeAngle = num.arccos( num.dot( limVecMin, limVecMax ) )
+        #
+        tVec = num.c_[ num.cos(angList), num.sin(angList) ]
+        #
+        dp = num.arccos( num.dot(tVec, limVecMin) ) + num.arccos( num.dot(tVec, limVecMax) )
+        #
+        reflInRange = reflInRange | ( abs(dp - wedgeAngle) <= num.sqrt(rot.tinyRotAng) )
+    return reflInRange

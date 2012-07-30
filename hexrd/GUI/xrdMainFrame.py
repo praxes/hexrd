@@ -296,7 +296,7 @@ class xrdMainFrame(wx.Frame):
         material-list = <filename>
         reader-list = <filename>
         [options] # options for this experiment
-"""
+        """
         cfgFile = 'experiment.cfg'
         exp = wx.GetApp().ws
         #

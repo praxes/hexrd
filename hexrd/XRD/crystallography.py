@@ -32,8 +32,11 @@ import warnings
 
 import numpy as num
 from scipy import constants as C
+from scipy.linalg import inv
 
 from hexrd.matrixUtils import *
+from hexrd.XRD.Rotations import angleAxisOfRotMat, rotMatOfExpMap, arccosSafe, mapAngle
+from hexrd.XRD import Symmetry
 from hexrd import valUnits
 from hexrd.valUnits import toFloat
 
@@ -168,10 +171,12 @@ def latticePlanes(hkls, lparms, ltype='cubic', wavelength=1.54059292, strainMag=
           'monoclinic'     a, b, c, beta (in degrees)
           'triclinic'      a, b, c, alpha, beta, gamma (in degrees)
        
-       *) wavelength=(float) is a value represented the wavelength in
+       *) wavelength=<float> is a value represented the wavelength in
           Angstroms to calculate bragg angles for.  The default value
           is for Cu K-alpha radiation (1.54059292 Angstrom)
-    
+
+       *) strainMag=None
+
     OUTPUTS:
        
     1) planeInfo is a dictionary containing the following keys/items:
@@ -205,7 +210,7 @@ def latticePlanes(hkls, lparms, ltype='cubic', wavelength=1.54059292, strainMag=
     """
     location = 'latticePlanes'
     
-    assert hkls.shape[0] is 3, "hkls aren't column vectors in call to '%s'!" % (location)
+    assert hkls.shape[0] == 3, "hkls aren't column vectors in call to '%s'!" % (location)
 
     tag = ltype
     wlen = wavelength
@@ -283,13 +288,13 @@ def latticeVectors(lparms, tag='cubic', radians=False, debug=False):
                                         
        BR        (3, 3) double array    transformation matrix taking
                                         componenents in the reciprocal
-                                        lattice to the Risoe reference
+                                        lattice to the Fable reference
                                         frame (see notes)  
                                         
        U0        (3, 3) double array    transformation matrix
                                         (orthogonal) taking 
                                         componenents in the
-                                        Risoe reference frame to X 
+                                        Fable reference frame to X 
                                         
        vol       double                 the unit cell volume
                  
@@ -306,7 +311,7 @@ def latticeVectors(lparms, tag='cubic', radians=False, debug=False):
     *) The conventions used for assigning a RHON basis, 
        X -> {x1, x2, x3}, to each point group are consistent with
        those published in Appendix B of [1]. Namely: a || x1 and 
-       c* || x3.  This differs from the convention chosen by the Risoe 
+       c* || x3.  This differs from the convention chosen by the Fable 
        group, where a* || x1 and c || x3 [2]. 
        
     *) The unit cell angles are defined as follows: 
@@ -416,11 +421,11 @@ def latticeVectors(lparms, tag='cubic', radians=False, debug=False):
     
     cosalfar2, sinalfar2 = cosineXform(alfar, betar, gamar)
     
-    arisoe = ar*num.r_[1, 0, 0]
-    brisoe = br*num.r_[num.cos(gamar), num.sin(gamar), 0]
-    crisoe = cr*num.r_[num.cos(betar), -cosalfar2*num.sin(betar), sinalfar2*num.sin(betar)]
+    afable = ar*num.r_[1, 0, 0]
+    bfable = br*num.r_[num.cos(gamar), num.sin(gamar), 0]
+    cfable = cr*num.r_[num.cos(betar), -cosalfar2*num.sin(betar), sinalfar2*num.sin(betar)]
     
-    BR = num.c_[arisoe, brisoe, crisoe]
+    BR = num.c_[afable, bfable, cfable]
     U0 = num.dot(B, num.linalg.inv(BR))
     if outputDegrees:
         dparms = num.r_[ad, bd, cd, r2d*num.r_[ alfa,  beta,  gama]]
@@ -478,20 +483,23 @@ def rhombohedralParametersFromHexagonal(a_h, c_h):
 
 class PlaneData(object):
     """
-    Careful with ordering:
-    Outputs are ordered by the 2-theta for the hkl unless you get self.__hkls directly,
-    and this order can change with changes in lattice parameters (lparms);
-    setting and getting exclusions works on the current hkl ordering, not the original ordering (in self.__hkls), but exclusions are stored in the original ordering in case the hkl ordering does change with lattice parameters
+    Careful with ordering: Outputs are ordered by the 2-theta for the
+    hkl unless you get self.__hkls directly, and this order can change
+    with changes in lattice parameters (lparms); setting and getting
+    exclusions works on the current hkl ordering, not the original
+    ordering (in self.__hkls), but exclusions are stored in the
+    original ordering in case the hkl ordering does change with
+    lattice parameters
     
-    if not None, tThWidth takes priority over strainMag in setting two-theta ranges;
-    changing strainMag automatically turns off tThWidth
+    if not None, tThWidth takes priority over strainMag in setting
+    two-theta ranges; changing strainMag automatically turns off
+    tThWidth
     """
         
     def __init__(self,
                  hkls, 
                  *args,
                  **kwargs):
-        import Symmetry as S
         
         self.phaseID = None
         self.__doTThSort = True
@@ -518,7 +526,7 @@ class PlaneData(object):
             raise NotImplementedError, 'args : '+str(args)
         
         self.__laueGroup = laueGroup
-        self.__qsym = S.quatOfLaueGroup(self.__laueGroup)
+        self.__qsym = Symmetry.quatOfLaueGroup(self.__laueGroup)
         self.__hkls = copy.deepcopy(hkls)
         self.__strainMag = strainMag
         self.tThWidth = tThWidth
@@ -542,8 +550,7 @@ class PlaneData(object):
         return
     
     def __calc(self):
-        import Symmetry as S
-        symmGroup = S.ltypeOfLaueGroup(self.__laueGroup)
+        symmGroup = Symmetry.ltypeOfLaueGroup(self.__laueGroup)
         latPlaneData, latVecOps, hklDataList = PlaneData.makePlaneData(
             self.__hkls, self.__lparms, self.__qsym, symmGroup, self.__strainMag, self.wavelength)
         'sort by tTheta'
@@ -606,7 +613,6 @@ class PlaneData(object):
     tThMax = property(get_tThMax, set_tThMax, None)
     
     def get_exclusions(self):
-        import copy
         retval = num.zeros(self.getNhklRef(), dtype=bool)
         if self.__exclusions is not None:
             'report in current hkl ordering'
@@ -686,13 +692,12 @@ class PlaneData(object):
         wavelength : wavelength
         strainMag  : swag of strian magnitudes
         """
-        import crystallography
-        crystallography.tempSetOutputDegrees(False)
-        import Symmetry as S
 
-        latPlaneData = crystallography.latticePlanes(hkls, lparms, ltype=symmGroup, 
-                                           strainMag=strainMag, 
-                                           wavelength=wavelength)
+        tempSetOutputDegrees(False)
+        latPlaneData = latticePlanes(hkls, lparms,
+                                     ltype=symmGroup, 
+                                     strainMag=strainMag, 
+                                     wavelength=wavelength)
 
         latVecOps = latticeVectors(lparms, symmGroup)
 
@@ -701,17 +706,17 @@ class PlaneData(object):
 
             # JVB # latVec = latPlaneData['normals'][:,iHKL]
             # JVB # # ... if not spots, may be able to work with a subset of these
-            # JVB # latPlnNrmlList = S.applySym(num.c_[latVec], qsym, csFlag=True, cullPM=False)
+            # JVB # latPlnNrmlList = Symmetry.applySym(num.c_[latVec], qsym, csFlag=True, cullPM=False)
 
             # returns UN-NORMALIZED lattice plane normals
-            latPlnNrmls = S.applySym( 
+            latPlnNrmls = Symmetry.applySym( 
                 num.dot(latVecOps['B'], hkls[:,iHKL].reshape(3, 1)), 
                 qsym, 
                 csFlag=True, 
                 cullPM=False)
             
             # check for +/- in symmetry group
-            latPlnNrmlsM = S.applySym( 
+            latPlnNrmlsM = Symmetry.applySym( 
                 num.dot(latVecOps['B'], hkls[:,iHKL].reshape(3, 1)), 
                 qsym, 
                 csFlag=False, 
@@ -734,18 +739,16 @@ class PlaneData(object):
                 'centrosym'   : csRefl
                 })
         
-        crystallography.revertOutputDegrees()
+        revertOutputDegrees()
         return latPlaneData, latVecOps, hklDataList
     def getLatticeType(self):
         """This is the lattice type"""
-        import Symmetry as S
-        return S.ltypeOfLaueGroup(self.__laueGroup)
+        return Symmetry.ltypeOfLaueGroup(self.__laueGroup)
     def getLaueGroup(self):
         """This is the Schoenflies tag"""
         return self.__laueGroup
     def getQSym(self):
-        #import Symmetry as S
-        return self.__qsym # S.quatOfLaueGroup(self.__laueGroup)
+        return self.__qsym # Symmetry.quatOfLaueGroup(self.__laueGroup)
     def getPlaneSpacings(self):
         """
         gets plane spacings
@@ -769,7 +772,6 @@ class PlaneData(object):
         """
         gets lattice vector operators as a new (deepcopy)
         """
-        import copy
         return copy.deepcopy(self.__latVecOps)
     def setLatticeOperators(self, val):
         raise RuntimeError, 'do not set latVecOps directly, change other things instead'
@@ -839,8 +841,6 @@ class PlaneData(object):
         derivatives of tThs with respect to lattice parameters;
         have not yet done coding for analytic derivatives, just wimp out and finite difference
         """
-        import copy
-        
         pert = 1.0e-5 # assume they are all around unity
         pertInv = 1.0/pert
         
@@ -942,59 +942,7 @@ class PlaneData(object):
         for iHKLr, hklData in enumerate(self.hklDataList):
             if not self.__thisHKL(iHKLr): continue
             retval.append( hklData['centrosym'] ) 
-        return retval
-    def makeRecipVectors(self,**RUVorF):
-        """
-        input keywords: specify enough to construct a deformation gradient. Accepts R, U, V, F. If no arguments are given defaults to identity.
-        uses F = RU = VR, and F^{-T}gI = rI to construct recip vectors.
-        makeRecipVectors(R = [R])
-        makeRecipVectors(U = [U])
-        makeRecipVectors(V = [V])
-        makeRecipVectors(R = [R], U = [U])
-        makeRecipVectors(R = [R], U = [U])
-        makeRecipVectors(F = [F])
-        returns 3x~200 array with columns as the recip Vectors in the sample frame
-        """
-        
-        if RUVorF.has_key('F'):
-            F = RUVorF['F']
-        else:
-            if RUVorF.has_key('R'):
-                R = RUVorF['R']
-            else:
-                R = num.eye(3)
-            
-            if RUVorF.has_key('U'):
-                U = RUVorF['U']
-                F = num.dot(R,U)
-            elif RUVorF.has_key('V'):
-                V = RUVorF['V']
-                F = num.dot(V,R)
-            else:
-                U = num.eye(3)
-                F = num.dot(R,U)
-
-        from scipy.linalg import inv
-        rMat = num.eye(3)
-        Qvec, predQAng0,predQAng1 = self.__makeScatteringVectors(rMat, bMat=None)
-        
-        Qvecs = []
-        FinvT = inv(F).T
-        
-        n_cols = 0
-        for Qblock in Qvec:
-            rows,cols = Qblock.shape
-            n_cols+=cols
-        rIs = num.zeros([rows,n_cols])
-        col = 0
-        for Qblock in Qvec:
-            ncols = Qblock.shape[1]
-            rIs_ = num.dot(FinvT,Qblock)
-            rIs[0:rows,col:col + Qblock.shape[1]] = rIs_[:,:]
-            col += Qblock.shape[1]
-        
-        return rIs
-    
+        return retval    
     def makeTheseScatteringVectors(self, hklList, rMat, bMat=None, wavelength=None, chiTilt=None):
         iHKLList = num.atleast_1d(self.getHKLID(hklList))
         fHKLs = num.hstack(self.getSymHKLs(indices=iHKLList))
@@ -1017,8 +965,7 @@ class PlaneData(object):
         """
         modeled after QFromU.m
         """
-        from Rotations import angleAxisOfRotMat, rotMatOfExpMap, arccosSafe, mapAngle
-
+        
         # basis vectors
         Xl = num.vstack([1, 0, 0])          # X in the lab frame
         Yl = num.vstack([0, 1, 0])          # Y in the lab frame
@@ -1191,8 +1138,7 @@ class PlaneData(object):
         """
         modeled after QFromU.m
         """
-        from Rotations import angleAxisOfRotMat, rotMatOfExpMap, arccosSafe, mapAngle
-        
+                
         if bMat is None:
             bMat = self.__latVecOps['B']
         
@@ -1226,7 +1172,7 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     ome1, eta1 = getFriedelPair(tth0, eta0, *ome0,
                                 display=False,
                                 units='degrees',
-                                convention='aps')
+                                convention='hexrd')
     
     INPUTS:
     
@@ -1246,7 +1192,7 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     --------------      --------------          --------------
     'display'           True|{False}            toggles display info to cmd line
     'units'             'radians'|{'degrees'}   sets units for input angles
-    'convention'        'risoe'|{'aps'}         sets conventions defining
+    'convention'        'fable'|{'hexrd'}         sets conventions defining
                                                 the angles (see below) 
     'chiTilt'           None                    the inclination (about Xlab) of
                                                 the oscillation axis
@@ -1266,10 +1212,10 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     JVB) The ouputs ome1, eta1 are written using the selected convention, but the
          units are alway degrees.  May change this to work with Nathan's global...
     
-    JVB) In the 'risoe' convention [1], {XYZ} form a RHON basis where X is
+    JVB) In the 'fable' convention [1], {XYZ} form a RHON basis where X is
          downstream, Z is vertical, and eta is CCW with +Z defining eta = 0.
     
-    JVB) In the 'aps' convention [2], {XYZ} form a RHON basis where Z is upstream, 
+    JVB) In the 'hexrd' convention [2], {XYZ} form a RHON basis where Z is upstream, 
          Y is vertical, and eta is CCW with +X defining eta = 0.
     
     REFERENCES:
@@ -1283,10 +1229,9 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
         to Deformed In Situ'', J. Eng. Mater. Technol. (2008). 130. 
         DOI:10.1115/1.2870234 
     """
-    from Rotations import arccosSafe, mapAngle, rotMatOfExpMap
-    
+        
     dispFlag  = False
-    risoeFlag = False
+    fableFlag = False
     chiTilt   = None
     c1        = 1.
     c2        = pi/180.
@@ -1343,8 +1288,8 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
             if argkeys[i] == 'display':
                 dispFlag = kwargs[argkeys[i]]
             elif argkeys[i] == 'convention':
-                if kwargs[argkeys[i]].lower() == 'risoe':
-                    risoeFlag = True
+                if kwargs[argkeys[i]].lower() == 'fable':
+                    fableFlag = True
             elif argkeys[i] == 'units':
                 if kwargs[argkeys[i]] == 'radians':
                     c1 = 180./pi
@@ -1355,15 +1300,15 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     
     # a little talkback...
     if dispFlag:
-        if risoeFlag:
-            print '\nUsing Risoe angle convention\n'
+        if fableFlag:
+            print '\nUsing Fable angle convention\n'
         else:
             print '\nUsing image-based angle convention\n'
     
     # mapped eta input
     #   - in DEGREES, thanks to c1
     eta0 = mapAngle(c1*eta0, [-180, 180], units='degrees')
-    if risoeFlag:
+    if fableFlag:
         eta0  = 90 - eta0
                 
     # must put args into RADIANS
@@ -1431,12 +1376,12 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
 
         eta1 = qxy[1, :] / abs(qxy[1, :]) * arccosSafe(qxy[0, :]) * r2d
         
-        if risoeFlag:
+        if fableFlag:
             eta1  =  90 - eta1
             pass
     else:
         eta1 = r2d*eta0
-        if risoeFlag:
+        if fableFlag:
             eta1  = 270 - eta1
         else:
             eta1  = 180 + eta1
@@ -1468,96 +1413,3 @@ def getDparms(lp, lpTag, radians=True):
     latVecOps = latticeVectors(lp, tag=lpTag, radians=radians)
     return latVecOps['dparms'] 
 
-# def computeRLVectors():
-#     """
-#     """
-#     
-#     return
-
-# def findFriedelPairs(ome, eta, tth, tol=(1.0, 0.2, 0.05), units='degrees'):
-#     """
-#     A wrapper for getFriedelPair to operate on scattering vector data
-#     """
-#     tolType = 'angular'
-#     if num.isscalar(tol) or len(tol) == 1:
-#         tolType = 'cosine'
-# 
-#     c1        = 1.
-#     c2        = pi/180.
-#     zTol      = 1.e-7
-#     
-#     # cast to arrays (in case they aren't)
-#     if num.isscalar(eta0):
-#         eta0 = [eta0]
-# 
-#     if num.isscalar(tth0):
-#         tth0 = [tth0]
-#         
-#     if num.isscalar(ome0):
-#         ome0 = [ome0]
-# 
-#     eta0 = num.asarray(eta0)                
-#     tth0 = num.asarray(tth0)
-#     ome0 = num.asarray(ome0)
-# 
-#     npts = len(eta)
-# 
-# Fpairs = [];
-# if numPts > 1
-# 
-#     % search for Friedel pairs
-#     [ome_f, eta_f] = GetFriedelPair(eta, tth, ome);
-# 
-#     ome_f = ome_f/r2d;
-#     eta_f = eta_f/r2d;
-#     th    = th/r2d;
-# 
-#     R_l2s_f = RMatOfQuat(QuatOfAngleAxis(-ome_f, [0 1 0]'));
-# 
-#     % idealized friedel pairs in LAB FRAME
-#     Qhat_f = [...
-#         cos(eta_f).*cos(th), ...
-#         sin(eta_f).*cos(th), ...
-#         sin(th)]';
-# 
-#     % calculated friedel pairs in sample frame
-#     Qf = reshape(SparseOfMatArray(R_l2s_f)*Qhat_f(:), [3, numPts]);
-# 
-#     jj = 1;
-#     skip = [];
-#     for j = 1:numPts
-#         if ~ismember(j, skip)
-# 
-#             fdots = Qf(:, j)' * UnitVector(Q);
-#             hits = find(fdots >= dTol);
-# 
-#             if ~isempty(hits)
-#                 if length(hits) > 1
-#                     [best, ibest] = max(fdots(hits));
-# 
-#                     Fpairs(jj, :) = [j, hits(ibest), best, 1];
-#                     skip = cat(1, hits(ibest), skip);
-#                 else
-#                     Fpairs(jj, :) = [j, hits, fdots(hits), 0];
-#                     skip = cat(1, hits, skip);
-#                 end
-#                 jj = jj + 1;
-#             end
-#         end
-#     end
-# end
-#     
-
-"""
-UNIT TESTS
-"""
-# from az31 import planeData as mgData
-# for friedel pairs...  a start
-# rMat = rot.rotMatOfQuat(mUtil.unitVector(num.random.randn(4, 1)))
-# qv = mgData._PlaneData__makeScatteringVectors(rMat, chiTilt=0.25)
-# xtal.getFriedelPair(qv[1][0][0, 0], qv[1][0][1, 0], qv[1][0][2, 0], chiTilt=0.25, units='radians')
-# xtal.getFriedelPair(qv[2][0][0, 0], qv[2][0][1, 0], qv[2][0][2, 0], chiTilt=0.25, units='radians')
-# qv[1][0][:, [0, 3]], qv[2][0][:, [0, 3]]
-# rMat = rot.rotMatOfExpMap(0.5*mgData.getTTh()[0]*mUtil.unitVector(num.c_[1,0,1].T))
-# qv = mgData._PlaneData__makeScatteringVectors(rMat, chiTilt=0.)
-# qv[1][0][:, 1], qv[2][0][:, 1]
