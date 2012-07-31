@@ -1,4 +1,7 @@
 _build
 *.pyc
+.DS_Store
+*.o
 *.so
-build
+*.*~
+#*

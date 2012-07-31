@@ -88,7 +88,7 @@ space group data.
             self.description = ''
 
             pass
-
+        #
         return
 
     def __str__(self):
