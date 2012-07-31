@@ -379,6 +379,12 @@ class Experiment(object):
             pass
         return r
 
+    def clear_reader(self):
+        """Close current reader"""
+        self.__active_reader = None
+        self.__curFrame = 0
+        return
+
     @property
     def savedReaders(self):
         """Return list of saved readers"""
@@ -516,71 +522,6 @@ class Experiment(object):
     pass  # end class
 #
 # -----------------------------------------------END CLASS:  Experiment
-#
-# ================================================== Utility Functions
-#
-def newName(name, nlist):
-    """return a name not in the list, but based on name input"""
-    if name not in nlist: return name
-
-    i=1
-    while i:
-        name_i = '%s %d' % (name, i)
-        if name_i not in nlist:
-            break
-
-        i += 1
-        pass
-
-    return name_i
-
-def saveExp(e, f):
-    """save experiment to file"""
-    fobj = open(f, 'w')
-    cPickle.dump(e, fobj)
-    fobj.close()
-
-    return
-
-def loadExp(inpFile, matFile=DFLT_MATFILE):
-    """Load an experiment from a config file or from a saved exp file
-
-    inpFile -- the name of either the config file or the saved exp file;
-               empty string means start new experiment
-    matFile -- name of the materials file 
-"""
-    #
-    if not matFile:
-        print >> sys.stderr, 'no material file found'
-        sys.exit(1)
-        pass
-        
-    root, ext = os.path.splitext(inpFile)
-    #
-    if ext == '.cfg' or not inpFile:
-        #  Instantiate from config file
-        exp = Experiment(inpFile, matFile)
-    elif ext == '.exp':
-        #  Load existing experiment
-        try:
-            print 'loading saved file:  %s' % inpFile
-            f = open(inpFile, 'r')
-            exp = cPickle.load(f)
-            f.close()
-            print '... load succeeded'
-        except:
-            print '... load failed ... please check your data file'
-            raise
-            sys.exit()
-            pass
-    else:
-        #  Not recognized
-        print 'file is neither .cfg or .exp', inpFile
-        sys.exit(1)
-        pass
-
-    return exp
-
 # ---------------------------------------------------CLASS:  geReaderInput
 #
 class ReaderInput(object):
@@ -606,7 +547,8 @@ GE reader is supported.
         AGG_FUN_MIN : numpy.minimum
         }
     #
-    FLIP_MODES = (FLIP_NONE, FLIP_VERT, FLIP_HORIZ, FLIP_180, FLIP_M90, FLIP_P90) = range(6)
+    FLIP_MODES = (FLIP_NONE, FLIP_VERT, FLIP_HORIZ, FLIP_180, FLIP_M90, FLIP_P90) \
+                 = range(6)
     FLIP_STRS  = ('',        'v',       'h',        'hv',     'cw90',   'ccw90')
     FLIP_DICT  = dict(zip(FLIP_MODES, FLIP_STRS))
     #
@@ -1017,3 +959,68 @@ class PolarRebinOpts(object):
     pass  # end class
 #
 # -----------------------------------------------END CLASS:  PolarRebinOpts
+# ================================================== Utility Functions
+#
+def newName(name, nlist):
+    """return a name not in the list, but based on name input"""
+    if name not in nlist: return name
+
+    i=1
+    while i:
+        name_i = '%s %d' % (name, i)
+        if name_i not in nlist:
+            break
+
+        i += 1
+        pass
+
+    return name_i
+
+def saveExp(e, f):
+    """save experiment to file"""
+    fobj = open(f, 'w')
+    e.clear_reader() # close open files inside exp
+    cPickle.dump(e, fobj)
+    fobj.close()
+
+    return
+
+def loadExp(inpFile, matFile=DFLT_MATFILE):
+    """Load an experiment from a config file or from a saved exp file
+
+    inpFile -- the name of either the config file or the saved exp file;
+               empty string means start new experiment
+    matFile -- name of the materials file 
+"""
+    #
+    if not matFile:
+        print >> sys.stderr, 'no material file found'
+        sys.exit(1)
+        pass
+        
+    root, ext = os.path.splitext(inpFile)
+    #
+    if ext == '.cfg' or not inpFile:
+        #  Instantiate from config file
+        exp = Experiment(inpFile, matFile)
+    elif ext == '.exp':
+        #  Load existing experiment
+        try:
+            print 'loading saved file:  %s' % inpFile
+            f = open(inpFile, 'r')
+            exp = cPickle.load(f)
+            f.close()
+            print '... load succeeded'
+        except:
+            print '... load failed ... please check your data file'
+            raise
+            sys.exit()
+            pass
+    else:
+        #  Not recognized
+        print 'file is neither .cfg or .exp', inpFile
+        sys.exit(1)
+        pass
+
+    return exp
+
