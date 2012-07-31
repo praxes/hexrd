@@ -108,6 +108,7 @@ class cakeCanvas(wx.Panel):
             pass
         elif self.cakeType == prOpts.CAKE_SPH:
             # omega-eta panel
+            self.opt_pan = sphOpts(self, wx.NewId())
             pass
         
         self.__makeFigureCanvas()
@@ -472,3 +473,95 @@ class imgOpts(wx.Panel):
     pass # end class
 #
 # -----------------------------------------------END CLASS:  imgOpts
+# ---------------------------------------------------CLASS:  sphOpts
+#
+class sphOpts(wx.Panel):
+    """Options panel for SPH (omega-eta) caking canvas"""
+
+    def __init__(self, parent, id, **kwargs):
+	"""Constructor for sphOpts."""
+	#
+	wx.Panel.__init__(self, parent, id, **kwargs)
+	#
+        #  Data
+        #
+
+        #
+	#  Window Objects.
+	#
+        self.__makeObjects()
+	#
+	#  Bindings.
+	#
+	self.__makeBindings()
+	#
+	#  Sizing.
+	#
+	self.__makeSizers()
+	#
+	self.SetAutoLayout(True)
+        self.SetSizerAndFit(self.sizer)
+
+	return
+    #
+    # ============================== Internal Methods
+    #
+    def __makeObjects(self):
+        """Add interactors"""
+
+        self.tbarSizer = makeTitleBar(self, 'Full Image Rebinning Results')
+        #
+
+        return
+
+    def __makeBindings(self):
+        """Bind interactors"""
+        return
+
+    def __makeSizers(self):
+	"""Lay out the interactors"""
+
+	self.sizer = wx.BoxSizer(wx.VERTICAL)
+	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Show(self.tbarSizer, False)
+
+	return
+    #
+    # ============================== API
+    #
+    #                     ========== *** Access Methods
+    #
+    def update(self):
+        """Update canvas"""
+        p = self.GetParent()
+
+#        intensity = p.data['intensity']
+#
+#        p.axes = p.figure.gca()
+#        p.axes.set_aspect('equal')
+#
+#
+#        p.axes.images = []
+#        # show new image
+#        p.axes.imshow(intensity, origin='upper',
+#                      interpolation='nearest',
+#                      aspect='auto')
+##                      cmap=self.cmPanel.cmap,
+##                      vmin=self.cmPanel.cmin_val,
+##                      vmax=self.cmPanel.cmax_val,
+#        p.axes.set_autoscale_on(False)
+#
+#        p.canvas.draw()
+#
+        return
+    #
+    #                     ========== *** Event Callbacks
+    #
+    def OnUpdate(self, e):
+        """Update canvas"""
+        self.update()
+        return
+
+    pass # end class
+#
+# -----------------------------------------------END CLASS:  sphOpts
