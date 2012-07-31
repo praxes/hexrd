@@ -91,8 +91,6 @@ space group data.
             
             pass
         #
-        print 'New Material \n', self
-        #
         return
 
     def __str__(self):
