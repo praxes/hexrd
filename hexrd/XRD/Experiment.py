@@ -66,9 +66,6 @@ matfileOK = os.access(DFLT_MATFILE, os.F_OK)
 if not matfileOK:  # set to null
     DFLT_MATFILE = ''
     pass
-
-print 'default matfile:  ', DFLT_MATFILE.join(2*['"'])
-print 'current dir:  ', os.getcwd()
 #
 #
 __all__ = ['Experiment',
@@ -247,7 +244,6 @@ class Experiment(object):
         self._matList = v
         self.activeMaterial = 0
         # On initialization, this is called before calInput exists
-        print 'calibrant name: ', self.matList[0]
         try:
             self.calInput.calMat = self.matList[0]
         except:
@@ -454,7 +450,8 @@ class Experiment(object):
         #  Check frameNum
         #
         if (frameNum > nrFrame) or (frameNum < 1):
-            msg = 'frame number out of range: requesting frame %d (max = %d)' % (frameNum, nrFrame)
+            msg = 'frame number out of range: requesting frame %d (max = %d)' \
+                  % (frameNum, nrFrame)
             raise ValueError(msg)
 
         #if (frameNum == self.__curFrame): return
@@ -539,11 +536,9 @@ def newName(name, nlist):
 
 def saveExp(e, f):
     """save experiment to file"""
-    print 'saving file:  %s' % f
     fobj = open(f, 'w')
     cPickle.dump(e, fobj)
     fobj.close()
-    print 'save succeeded'
 
     return
 
@@ -830,7 +825,6 @@ class CalibrationInput(object):
     def _set_calMat(self, v):
         """Set method for calMat"""
         self._calMat = v
-        print 'setting calMat:  \n', str(self.calData)
         return
 
     calMat = property(_get_calMat, _set_calMat, None,
