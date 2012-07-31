@@ -274,32 +274,9 @@ class cakingPanel(wx.Panel):
             threshold=thresh,
             debug=True)
         
-        omeEta = CollapseOmeEta(reader, pdata, hklIDs, det, **kwargs)
+        self.omeEta = CollapseOmeEta(reader, pdata, hklIDs, det, **kwargs)
 
-        print omeEta
-        print dir(omeEta)
-
-        # Show some pole figures
-        style = {'marker':'d',    'ls':'None', 'mec':'y',
-                 'mfc'   :'None', 'ms':10.,    'mew':2}
-
-        res    = 100
-        cmap   = self.cmPanel.cmap
-        pt     = numpy.r_[1.0, 0.0, 0.0]
-        pList  = [(pt, style)] # to do
-        iHKL   = 0
-        kwargs = dict(
-            pfig=res,
-            cmap=cmap,
-            iData=iHKL,
-            pointLists=pList,
-            rangeVV=(0., 150.),
-            drawColorbar=False,
-            pfigDisplayKWArgs={'doY90Rot':False}          
-            )
-        pfig = omeEta.display(**kwargs)
-
-        print pfig, dir(pfig)
+        cCan = cakeDisplay(self, wx.NewId(), prOpts.CAKE_SPH, self.omeEta)
         
         return
     #

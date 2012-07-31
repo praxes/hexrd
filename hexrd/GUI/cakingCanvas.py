@@ -535,6 +535,31 @@ class sphOpts(wx.Panel):
         """Update canvas"""
         p = self.GetParent()
 
+#omega#        print omeEta
+#omega#        print dir(omeEta)
+#omega#
+#omega#        # Show some pole figures
+#omega#        style = {'marker':'d',    'ls':'None', 'mec':'y',
+#omega#                 'mfc'   :'None', 'ms':10.,    'mew':2}
+#omega#
+#omega#        res    = 100
+#omega#        cmap   = self.cmPanel.cmap
+#omega#        pt     = numpy.r_[1.0, 0.0, 0.0]
+#omega#        pList  = [(pt, style)] # to do
+#omega#        iHKL   = 0
+#omega#        kwargs = dict(
+#omega#            pfig=res,
+#omega#            cmap=cmap,
+#omega#            iData=iHKL,
+#omega#            pointLists=pList,
+#omega#            rangeVV=(0., 150.),
+#omega#            drawColorbar=False,
+#omega#            pfigDisplayKWArgs={'doY90Rot':False}          
+#omega#            )
+#omega#        pfig = omeEta.display(**kwargs)
+#omega#
+#omega#        print pfig, dir(pfig)
+#omega#
 #        intensity = p.data['intensity']
 #
 #        p.axes = p.figure.gca()
