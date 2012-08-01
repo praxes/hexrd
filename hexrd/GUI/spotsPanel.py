@@ -31,7 +31,7 @@
 import wx
 
 from hexrd.GUI.guiConfig    import WindowParameters as WP
-from hexrd.GUI.guiUtilities import makeTitleBar, EmptyWindow
+from hexrd.GUI.guiUtilities import makeTitleBar, EmptyWindow, ResetChoice
 from hexrd.GUI.LogWindows   import logWindow
 
 from hexrd.XRD.crystallography    import processWavelength
@@ -94,7 +94,7 @@ class spotsPanel(wx.Panel):
             self, wx.NewId(), 
             'Threshold', style=wx.ALIGN_CENTER)
         self.thresh_txt = wx.TextCtrl(
-            self, wx.NewId(), value='', 
+            self, wx.NewId(), value='500', 
             style=wx.RAISED_BORDER)
 
         # Min PX
@@ -103,7 +103,7 @@ class spotsPanel(wx.Panel):
             self, wx.NewId(), 
             'Min PX', style=wx.ALIGN_CENTER)
         self.minpx_txt = wx.TextCtrl(
-            self, wx.NewId(), value='', 
+            self, wx.NewId(), value='4', 
             style=wx.RAISED_BORDER)
 
         # Spots info
@@ -132,6 +132,32 @@ class spotsPanel(wx.Panel):
         # Run button
         
         self.run  = wx.Button(self, wx.NewId(), 'Add Spots')
+
+        # Spots for Indexing info
+
+        self.amat_lab = wx.StaticText(
+            self, wx.NewId(), 
+            'Active Material', style=wx.ALIGN_RIGHT)
+        self.amat_cho = wx.Choice(self, wx.NewId(), choices=['mat list'])
+	#self.Bind(wx.EVT_CHOICE, self.OnActiveReader, self.aread_cho)
+
+        
+        self.hkls_lab = wx.StaticText(
+            self, wx.NewId(), 
+            'HKLs', style=wx.ALIGN_RIGHT)
+        self.hkls_lbx =  wx.ListBox(self, wx.NewId(), choices = ['r1', 'r2'])
+        #self.sizer.Add(self.rdr_lbx,  1, wx.EXPAND | wx.ALIGN_CENTER | wx.TOP, 5)
+
+        self.nspotind_lab = wx.StaticText(
+            self, wx.NewId(), 
+            'Number of Spots', style=wx.ALIGN_RIGHT)
+        self.nspotind_txt = wx.TextCtrl(
+            self, wx.NewId(), value='0', 
+            style=wx.RAISED_BORDER)
+        
+        # Run button for indexing spots
+        
+        self.run_ind  = wx.Button(self, wx.NewId(), 'Process Spots\nfor Indexing')
 
         return
 
@@ -195,6 +221,20 @@ class spotsPanel(wx.Panel):
         self.raw_sizer.Add(EmptyWindow(self), 1, wx.EXPAND)
         self.raw_sizer.Add(self.rawopt_sizer, 0)
 
+        # ========== Indexing Info Sizer
+
+        nrow = 0; ncol = 2; padx = 5; pady = 5
+        self.indinfo_sizer = wx.FlexGridSizer(nrow, ncol, padx, pady) 
+        self.indinfo_sizer.AddGrowableCol(1, 1)
+        self.indinfo_sizer.Add(self.amat_lab, 0, wx.ALIGN_RIGHT)
+        self.indinfo_sizer.Add(self.amat_cho, 0, wx.ALIGN_RIGHT)
+        self.indinfo_sizer.Add(self.hkls_lab, 0, wx.ALIGN_RIGHT)
+        self.indinfo_sizer.Add(self.hkls_lbx, 0, wx.ALIGN_RIGHT)
+        self.indinfo_sizer.Add(self.nspotind_lab, 0, wx.ALIGN_RIGHT)
+        self.indinfo_sizer.Add(self.nspotind_txt, 0, wx.ALIGN_RIGHT)
+        self.indinfo_sizer.Add(EmptyWindow(self), 0, wx.TOP, padtop)
+        self.indinfo_sizer.Add(self.run_ind, 0, wx.ALIGN_RIGHT)
+
         # ========== Main Sizer
 
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
@@ -202,6 +242,7 @@ class spotsPanel(wx.Panel):
 	self.sizer.Add(self.tbar_raw,  0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.raw_sizer, 0, wx.EXPAND|wx.TOP, padtop)
 	self.sizer.Add(self.tbar_ind,  0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.indinfo_sizer, 0, wx.TOP, padtop)
 
 	return
 
@@ -220,17 +261,8 @@ class spotsPanel(wx.Panel):
     #
     def updateFromExp(self):
         """Update all subwindows"""
-        app  = wx.GetApp(); exp  = app.ws
-
-        self.minpx_txt.SetValue(str(0))
-        self.thresh_txt.SetValue(str(0))
-
-        #AngstromTimesKev = processWavelength(1.0)
-        #ang = exp.phase0.planeData.wavelength
-        #kev = AngstromTimesKev/ang
-        #self.beam_txt.SetValue(str(kev))
-
-        #self.mat_cho.SetStringSelection(exp.phase0.name)
+        exp  = wx.GetApp().ws
+        ResetChoice(self.aread_cho, exp.matNames, exp.activeMaterial.name)
 
         return
     #
