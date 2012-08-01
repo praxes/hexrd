@@ -57,10 +57,11 @@ IMAGE_MODE_DICT_SEL = dict(zip(IMG_MODES, range(len(MODE_CHOICES))))
 #  * Dark file choices
 #
 DARK_CHO_NONE  = 'no dark image'
-DARK_CHO_FILE  = 'dark file'
+DARK_CHO_FILE  = 'dark image file'
+DARK_CHO_ARRAY = 'dark frame array'
 DARK_CHO_EMPTY = 'empty frames'
-DARK_CHOICES = [DARK_CHO_NONE, DARK_CHO_FILE, DARK_CHO_EMPTY]
-DARK_MODES   = [ReaderInput.DARK_MODE_NONE, ReaderInput.DARK_MODE_FILE, ReaderInput.DARK_MODE_EMPTY]
+DARK_CHOICES = [DARK_CHO_NONE, DARK_CHO_FILE, DARK_CHO_ARRAY, DARK_CHO_EMPTY]
+DARK_MODES   = [ReaderInput.DARK_MODE_NONE, ReaderInput.DARK_MODE_FILE, ReaderInput.DARK_MODE_ARRAY, ReaderInput.DARK_MODE_EMPTY]
 DARK_MODE_DICT = dict(zip(DARK_CHOICES, DARK_MODES))
 DARK_MODE_DICT_INV = dict(zip(DARK_MODES, DARK_CHOICES))
 #
@@ -484,7 +485,7 @@ class geReaderPanel(wx.Panel):
         #
         #  Enable/disable other interactors
         #
-        self.drk_but.Enable(mode == ReaderInput.DARK_MODE_FILE)
+        self.drk_but.Enable(mode == ReaderInput.DARK_MODE_FILE or mode == ReaderInput.DARK_MODE_ARRAY)
 
         #  Update info window
 
