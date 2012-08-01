@@ -536,8 +536,9 @@ GE reader is supported.
     #
     DARK_MODES = (DARK_MODE_NONE,
                   DARK_MODE_FILE,
+                  DARK_MODE_ARRAY,
                   DARK_MODE_EMPTY,
-                  DARK_MODE_FRAME) = range(4)
+                  DARK_MODE_FRAME) = range(5)
     #
     AGG_MODES = (AGG_FUN_NONE, AGG_FUN_SUM, AGG_FUN_MAX, AGG_FUN_MIN) = range(4)
     AGG_DICT = {
@@ -552,6 +553,8 @@ GE reader is supported.
     FLIP_STRS  = ('',        'v',       'h',        'hv',     'cw90',   'ccw90')
     FLIP_DICT  = dict(zip(FLIP_MODES, FLIP_STRS))
     #
+    RC = detector.ReadGE
+    
     def __init__(self, name='reader', desc='no description'):
         """Constructor for ReaderInput
 
@@ -623,7 +626,7 @@ GE reader is supported.
         """Get method for darkFile"""
         if self.darkMode == ReaderInput.DARK_MODE_NONE:
             s = '<no dark subtraction>'
-        elif self.darkMode == ReaderInput.DARK_MODE_FILE:
+        elif self.darkMode == ReaderInput.DARK_MODE_FILE or self.darkMode == ReaderInput.DARK_MODE_ARRAY:
             s = os.path.join(self.darkDir, self.darkName)
         else:
             s = '<using empty frames>'
@@ -700,6 +703,9 @@ GE reader is supported.
         subDark = not (self.darkMode == ReaderInput.DARK_MODE_NONE)
         if (self.darkMode == ReaderInput.DARK_MODE_FILE):
             drkFile = os.path.join(self.darkDir, self.darkName) 
+        elif (self.darkMode == ReaderInput.DARK_MODE_ARRAY):
+            drkFileName = os.path.join(self.darkDir, self.darkName) 
+            drkFile     = self.RC.frame(buffer=numpy.fromfile(drkFileName, dtype=self.RC.getReadDtype()))
         else:
             drkFile = None
             pass
@@ -712,12 +718,12 @@ GE reader is supported.
         # Make the reader
         #
         print 'reader:  \n', imgInfo, subDark, drkFile, doFlip, flipArg
-        r = detector.ReadGE(imgInfo, *omargs,
-                            subtractDark = subDark,
-                            dark         = drkFile,
-                            doFlip       = doFlip,
-                            flipArg      = flipArg)
-
+        r = self.RC(imgInfo, *omargs,
+                    subtractDark = subDark,
+                    dark         = drkFile,
+                    doFlip       = doFlip,
+                    flipArg      = flipArg)
+        
         return r
     #
     pass  # end class
