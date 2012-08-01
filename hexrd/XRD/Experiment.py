@@ -147,7 +147,7 @@ class Experiment(object):
         #
         return s
     #
-    # ============================== API
+                        # =====================U========= API
     #
     # ==================== Spots
     #
@@ -156,6 +156,9 @@ class Experiment(object):
     @property
     def spotOpts(self):
         """(get-only) spot finding options"""
+        # in case of loading an old pickle without spot options
+        if not hasattr(self, '_spotOpts'):
+            self._spotOpts = SpotOptions()
         return self._spotOpts
 
     def findSpots(self):

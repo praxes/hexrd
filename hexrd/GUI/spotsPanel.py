@@ -26,12 +26,13 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 #
-"""Panel for spots
-"""
+"""Panel for spot finding"""
+
 import wx
 
 from hexrd.GUI.guiConfig    import WindowParameters as WP
 from hexrd.GUI.guiUtilities import makeTitleBar
+from hexrd.GUI.LogWindows   import logWindow
 
 from hexrd.XRD.crystallography    import processWavelength
 #
@@ -147,6 +148,15 @@ class spotsPanel(wx.Panel):
         self.sizer.Add(self.run,       0, wx.ALIGN_RIGHT)
 
 	return
+
+    def _run_spots(self, log=None):
+        """run spot finder for use in log window"""
+        exp = wx.GetApp().ws
+        log.write('running spot finder ...')
+        exp.findSpots()
+        log.write('DONE')
+        
+        return
     #
     # ============================== API
     #
@@ -198,17 +208,23 @@ class spotsPanel(wx.Panel):
 
     def OnRun(self, evt):
         """Callback for run"""
-        exp = wx.GetApp().ws
         #
         # Fill in spot options from the form
         #
+        exp = wx.GetApp().ws
         opts = exp.spotOpts
         #
         opts.thresh = int(self.thresh_txt.GetValue())
         opts.minpx = int(self.minpx_txt.GetValue())
         #
-        exp.findSpots()
-        
+        action = {
+            'exec'  : self._run_spots,
+            'args'  : (),
+            'kwargs': dict()
+            }
+        logwin = logWindow(self, wx.NewId(), action, 'Finding Spots')
+        logwin.ShowModal()
+
         return
     
     pass # end class
