@@ -31,7 +31,7 @@
 import wx
 
 from hexrd.GUI.guiConfig    import WindowParameters as WP
-from hexrd.GUI.guiUtilities import makeTitleBar
+from hexrd.GUI.guiUtilities import makeTitleBar, EmptyWindow
 from hexrd.GUI.LogWindows   import logWindow
 
 from hexrd.XRD.crystallography    import processWavelength
@@ -73,6 +73,10 @@ class spotsPanel(wx.Panel):
         """Add interactors"""
 
         self.tbarSizer = makeTitleBar(self, 'Spots')
+        self.tbar_raw = makeTitleBar(self, 'Raw Spots',
+                                     color=WP.BG_COLOR_TITLEBAR_PANEL1)
+        self.tbar_ind = makeTitleBar(self, 'Spots for Indexing',
+                                     color=WP.BG_COLOR_TITLEBAR_PANEL1)
 
         app = wx.GetApp(); exp = app.ws
 
@@ -102,7 +106,32 @@ class spotsPanel(wx.Panel):
             self, wx.NewId(), value='', 
             style=wx.RAISED_BORDER)
 
-        self.run  = wx.Button(self, wx.NewId(), 'Find Spots')        
+        # Spots info
+
+        self.aread_lab = wx.StaticText(
+            self, wx.NewId(), 
+            'Active Reader', style=wx.ALIGN_RIGHT)
+        self.aread_cho = wx.Choice(self, wx.NewId(), choices=['reader list'])
+	#self.Bind(wx.EVT_CHOICE, self.OnActiveReader, self.aread_cho)
+
+        
+        self.rdr_lab = wx.StaticText(
+            self, wx.NewId(), 
+            'Used Readers', style=wx.ALIGN_RIGHT)
+        self.rdr_lbx =  wx.ListBox(self, wx.NewId(), choices = ['r1', 'r2'])
+        #self.sizer.Add(self.rdr_lbx,  1, wx.EXPAND | wx.ALIGN_CENTER | wx.TOP, 5)
+
+        self.nspot_lab = wx.StaticText(
+            self, wx.NewId(), 
+            'Number of Spots', style=wx.ALIGN_RIGHT)
+        self.nspot_txt = wx.TextCtrl(
+            self, wx.NewId(), value='0', 
+            style=wx.RAISED_BORDER)
+        
+
+        # Run button
+        
+        self.run  = wx.Button(self, wx.NewId(), 'Add Spots')
 
         return
 
@@ -133,19 +162,46 @@ class spotsPanel(wx.Panel):
         self.fgSizer = wx.FlexGridSizer(nrow, ncol, padx, pady) 
         self.fgSizer.AddGrowableCol(1, 1)
         #  threshold
-        self.fgSizer.Add(self.thresh_lab,       0, wx.ALIGN_RIGHT)
-        self.fgSizer.Add(self.thresh_txt,       0, wx.ALIGN_RIGHT)
+        self.fgSizer.Add(self.thresh_lab,  0, wx.ALIGN_RIGHT)
+        self.fgSizer.Add(self.thresh_txt,  0, wx.ALIGN_RIGHT)
         #  min PX
-        self.fgSizer.Add(self.minpx_lab,       0, wx.ALIGN_RIGHT)
-        self.fgSizer.Add(self.minpx_txt,       0, wx.ALIGN_RIGHT)
+        self.fgSizer.Add(self.minpx_lab,   0, wx.ALIGN_RIGHT)
+        self.fgSizer.Add(self.minpx_txt,   0, wx.ALIGN_RIGHT)
+        self.fgSizer.Add(self.run,         0, wx.ALIGN_RIGHT)
+
+        # ========== Raw Info Sizer
+
+        nrow = 0; ncol = 2; padx = 5; pady = 5
+        self.rawinfo_sizer = wx.FlexGridSizer(nrow, ncol, padx, pady) 
+        self.rawinfo_sizer.AddGrowableCol(1, 1)
+        self.rawinfo_sizer.Add(self.aread_lab, 0, wx.ALIGN_RIGHT)
+        self.rawinfo_sizer.Add(self.aread_cho, 0, wx.ALIGN_RIGHT)
+        self.rawinfo_sizer.Add(self.rdr_lab, 0, wx.ALIGN_RIGHT)
+        self.rawinfo_sizer.Add(self.rdr_lbx, 0, wx.ALIGN_RIGHT)
+        self.rawinfo_sizer.Add(self.nspot_lab, 0, wx.ALIGN_RIGHT)
+        self.rawinfo_sizer.Add(self.nspot_txt, 0, wx.ALIGN_RIGHT)
+
+        # ========== Raw Options Sizer
+
+	self.rawopt_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.rawopt_sizer.Add(self.cbsizer,   0, wx.ALIGN_LEFT|wx.TOP, padtop)
+        self.rawopt_sizer.Add(self.fgSizer,   0, wx.ALIGN_LEFT|wx.TOP, 2*padtop)
+
+        
+        # ========== Raw Sizer
+
+	self.raw_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.raw_sizer.Add(self.rawinfo_sizer, 0, wx.ALIGN_LEFT)
+        self.raw_sizer.Add(EmptyWindow(self), 1, wx.EXPAND)
+        self.raw_sizer.Add(self.rawopt_sizer, 0)
 
         # ========== Main Sizer
 
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
-        self.sizer.Add(self.cbsizer,   0, wx.ALIGN_RIGHT|wx.TOP, padtop)
-        self.sizer.Add(self.fgSizer,   1, wx.ALIGN_RIGHT|wx.TOP, padtop)
-        self.sizer.Add(self.run,       0, wx.ALIGN_RIGHT)
+	self.sizer.Add(self.tbar_raw,  0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.raw_sizer, 0, wx.EXPAND|wx.TOP, padtop)
+	self.sizer.Add(self.tbar_ind,  0, wx.EXPAND|wx.ALIGN_CENTER)
 
 	return
 
