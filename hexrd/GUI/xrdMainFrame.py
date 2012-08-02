@@ -533,7 +533,9 @@ class xrdMainFrame(wx.Frame):
         dlg.Destroy()
 
         try:
+            self.SetStatusText('Loading Experiment File')
             app.ws = loadExp(f)
+            self.SetStatusText('Done Loading Experiment File')
         except Exception as e:
             wx.MessageBox('failed to load experiment:\n%s' % str(e))
             pass

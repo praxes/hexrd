@@ -29,10 +29,12 @@
 """Panel for spot finding"""
 
 import wx
+import numpy
 
 from hexrd.GUI.guiConfig    import WindowParameters as WP
 from hexrd.GUI.guiUtilities import makeTitleBar, EmptyWindow, ResetChoice
 from hexrd.GUI.LogWindows   import logWindow
+from hexrd.GUI.selectHKLs   import selectHKLsDialog as HklsDlg 
 
 from hexrd.XRD.crystallography    import processWavelength
 #
@@ -132,6 +134,7 @@ class spotsPanel(wx.Panel):
         # Run button
         
         self.run  = wx.Button(self, wx.NewId(), 'Add Spots')
+        self.clear_but  = wx.Button(self, wx.NewId(), 'Clear Spots')
 
         # Spots for Indexing info
 
@@ -144,9 +147,8 @@ class spotsPanel(wx.Panel):
         
         self.hkls_lab = wx.StaticText(
             self, wx.NewId(), 
-            'HKLs', style=wx.ALIGN_RIGHT)
-        self.hkls_lbx =  wx.ListBox(self, wx.NewId(), choices = ['r1', 'r2'])
-        #self.sizer.Add(self.rdr_lbx,  1, wx.EXPAND | wx.ALIGN_CENTER | wx.TOP, 5)
+            '', style=wx.ALIGN_RIGHT)
+        self.hkls_but = wx.Button(self, wx.NewId(), 'HKLs')
 
         self.nspotind_lab = wx.StaticText(
             self, wx.NewId(), 
@@ -167,6 +169,9 @@ class spotsPanel(wx.Panel):
         self.Bind(wx.EVT_TEXT_ENTER, self.OnMinPX,      self.minpx_txt)
 
         self.Bind(wx.EVT_BUTTON, self.OnRun, self.run)
+        self.Bind(wx.EVT_BUTTON, self.OnRunInd, self.run_ind)
+        self.Bind(wx.EVT_BUTTON, self.OnRunHKLs, self.hkls_but)
+        self.Bind(wx.EVT_BUTTON, self.OnClearBut, self.clear_but)
 
         return
 
@@ -194,6 +199,7 @@ class spotsPanel(wx.Panel):
         self.fgSizer.Add(self.minpx_lab,   0, wx.ALIGN_RIGHT)
         self.fgSizer.Add(self.minpx_txt,   0, wx.ALIGN_RIGHT)
         self.fgSizer.Add(self.run,         0, wx.ALIGN_RIGHT)
+        self.fgSizer.Add(self.clear_but,   0, wx.ALIGN_RIGHT)
 
         # ========== Raw Info Sizer
 
@@ -229,7 +235,7 @@ class spotsPanel(wx.Panel):
         self.indinfo_sizer.Add(self.amat_lab, 0, wx.ALIGN_RIGHT)
         self.indinfo_sizer.Add(self.amat_cho, 0, wx.ALIGN_RIGHT)
         self.indinfo_sizer.Add(self.hkls_lab, 0, wx.ALIGN_RIGHT)
-        self.indinfo_sizer.Add(self.hkls_lbx, 0, wx.ALIGN_RIGHT)
+        self.indinfo_sizer.Add(self.hkls_but, 0, wx.ALIGN_RIGHT)
         self.indinfo_sizer.Add(self.nspotind_lab, 0, wx.ALIGN_RIGHT)
         self.indinfo_sizer.Add(self.nspotind_txt, 0, wx.ALIGN_RIGHT)
         self.indinfo_sizer.Add(EmptyWindow(self), 0, wx.TOP, padtop)
@@ -250,7 +256,7 @@ class spotsPanel(wx.Panel):
         """run spot finder for use in log window"""
         exp = wx.GetApp().ws
         log.write('running spot finder ...')
-        exp.findSpots()
+        exp.find_raw_spots()
         log.write('DONE')
         
         return
@@ -262,8 +268,25 @@ class spotsPanel(wx.Panel):
     def updateFromExp(self):
         """Update all subwindows"""
         exp  = wx.GetApp().ws
-        ResetChoice(self.aread_cho, exp.matNames, exp.activeMaterial.name)
+        
+        ResetChoice(self.aread_cho, exp.readerNames, exp.activeReader.name)
+        ResetChoice(self.amat_cho, exp.matNames, exp.activeMaterial.name)
+        self.nspot_txt.ChangeValue(str(len(exp.raw_spots)))
 
+        spots_ind = exp.spots_for_indexing
+        if hasattr(spots_ind, 'nTThAssoc'):
+            nspot_assoc = len(spots_ind) - numpy.sum(spots_ind.nTThAssoc == 0)
+        else:
+            nspot_assoc = 0
+
+        self.nspotind_txt.ChangeValue(str(nspot_assoc))
+        
+        self.rdr_lbx.Set(exp.spot_readers)
+        
+        # Reset sizers
+
+        self.Layout()
+        
         return
     #
     #                     ========== *** Event Callbacks
@@ -294,6 +317,14 @@ class spotsPanel(wx.Panel):
 
         return
 
+    def OnClearBut(self, evt):
+        """Clear spots array"""
+        exp = wx.GetApp().ws
+        exp.clear_spots()
+        self.updateFromExp()
+        
+        return
+    
     def OnRun(self, evt):
         """Callback for run"""
         #
@@ -313,6 +344,26 @@ class spotsPanel(wx.Panel):
         logwin = logWindow(self, wx.NewId(), action, 'Finding Spots')
         logwin.ShowModal()
 
+        self.updateFromExp()
+        return
+
+    def OnRunInd(self, evt):
+        """Run processing for indexing"""
+        exp = wx.GetApp().ws
+        exp.get_spots_ind()
+        
+        self.updateFromExp()
+        return
+
+    def OnRunHKLs(self, evt):
+        """Select HKLs to use for indexing"""
+        exp = wx.GetApp().ws
+        hkls_dlg = HklsDlg(self, wx.NewId(), exp.activeMaterial)
+
+        if hkls_dlg.ShowModal() == wx.ID_OK:
+            exp.activeMaterial.planeData.exclusions = dlg.getExclusions()
+            pass
+        
         return
     
     pass # end class

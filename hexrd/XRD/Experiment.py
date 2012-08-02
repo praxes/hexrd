@@ -134,6 +134,9 @@ class Experiment(object):
         #  Spots information.
         #
         self._spotOpts = SpotOptions()
+        self._spots = []
+        self._spots_ind = []
+        self._spot_readers = []
         #
         #  Add hydra interface
         #
@@ -151,6 +154,39 @@ class Experiment(object):
     #
     # ==================== Spots
     #
+    def clear_spots(self):
+        """Reset the list of spots"""
+        self._spots = []
+        self._spots_ind = []
+        
+        return
+    # property:  spot_readers
+
+    @property
+    def spot_readers(self):
+        """(get-only) list of readers used to generate spots"""
+        if not hasattr(self, '_spot_readers'):
+            self._spot_readers = []
+        return self._spot_readers
+    
+    # property:  spots_for_indexing
+
+    @property
+    def spots_for_indexing(self):
+        """(get-only) spots associated with rings"""
+        if not hasattr(self, '_spots_ind'):
+            self._spots_ind = []
+        return self._spots_ind
+    
+    # property:  raw_spots
+
+    @property
+    def raw_spots(self):
+        """(get-only) spots from image before culling and association with rings"""
+        if not hasattr(self, '_spots'):
+            self._spots = []
+        return self._spots
+    
     # property:  spotOpts
 
     @property
@@ -161,23 +197,41 @@ class Experiment(object):
             self._spotOpts = SpotOptions()
         return self._spotOpts
 
-    def findSpots(self):
+    def find_raw_spots(self):
         """find spots using current reader and options"""
         findSOS = spotFinder.Spots.findSpotsOmegaStack
         opts = self.spotOpts
         #
-        self._spots = findSOS(self.activeReader.makeReader(), 
-                              opts.nframes,
-                              opts.thresh, 
-                              opts.minPix, 
-                              discardAtBounds=opts.discardAtBounds,
-                              keepWithinBBox=opts.keepWithinBBox,
-                              overlapPixelDistance=opts.overlap,
-                              nframesLump=opts.nflump,
-                              padOmega=opts.padOmega,
-                              padSpot=opts.padSpot,
-                              
-            )
+        newspots = findSOS(self.activeReader.makeReader(), 
+                           opts.nframes,
+                           opts.thresh, 
+                           opts.minPix, 
+                           discardAtBounds=opts.discardAtBounds,
+                           keepWithinBBox=opts.keepWithinBBox,
+                           overlapPixelDistance=opts.overlap,
+                           nframesLump=opts.nflump,
+                           padOmega=opts.padOmega,
+                           padSpot=opts.padSpot,
+                           )
+        self._spots += newspots
+        self._spot_readers.append(self.activeReader.name)
+        
+        return
+
+    def get_spots_ind(self):
+        """Select spots for indexing"""
+        # cull spots that have integrated intensity <= 0
+        spots_get_II = spotFinder.Spot.getIntegratedIntensity
+        integIntensity = numpy.array(map(spots_get_II, self.raw_spots))
+        rspots = numpy.array(self.raw_spots)
+        culledSpots = rspots[integIntensity > 0.]
+
+        pd = self.activeMaterial.planeData
+        readerInpList = [self.getSavedReader(rn) for rn in self._spot_readers]
+        readerList = [ri.makeReader() for ri in readerInpList]
+        ominfo = [reader.getOmegaMinMax() for reader in readerList]
+        self._spots_ind = spotFinder.Spots(pd, culledSpots, self.detector,
+                                           ominfo)        
         return
     #
     # ==================== Detector
