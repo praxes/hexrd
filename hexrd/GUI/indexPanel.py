@@ -37,11 +37,6 @@ from hexrd.GUI.guiUtilities import makeTitleBar, callJoel
 #
 class indexPanel(wx.Panel):
     """indexPanel """
-    #
-    # Class data
-    #
-    INDEX_CHOICES = ['Fiber Search', 'GrainSpotter']
-    INDEX_CHOICE_IDS = [IND_FIBER, IND_GSPOT] = range(2)
     
     def __init__(self, parent, id, **kwargs):
 	"""Constructor for indexPanel."""
@@ -76,11 +71,13 @@ class indexPanel(wx.Panel):
     #
     def __makeObjects(self):
         """Add interactors"""
-
+        exp = wx.GetApp().ws
+        ind_opts = exp.index_opts
+        
         self.sz_titlebar = makeTitleBar(self, 'Indexing')
         self.method_cho = wx.Choice(self, wx.NewId(),
-                                    choices=self.INDEX_CHOICES)
-        self.method_cho.SetSelection(self.IND_FIBER)
+                                    choices=ind_opts.INDEX_CHOICES)
+        self.method_cho.SetSelection(ind_opts.IND_FIBER)
         self.run_but  = wx.Button(self, wx.NewId(), 'Run Indexer')
 
         self.fiber_pan = FiberSearchPanel(self, wx.NewId())
@@ -91,6 +88,8 @@ class indexPanel(wx.Panel):
     def __makeBindings(self):
         """Bind interactors"""
 	self.Bind(wx.EVT_CHOICE, self.ChooseMethod, self.method_cho)
+        self.Bind(wx.EVT_BUTTON, self.OnRunIndex, self.run_but)
+
         return
 
     def __makeSizers(self):
@@ -118,9 +117,26 @@ class indexPanel(wx.Panel):
     #
     #                     ========== *** Event Callbacks
     #
+    def OnRunIndex(self, e):
+        """Run Indexer"""
+        # Set indexer options and run
+        exp = wx.GetApp().ws
+        iopts = exp.index_opts
+
+        if iopts.index_method == iopts.IND_FIBER:
+            self.fiber_pan.set_index_opts()
+            exp.run_indexer()
+        
+        return
+    
     def ChooseMethod(self, e):
         """Choose method button has been pressed"""
-        if self.method_cho.GetSelection() == self.IND_FIBER:
+        exp = wx.GetApp().ws
+        ind_opts = exp.index_opts
+
+        ind_opts.index_method = self.method_cho.GetSelection()
+        
+        if self.method_cho.GetSelection() == ind_opts.IND_FIBER:
             self.fiber_pan.Enable()
             self.gspot_pan.Disable()
         else:
@@ -166,45 +182,65 @@ class FiberSearchPanel(wx.Panel):
     #
     def __makeObjects(self):
         """Add interactors"""
-
+        exp = wx.GetApp().ws
+        iopts = exp.index_opts
+        
         self.tbarSizer = makeTitleBar(self, 'Fiber Search Options', 
                                       color=WP.BG_COLOR_PANEL1_TITLEBAR)
 
         # checkboxes
         
         self.friedel_cbox = wx.CheckBox(self, wx.NewId(), 'Friedel Only')
+        self.friedel_cbox.SetValue(iopts.friedelOnly)
         self.claims_cbox = wx.CheckBox(self, wx.NewId(), 'Preserve Claiims')
+        self.claims_cbox.SetValue(iopts.preserveClaims)
         self.refine_cbox  = wx.CheckBox(self, wx.NewId(), 'Do Refinement')
+        self.refine_cbox.SetValue(iopts.doRefinement)
         self.multi_cbox  = wx.CheckBox(self, wx.NewId(), 'Use Multiprocessing')
-
+        self.multi_cbox.SetValue(iopts.doMultiProc)
+        
         # value boxes
         
         self.etol_lab = wx.StaticText(self, wx.NewId(), 'Eta Tolerance',
-                                      style=wx.ALIGN_CENTER)
-        self.etol_txt = wx.TextCtrl(self, wx.NewId(), value='',
+                                      style=wx.ALIGN_RIGHT)
+        self.etol_txt = wx.TextCtrl(self, wx.NewId(), value=str(iopts.etaTol),
                                     style=wx.RAISED_BORDER)
         
         self.otol_lab = wx.StaticText(self, wx.NewId(), 'Omega Tolerance',
-                                      style=wx.ALIGN_CENTER)
-        self.otol_txt = wx.TextCtrl(self, wx.NewId(), value='',
+                                      style=wx.ALIGN_RIGHT)
+        self.otol_txt = wx.TextCtrl(self, wx.NewId(), value=str(iopts.omeTol),
                                     style=wx.RAISED_BORDER)
         
         self.steps_lab = wx.StaticText(self, wx.NewId(), 'Number of Steps',
-                                      style=wx.ALIGN_CENTER)
+                                      style=wx.ALIGN_RIGHT)
         self.steps_spn = wx.SpinCtrl(self, wx.NewId(),
-                                     min=10, max=360000, initial=360)
+                                     min=10, max=360000, initial=iopts.nsteps)
 
         label = 'Minimum Completeness'
         self.comp_lab = wx.StaticText(self, wx.NewId(), label,
-                                      style=wx.ALIGN_CENTER)
-        self.comp_txt = wx.TextCtrl(self, wx.NewId(), value='0.5',
+                                      style=wx.ALIGN_RIGHT)
+        self.comp_txt = wx.TextCtrl(self, wx.NewId(),
+                                    value=str(iopts.minCompleteness),
                                     style=wx.RAISED_BORDER)
 
-        label = 'Minimum Percent Claimed'
+        label = 'Minimum Fraction Claimed'
         self.claim_lab = wx.StaticText(self, wx.NewId(), label,
-                                      style=wx.ALIGN_CENTER)
-        self.claim_txt = wx.TextCtrl(self, wx.NewId(), value='50',
-                                    style=wx.RAISED_BORDER)
+                                      style=wx.ALIGN_RIGHT)
+        self.claim_txt = wx.TextCtrl(self, wx.NewId(),
+                                     value=str(iopts.minPctClaimed),
+                                     style=wx.RAISED_BORDER)
+
+        label = 'Number of CPUs'
+        self.ncpus_lab = wx.StaticText(self, wx.NewId(), label,
+                                      style=wx.ALIGN_RIGHT)
+        self.ncpus_spn = wx.SpinCtrl(self, wx.NewId(),
+                                     min=0, initial=0)
+
+        label = 'Quit After This Many'
+        self.qafter_lab = wx.StaticText(self, wx.NewId(), label,
+                                      style=wx.ALIGN_RIGHT)
+        self.qafter_spn = wx.SpinCtrl(self, wx.NewId(),
+                                     min=0, initial=0)
 
         return
 
@@ -238,6 +274,10 @@ class FiberSearchPanel(wx.Panel):
 	self.valsizer.Add(self.comp_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
 	self.valsizer.Add(self.claim_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
 	self.valsizer.Add(self.claim_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
+	self.valsizer.Add(self.ncpus_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
+	self.valsizer.Add(self.ncpus_spn, 0, wx.EXPAND|wx.ALIGN_LEFT)
+	self.valsizer.Add(self.qafter_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
+	self.valsizer.Add(self.qafter_spn, 0, wx.EXPAND|wx.ALIGN_LEFT)
 
         # Main Sizer
         
@@ -252,7 +292,31 @@ class FiberSearchPanel(wx.Panel):
     #
     #                     ========== *** Access Methods
     #
+    def set_index_opts(self):
+        """Set index options from interactors"""
+        exp = wx.GetApp().ws
+        iopts = exp.index_opts
 
+        iopts.fsHKLs=[] # to be done
+        iopts.preserveClaims = self.claims_cbox.GetValue()
+        iopts.friedelOnly = self.friedel_cbox.GetValue()
+        iopts.doRefinement = self.refine_cbox.GetValue()
+        iopts.doMultiProc = self.multi_cbox.GetValue()
+        iopts.etaTol = float(self.etol_txt.GetValue())
+        iopts.omeTol=float(self.otol_txt.GetValue())
+        iopts.minCompleteness=float(self.comp_txt.GetValue())
+        iopts.minPctClaimed=float(self.claim_txt.GetValue())
+        iopts.nsteps = self.ncpus_spn.GetValue()
+        
+        ncpusVal = self.ncpus_spn.GetValue()
+        iopts.nCPUs = ncpusVal if ncpusVal else None
+
+        qafterVal = self.qafter_spn.GetValue()
+        iopts.quitAfter = qafterVal if qafterVal else None
+        
+        iopts.dspTol=None # no interactor yet
+
+        return
     #
     #                     ========== *** Event Callbacks
     #

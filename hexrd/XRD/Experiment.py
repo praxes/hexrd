@@ -138,6 +138,11 @@ class Experiment(object):
         self._spots_ind = []
         self._spot_readers = []
         #
+        #  Index Information
+        #
+        self._index_opts = IndexOptions()
+        self._fitRMats = []
+        #
         #  Add hydra interface
         #
         self._hydra = Hydra()
@@ -151,6 +156,59 @@ class Experiment(object):
         return s
     #
                         # =====================U========= API
+    #
+    # ==================== Indexing
+    #
+    # property:  fitRMats
+
+    @property
+    def fitRMats(self):
+        """(get-only) Rotation matrices from indexing"""
+        return self._fitRMats
+    
+    # property:  index_opts
+
+    @property
+    def index_opts(self):
+        """(get-only) Options for indexing"""
+        if not hasattr(self, '_index_opts'):
+            self._index_opts = IndexOptions()
+        return self._index_opts
+
+    def _run_grainspotter(self):
+        return
+    
+    def _run_fiber_search(self):
+
+        iopts = self.index_opts
+        fsearch = indexer.fiberSearch
+        myspots = self.spots_for_indexing
+        iopts._fitRMats = fsearch(myspots, iopts.fsHKLs,
+                                nsteps=iopts.nsteps,
+                                minCompleteness=iopts.minCompleteness,
+                                minPctClaimed=iopts.minPctClaimed,
+                                preserveClaims=iopts.preserveClaims,
+                                friedelOnly=iopts.friedelOnly,
+                                dspTol=iopts.dspTol,
+                                etaTol=iopts.etaTol,
+                                omeTol=iopts.omeTol,
+                                doRefinement=iopts.doRefinement,
+                                doMultiProc=iopts.doMultiProc,
+                                nCPUs=iopts.nCPUs,
+                                quitAfter=iopts.quitAfter)
+
+        return
+            
+    def run_indexer(self):
+        """Run indexer"""
+        iopts = self.index_opts
+
+        if iopts.index_method == iopts.IND_FIBER:
+            self._run_fiber_search()
+        else:
+            self._run_grainspotter()
+        
+        return
     #
     # ==================== Spots
     #
@@ -1113,11 +1171,35 @@ class SpotOptions(object):
 # -----------------------------------------------END CLASS:  SpotOptions
 # ---------------------------------------------------CLASS:  indexOptions
 #
-class indexOptions(object):
+class IndexOptions(object):
     """indexOptions"""
+    #
+    # Class data
+    #
+    INDEX_CHOICES = ['Fiber Search', 'GrainSpotter']
+    INDEX_CHOICE_IDS = [IND_FIBER, IND_GSPOT] = range(2)
+    
     def __init__(self):
         """Constructor for indexOptions"""
-        #
+        self.index_method = self.IND_FIBER
+        
+        self.fsHKLs=[]
+        self.preserveClaims=False
+        self.friedelOnly=False
+        self.doRefinement=True
+        self.doMultiProc=True
+        self.etaTol=0.025
+        self.omeTol=0.025
+        self.minCompleteness=0.67
+        self.minPctClaimed=0.70
+        self.nsteps=360
+        self.nCPUs=None
+        self.dspTol=None
+        self.quitAfter=None,
+
+        return
+    #
+    pass
 	
 # -----------------------------------------------END CLASS:  indexOptions
 # ================================================== Utility Functions
