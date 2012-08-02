@@ -28,10 +28,13 @@
 #
 """Panel for index
 """
+import copy
+
 import wx
 
 from hexrd.GUI.guiConfig    import WindowParameters as WP
-from hexrd.GUI.guiUtilities import makeTitleBar, callJoel
+from hexrd.GUI.guiUtilities import makeTitleBar, EmptyWindow
+from hexrd.GUI.selectHKLs   import selectHKLsDialog as HklsDlg 
 #
 # ---------------------------------------------------CLASS:  indexPanel
 #
@@ -126,7 +129,8 @@ class indexPanel(wx.Panel):
         if iopts.index_method == iopts.IND_FIBER:
             self.fiber_pan.set_index_opts()
             exp.run_indexer()
-        
+
+        print 'index results: ', exp.fitRMats
         return
     
     def ChooseMethod(self, e):
@@ -242,10 +246,13 @@ class FiberSearchPanel(wx.Panel):
         self.qafter_spn = wx.SpinCtrl(self, wx.NewId(),
                                      min=0, initial=0)
 
+        self.hkls_but = wx.Button(self, wx.NewId(), 'HKLs')
+
         return
 
     def __makeBindings(self):
         """Bind interactors"""
+        self.Bind(wx.EVT_BUTTON, self.OnRunHKLs, self.hkls_but)
         return
 
     def __makeSizers(self):
@@ -278,6 +285,9 @@ class FiberSearchPanel(wx.Panel):
 	self.valsizer.Add(self.ncpus_spn, 0, wx.EXPAND|wx.ALIGN_LEFT)
 	self.valsizer.Add(self.qafter_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
 	self.valsizer.Add(self.qafter_spn, 0, wx.EXPAND|wx.ALIGN_LEFT)
+        self.valsizer.Add(EmptyWindow(self), 0)
+	self.valsizer.Add(self.hkls_but, 0, wx.EXPAND|wx.ALIGN_LEFT)
+        
 
         # Main Sizer
         
@@ -320,6 +330,20 @@ class FiberSearchPanel(wx.Panel):
     #
     #                     ========== *** Event Callbacks
     #
+    def OnRunHKLs(self, evt):
+        """Select HKLs to use for indexing"""
+        exp = wx.GetApp().ws
+        iopts = exp.index_opts
+        pd = exp.activeMaterial.planeData
+        
+        hkls_dlg = HklsDlg(self, wx.NewId(), exp.activeMaterial)
+
+        if hkls_dlg.ShowModal() == wx.ID_OK:
+            pd.exclusions = hkls_dlg.getExclusions()
+            iopts.fsHKLs = hkls_dlg.getTuples()
+            print 'hkls: ', iopts.fsHKLs
+            
+        return
     
     pass # end class
 #

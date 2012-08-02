@@ -164,6 +164,8 @@ class Experiment(object):
     @property
     def fitRMats(self):
         """(get-only) Rotation matrices from indexing"""
+        if not hasattr(self, '_fitRMats'):
+            self._fitRMats = []
         return self._fitRMats
     
     # property:  index_opts
@@ -183,6 +185,7 @@ class Experiment(object):
         iopts = self.index_opts
         fsearch = indexer.fiberSearch
         myspots = self.spots_for_indexing
+        print 'my spots: ', myspots
         iopts._fitRMats = fsearch(myspots, iopts.fsHKLs,
                                 nsteps=iopts.nsteps,
                                 minCompleteness=iopts.minCompleteness,
