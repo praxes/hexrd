@@ -37,7 +37,6 @@ from hexrd import valunits
 import hexrd.xrd.rotations as rot
 import hexrd.xrd.symmetry as sym
 import hexrd.xrd.crystallography as xtl # latticeParameters, latticeVectors, getFriedelPair
-from hexrd import XRD
 from hexrd.xrd.xrdutil import calculateBiotStrain, makeMeasuredScatteringVectors
 from hexrd.matrixutil import columnNorm
 

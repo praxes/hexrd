@@ -50,14 +50,12 @@ except:
 from hexrd import arrayutil
 from hexrd.quadrature import q3db, q2db
 from hexrd import tens
-from hexrd import valunits
-from hexrd.valunits import toFloat
 from hexrd import matrixutil as mUtil
 from hexrd.matrixutil import rowNorm
 from hexrd import plotwrap
+from hexrd import valunits
+from hexrd.valunits import toFloat
 
-from hexrd import XRD
-        
 from hexrd.xrd import crystallography
 from hexrd.xrd import detector
 from hexrd.xrd import xrdbase

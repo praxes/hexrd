@@ -51,7 +51,7 @@ import hexrd.orientations as ors
 from hexrd.xrd import crystallography
 from hexrd.xrd.crystallography import latticeParameters, latticeVectors
 from hexrd.xrd import detector
-from hexrd.xrd.detector import Reader
+from hexrd.xrd.detector import Framer2DRC
 from hexrd.xrd.detector import getCMap
 from hexrd.xrd import xrdbase
 from hexrd.xrd.xrdbase import dataToFrame
@@ -909,7 +909,7 @@ class OmeEtaPfig(object):
                 if opacity is not None:
                     norm = matplotlib.colors.Normalize(vmin=self.vmin, vmax=self.vmax)
                     wData = pfigutil.renderEAProj(nVecs, opacity.flatten(), nP)
-                    vMM_w = Reader.getVMM(wData, range=rangeVV_w)
+                    vMM_w = Framer2DRC.getVMM(wData, range=rangeVV_w)
                     norm_w = matplotlib.colors.Normalize(vmin=vMM_w[0], vmax=vMM_w[1])
                     # pfigR.T here instead of ijAsXY=True
                     cData = self.cmap(norm(pfigR.T,clip=True))
@@ -991,7 +991,7 @@ class OmeEtaPfig(object):
                     norm = matplotlib.colors.Normalize(vmin=self.vmin, vmax=self.vmax)
                     wDataN = pfigutil.renderEAProj(nVecsN, opacity[northern], nP)
                     wDataS = pfigutil.renderEAProj(nVecsS, opacity[southern], nP)
-                    vMM_w = Reader.getVMM(num.vstack((wDataN,wDataS)), range=rangeVV_w)
+                    vMM_w = Framer2DRC.getVMM(num.vstack((wDataN,wDataS)), range=rangeVV_w)
                     norm_w = matplotlib.colors.Normalize(vmin=vMM_w[0], vmax=vMM_w[1])
                     #
                     pfigR = pfigutil.renderEAProj(nVecsN, vals[northern], nPw)
@@ -1366,7 +1366,7 @@ class CollapseOmeEta(object):
 
         'set up data'
         twoTheta, eta = detectorGeom.xyoToAngAll()
-        # omegaMin, omegaMax = detector.getOmegaMMReaderList(readerList, overall=True) # retain information about omega range of each reader
+        # omegaMin, omegaMax = detector.getOmegaMMReaderoList(readerList, overall=True) # retain information about omega range of each reader
         # omegaMM = detector.getOmegaMMReaderList(self.readerList) # can use this is need to know omega ranges for each reader
 
         'the following need to be consistent'
@@ -1529,7 +1529,7 @@ class CollapseOmeEta(object):
         else:
             data = self.dataStore[iData,:,:]
 
-        # vmin, vmax = detector.Reader.getVMM(data)
+        # vmin, vmax = detector.Framer2DRC.getVMM(data)
         vMM = self.readerList[0].getVMM(data, range=rangeVV)
 
         hklStr = self.planeData.getHKLs(asStr=True)[self.iHKLList[iData]]
@@ -1753,7 +1753,7 @@ def thresholdStackDisplay(data, threshold, cmap=None, pw=None,
         cmap = cm.bone
         cmap.set_over('red')
     if detectorGeom is None:
-        retval = detector.Reader.display(
+        retval = detector.Framer2DRC.display(
             thisframe, cmap=cmap, range=(0,threshold), pw=pw,
             **displayKWArgs)
     else:
@@ -2026,7 +2026,7 @@ def pullFromStack(reader, detectorGeom, tThMM, angWidth, angCen,
 
     pixelData = reader.readBBox(xyfBBox, raw=False)
     #
-    # pw = detector.Reader.display(num.max(pixelData,axis=2), range=(0,400))
+    # pw = detector.Framer2DRC.display(num.max(pixelData,axis=2), range=(0,400))
 
     if mask3D is not None:
         maskThis = mask3D[slice(*xyfBBox[0]), slice(*xyfBBox[1]), slice(*xyfBBox[2])]
@@ -2121,7 +2121,7 @@ def grainSpotsFromStack(g,
             if spotData is None:
                 if debug: print >> fout, 'spot %d for hklID %d got no data from spotFromStack' % (iThisHKL, hklID)
             else:
-                retval[key] = spotFinder.Spot(key, deltaOmega, spotData, detectorGeom=detectorGeom)
+                retval[key] = spotfinder.Spot(key, deltaOmega, spotData, detectorGeom=detectorGeom)
                 if debug: print >> fout, 'made spot %d for hklID %d' % (iThisHKL, hklID)
     
     return retval
@@ -2582,7 +2582,7 @@ def pfigFromSpots(spots, iHKL, phaseID=None,
         return retval
 
 def makeSynthFrames(spotParamsList, detectorGeom, omegas, 
-                    intensityFunc=spotFinder.IntensityFuncGauss3D(), 
+                    intensityFunc=spotfinder.IntensityFuncGauss3D(), 
                     asSparse=True, 
                     outputPrefix=None, 
                     cutoffMult=4.0, 
@@ -2591,7 +2591,7 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
     """
     intensityFunc is an instance of a class that works as an intensity fuction. 
     
-    spotParamsList should be a list with each entry being a list of arguments appropriate to the intensityFunc.constructParams function. For intensityFunc=spotFinder.IntensityFuncGauss3D(), each spotParamsList entry should be (center, fwhm, A), with center being the 3D spot center in angular coordinates (radians), fwhm being the (2-theta, eta, omega) widths in 3D, and A being an intensity scaling. 
+    spotParamsList should be a list with each entry being a list of arguments appropriate to the intensityFunc.constructParams function. For intensityFunc=spotfinder.IntensityFuncGauss3D(), each spotParamsList entry should be (center, fwhm, A), with center being the 3D spot center in angular coordinates (radians), fwhm being the (2-theta, eta, omega) widths in 3D, and A being an intensity scaling. 
     
     If outputPrefix is specified, then the frames are dumped to files instead of being accumulated in memory. 
     
@@ -2625,7 +2625,7 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
         xM, yM = num.meshgrid(num.arange(*xyfBBox[0]), num.arange(*xyfBBox[1]))
         xAll = xM.flatten(); yAll = yM.flatten();
         data = ( xAll, yAll, num.zeros_like(xAll), num.ones_like(xAll) )
-        spot = spotFinder.Spot(iSpot, omegaDelta, data=data, detectorGeom=detectorGeom)
+        spot = spotfinder.Spot(iSpot, omegaDelta, data=data, detectorGeom=detectorGeom)
         spot.setupQuardFromFWHM(fwhm)
         
         spotList.append( (spot, xyfBBox, xVec) )
