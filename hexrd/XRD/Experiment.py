@@ -36,7 +36,6 @@ are helpers.
 """
 import sys, os, copy
 import cPickle
-
 import numpy
 
 from hexrd.XRD import detector
@@ -100,7 +99,7 @@ class ImageModes(object):
 # ---------------------------------------------------CLASS:  Experiment
 #
 class Experiment(object):
-    """Experiment class:  wrapper for XRD functionality"""
+    """Wrapper for XRD functionality"""
     def __init__(self, cfgFile, matFile):
         """Constructor for Experiment
 
@@ -132,6 +131,13 @@ class Experiment(object):
         self._detInfo  = DetectorInfo()
         self._calInput = CalibrationInput(self.matList[0])
         #
+        #  Spots information.
+        #
+        self._spotOpts = SpotOptions()
+        self._spots = []
+        self._spots_ind = []
+        self._spot_readers = []
+        #
         #  Add hydra interface
         #
         self._hydra = Hydra()
@@ -144,9 +150,91 @@ class Experiment(object):
         #
         return s
     #
-    # ============================== API
+                        # =====================U========= API
     #
-    #                     ========== Properties
+    # ==================== Spots
+    #
+    def clear_spots(self):
+        """Reset the list of spots"""
+        self._spots = []
+        self._spots_ind = []
+        
+        return
+    # property:  spot_readers
+
+    @property
+    def spot_readers(self):
+        """(get-only) list of readers used to generate spots"""
+        if not hasattr(self, '_spot_readers'):
+            self._spot_readers = []
+        return self._spot_readers
+    
+    # property:  spots_for_indexing
+
+    @property
+    def spots_for_indexing(self):
+        """(get-only) spots associated with rings"""
+        if not hasattr(self, '_spots_ind'):
+            self._spots_ind = []
+        return self._spots_ind
+    
+    # property:  raw_spots
+
+    @property
+    def raw_spots(self):
+        """(get-only) spots from image before culling and association with rings"""
+        if not hasattr(self, '_spots'):
+            self._spots = []
+        return self._spots
+    
+    # property:  spotOpts
+
+    @property
+    def spotOpts(self):
+        """(get-only) spot finding options"""
+        # in case of loading an old pickle without spot options
+        if not hasattr(self, '_spotOpts'):
+            self._spotOpts = SpotOptions()
+        return self._spotOpts
+
+    def find_raw_spots(self):
+        """find spots using current reader and options"""
+        findSOS = spotFinder.Spots.findSpotsOmegaStack
+        opts = self.spotOpts
+        #
+        newspots = findSOS(self.activeReader.makeReader(), 
+                           opts.nframes,
+                           opts.thresh, 
+                           opts.minPix, 
+                           discardAtBounds=opts.discardAtBounds,
+                           keepWithinBBox=opts.keepWithinBBox,
+                           overlapPixelDistance=opts.overlap,
+                           nframesLump=opts.nflump,
+                           padOmega=opts.padOmega,
+                           padSpot=opts.padSpot,
+                           )
+        self._spots += newspots
+        self._spot_readers.append(self.activeReader.name)
+        
+        return
+
+    def get_spots_ind(self):
+        """Select spots for indexing"""
+        # cull spots that have integrated intensity <= 0
+        spots_get_II = spotFinder.Spot.getIntegratedIntensity
+        integIntensity = numpy.array(map(spots_get_II, self.raw_spots))
+        rspots = numpy.array(self.raw_spots)
+        culledSpots = rspots[integIntensity > 0.]
+
+        pd = self.activeMaterial.planeData
+        readerInpList = [self.getSavedReader(rn) for rn in self._spot_readers]
+        readerList = [ri.makeReader() for ri in readerInpList]
+        ominfo = [reader.getOmegaMinMax() for reader in readerList]
+        self._spots_ind = spotFinder.Spots(pd, culledSpots, self.detector,
+                                           ominfo)        
+        return
+    #
+    # ==================== Detector
     #
     # property:  detector
 
@@ -160,6 +248,17 @@ class Experiment(object):
         """(read only) refinement flags for calibration"""
         return self._detInfo.refineFlags
 
+    def newDetector(self, gp, dp):
+        """Create a new detector with given geometry and distortion parameters
+
+        *gp* - initial geometric parameters
+        *dp* - initial distortion parameters
+
+"""
+        self._detInfo  = DetectorInfo(gParms=gp, dParms=dp)
+
+        return
+    
     def saveDetector(self, fname):
         """Save the detector information to a file
         
@@ -178,6 +277,7 @@ class Experiment(object):
 
         INPUTS
         fname -- the name of the file to load from
+
 """
         # should check the loaded file here
         f = open(fname, 'r')
@@ -805,16 +905,16 @@ class CalibrationInput(object):
 # ---------------------------------------------------CLASS:  DetectorInfo
 #
 class DetectorInfo(object):
-    """detectorInfo"""
+    """Class for detector and associated data"""
     # refinement-specific things
     #  ---------------> (   xc,    yc,     D,    xt,    yt,    zt,   
     #                      dp1,   dp2,   dp3,   dp4,   dp5,   dp6)
     DFLT_REFINE_FLAGS = ( True,  True,  True,  True,  True, False, 
                           True,  True,  True, False, False, False)
-    def __init__(self):
+    def __init__(self, gParms=[], dParms=[]):
         """Constructor for detectorInfo"""
         #
-	self.detector  = detector.newDetector('ge')
+	self.detector  = detector.newDetector('ge', gParams=gParms, dParams=dParms)
         self.mrbImages = []
         self.fitParams = []
         #
@@ -965,6 +1065,52 @@ class PolarRebinOpts(object):
     pass  # end class
 #
 # -----------------------------------------------END CLASS:  PolarRebinOpts
+# ---------------------------------------------------CLASS:  SpotOptions
+#
+class SpotOptions(object):
+    """Manage options available for spot finding and analysis
+
+    Mainly, this manages the keyword options to the findSpotsOmegaStack()
+    static method in the Spots class.
+    """
+    #
+    # call to findSpotsOmegaStack for reference:
+    #
+    ### def findSpotsOmegaStack(reader, 
+    ###                         nFrames,
+    ###                         threshold, minPx, 
+    ###                         discardAtBounds=True,
+    ###                         keepWithinBBox=True,
+    ###                         overlapPixelDistance=None,  # float, if specified
+    ###                         nframesLump=1,              # probably get rid of this eventually
+    ###                         padOmega=True,
+    ###                         padSpot=True,
+    ###                         debug=False, pw=None):
+    
+    def __init__(self):
+        """SpotOptions Constructor"""
+        #
+        self.nframes = 0   # means use all
+        self.thresh = 1000 # need reasonable initial value
+	self.minPix = 4    # reasonable initial value
+        self.discardAtBounds = True
+        self.keepWithinBBox = True
+        self.overlap = None
+        self.nflump = 1
+        self.padOmega = True
+        self.padSpot = True
+        #
+        # Keep debug=False, pw=None
+        #
+        return
+    #
+    # ============================== API
+    #
+
+    #
+    pass  # end class
+#
+# -----------------------------------------------END CLASS:  SpotOptions
 # ================================================== Utility Functions
 #
 def newName(name, nlist):
@@ -1029,4 +1175,3 @@ def loadExp(inpFile, matFile=DFLT_MATFILE):
         pass
 
     return exp
-

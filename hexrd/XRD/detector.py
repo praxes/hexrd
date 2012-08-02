@@ -400,6 +400,20 @@ class ReadGE(Reader):
         self.__setupRead(fileInfo, self.subtractDark, self.mask, self.omegaStart, self.omegaDelta)
 
         return
+
+    # property:  useThreading
+
+    @property
+    def useThreading(self):
+        """turn threading on or off"""
+        return self.__useThreading
+    
+    @useThreading.setter
+    def useThreading(self, v):
+        """Set method for useThreading"""
+        self.__useThreading = haveThreading and v
+        return
+
     @classmethod
     def getSize(cls):
         retval = (cls.__nrows, cls.__ncols)
@@ -4860,7 +4874,7 @@ def getOmegaMMReaderList(readerList, overall=False):
 def detectorList():
     return ["ge", "mar165"]
 
-def newDetector(detectorType):
+def newDetector(detectorType, gParams=[], dParams=[]):
     """Return a detector of the requested type
 
     INPUTS
@@ -4868,26 +4882,31 @@ def newDetector(detectorType):
     detectorType - a string in the detector type list [see detectorList()]
 """
     dt = detectorType.lower()
+    
     if dt == "ge":
-        gParams    = [ 2.04800000e+02,  # XC
-                       2.04800000e+02,  # YC
-                       1.00000000e+03,  # D
-                       0.00000000e+00,  # xTilt (-ROTY from fit2d)
-                       0.00000000e+00,  # yTilt ( ROTX from fit2d)
-                       0.00000000e+00,  # zTilt (can't refine with powder; leave 0 unless you know otherwise)
-                       ]
-        dParams    = [ 1.0e-04,
-                      -3.0e-04,
-                       0.0e+00,
-                       2.0e+00,
-                       2.0e+00,
-                       2.0e+00,
-                       ]
+        if gParams:
+            gprms = copy.copy(gParams)
+        else:
+            # Use default set
+            gprms = [ 2.00000000e+02,  # XC
+                      2.00000000e+02,  # YC
+                      1.00000000e+03,  # D
+                      0.00000000e+00,  # xTilt (-ROTY from fit2d)
+                      0.00000000e+00,  # yTilt ( ROTX from fit2d)
+                      0.00000000e+00,  # zTilt (can't refine with powder)
+                      ]
+
+        if dParams:
+            dprms = copy.copy(dParams)
+        else:
+            # note: dprms == [] does not work (see Detector2DRC.__init__)
+            dprms = None
+        
         #
         #  For now, use default distortion parameters
         #
-        #d = DetectorGeomGE(gParms, distortionParams=dParms)
-        d = DetectorGeomGE(gParams, distortionParams=dParams)
+        d = DetectorGeomGE(gprms, distortionParams=dprms)
+        
     elif dt == "mar165":
         d = DetectorGeomMar165()
     else:
