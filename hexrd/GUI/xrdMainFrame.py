@@ -296,7 +296,7 @@ class xrdMainFrame(wx.Frame):
         material-list = <filename>
         reader-list = <filename>
         [options] # options for this experiment
-"""
+        """
         cfgFile = 'experiment.cfg'
         exp = wx.GetApp().ws
         #
@@ -533,9 +533,11 @@ class xrdMainFrame(wx.Frame):
         dlg.Destroy()
 
         try:
+            self.SetStatusText('Loading Experiment File')
             app.ws = loadExp(f)
-        except:
-            wx.MessageBox('failed to load file')
+            self.SetStatusText('Done Loading Experiment File')
+        except Exception as e:
+            wx.MessageBox('failed to load experiment:\n%s' % str(e))
             pass
         
         self.updateFromExp()
@@ -554,9 +556,8 @@ class xrdMainFrame(wx.Frame):
 
         try:
             saveExp(exp, f)
-        except:
-            wx.MessageBox('failed to save file')
-            pass
+        except Exception as e:
+            wx.MessageBox('failed to load experiment:\n%s' % str(e))
 
         return
 

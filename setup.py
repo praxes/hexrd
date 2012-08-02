@@ -39,21 +39,15 @@ sglite_mod = Extension('hexrd.XRD.sglite', sources=srclist,
 ext_modules = [sglite_mod]
 
 packages = []
-for dirpath, dirnames, filenames in os.walk('.'):
+for dirpath, dirnames, filenames in os.walk('hexrd'):
     if '__init__.py' in filenames:
         packages.append('.'.join(dirpath.split(os.sep)))
     else:
         del(dirnames[:])
 
-with open('hexrd/__init__.py') as f:
-    for line in f:
-        if line[:11] == '__version__':
-            exec(line)
-            break
-
 setup(
     name = 'hexrd',
-    version = __version__,
+    version = '0.0.0',
     author = 'Joel Bernier, et al.',
     author_email = 'bernier2@llnl.gov',
     description = 'High energy diffraction microscopy',

@@ -36,7 +36,6 @@ are helpers.
 """
 import sys, os, copy
 import cPickle
-
 import numpy
 
 from hexrd.XRD import detector
@@ -66,9 +65,6 @@ matfileOK = os.access(DFLT_MATFILE, os.F_OK)
 if not matfileOK:  # set to null
     DFLT_MATFILE = ''
     pass
-
-print 'default matfile:  ', DFLT_MATFILE.join(2*['"'])
-print 'current dir:  ', os.getcwd()
 #
 #
 __all__ = ['Experiment',
@@ -103,7 +99,7 @@ class ImageModes(object):
 # ---------------------------------------------------CLASS:  Experiment
 #
 class Experiment(object):
-    """Experiment class:  wrapper for XRD functionality"""
+    """Wrapper for XRD functionality"""
     def __init__(self, cfgFile, matFile):
         """Constructor for Experiment
 
@@ -135,6 +131,13 @@ class Experiment(object):
         self._detInfo  = DetectorInfo()
         self._calInput = CalibrationInput(self.matList[0])
         #
+        #  Spots information.
+        #
+        self._spotOpts = SpotOptions()
+        self._spots = []
+        self._spots_ind = []
+        self._spot_readers = []
+        #
         #  Add hydra interface
         #
         self._hydra = Hydra()
@@ -147,9 +150,91 @@ class Experiment(object):
         #
         return s
     #
-    # ============================== API
+                        # =====================U========= API
     #
-    #                     ========== Properties
+    # ==================== Spots
+    #
+    def clear_spots(self):
+        """Reset the list of spots"""
+        self._spots = []
+        self._spots_ind = []
+        
+        return
+    # property:  spot_readers
+
+    @property
+    def spot_readers(self):
+        """(get-only) list of readers used to generate spots"""
+        if not hasattr(self, '_spot_readers'):
+            self._spot_readers = []
+        return self._spot_readers
+    
+    # property:  spots_for_indexing
+
+    @property
+    def spots_for_indexing(self):
+        """(get-only) spots associated with rings"""
+        if not hasattr(self, '_spots_ind'):
+            self._spots_ind = []
+        return self._spots_ind
+    
+    # property:  raw_spots
+
+    @property
+    def raw_spots(self):
+        """(get-only) spots from image before culling and association with rings"""
+        if not hasattr(self, '_spots'):
+            self._spots = []
+        return self._spots
+    
+    # property:  spotOpts
+
+    @property
+    def spotOpts(self):
+        """(get-only) spot finding options"""
+        # in case of loading an old pickle without spot options
+        if not hasattr(self, '_spotOpts'):
+            self._spotOpts = SpotOptions()
+        return self._spotOpts
+
+    def find_raw_spots(self):
+        """find spots using current reader and options"""
+        findSOS = spotFinder.Spots.findSpotsOmegaStack
+        opts = self.spotOpts
+        #
+        newspots = findSOS(self.activeReader.makeReader(), 
+                           opts.nframes,
+                           opts.thresh, 
+                           opts.minPix, 
+                           discardAtBounds=opts.discardAtBounds,
+                           keepWithinBBox=opts.keepWithinBBox,
+                           overlapPixelDistance=opts.overlap,
+                           nframesLump=opts.nflump,
+                           padOmega=opts.padOmega,
+                           padSpot=opts.padSpot,
+                           )
+        self._spots += newspots
+        self._spot_readers.append(self.activeReader.name)
+        
+        return
+
+    def get_spots_ind(self):
+        """Select spots for indexing"""
+        # cull spots that have integrated intensity <= 0
+        spots_get_II = spotFinder.Spot.getIntegratedIntensity
+        integIntensity = numpy.array(map(spots_get_II, self.raw_spots))
+        rspots = numpy.array(self.raw_spots)
+        culledSpots = rspots[integIntensity > 0.]
+
+        pd = self.activeMaterial.planeData
+        readerInpList = [self.getSavedReader(rn) for rn in self._spot_readers]
+        readerList = [ri.makeReader() for ri in readerInpList]
+        ominfo = [reader.getOmegaMinMax() for reader in readerList]
+        self._spots_ind = spotFinder.Spots(pd, culledSpots, self.detector,
+                                           ominfo)        
+        return
+    #
+    # ==================== Detector
     #
     # property:  detector
 
@@ -163,6 +248,17 @@ class Experiment(object):
         """(read only) refinement flags for calibration"""
         return self._detInfo.refineFlags
 
+    def newDetector(self, gp, dp):
+        """Create a new detector with given geometry and distortion parameters
+
+        *gp* - initial geometric parameters
+        *dp* - initial distortion parameters
+
+"""
+        self._detInfo  = DetectorInfo(gParms=gp, dParms=dp)
+
+        return
+    
     def saveDetector(self, fname):
         """Save the detector information to a file
         
@@ -181,6 +277,7 @@ class Experiment(object):
 
         INPUTS
         fname -- the name of the file to load from
+
 """
         # should check the loaded file here
         f = open(fname, 'r')
@@ -247,7 +344,6 @@ class Experiment(object):
         self._matList = v
         self.activeMaterial = 0
         # On initialization, this is called before calInput exists
-        print 'calibrant name: ', self.matList[0]
         try:
             self.calInput.calMat = self.matList[0]
         except:
@@ -383,6 +479,12 @@ class Experiment(object):
             pass
         return r
 
+    def clear_reader(self):
+        """Close current reader"""
+        self.__active_reader = None
+        self.__curFrame = 0
+        return
+
     @property
     def savedReaders(self):
         """Return list of saved readers"""
@@ -454,7 +556,8 @@ class Experiment(object):
         #  Check frameNum
         #
         if (frameNum > nrFrame) or (frameNum < 1):
-            msg = 'frame number out of range: requesting frame %d (max = %d)' % (frameNum, nrFrame)
+            msg = 'frame number out of range: requesting frame %d (max = %d)' \
+                  % (frameNum, nrFrame)
             raise ValueError(msg)
 
         #if (frameNum == self.__curFrame): return
@@ -519,73 +622,6 @@ class Experiment(object):
     pass  # end class
 #
 # -----------------------------------------------END CLASS:  Experiment
-#
-# ================================================== Utility Functions
-#
-def newName(name, nlist):
-    """return a name not in the list, but based on name input"""
-    if name not in nlist: return name
-
-    i=1
-    while i:
-        name_i = '%s %d' % (name, i)
-        if name_i not in nlist:
-            break
-
-        i += 1
-        pass
-
-    return name_i
-
-def saveExp(e, f):
-    """save experiment to file"""
-    print 'saving file:  %s' % f
-    fobj = open(f, 'w')
-    cPickle.dump(e, fobj)
-    fobj.close()
-    print 'save succeeded'
-
-    return
-
-def loadExp(inpFile, matFile=DFLT_MATFILE):
-    """Load an experiment from a config file or from a saved exp file
-
-    inpFile -- the name of either the config file or the saved exp file;
-               empty string means start new experiment
-    matFile -- name of the materials file 
-"""
-    #
-    if not matFile:
-        print >> sys.stderr, 'no material file found'
-        sys.exit(1)
-        pass
-        
-    root, ext = os.path.splitext(inpFile)
-    #
-    if ext == '.cfg' or not inpFile:
-        #  Instantiate from config file
-        exp = Experiment(inpFile, matFile)
-    elif ext == '.exp':
-        #  Load existing experiment
-        try:
-            print 'loading saved file:  %s' % inpFile
-            f = open(inpFile, 'r')
-            exp = cPickle.load(f)
-            f.close()
-            print '... load succeeded'
-        except:
-            print '... load failed ... please check your data file'
-            raise
-            sys.exit()
-            pass
-    else:
-        #  Not recognized
-        print 'file is neither .cfg or .exp', inpFile
-        sys.exit(1)
-        pass
-
-    return exp
-
 # ---------------------------------------------------CLASS:  geReaderInput
 #
 class ReaderInput(object):
@@ -600,8 +636,9 @@ GE reader is supported.
     #
     DARK_MODES = (DARK_MODE_NONE,
                   DARK_MODE_FILE,
+                  DARK_MODE_ARRAY,
                   DARK_MODE_EMPTY,
-                  DARK_MODE_FRAME) = range(4)
+                  DARK_MODE_FRAME) = range(5)
     #
     AGG_MODES = (AGG_FUN_NONE, AGG_FUN_SUM, AGG_FUN_MAX, AGG_FUN_MIN) = range(4)
     AGG_DICT = {
@@ -611,10 +648,13 @@ GE reader is supported.
         AGG_FUN_MIN : numpy.minimum
         }
     #
-    FLIP_MODES = (FLIP_NONE, FLIP_VERT, FLIP_HORIZ, FLIP_180, FLIP_M90, FLIP_P90) = range(6)
+    FLIP_MODES = (FLIP_NONE, FLIP_VERT, FLIP_HORIZ, FLIP_180, FLIP_M90, FLIP_P90) \
+                 = range(6)
     FLIP_STRS  = ('',        'v',       'h',        'hv',     'cw90',   'ccw90')
     FLIP_DICT  = dict(zip(FLIP_MODES, FLIP_STRS))
     #
+    RC = detector.ReadGE
+    
     def __init__(self, name='reader', desc='no description'):
         """Constructor for ReaderInput
 
@@ -686,7 +726,7 @@ GE reader is supported.
         """Get method for darkFile"""
         if self.darkMode == ReaderInput.DARK_MODE_NONE:
             s = '<no dark subtraction>'
-        elif self.darkMode == ReaderInput.DARK_MODE_FILE:
+        elif self.darkMode == ReaderInput.DARK_MODE_FILE or self.darkMode == ReaderInput.DARK_MODE_ARRAY:
             s = os.path.join(self.darkDir, self.darkName)
         else:
             s = '<using empty frames>'
@@ -763,6 +803,9 @@ GE reader is supported.
         subDark = not (self.darkMode == ReaderInput.DARK_MODE_NONE)
         if (self.darkMode == ReaderInput.DARK_MODE_FILE):
             drkFile = os.path.join(self.darkDir, self.darkName) 
+        elif (self.darkMode == ReaderInput.DARK_MODE_ARRAY):
+            drkFileName = os.path.join(self.darkDir, self.darkName) 
+            drkFile     = self.RC.frame(buffer=numpy.fromfile(drkFileName, dtype=self.RC.getReadDtype()))
         else:
             drkFile = None
             pass
@@ -775,12 +818,12 @@ GE reader is supported.
         # Make the reader
         #
         print 'reader:  \n', imgInfo, subDark, drkFile, doFlip, flipArg
-        r = detector.ReadGE(imgInfo, *omargs,
-                            subtractDark = subDark,
-                            dark         = drkFile,
-                            doFlip       = doFlip,
-                            flipArg      = flipArg)
-
+        r = self.RC(imgInfo, *omargs,
+                    subtractDark = subDark,
+                    dark         = drkFile,
+                    doFlip       = doFlip,
+                    flipArg      = flipArg)
+        
         return r
     #
     pass  # end class
@@ -830,7 +873,6 @@ class CalibrationInput(object):
     def _set_calMat(self, v):
         """Set method for calMat"""
         self._calMat = v
-        print 'setting calMat:  \n', str(self.calData)
         return
 
     calMat = property(_get_calMat, _set_calMat, None,
@@ -863,16 +905,16 @@ class CalibrationInput(object):
 # ---------------------------------------------------CLASS:  DetectorInfo
 #
 class DetectorInfo(object):
-    """detectorInfo"""
+    """Class for detector and associated data"""
     # refinement-specific things
     #  ---------------> (   xc,    yc,     D,    xt,    yt,    zt,   
     #                      dp1,   dp2,   dp3,   dp4,   dp5,   dp6)
     DFLT_REFINE_FLAGS = ( True,  True,  True,  True,  True, False, 
                           True,  True,  True, False, False, False)
-    def __init__(self):
+    def __init__(self, gParms=[], dParms=[]):
         """Constructor for detectorInfo"""
         #
-	self.detector  = detector.newDetector('ge')
+	self.detector  = detector.newDetector('ge', gParams=gParms, dParams=dParms)
         self.mrbImages = []
         self.fitParams = []
         #
@@ -1023,14 +1065,42 @@ class PolarRebinOpts(object):
     pass  # end class
 #
 # -----------------------------------------------END CLASS:  PolarRebinOpts
-# ---------------------------------------------------CLASS:  indexOptions
+# ---------------------------------------------------CLASS:  SpotOptions
 #
-class indexOptions(object):
-    """indexOptions"""
+class SpotOptions(object):
+    """Manage options available for spot finding and analysis
+
+    Mainly, this manages the keyword options to the findSpotsOmegaStack()
+    static method in the Spots class.
+    """
+    #
+    # call to findSpotsOmegaStack for reference:
+    #
+    ### def findSpotsOmegaStack(reader, 
+    ###                         nFrames,
+    ###                         threshold, minPx, 
+    ###                         discardAtBounds=True,
+    ###                         keepWithinBBox=True,
+    ###                         overlapPixelDistance=None,  # float, if specified
+    ###                         nframesLump=1,              # probably get rid of this eventually
+    ###                         padOmega=True,
+    ###                         padSpot=True,
+    ###                         debug=False, pw=None):
+    
     def __init__(self):
-        """Constructor for indexOptions"""
+        """SpotOptions Constructor"""
         #
-	
+        self.nframes = 0   # means use all
+        self.thresh = 1000 # need reasonable initial value
+	self.minPix = 4    # reasonable initial value
+        self.discardAtBounds = True
+        self.keepWithinBBox = True
+        self.overlap = None
+        self.nflump = 1
+        self.padOmega = True
+        self.padSpot = True
+        #
+        # Keep debug=False, pw=None
         #
         return
     #
@@ -1040,4 +1110,77 @@ class indexOptions(object):
     #
     pass  # end class
 #
+# -----------------------------------------------END CLASS:  SpotOptions
+# ---------------------------------------------------CLASS:  indexOptions
+#
+class indexOptions(object):
+    """indexOptions"""
+    def __init__(self):
+        """Constructor for indexOptions"""
+        #
+	
 # -----------------------------------------------END CLASS:  indexOptions
+# ================================================== Utility Functions
+#
+def newName(name, nlist):
+    """return a name not in the list, but based on name input"""
+    if name not in nlist: return name
+
+    i=1
+    while i:
+        name_i = '%s %d' % (name, i)
+        if name_i not in nlist:
+            break
+
+        i += 1
+        pass
+
+    return name_i
+
+def saveExp(e, f):
+    """save experiment to file"""
+    fobj = open(f, 'w')
+    e.clear_reader() # close open files inside exp
+    cPickle.dump(e, fobj)
+    fobj.close()
+
+    return
+
+def loadExp(inpFile, matFile=DFLT_MATFILE):
+    """Load an experiment from a config file or from a saved exp file
+
+    inpFile -- the name of either the config file or the saved exp file;
+               empty string means start new experiment
+    matFile -- name of the materials file 
+"""
+    #
+    if not matFile:
+        print >> sys.stderr, 'no material file found'
+        sys.exit(1)
+        pass
+        
+    root, ext = os.path.splitext(inpFile)
+    #
+    if ext == '.cfg' or not inpFile:
+        #  Instantiate from config file
+        exp = Experiment(inpFile, matFile)
+    elif ext == '.exp':
+        #  Load existing experiment
+        try:
+            print 'loading saved file:  %s' % inpFile
+            f = open(inpFile, 'r')
+            exp = cPickle.load(f)
+            f.close()
+            print '... load succeeded'
+        except:
+            print '... load failed ... please check your data file'
+            raise
+            sys.exit()
+            pass
+    else:
+        #  Not recognized
+        print 'file is neither .cfg or .exp', inpFile
+        sys.exit(1)
+        pass
+
+    return exp

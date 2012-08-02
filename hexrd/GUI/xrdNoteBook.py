@@ -113,7 +113,7 @@ class xrdNoteBook(wx.Notebook):
     def updateFromExp(self):
         """Update all subwindows"""
         #for i in range(self.GetPageCount()):
-        for i in range(3):
+        for i in range(6):
             self.GetPage(i).updateFromExp()
             pass
 

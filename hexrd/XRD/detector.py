@@ -73,6 +73,7 @@ d2r = piby180 = num.pi/180.
 r2d = 1.0/d2r
 
 bsize = 25000
+ztol  = 1e-10
         
 def angToXYIdeal(tTh, eta, workDist):
     rho = num.tan(tTh) * workDist
@@ -399,6 +400,20 @@ class ReadGE(Reader):
         self.__setupRead(fileInfo, self.subtractDark, self.mask, self.omegaStart, self.omegaDelta)
 
         return
+
+    # property:  useThreading
+
+    @property
+    def useThreading(self):
+        """turn threading on or off"""
+        return self.__useThreading
+    
+    @useThreading.setter
+    def useThreading(self, v):
+        """Set method for useThreading"""
+        self.__useThreading = haveThreading and v
+        return
+
     @classmethod
     def getSize(cls):
         retval = (cls.__nrows, cls.__ncols)
@@ -2788,7 +2803,7 @@ class Detector2DRC(DetectorBase):
     def __updateFromPList(self, plist):
         self.xc, self.yc, self.workDist, self.xTilt, self.yTilt, self.zTilt = plist[0:6]
         if hasattr(plist[6],'__len__'):
-            assert len(plist) == 6, 'plist of wrong length : '+str(plist)
+            assert len(plist[6]) == 6, 'plist of wrong length : '+str(plist)
             self.dparms = plist[6]
         else:
             self.dparms = plist[6:]
@@ -2822,8 +2837,9 @@ class Detector2DRC(DetectorBase):
 
     def __initBase(self):
         
-        ' no precession by default init'
-        self.pVec = None
+        ' no precession or chiTilt by default init'
+        self.pVec    = None
+        self.chiTilt = None
         
         self.refineFlags = self.getRefineFlagsDflt()
         
@@ -2846,10 +2862,12 @@ class Detector2DRC(DetectorBase):
         self.__initBase()
         
         return
-    def __initFromDG(self, detectorGeomOther, pVec=None):
+    def __initFromDG(self, detectorGeomOther, pVec=None, chiTilt=None):
+        """...not sure we'll keep chiTilt here as is"""
         self.__initFromParams( *detectorGeomOther.__makePList(flatten=False) )
         self.refineFlags = copy.deepcopy(detectorGeomOther.refineFlags)
         self.pVec = copy.deepcopy(pVec)
+        self.chiTilt = copy.deepcopy(chiTilt)
         return
 
     def setTilt(self, tilt):
@@ -4063,7 +4081,7 @@ class Detector2DRC(DetectorBase):
               xVec0 = func.guessXVec()
       self.xFitRings = None
       
-      x = func.doFit(xtol=1.0e-4)
+      x = func.doFit(xtol=1.0e-6)
       
       self.xFitRings = x
       # self.fitRingsFunc = func
@@ -4344,10 +4362,10 @@ class DetectorGeomGE(Detector2DRC):
     __idim           = ReadGE._ReadGE__idim
     __nrows          = ReadGE._ReadGE__nrows
     __ncols          = ReadGE._ReadGE__ncols
-    __dParamDflt     = [1.0e-4, -3.0e-04,     0.0,      2.0,      2.0,      2.0]
-    __dParamZero     = [   0.0,      0.0,     0.0,      2.0,      2.0,      2.0]
-    __dParamScalings = [   1.0,      1.0,     1.0,      1.0,      1.0,      1.0]
-    __dParamRefineDflt = (True,     True,    True,    False,    False,    False)
+    __dParamDflt     = [   0.0,       0.0,       0.0,      2.0,      2.0,      2.0]
+    __dParamZero     = [   0.0,       0.0,       0.0,      2.0,      2.0,      2.0]
+    __dParamScalings = [   1.0,       1.0,       1.0,      1.0,      1.0,      1.0]
+    __dParamRefineDflt = (True,      True,      True,    False,    False,    False)
     
     def __init__(self, *args, **kwargs):
         
@@ -4377,52 +4395,167 @@ class DetectorGeomGE(Detector2DRC):
         
         invert = True or >False< :: apply inverse warping
         """
-        # canonical max radius based on perfectly centered beam
-        #   - 204.8 in mm or 1024 in pixel indices
-        rhoMax = self.__idim * self.__pixelPitch / 2
-        
-        # make points relative to detector center
-        x0 = (xin + self.xc) - rhoMax
-        y0 = (yin + self.yc) - rhoMax
-        
-        # detector relative polar coordinates
-        #   - this is the radius that gets rescaled
-        rho0 = num.sqrt( x0*x0 + y0*y0 )
-        eta0 = num.arctan2( y0, x0 )
-                
-        if invert:
-            # in here must do nonlinear solve for distortion
-            
-            # must loop to call fsolve individually for each point
-            rho0   = num.atleast_1d(rho0)
-            rShape = rho0.shape
-            rho0   = num.atleast_1d(rho0).flatten()
-            rhoOut = num.zeros(len(rho0), dtype=float)
-            
-            eta0   = num.atleast_1d(eta0).flatten()
-            
-            rhoSclFunc = lambda ri, ni, ro, p=self.dparms, rx=rhoMax: \
-                (p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
-                 p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
-                 p[2]*(ri/rx)**p[5] + 1)*ri - ro 
-            
-            for iRho in range(len(rho0)):
-                rhoOut[iRho] = fsolve(rhoSclFunc, rho0[iRho], args=(eta0[iRho], rho0[iRho]))
-                pass
-            rhoOut = rhoOut.reshape(rShape)            
+        if self.dparms[0] == 0 and self.dparms[1] == 0 and self.dparms[2] == 0:
+            xout = xin
+            yout = yin
         else:
-            # usual case: calculate scaling to take you from image to detector plane
-            # 1 + p[0]*(ri/rx)**p[2] * num.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
-            rhoSclFunc = lambda ri, p=self.dparms, rx=rhoMax, ni=eta0: \
-                         p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
-                         p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
-                         p[2]*(ri/rx)**p[5] + 1
+            # canonical max radius based on perfectly centered beam
+            #   - 204.8 in mm or 1024 in pixel indices
+            rhoMax = self.__idim * self.__pixelPitch / 2
             
-            rhoOut = num.squeeze( rho0 * rhoSclFunc(rho0) )
+            # make points relative to detector center
+            x0 = (xin + self.xc) - rhoMax
+            y0 = (yin + self.yc) - rhoMax
             
-        xout = rhoOut * num.cos(eta0) + rhoMax - self.xc
-        yout = rhoOut * num.sin(eta0) + rhoMax - self.yc
+            # detector relative polar coordinates
+            #   - this is the radius that gets rescaled
+            rho0 = num.sqrt( x0*x0 + y0*y0 )
+            eta0 = num.arctan2( y0, x0 )
+                    
+            if invert:
+                # in here must do nonlinear solve for distortion
+                # must loop to call fsolve individually for each point
+                rho0   = num.atleast_1d(rho0)
+                rShape = rho0.shape
+                rho0   = num.atleast_1d(rho0).flatten()
+                rhoOut = num.zeros(len(rho0), dtype=float)
+                
+                eta0   = num.atleast_1d(eta0).flatten()
+                
+                rhoSclFuncInv = lambda ri, ni, ro, rx, p: \
+                    (p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
+                     p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
+                     p[2]*(ri/rx)**p[5] + 1)*ri - ro 
+                
+                rhoSclFIprime = lambda ri, ni, ro, rx, p: \
+                    p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) * (p[3] + 1) + \
+                    p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) * (p[4] + 1) + \
+                    p[2]*(ri/rx)**p[5] * (p[5] + 1) + 1
+                
+                for iRho in range(len(rho0)):
+                    rhoOut[iRho] = fsolve(rhoSclFuncInv, rho0[iRho], 
+                                          fprime=rhoSclFIprime, 
+                                          args=(eta0[iRho], rho0[iRho], rhoMax, self.dparms) )
+                    pass
+                
+                rhoOut = rhoOut.reshape(rShape)            
+            else:
+                # usual case: calculate scaling to take you from image to detector plane
+                # 1 + p[0]*(ri/rx)**p[2] * num.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
+                rhoSclFunc = lambda ri, rx=rhoMax, p=self.dparms, ni=eta0: \
+                             p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
+                             p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
+                             p[2]*(ri/rx)**p[5] + 1
+                
+                rhoOut = num.squeeze( rho0 * rhoSclFunc(rho0) )
+                pass
+            
+            xout = rhoOut * num.cos(eta0) + rhoMax - self.xc
+            yout = rhoOut * num.sin(eta0) + rhoMax - self.yc
         
+        return xout, yout
+
+class DetectorGeomFrelon(Detector2DRC):
+    """
+    handle geometry of GE detector, such as geometric and radial distortion corrections;
+    x and y are in pixels, as is rho;
+    pixels are numbered from (0,0);
+    """
+    
+    # 50 X 50 micron pixels
+    __pixelPitch     = 0.05      # in mm
+    __idim           = ReadGE._ReadGE__idim
+    __nrows          = ReadGE._ReadGE__nrows
+    __ncols          = ReadGE._ReadGE__ncols
+    __dParamDflt     = [   0.0,      0.0,     0.0,      2.0,      2.0,      2.0]
+    __dParamZero     = [   0.0,      0.0,     0.0,      2.0,      2.0,      2.0]
+    __dParamScalings = [   1.0,      1.0,     1.0,      1.0,      1.0,      1.0]
+    __dParamRefineDflt = (True,     True,    True,    False,    False,    False)
+    
+    def __init__(self, *args, **kwargs):
+        
+        Detector2DRC.__init__(self, 
+                              self.__nrows, self.__ncols, self.__pixelPitch,
+                              ReadGE,
+                              *args, **kwargs)
+        return
+    
+    def getDParamDflt(self):
+        return self.__dParamDflt
+    def setDParamZero(self):
+        self.dparm = self.__dParamZero
+        return 
+    def getDParamScalings(self):    
+        return self.__dParamScalings
+    def getDParamRefineDflt(self):
+        return self.__dParamRefineDflt
+    def radialDistortion(self, xin, yin, invert=False):
+        """    
+        Apply radial distortion to polar coordinates on GE detector
+        
+        xin, yin are 1D arrays or scalars, assumed to be relative to self.xc, self.yc
+        Units are [mm, radians].  This is the power-law based function of Bernier.
+        
+        (p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
+         p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
+         p[2]*(ri/rx)**p[5] + 1)*ri
+         
+         1 + \
+         p[0]*(ri/rx)**p[2] * num.cos(p[4] * ni) + \
+         p[1]*(ri/rx)**p[3]
+         
+        Available Keyword Arguments :
+        
+        invert = True or >False< :: apply inverse warping
+        """
+        if self.dparms[0] == 0 and self.dparms[1] == 0 and self.dparms[2] == 0:
+            xout = xin
+            yout = yin
+        else:
+            # canonical max radius based on perfectly centered beam
+            #   - 204.8 in mm or 1024 in pixel indices
+            rhoMax = self.__idim * self.__pixelPitch / 2
+            
+            # make points relative to detector center
+            x0 = (xin + self.xc) - rhoMax
+            y0 = (yin + self.yc) - rhoMax
+            
+            # detector relative polar coordinates
+            #   - this is the radius that gets rescaled
+            rho0 = num.sqrt( x0*x0 + y0*y0 )
+            eta0 = num.arctan2( y0, x0 )
+                    
+            if invert:
+                # --> in here must do nonlinear solve for distortion
+                # must loop to call fsolve individually for each point
+                rho0   = num.atleast_1d(rho0)
+                rShape = rho0.shape
+                rho0   = num.atleast_1d(rho0).flatten()
+                rhoOut = num.zeros(len(rho0), dtype=float)
+                
+                eta0   = num.atleast_1d(eta0).flatten()
+                
+                rhoSclFunc = lambda ri, ni, ro, p=self.dparms, rx=rhoMax: \
+                    (p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
+                     p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
+                     p[2]*(ri/rx)**p[5] + 1)*ri - ro 
+                
+                for iRho in range(len(rho0)):
+                    rhoOut[iRho] = fsolve(rhoSclFunc, rho0[iRho], args=(eta0[iRho], rho0[iRho]))
+                    pass
+                rhoOut = rhoOut.reshape(rShape)            
+            else:
+                # usual case: calculate scaling to take you from image to detector plane
+                # 1 + p[0]*(ri/rx)**p[2] * num.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
+                rhoSclFunc = lambda ri, p=self.dparms, rx=rhoMax, ni=eta0: \
+                             p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
+                             p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
+                             p[2]*(ri/rx)**p[5] + 1
+                
+                rhoOut = num.squeeze( rho0 * rhoSclFunc(rho0) )
+                
+            xout = rhoOut * num.cos(eta0) + rhoMax - self.xc
+            yout = rhoOut * num.sin(eta0) + rhoMax - self.yc
         return xout, yout
 
 class DetectorGeomQuadGE(DetectorBase):
@@ -4741,7 +4874,7 @@ def getOmegaMMReaderList(readerList, overall=False):
 def detectorList():
     return ["ge", "mar165"]
 
-def newDetector(detectorType):
+def newDetector(detectorType, gParams=[], dParams=[]):
     """Return a detector of the requested type
 
     INPUTS
@@ -4749,26 +4882,31 @@ def newDetector(detectorType):
     detectorType - a string in the detector type list [see detectorList()]
 """
     dt = detectorType.lower()
+    
     if dt == "ge":
-        gParams    = [ 2.04800000e+02,  # XC
-                       2.04800000e+02,  # YC
-                       1.00000000e+03,  # D
-                       0.00000000e+00,  # xTilt (-ROTY from fit2d)
-                       0.00000000e+00,  # yTilt ( ROTX from fit2d)
-                       0.00000000e+00,  # zTilt (can't refine with powder; leave 0 unless you know otherwise)
-                       ]
-        dParams    = [ 1.0e-04,
-                      -3.0e-04,
-                       0.0e+00,
-                       2.0e+00,
-                       2.0e+00,
-                       2.0e+00,
-                       ]
+        if gParams:
+            gprms = copy.copy(gParams)
+        else:
+            # Use default set
+            gprms = [ 2.00000000e+02,  # XC
+                      2.00000000e+02,  # YC
+                      1.00000000e+03,  # D
+                      0.00000000e+00,  # xTilt (-ROTY from fit2d)
+                      0.00000000e+00,  # yTilt ( ROTX from fit2d)
+                      0.00000000e+00,  # zTilt (can't refine with powder)
+                      ]
+
+        if dParams:
+            dprms = copy.copy(dParams)
+        else:
+            # note: dprms == [] does not work (see Detector2DRC.__init__)
+            dprms = None
+        
         #
         #  For now, use default distortion parameters
         #
-        #d = DetectorGeomGE(gParms, distortionParams=dParms)
-        d = DetectorGeomGE(gParams, distortionParams=dParams)
+        d = DetectorGeomGE(gprms, distortionParams=dprms)
+        
     elif dt == "mar165":
         d = DetectorGeomMar165()
     else:
