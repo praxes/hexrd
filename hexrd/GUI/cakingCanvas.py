@@ -31,8 +31,14 @@
 import wx
 
 import numpy
+from matplotlib.axes import Axes
+from matplotlib.patches import Rectangle, Circle, Polygon
+from matplotlib.collections import PatchCollection
+
+from hexrd.matrixUtils import columnNorm, unitVector
 
 from hexrd.XRD.Experiment  import PolarRebinOpts as prOpts
+from hexrd.XRD.xrdUtils import makeMeasuredScatteringVectors as makeMSV
 
 from hexrd.GUI.guiConfig import WindowParameters as WP
 from hexrd.GUI.guiUtilities import makeTitleBar
@@ -111,17 +117,17 @@ class cakeCanvas(wx.Panel):
             self.opt_pan = sphOpts(self, wx.NewId())
             pass
         
-        self.__makeFigureCanvas()
+        self._makeFigureCanvas()
         #
 
         return
 
-    def __makeFigureCanvas(self):
+    def _makeFigureCanvas(self):
         """Build figure canvas"""
         self.figure = Figure()
         self.canvas = FigureCanvas(self, wx.NewId(), self.figure)
 
-        self.axes   = self.figure.gca()
+        self.axes = self.figure.gca()
         self.axes.set_aspect('equal')
 
         self.toolbar = NavigationToolbar2WxAgg(self.canvas)
@@ -477,7 +483,9 @@ class imgOpts(wx.Panel):
 #
 class sphOpts(wx.Panel):
     """Options panel for SPH (omega-eta) caking canvas"""
-
+    [DISP_RAW, DISP_QUICK, DISP_FULL] = range(3)
+    DISP_METHODS = ['Raw', 'Quick Render', 'Full Render']
+    
     def __init__(self, parent, id, **kwargs):
 	"""Constructor for sphOpts."""
 	#
@@ -508,14 +516,28 @@ class sphOpts(wx.Panel):
     #
     def __makeObjects(self):
         """Add interactors"""
+        exp = wx.GetApp().ws
+        
+        self.tbarSizer = makeTitleBar(self, 'Omega-Eta Plots',
+                                      color=WP.BG_COLOR_TITLEBAR_PANEL1)
 
-        self.tbarSizer = makeTitleBar(self, 'Full Image Rebinning Results')
-        #
+        # choice interactor for HKL
+        hkls = exp.activeMaterial.planeData.getHKLs(asStr=True)
+        self.hkl_cho = wx.Choice(self, wx.NewId(), choices=hkls)
+        self.hkl_cho.SetSelection(0)
 
+        self.disp_cho = wx.Choice(self, wx.NewId(), choices=self.DISP_METHODS)
+        self.disp_cho.SetSelection(0)
+
+        self.idata = 0
+        self.dispm = self.DISP_RAW
+        
         return
 
     def __makeBindings(self):
         """Bind interactors"""
+	self.Bind(wx.EVT_CHOICE, self.OnHKLChoice, self.hkl_cho)
+	self.Bind(wx.EVT_CHOICE, self.OnDispChoice, self.disp_cho)
         return
 
     def __makeSizers(self):
@@ -523,7 +545,9 @@ class sphOpts(wx.Panel):
 
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
-        self.sizer.Show(self.tbarSizer, False)
+        self.sizer.Show(self.tbarSizer, True)
+        self.sizer.Add(self.hkl_cho, 0, wx.ALIGN_RIGHT|wx.TOP, 5)
+        self.sizer.Add(self.disp_cho, 1, wx.ALIGN_RIGHT|wx.TOP, 5)
 
 	return
     #
@@ -534,54 +558,186 @@ class sphOpts(wx.Panel):
     def update(self):
         """Update canvas"""
         p = self.GetParent()
+        exp = wx.GetApp().ws
+        
+        ome_eta = p.data
+        hkldata = ome_eta.getData(self.idata)
 
-#omega#        print omeEta
-#omega#        print dir(omeEta)
-#omega#
-#omega#        # Show some pole figures
-#omega#        style = {'marker':'d',    'ls':'None', 'mec':'y',
-#omega#                 'mfc'   :'None', 'ms':10.,    'mew':2}
-#omega#
-#omega#        res    = 100
-#omega#        cmap   = self.cmPanel.cmap
-#omega#        pt     = numpy.r_[1.0, 0.0, 0.0]
-#omega#        pList  = [(pt, style)] # to do
-#omega#        iHKL   = 0
-#omega#        kwargs = dict(
-#omega#            pfig=res,
-#omega#            cmap=cmap,
-#omega#            iData=iHKL,
-#omega#            pointLists=pList,
-#omega#            rangeVV=(0., 150.),
-#omega#            drawColorbar=False,
-#omega#            pfigDisplayKWArgs={'doY90Rot':False}          
-#omega#            )
-#omega#        pfig = omeEta.display(**kwargs)
-#omega#
-#omega#        print pfig, dir(pfig)
-#omega#
-#        intensity = p.data['intensity']
-#
-#        p.axes = p.figure.gca()
-#        p.axes.set_aspect('equal')
-#
-#
-#        p.axes.images = []
-#        # show new image
-#        p.axes.imshow(intensity, origin='upper',
-#                      interpolation='nearest',
-#                      aspect='auto')
-##                      cmap=self.cmPanel.cmap,
-##                      vmin=self.cmPanel.cmin_val,
-##                      vmax=self.cmPanel.cmax_val,
-#        p.axes.set_autoscale_on(False)
-#
-#        p.canvas.draw()
-#
+        if self.dispm == self.DISP_RAW:
+            
+            p.figure.delaxes(p.axes)
+            p.axes = p.figure.gca()
+            p.axes.set_aspect('equal')
+            p.axes.images = []
+            # show new image
+            p.axes.imshow(hkldata, origin='upper',
+                          interpolation='nearest',
+                          aspect='auto')
+            # cmap=self.cmPanel.cmap,
+            # vmin=self.cmPanel.cmin_val,
+            # vmax=self.cmPanel.cmax_val,
+            p.axes.set_autoscale_on(False)
+            
+            p.canvas.draw()
+
+        elif self.dispm == self.DISP_QUICK:
+            res = 100
+            kwargs = dict(
+                pfig=res,
+                iData=self.idata
+                )
+            pfig = ome_eta.display(**kwargs)
+
+        elif self.dispm == self.DISP_FULL:
+
+            self.oe_pfig()
+
+            pass
+
+        return
+
+    def oe_pfig(self):
+        """Make an omega-eta polefigure"""
+        # some constants
+
+        deg2rad = numpy.pi /180.0
+        radius = numpy.sqrt(2)
+        offset = 2.5*radius
+        nocolor = 'none'
+        pdir_cho = 'X'  # to come from choice interactor
+        
+        # parent window and data
+
+        exp = wx.GetApp().ws
+        p = self.GetParent()
+        ome_eta = p.data
+        hkldata = ome_eta.getData(self.idata)
+
+        # axes/figure
+
+        p.figure.delaxes(p.axes)
+        p.axes = p.figure.gca()
+        p.axes.set_autoscale_on(True)
+        p.axes.set_aspect('equal')
+        p.axes.axis([-2.0, offset+2.0, -1.5, 1.5])
+
+        # outlines for pole figure
+        
+        C1 = Circle((0,0), radius)
+        C2 = Circle((offset,0), radius)
+        outline_circles = [C1, C2]
+        pc_outl = PatchCollection(outline_circles, facecolors=nocolor)
+        p.axes.add_collection(pc_outl)
+
+        # build the rectangles
+        
+        pf_rects = []
+
+        tTh = exp.activeMaterial.planeData.getTTh()[self.idata]
+            
+        etas  = ome_eta.etaEdges * deg2rad
+        netas = len(etas) - 1
+        deta = abs(etas[1] - etas[0])
+
+        omes  = ome_eta.omeEdges * deg2rad
+        nomes = len(omes) - 1
+        dome = abs(omes[1] - omes[0])
+        
+        if pdir_cho == 'X':
+            pdir = numpy.c_[1, 0, 0].T  # X
+        elif pdir_cho == 'Y':
+            pdir = numpy.c_[0, 1, 0].T  # X
+        elif pdir_cho == 'Z':
+            pdir = numpy.c_[0, 0, 1].T  # X
+            pass
+
+        ii = 0
+        for i in range(nomes):
+            for j in range(netas):
+                qc = makeMSV(tTh, etas[j] + 0.5*deta, omes[i] + 0.5*dome)
+
+                qll = makeMSV(tTh,        etas[j],        omes[i])                
+                qlr = makeMSV(tTh, etas[j] + deta,        omes[i])
+                qur = makeMSV(tTh, etas[j] + deta, omes[i] + dome)
+                qul = makeMSV(tTh,        etas[j], omes[i] + dome)
+
+                pdot_p = numpy.dot(qll.T, pdir) >= 0 \
+                    and numpy.dot(qlr.T, pdir) >= 0 \
+                    and numpy.dot(qur.T, pdir) >= 0 \
+                    and numpy.dot(qul.T, pdir) >= 0
+
+                pdot_m = numpy.dot(qll.T, pdir) < 0 \
+                    and numpy.dot(qlr.T, pdir) < 0 \
+                    and numpy.dot(qur.T, pdir) < 0 \
+                    and numpy.dot(qul.T, pdir) < 0
+
+                if pdot_p:
+                    sgn = 1.0
+                    ii += 1
+                elif pdot_m:
+                    sgn = -1.0
+                    ii += 1
+                elif not pdot_p and not pdot_m:
+                    continue
+
+                # the vertex chords
+                qll = makeMSV(tTh,        etas[j],        omes[i]) - sgn * pdir
+                qlr = makeMSV(tTh, etas[j] + deta,        omes[i]) - sgn * pdir
+                qur = makeMSV(tTh, etas[j] + deta, omes[i] + dome) - sgn * pdir
+                qul = makeMSV(tTh,        etas[j], omes[i] + dome) - sgn * pdir
+
+                nll = columnNorm(qll)
+                nlr = columnNorm(qlr)
+                nur = columnNorm(qur)
+                nul = columnNorm(qul)
+
+                if pdir_cho == 'X':
+                    pqll = nll*unitVector(qll[[1, 2]].reshape(2, 1))
+                    pqlr = nlr*unitVector(qlr[[1, 2]].reshape(2, 1))
+                    pqur = nur*unitVector(qur[[1, 2]].reshape(2, 1))
+                    pqul = nul*unitVector(qul[[1, 2]].reshape(2, 1))
+                elif pdir_cho == 'Y':
+                    pqll = nll*unitVector(qll[[0, 2]].reshape(2, 1))
+                    pqlr = nlr*unitVector(qlr[[0, 2]].reshape(2, 1))
+                    pqur = nur*unitVector(qur[[0, 2]].reshape(2, 1))
+                    pqul = nul*unitVector(qul[[0, 2]].reshape(2, 1))
+                elif pdir_cho == 'Z':
+                    pqll = nll*unitVector(qll[[0, 1]].reshape(2, 1))
+                    pqlr = nlr*unitVector(qlr[[0, 1]].reshape(2, 1))
+                    pqur = nur*unitVector(qur[[0, 1]].reshape(2, 1))
+                    pqul = nul*unitVector(qul[[0, 1]].reshape(2, 1))
+
+                xy = numpy.hstack([pqll, pqlr, pqur, pqul]).T
+                if sgn == -1:
+                    xy[:, 0] = xy[:, 0] + offset
+                pf_rects.append(Polygon(xy, aa=False))
+                pass
+            pass
+        
+        cmap=matplotlib.cm.jet
+        pf_coll = PatchCollection(pf_rects, cmap=cmap, edgecolors='None')
+        pf_coll.set_array(numpy.array(hkldata.T.flatten()))
+        p.axes.add_collection(pf_coll)
+
+        p.canvas.draw()
+        p.axes.axis('off')
         return
     #
     #                     ========== *** Event Callbacks
     #
+    def OnHKLChoice(self, e):
+        """HKL selection"""
+        self.idata = self.hkl_cho.GetSelection()
+        self.update()
+        
+        return
+    
+    def OnDispChoice(self, e):
+        """HKL selection"""
+        self.dispm = self.disp_cho.GetSelection()
+        self.update()
+        
+        return
     def OnUpdate(self, e):
         """Update canvas"""
         self.update()

@@ -134,13 +134,13 @@ class xrdMainFrame(wx.Frame):
         """Construct file menu"""
         self.fileMenu = wx.Menu('File')
         #
-        self.fileMenu.Append(wx.ID_NEW, "&New", "Create a new experiment")
+        self.fileMenu.Append(wx.ID_NEW, "&New Experiment", "Create a new experiment")
         self.Bind(wx.EVT_MENU, self.OnFileNew, id=wx.ID_NEW)
         #
-        self.fileMenu.Append(wx.ID_OPEN, "&Load", "Load a saved experiment")
+        self.fileMenu.Append(wx.ID_OPEN, "&Load Experiment", "Load a saved experiment")
         self.Bind(wx.EVT_MENU, self.OnFileLoad, id=wx.ID_OPEN)
         #
-        self.fileMenu.Append(wx.ID_SAVE, "&Save As", "Save the experiment")
+        self.fileMenu.Append(wx.ID_SAVE, "&Save Experiment", "Save the experiment")
         self.Bind(wx.EVT_MENU, self.OnFileSave, id=wx.ID_SAVE)
         #
         self.fileMenu.Append(wx.ID_EXIT, "&Quit", "Quit the program")

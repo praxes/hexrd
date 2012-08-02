@@ -95,7 +95,7 @@ class cakingPanel(wx.Panel):
         #  Method
         #
         self.method_cho = wx.Choice(self, wx.NewId(), choices=prOpts.cakeMethods)
-        self.method_cho.SetSelection(1)
+        self.method_cho.SetSelection(2)
         #
         #  Run
         #
@@ -124,14 +124,11 @@ class cakingPanel(wx.Panel):
         #
         #  Options sizer
         #
-        self.optSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.optSizer = wx.BoxSizer(wx.VERTICAL)
         #
         self.optSizer.Add(self.std_pan, 0, wx.ALIGN_RIGHT)
         self.optSizer.Add(self.mrb_pan, 0, wx.ALIGN_RIGHT)
         self.optSizer.Add(self.sph_pan, 0, wx.ALIGN_RIGHT)
-        #
-        self.optSizer.Show(self.mrb_pan, False)
-        self.optSizer.Show(self.sph_pan, False)
         #
         #  Mode sizer
         #
@@ -150,9 +147,10 @@ class cakingPanel(wx.Panel):
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 5)
 	self.sizer.Add(self.modeSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         #
-        self.Layout()
+        self.sizer.Layout()
+        #
         #  Initialize method choice
-
+        #
         self.OnChooseMethod(None)
 
 	return
@@ -315,12 +313,7 @@ class cakingPanel(wx.Panel):
             self.optSizer.Show(self.sph_pan)
             pass
 
-        self.sizer.Layout()
-
-        self.update(showImg=True)
-        
-        #self.sizer.Show(self.canvas, True)
-
+        #self.modeSizer.Layout()
         self.sizer.Layout()
 
         return
@@ -784,7 +777,8 @@ class sphericalOptsPanel(wx.Panel):
     def __makeObjects(self):
         """Add interactors"""
 
-        self.tbarSizer = makeTitleBar(self, 'Options for Spherical Rebin')
+        self.tbarSizer = makeTitleBar(self, 'Options for Spherical Rebin',
+                                      color=WP.BG_COLOR_TITLEBAR_PANEL1)
         #
         #  Integer inputs
         #
@@ -880,6 +874,18 @@ class sphericalOptsPanel(wx.Panel):
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
 	self.sizer.Add(self.sz_opts,   1, wx.EXPAND|wx.ALIGN_CENTER)
 
+        # Turn off orientation controls
+
+
+        self.sz_orient.Show(self.angle_lab, False)
+        self.sz_orient.Show(self.angle_flt, False)
+        self.sz_orient.Show(self.axis1_lab, False)
+        self.sz_orient.Show(self.axis1_flt, False)
+        self.sz_orient.Show(self.axis2_lab, False)
+        self.sz_orient.Show(self.axis2_flt, False)
+        self.sz_orient.Show(self.axis3_lab, False)
+        self.sz_orient.Show(self.axis3_flt, False)
+        
 	return
     #
     # ============================== API
