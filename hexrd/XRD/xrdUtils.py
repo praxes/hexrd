@@ -2589,7 +2589,7 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
                     debug=3,
                     ):
     """
-    intensityFunc is an instanct of a class that works as an intensity fuction. 
+    intensityFunc is an instance of a class that works as an intensity fuction. 
     
     spotParamsList should be a list with each entry being a list of arguments appropriate to the intensityFunc.constructParams function. For intensityFunc=spotFinder.IntensityFuncGauss3D(), each spotParamsList entry should be (center, fwhm, A), with center being the 3D spot center in angular coordinates (radians), fwhm being the (2-theta, eta, omega) widths in 3D, and A being an intensity scaling. 
     
