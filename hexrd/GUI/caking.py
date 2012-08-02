@@ -788,10 +788,10 @@ class sphericalOptsPanel(wx.Panel):
         #
         #  Integer inputs
         #
-        self.lump_lab = wx.StaticText(self, wx.NewId(), 'lump', style=wx.ALIGN_CENTER)
+        self.lump_lab = wx.StaticText(self, wx.NewId(), '# lumped frames (omega)', style=wx.ALIGN_CENTER)
         self.lump_spn  = wx.SpinCtrl(self, wx.NewId(), min=1, max=1000, initial=1)
 
-        self.bins_lab = wx.StaticText(self, wx.NewId(), 'bins', style=wx.ALIGN_CENTER)
+        self.bins_lab = wx.StaticText(self, wx.NewId(), 'azimuthal bins (eta)', style=wx.ALIGN_CENTER)
         self.bins_spn  = wx.SpinCtrl(self, wx.NewId(), min=1, max=10000, initial=600)
 
         self.thresh_lab = wx.StaticText(self, wx.NewId(), 'threshold',
