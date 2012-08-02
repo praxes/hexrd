@@ -33,7 +33,7 @@ srclist = ['sgglobal.c','sgcb.c','sgcharmx.c','sgfile.c',
            'sgtidy.c','sgtype.c','sgutil.c','runtests.c','sglitemodule.c']
 srclist = [os.path.join('hexrd/sglite', f) for f in srclist]
 
-sglite_mod = Extension('hexrd.XRD.sglite', sources=srclist,
+sglite_mod = Extension('hexrd.xrd.sglite', sources=srclist,
                    define_macros = [('PythonTypes', 1)])
 
 ext_modules = [sglite_mod]
@@ -72,4 +72,3 @@ setup(
         ),
     scripts = scripts,
 )
-
