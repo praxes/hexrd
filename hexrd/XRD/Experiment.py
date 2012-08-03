@@ -315,7 +315,7 @@ class Experiment(object):
         *gp* - initial geometric parameters
         *dp* - initial distortion parameters
 
-"""
+        """
         self._detInfo  = DetectorInfo(gParms=gp, dParms=dp)
 
         return
@@ -325,7 +325,7 @@ class Experiment(object):
         
         INPUTS
         fname -- the name of the file to save in
-"""
+        """
         f = open(fname, 'w')
         self._detInfo.mrbImages = [] # remove images before saving
         cPickle.dump(self._detInfo, f)
@@ -339,10 +339,36 @@ class Experiment(object):
         INPUTS
         fname -- the name of the file to load from
 
-"""
+        """
         # should check the loaded file here
         f = open(fname, 'r')
         self._detInfo = cPickle.load(f)
+        f.close()
+        
+        return
+
+    def saveRawSpots(self, fname):
+        """Save the detector information to a file
+        
+        INPUTS
+        fname -- the name of the file to save in
+        """
+        f = open(fname, 'w')
+        cPickle.dump(self._spots, f)
+        f.close()
+        
+        return
+
+    def loadRawSpots(self, fname):
+        """Load the detector information from a file
+
+        INPUTS
+        fname -- the name of the file to load from
+
+        """
+        # should check the loaded file here
+        f = open(fname, 'r')
+        self._spots = cPickle.load(f)
         f.close()
         
         return
@@ -853,7 +879,8 @@ GE reader is supported.
         if omin is not None:
             odel = dinfo[nfile - 1][3]
             print "omega min and delta: ", omin, odel
-            omargs = (float(omin), float(odel))
+            omargs = (valUnits.valWUnit('omin', 'angle', float(omin), 'degrees'), 
+                      valUnits.valWUnit('odel', 'angle', float(odel), 'degrees'))
         else:
             omargs = ()
             pass

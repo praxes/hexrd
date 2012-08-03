@@ -307,7 +307,7 @@ class FiberSearchPanel(wx.Panel):
         exp = wx.GetApp().ws
         iopts = exp.index_opts
 
-        iopts.fsHKLs=[] # to be done
+        # iopts.fsHKLs = tuple(exp.activeMaterial.planeData.hkls)
         iopts.preserveClaims = self.claims_cbox.GetValue()
         iopts.friedelOnly = self.friedel_cbox.GetValue()
         iopts.doRefinement = self.refine_cbox.GetValue()
@@ -316,7 +316,7 @@ class FiberSearchPanel(wx.Panel):
         iopts.omeTol=float(self.otol_txt.GetValue())
         iopts.minCompleteness=float(self.comp_txt.GetValue())
         iopts.minPctClaimed=float(self.claim_txt.GetValue())
-        iopts.nsteps = self.ncpus_spn.GetValue()
+        iopts.nsteps = self.steps_spn.GetValue()
         
         ncpusVal = self.ncpus_spn.GetValue()
         iopts.nCPUs = ncpusVal if ncpusVal else None
@@ -339,7 +339,7 @@ class FiberSearchPanel(wx.Panel):
         hkls_dlg = HklsDlg(self, wx.NewId(), exp.activeMaterial)
 
         if hkls_dlg.ShowModal() == wx.ID_OK:
-            pd.exclusions = hkls_dlg.getExclusions()
+            # pd.exclusions = hkls_dlg.getExclusions()
             iopts.fsHKLs = hkls_dlg.getTuples()
             print 'hkls: ', iopts.fsHKLs
             

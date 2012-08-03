@@ -123,6 +123,12 @@ class xrdMainFrame(wx.Frame):
         self.__makeDetectorMenu()
         menuBar.Append(self.detectorMenu,  "Detector") 
         
+        self.__makeSpotsMenu()
+        menuBar.Append(self.spotsMenu,  "Spots") 
+
+        ## self.__makeIndexerMenu()
+        ## menuBar.Append(self.IndexerMenu,  "Indexer") 
+
         self.__makeHelpMenu()
         menuBar.Append(self.helpMenu,  "Help") 
         
@@ -242,6 +248,44 @@ class xrdMainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnCaking, id=self.detectorMenu.IDcake)
 
         return
+
+    def __makeSpotsMenu(self):
+        self.spotsMenu = wx.Menu('Spots')
+        #
+        self.spotsMenu.IDloadRaw = wx.NewId()
+        self.spotsMenu.Append(self.spotsMenu.IDloadRaw, 
+                              "Load raw spots", 
+                              "Load the raw spots to a file")
+        self.Bind(wx.EVT_MENU, self.OnSpotsLoadRaw, id=self.spotsMenu.IDloadRaw)
+        #
+        self.spotsMenu.IDsaveRaw = wx.NewId()
+        self.spotsMenu.Append(self.spotsMenu.IDsaveRaw, 
+                              "Save raw spots", 
+                              "Save the raw spots to a file")
+        self.Bind(wx.EVT_MENU, self.OnSpotsSaveRaw, id=self.spotsMenu.IDsaveRaw)
+        #
+        ## self.spotsMenu.IDsave = wx.NewId()
+        ## self.spotsMenu.Append(self.spotsMenu.IDsave, 
+        ##                       "Save post-processed spots", 
+        ##                       "Save the post-processed Spots class")
+        ## self.Bind(wx.EVT_MENU, self.OnSpotsSave, id=self.spotsMenu.IDsave)
+        ## #
+        ## self.spotsMenu.IDexportFLT = wx.NewId()
+        ## self.spotsMenu.Append(self.spotsMenu.IDexportFLT, 
+        ##                       "Export flt", 
+        ##                       "Export a fable flt file")
+        ## self.Bind(wx.EVT_MENU, self.OnSpotsExportFLT, id=self.spotsMenu.IDexportFLT)
+        ## #
+        ## self.spotsMenu.IDexportGVE = wx.NewId()
+        ## self.spotsMenu.Append(self.spotsMenu.IDexportGVE, 
+        ##                       "Export gve", 
+        ##                       "Export a fable gve file")
+        ## self.Bind(wx.EVT_MENU, self.OnSpotsExportGVE, id=self.spotsMenu.IDexportGVE)
+        return
+
+    ## def __makeIndexerMenu(self):
+    ##     raise NotImplementedError
+    ##     return
 
     def __makeHelpMenu(self):
         """Construct file menu"""
@@ -415,6 +459,52 @@ class xrdMainFrame(wx.Frame):
         self.updateFromExp()
         return
     
+    #
+    # ========== Spots Menu
+    #
+    def OnSpotsLoadRaw(self, e):
+        """Load detector"""
+        app = wx.GetApp()
+        exp = app.ws
+
+        dlg = wx.FileDialog(self, 'Load Raw Spots', 
+                            style=wx.FD_OPEN | 
+                                  wx.FD_FILE_MUST_EXIST)
+        if dlg.ShowModal() == wx.ID_OK:
+            f = dlg.GetPath()
+            try:
+                exp.loadRawSpots(f)
+            except:
+                wx.MessageBox('failed to load file:  %s' % f)
+                pass
+            pass
+
+        dlg.Destroy()
+
+        self.updateFromExp()
+        
+        return
+
+    def OnSpotsSaveRaw(self, e):
+        """Save raw spots"""
+        app = wx.GetApp()
+        exp = app.ws
+
+        dlg = wx.FileDialog(self, 'Save Raw Spots', style=wx.FD_SAVE)
+        if dlg.ShowModal() == wx.ID_OK:
+            f = dlg.GetPath()
+            try:
+                exp.saveRawSpots(f)
+            except:
+                wx.MessageBox('failed to save file:  %s' % f)
+                pass
+            pass
+
+        dlg.Destroy()
+
+        self.updateFromExp()
+        return
+
     def OnCaking(self, e):
         """Raise the caking window"""
         app = wx.GetApp()
