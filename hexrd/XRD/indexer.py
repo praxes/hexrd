@@ -387,6 +387,7 @@ def fiberSearch(spotsArray, hklList,
                 debug=True,
                 doMultiProc=True,
                 nCPUs=None,
+                outputGrainList=False
                 ):
     """
     This indexer finds grains by performing 1-d searches along the fibers under the
@@ -572,7 +573,12 @@ def fiberSearch(spotsArray, hklList,
     rMats = num.empty((len(grainList), 3, 3))
     for i in range(len(grainList)):
         rMats[i, :, :] = grainList[i].rMat
-
+    
+    if outputGrainList:
+        retval = (rMats, grainList)
+    else:
+        retval = rMats
+    
     if not preserveClaims:
         spotsArray.resetClaims()
     toc = time.time()
@@ -596,7 +602,7 @@ def fiberSearch(spotsArray, hklList,
     minCompleteness_MP = None
     doRefinement_MP = None
     
-    return rMats
+    return retval
 
 def pgRefine(x, etaOmeMaps, omegaRange, threshold):
     phi = sum(x*x)
