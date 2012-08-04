@@ -35,6 +35,14 @@ import wx
 from hexrd.GUI.guiConfig    import WindowParameters as WP
 from hexrd.GUI.guiUtilities import makeTitleBar, EmptyWindow
 from hexrd.GUI.selectHKLs   import selectHKLsDialog as HklsDlg 
+
+import hexrd.XRD.xrdBase as xrdBase
+
+if xrdBase.haveMultiProc:
+    ncpus_DFLT = xrdBase.multiprocessing.cpu_count()
+else:
+    ncpus_DFLT = 1
+
 #
 # ---------------------------------------------------CLASS:  indexPanel
 #
@@ -218,7 +226,7 @@ class FiberSearchPanel(wx.Panel):
         self.steps_lab = wx.StaticText(self, wx.NewId(), 'Number of Steps',
                                       style=wx.ALIGN_RIGHT)
         self.steps_spn = wx.SpinCtrl(self, wx.NewId(),
-                                     min=10, max=360000, initial=iopts.nsteps)
+                                     min=36, max=36000, initial=iopts.nsteps)
 
         label = 'Minimum Completeness'
         self.comp_lab = wx.StaticText(self, wx.NewId(), label,
@@ -238,7 +246,7 @@ class FiberSearchPanel(wx.Panel):
         self.ncpus_lab = wx.StaticText(self, wx.NewId(), label,
                                       style=wx.ALIGN_RIGHT)
         self.ncpus_spn = wx.SpinCtrl(self, wx.NewId(),
-                                     min=0, initial=0)
+                                     min=1, max=ncpus_DFLT, initial=ncpus_DFLT)
 
         label = 'Quit After This Many'
         self.qafter_lab = wx.StaticText(self, wx.NewId(), label,

@@ -187,7 +187,7 @@ def convertUToRotMat(Urows, U0, symTag='Oh', display=False):
     Uout = rotMatOfQuat(qout)
     return Uout
 
-def convertRotMatToFableU(rMats, U0, symTag='Oh', display=False):
+def convertRotMatToFableU(rMats, U0=num.eye(3), symTag='Oh', display=False):
     """
     Makes GrainSpotter gff ouput
 
