@@ -38,8 +38,9 @@ import sys, os, copy
 import cPickle
 import numpy
 
-from scipy.linalg import inv
+from scipy.linalg          import inv
 from scipy.linalg.matfuncs import logm
+from scipy                 import optimize
 
 from hexrd import matrixUtils
 from hexrd import valUnits
@@ -1438,7 +1439,7 @@ def refineDetector(grainList, scl=None, gtol=1.0e-6):
     x0 = scl * numpy.r_[xc, zTilt, chiTilt]
 
     # call to optimization routine
-    xopt = opt.fmin_bfgs(objFunc, x0, args=(grainList, scl), gtol=gtol)
+    xopt = optimize.fmin_bfgs(objFunc, x0, args=(grainList, scl), gtol=gtol)
     
     # recall objective to set detector geometries properly with solution
     objFunc(xopt, grainList, scl)
