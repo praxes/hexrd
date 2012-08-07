@@ -177,7 +177,7 @@ class Experiment(object):
         return self._fitRMats
     
     # property:  index_opts
-
+    
     def refine_grains(self, 
                       minCompl,
                       nSubIter=3,
@@ -214,15 +214,44 @@ class Experiment(object):
         self.grainList = grainList
         return
     
-    def export_grainList(self, fid, 
+    def saveRMats(self, f):
+        """save rMats to npy file"""
+        numpy.save(f, self.rMats)
+        return
+    
+    def dump_grainList(self, f):
+        """dump grainList to cPickle"""
+        if isinstance(f, file):
+            fid = f
+        elif isinstance(f, str) or isinstance(f, unicode):
+            fid = open(f, 'w')
+        cPickle.dump(self.grainList, fid)
+        fid.close()
+        return
+    
+    def export_grainList(self, f, 
                          dspTol=5.0e-3,
                          etaTol=valUnits.valWUnit('etaTol', 'angle', 0.5, 'degrees'), 
                          omeTol=valUnits.valWUnit('etaTol', 'angle', 0.5, 'degrees'),
-                         doFit=False):
+                         doFit=False, 
+                         sort=True):
         """
         export method for grainList
         """
-        for iG in range(len(self.grainList)):
+        if isinstance(f, file):
+            fid = f
+        elif isinstance(f, str) or isinstance(f, unicode):
+            fid = open(f, 'w')
+            pass
+        
+        if sort:
+            loop_idx = numpy.argsort([self.grainList[i].completeness 
+                                      for i in range(len(self.grainList))])[-1::]
+        else:
+            loop_idx = range(len(self.grainList))
+            pass
+        
+        for iG in loop_idx:
             #
             # this grain
             grain = self.grainList[iG]
@@ -233,6 +262,7 @@ class Experiment(object):
             V   = grain.vMat
             FnT = inv(numpy.dot(V, R)).T
             E   = logm(V)
+            Es  = logm(grain.uMat)
             lp  = grain.latticeParameters
             p   = grain.detectorGeom.pVec
             #
@@ -247,11 +277,15 @@ class Experiment(object):
                   '#    V = [[%1.3e, %1.3e, %1.3e],\n' % (V[0, 0], V[0, 1], V[0, 2]) + \
                   '#         [%1.3e, %1.3e, %1.3e],\n' % (V[1, 0], V[1, 1], V[1, 2]) + \
                   '#         [%1.3e, %1.3e, %1.3e]]\n' % (V[2, 0], V[2, 1], V[2, 2]) + \
-                  '#\n#    logarithmic strain tensor (log(V) --> sample):\n#\n' + \
+                  '#\n#    logarithmic strain tensor (log(V) --> sample frame):\n#\n' + \
                   '#    E = [[%1.3e, %1.3e, %1.3e],\n' % (E[0, 0], E[0, 1], E[0, 2]) + \
                   '#         [%1.3e, %1.3e, %1.3e],\n' % (E[1, 0], E[1, 1], E[1, 2]) + \
                   '#         [%1.3e, %1.3e, %1.3e]]\n' % (E[2, 0], E[2, 1], E[2, 2]) + \
-                  '#\n#    F^-T ( hkl --> (Xs, Ys, Zs) ):\n#\n' + \
+                  '#\n#    logarithmic strain tensor (log(U) --> crystal frame):\n#\n' + \
+                  '#    E = [[%1.3e, %1.3e, %1.3e],\n' % (Es[0, 0], Es[0, 1], Es[0, 2]) + \
+                  '#         [%1.3e, %1.3e, %1.3e],\n' % (Es[1, 0], Es[1, 1], Es[1, 2]) + \
+                  '#         [%1.3e, %1.3e, %1.3e]]\n' % (Es[2, 0], Es[2, 1], Es[2, 2]) + \
+                  '#\n#    F^-T ( hkl --> (Xs, Ys, Zs), reciprocal lattice to sample frame ):\n#\n' + \
                   '#        [[%1.3e, %1.3e, %1.3e],\n' % (FnT[0, 0], FnT[0, 1], FnT[0, 2]) + \
                   '#         [%1.3e, %1.3e, %1.3e],\n' % (FnT[1, 0], FnT[1, 1], FnT[1, 2]) + \
                   '#         [%1.3e, %1.3e, %1.3e]]\n' % (FnT[2, 0], FnT[2, 1], FnT[2, 2]) + \
@@ -263,8 +297,11 @@ class Experiment(object):
             s1, s2, s3 = grain.findMatches(etaTol=etaTol, omeTol=omeTol, strainMag=dspTol,
                                            updateSelf=True, claimingSpots=True, doFit=doFit, filename=fid)
             print >> fid, '#\n#    final completeness for grain %d: %g%%\n' % (iG, grain.completeness*100) + \
-                  '\#####################\n'
+                  '#####################\n'
+            pass
+        
         fid.close()
+        
         return
     
     def simulateGrain(self, 
@@ -322,7 +359,7 @@ class Experiment(object):
                          nCPUs=iopts.nCPUs,
                          quitAfter=iopts.quitAfter,
                          outputGrainList=True)
-        iopts._fitRMats = retval[0]
+        iopts._fitRMats = retval[0] # HUH?!
         self.rMats = retval[0]
         self.grainList = retval[1]
         return
@@ -347,6 +384,32 @@ class Experiment(object):
         
         return
     # property:  spot_readers
+
+    def saveRawSpots(self, fname):
+        """Save the detector information to a file
+        
+        INPUTS
+        fname -- the name of the file to save in
+        """
+        f = open(fname, 'w')
+        cPickle.dump(self._spots, f)
+        f.close()
+        
+        return
+
+    def loadRawSpots(self, fname):
+        """Load the detector information from a file
+
+        INPUTS
+        fname -- the name of the file to load from
+
+        """
+        # should check the loaded file here
+        f = open(fname, 'r')
+        self._spots = cPickle.load(f)
+        f.close()
+        
+        return
 
     @property
     def spot_readers(self):
@@ -471,31 +534,6 @@ class Experiment(object):
         
         return
 
-    def saveRawSpots(self, fname):
-        """Save the detector information to a file
-        
-        INPUTS
-        fname -- the name of the file to save in
-        """
-        f = open(fname, 'w')
-        cPickle.dump(self._spots, f)
-        f.close()
-        
-        return
-
-    def loadRawSpots(self, fname):
-        """Load the detector information from a file
-
-        INPUTS
-        fname -- the name of the file to load from
-
-        """
-        # should check the loaded file here
-        f = open(fname, 'r')
-        self._spots = cPickle.load(f)
-        f.close()
-        
-        return
 
     #
     # ==================== Calibration Input
@@ -1344,7 +1382,7 @@ class IndexOptions(object):
         self.doRefinement=True
         self.doMultiProc=True
         self.etaTol=0.25
-        self.omeTol=0.25
+        self.omeTol=0.50
         self.minCompleteness=0.67
         self.minPctClaimed=0.70
         self.nsteps=360
