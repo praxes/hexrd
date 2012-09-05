@@ -284,8 +284,10 @@ class CanvasPanel(wx.Panel):
                 # print 'number of images in current axes:  %d' % len(self.axes.get_images())
             else:
                 # set visibility of axes image
-                img0 = self.axes.get_images()[0]
-                img0.set_visible(si)
+                images = self.axes.get_images()
+                if images:
+                    img0 = images[0]
+                    img0.set_visible(si)
                 pass
             pass
         # 

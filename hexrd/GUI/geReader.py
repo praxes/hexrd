@@ -38,6 +38,8 @@ from hexrd.XRD.Experiment import *
 from hexrd.GUI.guiConfig    import WindowParameters as WP
 from hexrd.GUI.guiUtilities import ResetChoice, makeTitleBar
 from hexrd.GUI.canvasPanel  import CanvasPanel
+
+from hexrd import valUnits
 #
 #  DATA
 #
@@ -722,10 +724,10 @@ class MF_Subpanel(wx.Panel):
     #                     ========== *** Event Callbacks
     #
     def OnEditListCtrl(self, e):
-        """List control item Activated
-
+        """
+        List control item Activated
         Update information for that item.
-"""
+        """
         print 'item selected'
         print e.GetIndex(), e.GetColumn(), e.Column
         #print 'text: ', self.file_lctrl.GetItem(e.GetIndex(), e.GetColumn()).GetText()
@@ -941,24 +943,24 @@ class myListCtrl(wx.ListCtrl,
     
     def CloseEditor(self, e=None):
         exp = wx.GetApp().ws
-
+        
         listMixins.TextEditMixin.CloseEditor(self, e)
         i = self.curRow; j = self.curCol
 
         item = self.GetItem(i, j)
-
+        
         print 'item (%d, %d) modified' % (i, j)
         print 'item text: ', item.GetText()
-
+        
         fname = self.GetItem(i, 0).GetText()
-
+        
         try:
             numEm = int(self.GetItem(i, 1).GetText())
         except:
             numEm = exp.activeReader.imageNameD[fname][0]
             self.SetStringItem(i, j, str(numEm))
             pass
-
+        
         omin  = self.GetItem(i, 3).GetText()
         omax  = self.GetItem(i, 4).GetText()
         odel  = self.GetItem(i, 5).GetText()

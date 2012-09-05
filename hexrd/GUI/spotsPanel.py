@@ -361,7 +361,7 @@ class spotsPanel(wx.Panel):
         hkls_dlg = HklsDlg(self, wx.NewId(), exp.activeMaterial)
 
         if hkls_dlg.ShowModal() == wx.ID_OK:
-            exp.activeMaterial.planeData.exclusions = dlg.getExclusions()
+            exp.activeMaterial.planeData.exclusions = hkls_dlg.getExclusions()
             pass
         
         return
