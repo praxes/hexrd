@@ -1492,7 +1492,7 @@ class MultiRingBinned:
     __print = True
     __location = '  MultiRingBinned'
     def __init__(self, detectorGeom, planeData,
-                 dataFrame, # None
+                 dataFrame, 
                  funcType = funcTypeDflt, 
                  refineParamsDG = True,
                  refineParamsL = False,
@@ -1506,7 +1506,10 @@ class MultiRingBinned:
                  log=None
                  ):
 
-        if log is not None: self.logfile = log
+        if log is not None:
+            self.logfile = log
+        else:
+            log = sys.stdout
         
         ticMethod = time.time()
         
@@ -1517,7 +1520,7 @@ class MultiRingBinned:
         #
         "defaults which want different from those for polarRebin's defaults"
         prbkw = {
-            'corrected' : True,        # ...
+            'corrected' : False,
             'ROI'       : None,
             'etaRange'  : None,
             'numEta'    : 36,
@@ -1968,21 +1971,38 @@ class MultiRingBinned:
 
         return fitParams
 
-    def getTThErrors(self, plot=False, units='strain'):
+    def getTThErrors(self, plot=False, units='strain', outputFile=None):
         """
         convenient way of looking at the errors, though not how the
         errors are actually measured in the fitting procedure;
         get the tTh values at the image frame locations deemed to be
         the centers with the floating-center fits
 
-        units can be:  'd-spacing', 'radians', 'strain', 'degrees'
+        units can be:  'mm' <radius>, 'd-spacing', 'strain', 'radians' <tTh>, 'degrees' <tTh>
         """
-        tThFloating, etaFloating = self.detectorGeom.xyoToAng(
-            self.floatingCentersIJ[:,:,0], self.floatingCentersIJ[:,:,1] )
-        
+        # baseline ("ideal") tTh values
         tThs = self.planeData.getTTh()[self.iRingToHKL]
         
-        if units == 'd-spacing' or units == 'strain':
+        # need these to reconstruct azimuths
+        #   - Are in mm (self.detectorGeom.pixelPitchUnit)
+        xFl, yFl = self.detectorGeom.cartesianCoordsOfPixelIndices(
+            self.floatingCentersIJ[:,:,0], self.floatingCentersIJ[:,:,1])
+
+        # azimuthal angles from xyoToAng
+        tThFloating, etaFloating = self.detectorGeom.xyoToAng(
+                self.floatingCentersIJ[:,:,0], self.floatingCentersIJ[:,:,1] )
+
+        if units == 'mm':
+            rho = num.sqrt((xFl - self.detectorGeom.xc)**2 +
+                           (yFl - self.detectorGeom.yc)**2)
+            x0, y0 = self.detectorGeom.angToXYO(num.tile(tThs, (self.numEta, 1)),
+                                                etaFloating,
+                                                units=self.detectorGeom.pixelPitchUnit)
+            rho0 = num.sqrt((x0 - self.detectorGeom.xc)**2 +
+                            (y0 - self.detectorGeom.yc)**2)
+            ylabel = '(rho - rho0)'
+            errs = rho - rho0
+        elif units == 'd-spacing' or units == 'strain':
             dspFloating = self.planeData.wavelength / ( 2. * num.sin(0.5 * tThFloating) )
             dsp         = self.planeData.getPlaneSpacings()
             print len(dspFloating)
@@ -1997,11 +2017,11 @@ class MultiRingBinned:
         elif units == 'radians' or units == 'degrees':
             tThErrs = tThFloating - num.tile(tThs, (self.numEta,1) )
             if units == 'degrees':
-                 ylabel = 'tTh - tTh0  [deg]'
-                 errs = tThErrs * r2d
+                ylabel = 'tTh - tTh0  [deg]'
+                errs = tThErrs * r2d
             else:
-                 ylabel = 'tTh - tTh0  [deg]'
-                 errs = tThErrs
+                ylabel = 'tTh - tTh0  [deg]'
+                errs = tThErrs
         else:
             raise RuntimeError, "units keyword '%s' is not recognized" % units
         
@@ -2019,6 +2039,48 @@ class MultiRingBinned:
         else:
             retval = errs    
         
+        if outputFile is not None:
+            lp = self.planeData.latVecOps['dparms'].reshape(6, 1)
+            lp = num.dot( num.diag( num.hstack([num.ones(3,), 180*num.ones(3,)/num.pi]) ), lp )
+            laueGrp = self.planeData.getLaueGroup()
+            numTTh = len(tThs)
+            rhoMax = 204.8
+            hklIDs = self.planeData.getHKLID(self.planeData.getHKLs().T)
+            hklStr = self.planeData.getHKLs(asStr=True)
+            
+            rho = num.sqrt((xFl - self.detectorGeom.xc)**2 +
+                           (yFl - self.detectorGeom.yc)**2)
+            x0, y0 = self.detectorGeom.angToXYO(num.tile(tThs, (self.numEta, 1)),
+                                                etaFloating,
+                                                units=self.detectorGeom.pixelPitchUnit)
+            rho0 = num.sqrt((x0 - self.detectorGeom.xc)**2 +
+                            (y0 - self.detectorGeom.yc)**2)
+            
+            # make output for nutonian
+            idsOut  = num.tile(hklIDs, (2*self.numEta, 1)).T.flatten()
+            etaOut  = num.vstack([etaFloating, 2*num.pi + etaFloating]).T.flatten()
+            rho0Out = num.vstack([rho0, rho0]).T.flatten()/rhoMax
+            rhoOut  = num.vstack([rho, rho]).T.flatten()/rhoMax
+            
+            dataList = ["%d,%1.6e,%1.6e,%1.6e"
+                        % (idsOut[i], etaOut[i], rho0Out[i], rhoOut[i])
+                        for i in range(len(idsOut))]
+            
+            if isinstance(outputFile, file):
+                fid = outputFile
+            else:
+                fid = open(outputFile, 'w')
+            print >> fid, '# Lattice Parameters: (%.4f, %.4f, %.4f, %.1f, %.1f, %.1f)' % (lp[0],lp[1],lp[2],lp[3],lp[4],lp[5])
+            print >> fid, '# Laue Group: %s' % (laueGrp)
+            print >> fid, '# Wavelength: %f' % (self.planeData.wavelength)
+            print >> fid, '# \n# xc, yc = (%.3f, %.3f)' % (self.detectorGeom.xc, self.detectorGeom.yc)
+            print >> fid, '# D = %.3f' % (self.detectorGeom.workDist)
+            print >> fid, '# xTilt, yTilt, zTilt = (%1.3e, %1.3e, %1.3e)\n# ' % (self.detectorGeom.xTilt, self.detectorGeom.yTilt, self.detectorGeom.zTilt)
+            print >> fid, '\n'.join(['# ' + str(hklIDs[i]) + ' --> ' + hklStr[i] for i in range(len(hklIDs))])
+            print >> fid, '# '
+            print >> fid, '# ID, azimuth, ideal, measured\n# '
+            print >> fid, '\n'.join(dataList)
+            fid.close()
         return retval
 
 class MultiRingEval:
@@ -4121,7 +4183,7 @@ class Detector2DRC(DetectorBase):
             # get rho in ideal frame
             rho = self.workDist * num.tan(tTh.flatten())
             eta = eta.flatten()
-            if not startEta is None:
+            if startEta is not None:
                 eta = mapAngle(eta, [startEta, 2*num.pi + startEta], units='radians')
 
 
@@ -4136,7 +4198,7 @@ class Detector2DRC(DetectorBase):
             #   - map eta into specified monotonic range
             rho = num.sqrt( x*x + y*y )
             eta = num.arctan2(y, x)
-            if not startEta is None:
+            if startEta is not None:
                 eta = mapAngle(eta, [startEta, 2*num.pi + startEta], units='radians')
         
         return rho, eta, x, y

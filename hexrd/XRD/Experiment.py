@@ -246,7 +246,7 @@ class Experiment(object):
         
         if sort:
             loop_idx = numpy.argsort([self.grainList[i].completeness 
-                                      for i in range(len(self.grainList))])[-1::]
+                                      for i in range(len(self.grainList))])[::-1]
         else:
             loop_idx = range(len(self.grainList))
             pass

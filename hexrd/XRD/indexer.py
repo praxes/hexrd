@@ -676,7 +676,11 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
     
     omeMin = None
     omeMax = None
-    if omegaRange is not None:
+    if omegaRange is None:              # this NEEDS TO BE FIXED!
+        delOmeByTwo = 0.5*abs(etaOmeMaps.omegas[0] - etaOmeMaps.omegas[1])
+        omeMin = [num.min(etaOmeMaps.omegas) - delOmeByTwo]
+        omeMax = [num.max(etaOmeMaps.omegas) + delOmeByTwo]
+    else:
         omeMin = [omegaRange[i][0] for i in range(len(omegaRange))]
         omeMax = [omegaRange[i][1] for i in range(len(omegaRange))]
     etaMin = None
