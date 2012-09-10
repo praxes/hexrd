@@ -348,7 +348,9 @@ class rngOpts(wx.Panel):
         if dlg.ShowModal() == wx.ID_OK:
             f = dlg.GetPath()
             try:
-                numpy.savetxt(f, self.errs)
+                # numpy.savetxt(f, self.errs)
+                p = self.GetParent()
+                p.data.getTThErrors(outputFile=f)
             except:
                 wx.MessageBox('failed to save file:  %s' % f)
                 pass
