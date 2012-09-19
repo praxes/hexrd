@@ -635,11 +635,11 @@ class sphOpts(wx.Panel):
 
         tTh = exp.activeMaterial.planeData.getTTh()[self.idata]
             
-        etas  = ome_eta.etaEdges * deg2rad
+        etas  = ome_eta.etaEdges 
         netas = len(etas) - 1
         deta = abs(etas[1] - etas[0])
 
-        omes  = ome_eta.omeEdges * deg2rad
+        omes  = ome_eta.omeEdges 
         nomes = len(omes) - 1
         dome = abs(omes[1] - omes[0])
         
