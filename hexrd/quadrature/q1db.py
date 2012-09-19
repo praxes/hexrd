@@ -1,24 +1,24 @@
 # ============================================================
-# Copyright (c) 2007-2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2007-2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -26,7 +26,7 @@
 # ============================================================
 import numpy as num
 
-from .qloc1dData import *
+from .qloc1ddata import *
 
 def qloc1():
     nqpt = 1
@@ -45,7 +45,7 @@ def qloc2():
     xi[1]=(1.0e0 + xi_a2)*0.5e0;  w[1] = 0.5e0;
 
     return xi, w
-    
+
 def qloc3():
     from math import sqrt
     nqpt = 3
@@ -55,7 +55,7 @@ def qloc3():
     xi[1]=0.5e0                  ;  w[1] = sqrt(64.0e0 / 324.0e0);
     xi[2]=0.5e0 * (1.0e0 + xi_a3);  w[2] = w[0];
     return xi, w
-    
+
 def qloc4():
     from math import sqrt
     nqpt = 4
@@ -68,7 +68,7 @@ def qloc4():
     xi[2]=0.5e0 * (1.0e0 + xi_b);  w[2] = w[1]
     xi[3]=0.5e0 * (1.0e0 + xi_a);  w[3] = w[0]
     return xi, w
-    
+
 def qloc5():
     from math import sqrt
     nqpt = 5
@@ -82,7 +82,7 @@ def qloc5():
     xi[3]=0.5e0 * (1.0e0 + xi_b);  w[3] = w[1]
     xi[4]=0.5e0 * (1.0e0 + xi_a);  w[4] = w[0]
     return xi, w
-    
+
 def qloc8():
     from math import sqrt
     nqpt = 8
@@ -97,7 +97,7 @@ def qloc8():
     xi[6]=(1.0e0+xi_8b)*0.5e0;  w[6] = w_8b*0.5e0;
     xi[7]=(1.0e0+xi_8a)*0.5e0;  w[7] = w_8a*0.5e0;
     return xi, w
-    
+
 def qLoc(quadr, promote=False):
     if promote:
         nqp = num.array([1,2,3,4,5,8])
