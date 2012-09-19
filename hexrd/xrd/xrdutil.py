@@ -56,7 +56,7 @@ from hexrd.xrd.detector import getCMap
 from hexrd.xrd import xrdbase
 from hexrd.xrd.xrdbase import dataToFrame
 from hexrd.xrd.xrdbase import multiprocessing
-from hexrd.xrd import Rotations as rot
+from hexrd.xrd import rotations as rot
 from hexrd.xrd.rotations import mapAngle
 from hexrd.xrd import spotfinder
 try:
@@ -2583,19 +2583,19 @@ def pfigFromSpots(spots, iHKL, phaseID=None,
 
 def makeSynthFrames(spotParamsList, detectorGeom, omegas, 
                     intensityFunc=spotfinder.IntensityFuncGauss3D(), 
-                    asSparse=True, 
-                    outputPrefix=None, 
+                    asSparse=None, 
+                    output=None, 
                     cutoffMult=4.0, 
-                    debug=3,
+                    debug=1,
                     ):
     """
     intensityFunc is an instance of a class that works as an intensity fuction. 
     
     spotParamsList should be a list with each entry being a list of arguments appropriate to the intensityFunc.constructParams function. For intensityFunc=spotfinder.IntensityFuncGauss3D(), each spotParamsList entry should be (center, fwhm, A), with center being the 3D spot center in angular coordinates (radians), fwhm being the (2-theta, eta, omega) widths in 3D, and A being an intensity scaling. 
     
-    If outputPrefix is specified, then the frames are dumped to files instead of being accumulated in memory. 
+    If output is specified as a string, then the frames with the given prefix are dumped to files instead of being accumulated in memory. If output is callable then frames are passed to output().
     
-    If asSparse is true then sparse matrices are used to reduce memory footprint. The asSparse option is currently not coded for the case of outputPrefix having been specied.
+    If asSparse is true then sparse matrices are used to reduce memory footprint. The asSparse option is currently not coded for the case of output having been specied.
     
     cutoffMult is the multiplier on the FWHM to determine the angular cutoff range for evaluating intensity for each spot. 
     """
@@ -2624,14 +2624,24 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
         'make spot instance, set up for just a single omega frame slice'
         xM, yM = num.meshgrid(num.arange(*xyfBBox[0]), num.arange(*xyfBBox[1]))
         xAll = xM.flatten(); yAll = yM.flatten();
-        data = ( xAll, yAll, num.zeros_like(xAll), num.ones_like(xAll) )
-        spot = spotfinder.Spot(iSpot, omegaDelta, data=data, detectorGeom=detectorGeom)
-        spot.setupQuardFromFWHM(fwhm)
-        
-        spotList.append( (spot, xyfBBox, xVec) )
-        if debug: print 'created spot %d'%(iSpot)
-    
-    if outputPrefix is None:
+        if len(xAll) > 0:
+            data = ( xAll, yAll, num.zeros_like(xAll), num.ones_like(xAll) )
+            spot = spotfinder.Spot(iSpot, omegaDelta, data=data, detectorGeom=detectorGeom)
+            if spot.doMap:
+                'this changes xVec to be mapped for non-standard branch cut'
+                angCen[1] = detector.mapAngs(angCen[1], doMap=spot.doMap)
+            spot.setupQuardFromFWHM(fwhm)
+            spotList.append( (spot, xyfBBox, xVec) )
+            if debug: print 'created spot %d at %s bbox %s' % ( iSpot, str(angCen), str(xyfBBox) )
+        else:
+            if debug:
+                print 'spot at %s is off the detector' % (str(angCen))
+    if debug: print 'created %d spots'%(len(spotList))
+
+    if asSparse is None:
+        asSparse = output is None 
+
+    if output is None:
         if asSparse:
             stack = [] # sparse.coo_matrix( (detectorGeom.nrows, detectorGeom.ncols), float )
         else:
@@ -2644,7 +2654,7 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
     #
     for iFrame, omega in enumerate(omegas):
         
-        if outputPrefix is None:
+        if output is None:
             if asSparse:
                 vThese = []
                 xThese = []
@@ -2654,17 +2664,17 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
         else:
             frame = detectorGeom.frame()
         
-        for iSpot, (spot, xyfBBox, xVec) in enumerate(spotList):
+        for spot, xyfBBox, xVec in spotList:
             
             if iFrame < xyfBBox[2][0] or iFrame >= xyfBBox[2][1]:
                 '>= for upper end because is meant to be used as a slice'
-                if debug>2: print 'spot %d not on frame %d' % (iSpot, iFrame)
+                if debug>2: print 'spot %s not on frame %d' % (spot.key, iFrame)
                 continue
             
             'calculate intensities at the omega for this frame'
             spot.oAll[:] = omega
             vCalc = spot.getVCalc(intensityFunc, xVec, noBkg=True) 
-            if debug>2:print vCalc.max()
+            if debug>1:print 'frame %d spot %s max %g' % ( iFrame, spot.key, vCalc.max() )
             
             'put intensity on frames'
             if asSparse:
@@ -2675,7 +2685,7 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
                 frame[spot.xAll, spot.yAll] += vCalc
         'done with spot loop'
         
-        if outputPrefix is None:
+        if output is None:
             if asSparse:
                 if len(vThese) > 0:
                     vThese = num.hstack(vThese)
@@ -2693,7 +2703,14 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
                 'nothing to do here'
                 pass
         else:
-            frame.tofile(outputPrefix+'_%04d.dat'%iFrame)
+            if hasattr(output, 'lower'):
+                'assume output is a str or something like it'
+                frame.tofile(output+'_%04d.dat'%iFrame)
+            elif hasattr(output,'__call__'):
+                output(frame)
+            else:
+                raise RuntimeError, 'do not know what to do with output of type %s' % (type(output))
+            
     
         if debug: print 'created frame %d'%(iFrame)
     

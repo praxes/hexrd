@@ -1017,7 +1017,7 @@ class PlaneData(object):
         """
         modeled after QFromU.m
         """
-        from Rotations import angleAxisOfRotMat, rotMatOfExpMap, arccosSafe, mapAngle
+        from rotations import angleAxisOfRotMat, rotMatOfExpMap, arccosSafe, mapAngle
 
         # basis vectors
         Xl = num.vstack([1, 0, 0])          # X in the lab frame
@@ -1191,7 +1191,7 @@ class PlaneData(object):
         """
         modeled after QFromU.m
         """
-        from Rotations import angleAxisOfRotMat, rotMatOfExpMap, arccosSafe, mapAngle
+        from rotations import angleAxisOfRotMat, rotMatOfExpMap, arccosSafe, mapAngle
 
         if bMat is None:
             bMat = self.__latVecOps['B']
@@ -1283,7 +1283,7 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
         to Deformed In Situ'', J. Eng. Mater. Technol. (2008). 130.
         DOI:10.1115/1.2870234
     """
-    from Rotations import arccosSafe, mapAngle, rotMatOfExpMap
+    from rotations import arccosSafe, mapAngle, rotMatOfExpMap
 
     dispFlag  = False
     risoeFlag = False

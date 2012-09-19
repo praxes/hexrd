@@ -54,10 +54,10 @@ from matplotlib import mlab
 from matplotlib.widgets import Slider, Button, RadioButtons
 
 from hexrd import xrd
-from hexrd.xrd.xrdBase import getGaussNDParams, dataToFrame
-from hexrd.xrd.Rotations import mapAngle
-from hexrd.xrd.Rotations import rotMatOfExpMap
-from hexrd.xrd.Rotations import rotMatOfExpMap, arccosSafe
+from hexrd.xrd.xrdbase import getGaussNDParams, dataToFrame
+from hexrd.xrd.rotations import mapAngle
+from hexrd.xrd.rotations import rotMatOfExpMap
+from hexrd.xrd.rotations import rotMatOfExpMap, arccosSafe
 from hexrd.quadrature import q1db
 from hexrd.quadrature import q2db
 from hexrd.matrixutil import unitVector
@@ -80,8 +80,10 @@ def angToXYIdeal(tTh, eta, workDist):
     y   = rho * num.sin(eta)
     return x, y
 
-def mapAngs(eta):
-    if num.all(num.cos(eta) < 0.):
+def mapAngs(eta, doMap=None):
+    if doMap is None:
+        doMap = num.all(num.cos(eta) < 0)
+    if doMap:
         eta = mapAngle(eta, (0, 2*num.pi), units='radians')
     return eta
 
@@ -192,17 +194,24 @@ class Framer2DRC(object):
     """
     def __init__(self,
                  ncols, nrows,
-                 dtypeDefault='int16', dtypeRead='unit16', dtypeFloat='float64'):
+                 dtypeDefault='int16', dtypeRead='uint16', dtypeFloat='float64'):
         self.__ncols = ncols
         self.__nrows = nrows
         self.__frame_dtype_dflt  = dtypeDefault
         self.__frame_dtype_read  = dtypeRead
         self.__frame_dtype_float = dtypeFloat
+        
+        self.__nbytes_frame  = num.nbytes[dtypeRead]*nrows*ncols
+        
         return
     
     def get_ncols(self):
         return self.__ncols
     ncols = property(get_ncols, None, None)
+
+    def get_nbytesFrame(self):
+        return self.__nbytes_frame
+    nbytesFrame = property(get_nbytesFrame, None, None)
 
     def get_nrows(self):
         return self.__nrows
@@ -365,6 +374,314 @@ def omeToFrameRange(omega, omegas, omegaDelta):
     retval = num.where(num.abs(omegas - omega) <= omegaDelta*0.5)[0]
     return retval
 
+def getNFramesFromBytes(fileBytes, nbytesHeader, nbytesFrame):
+    assert (fileBytes - nbytesHeader) % nbytesFrame == 0,\
+        'file size not correct'
+    nFrames = int((fileBytes - nbytesHeader) / nbytesFrame)
+    if nFrames*nbytesFrame + nbytesHeader != fileBytes:
+        raise RuntimeError, 'file size not correctly calculated'
+    return nFrames
+
+class FrameWriter(Framer2DRC):
+    def __init__(self, *args, **kwargs):
+        self.filename        = kwargs.pop('filename')
+        self.__nbytes_header = kwargs.pop('nbytesHeader', 0)
+        self.__nempty        = kwargs.pop('nempty', 0)
+        self.__nempty        = kwargs.pop('nempty', 0)
+
+        Framer2DRC.__init__(self, *args, **kwargs)
+        
+        self.nFrame = 0
+        self.img = open(self.filename, mode='wb')
+        
+        # skip header for now
+        self.img.seek(self.__nbytes_header, 0)
+        if self.__nempty > 0:
+            self.img.seek(self.nbytesFrame*self.__nempty, 1)
+        
+        return
+    def write(self, data, doAllChecks=True):
+        
+        # if nskip > 0:
+        #     self.img.seek(self.__nbytes_frame*nskip, 1)
+        
+        assert len(data.shape) == 2, 'data is not 2D'
+        assert data.shape[0] == self.nrows, 'number of rows is wrong'
+        assert data.shape[1] == self.ncols, 'number of rows is wrong'
+        
+        intType = False
+        
+        if   num.result_type(self.dtypeRead).kind == 'u':
+            intType = True
+            if data.dtype.kind == 'u':
+                'all set' 
+            else:
+                if num.any(data < 0):
+                    raise RuntimeError, 'trying to write negative data to unsigned type'
+                data = data.astype(self.dtypeRead)
+        elif num.result_type(self.dtypeRead).kind == 'i':
+            intType = True
+            data = data.astype(self.dtypeRead)
+        else:
+            data = data.astype(self.dtypeRead)
+        
+        if doAllChecks and intType:
+            dataMax = data.max()
+            readMax = num.iinfo(self.dtypeRead).max
+            if dataMax > readMax : 
+                raise RuntimeError, 'max of %g greater than supported value of %g' % (dataMax, readMax)
+        
+        data.tofile(self.img)
+        
+        return
+    def __call__(self, *args, **kwargs):
+        return self.write(*args, **kwargs)
+    def close(self):
+        self.img.close()
+        return
+
+class ReadGeneric(Framer2DRC):
+    '''
+    may eventually want ReadGE to inherit from this, or pull common things
+    off to a base class
+    '''
+    def __init__(self, filename, ncols, nrows, *args, **kwargs):
+        self.filename        = filename
+        self.__nbytes_header = kwargs.pop('nbytes_header', 0)
+        self.__nempty        = kwargs.pop('nempty', 0)
+        doFlip               = kwargs.pop('doFlip', False)
+        self.subtractDark    = kwargs.pop('subtractDark', False)
+        
+        if doFlip is not False:
+            raise NotImplementedError, 'doFlip not False'
+        if self.subtractDark is not False:
+            raise NotImplementedError, 'subtractDark not False'
+
+        Framer2DRC.__init__(self, ncols, nrows, **kwargs)
+
+        self.dark = None
+        self.dead = None
+        self.mask = None
+
+        self.omegaStart = None
+        self.omegaDelta = None
+        self.omegas = None
+        #
+        if len(args) == 0:
+            pass
+        elif len(args) == 2:
+            self.omegaStart = omegaStart = args[0]
+            self.omegaDelta = omegaDelta = args[1]
+        else:
+            raise RuntimeError, 'do not know what to do with args: '+str(args)
+        self.omegas = None
+        if self.omegaStart is not None:
+            if hasattr(omegaStart, 'getVal'):
+                omegaStart = omegaStart.getVal('radians')
+            if hasattr(omegaDelta, 'getVal'):
+                omegaDelta = omegaDelta.getVal('radians')
+            nFramesTot = self.getNFrames()
+            self.omegas = \
+                num.arange(omegaStart, omegaStart+omegaDelta*(nFramesTot-0.5), omegaDelta) + \
+                0.5 * omegaDelta # put omegas at mid-points of omega range for frame
+            omegaEnd = omegaStart+omegaDelta*(nFramesTot)
+            self.omegaMin = min(omegaStart, omegaEnd)
+            self.omegaMax = max(omegaStart, omegaEnd)
+            self.omegaDelta = omegaDelta
+            self.omegaStart = omegaStart
+
+        if len(kwargs) > 0:
+            raise RuntimeError, 'unparsed kwargs : %s' + str(kwargs.keys())
+        
+        self.iFrame = -1 # counter for last global frame that was read
+        
+        self.img = None
+        if self.filename is not None:
+            self.img = open(self.filename, mode='rb')
+            # skip header for now
+            self.img.seek(self.__nbytes_header, 0)
+            if self.__nempty > 0:
+                self.img.seek(self.nbytesFrame*self.__nempty, 1)
+        
+        return
+
+    def getFrameUseMask(self):
+        return False
+    def __flip(self, thisframe):
+        return thisframe
+
+    '''
+    def read(self, nskip=0, nframes=1, sumImg=False):
+        
+        if not nframes == 1:
+            raise NotImplementedError, 'nframes != 1'
+        if not sumImg == False:
+            raise NotImplementedError, 'sumImg != False'
+        
+        data = self.__readNext(nskip=nskip)
+
+        self.iFrame += nskip + 1
+        
+        return data
+    '''
+    def read(self, nskip=0, nframes=1, sumImg=False):
+        """
+        sumImg can be set to True or to something like numpy.maximum
+        """
+        
+        if self.img is None:
+            raise RuntimeError, 'no image file open'
+
+        'get iFrame ready for how it is used here'
+        self.iFrame = num.atleast_1d(self.iFrame)[-1]
+        iFrameList = []
+        multiframe = nframes > 1
+
+        nFramesInv = 1.0 / nframes
+        doDarkSub = self.subtractDark # and self.dark is not None
+
+        if doDarkSub:
+            assert self.dark is not None, 'self.dark is None'
+
+        # assign storage array
+        if sumImg:
+            sumImgCallable = hasattr(sumImg,'__call__')
+            imgOut = self.frame(dtype=self.dtypeFloat, mask=self.dead)
+        elif multiframe:
+            imgOut = self.frame(nframes=nframes, dtype=self.dtypeDflt, mask=self.dead)
+
+
+        # now read data frames
+        for i in range(nframes):
+
+            #data = self.__readNext(nskip=nskip)
+            #thisframe = data.reshape(self.__nrows, self.__ncols)
+            data = self.__readNext(nskip=nskip) # .reshape(self.__nrows, self.__ncols)
+            self.iFrame += nskip + 1
+            nskip=0 # all done skipping once have the first frame!
+            iFrameList.append(self.iFrame)
+            # dark subtraction
+            if doDarkSub:
+                'used to have self.dtypeFloat here, but self.dtypeDflt does the trick'
+                thisframe = self.frame(buffer=data,
+                                       dtype=self.dtypeDflt, mask=self.dead) - self.dark
+            else:
+                thisframe = self.frame(buffer=data,
+                                       mask=self.dead)
+
+            # flipping
+            thisframe = self.__flip(thisframe)
+
+            # masking (True get zeroed)
+            if self.mask is not None:
+                if self.getFrameUseMask():
+                    thisframe[self.mask] = 0
+
+            # assign output
+            if sumImg:
+                if sumImgCallable:
+                    imgOut = sumImg(imgOut, thisframe)
+                else:
+                    imgOut = imgOut + thisframe * nFramesInv
+            elif multiframe:
+                imgOut[i, :, :] = thisframe[:, :]
+        'end of loop over nframes'
+
+        if sumImg:
+            # imgOut = imgOut / nframes # now taken care of above
+            pass
+        elif not multiframe:
+            imgOut = thisframe
+
+        if multiframe:
+            'make iFrame a list so that omega or whatever can be averaged appropriately'
+            self.iFrame = iFrameList
+        return imgOut
+
+    def getNFrames(self, lessEmpty=True):
+        fileBytes = os.stat(self.filename).st_size
+        nFrames = getNFramesFromBytes(fileBytes, self.__nbytes_header, self.nbytesFrame)
+        if lessEmpty:
+            nFrames -= self.__nempty
+        return nFrames
+
+    def getOmegaMinMax(self):
+        assert self.omegas is not None,\
+            """instance does not have omega information"""
+        return self.omegaMin, self.omegaMax
+    def getDeltaOmega(self):
+        assert self.omegas is not None,\
+            """instance does not have omega information"""
+        return self.omegaDelta
+    def getDark(self):
+        'no dark yet supported'
+        return 0
+    def getFrameOmega(self, iFrame=None):
+        """if iFrame is none, use internal counter"""
+        assert self.omegas is not None,\
+            """instance does not have omega information"""
+        if iFrame is None:
+            iFrame = self.iFrame
+        if hasattr(iFrame, '__len__'):
+            'take care of case nframes>1 in last call to read'
+            retval = num.mean(self.omegas[iFrame])
+        else:
+            retval = self.omegas[iFrame]
+        return retval
+
+    def __readNext(self, nskip=0):
+        if self.img is None:
+            raise RuntimeError, 'no image file open'
+        
+        if nskip > 0:
+            self.img.seek(self.nbytesFrame*nskip, 1)
+        data = num.fromfile(self.img, 
+                            dtype=self.dtypeRead,
+                            count=self.nrows*self.ncols)
+        return data
+
+    def getNFrames(self, lessEmpty=True):
+        fileBytes = os.stat(self.filename).st_size
+        nFrames = getNFramesFromBytes(fileBytes, self.__nbytes_header, self.nbytesFrame)
+        if lessEmpty:
+            nFrames -= self.__nempty
+        return nFrames
+
+    def getOmegaMinMax(self):
+        assert self.omegas is not None,\
+            """instance does not have omega information"""
+        return self.omegaMin, self.omegaMax
+    def getDeltaOmega(self):
+        assert self.omegas is not None,\
+            """instance does not have omega information"""
+        return self.omegaDelta
+    def getDark(self):
+        'no dark yet supported'
+        return 0
+    def getFrameOmega(self, iFrame=None):
+        """if iFrame is none, use internal counter"""
+        assert self.omegas is not None,\
+            """instance does not have omega information"""
+        if iFrame is None:
+            iFrame = self.iFrame
+        if hasattr(iFrame, '__len__'):
+            'take care of case nframes>1 in last call to read'
+            retval = num.mean(self.omegas[iFrame])
+        else:
+            retval = self.omegas[iFrame]
+        return retval
+
+    def getWriter(self, filename):
+        # if not self.doFlip is False:
+        #     raise NotImplementedError, 'doFlip true not coded'
+        new = FrameWriter(self.ncols, self.nrows, 
+                          filename=filename,
+                          dtypeDefault=self.dtypeDefault, 
+                          dtypeRead=self.dtypeRead, 
+                          dtypeFloat=self.dtypeFloat, 
+                          nbytesHeader=self.__nbytes_header) 
+        return new
+    
 class ReadGE(Framer2DRC):
     """
     Read in raw GE files; this is the class version of the foregoing functions
@@ -554,6 +871,21 @@ class ReadGE(Framer2DRC):
         new = self.__class__(self.fileInfo, doFlip=doFlip)
         return new
 
+    def get_nbytes_header(self):
+        return self.__nbytes_header
+    nbytesHeader = property(get_nbytes_header, None, None)
+
+    def getWriter(self, filename):
+        if not self.doFlip is False:
+            raise NotImplementedError, 'doFlip true not coded'
+        new = FrameWriter(self.ncols, self.nrows, 
+                          filename=filename,
+                          dtypeDefault=self.dtypeDefault, 
+                          dtypeRead=self.dtypeRead, 
+                          dtypeFloat=self.dtypeFloat, 
+                          nbytesHeader=self.nbytesHeader) 
+        return new
+    
     def __setupRead(self, fileInfo, subtractDark, mask, omegaStart, omegaDelta):
 
         self.fileInfo = fileInfo
@@ -616,7 +948,7 @@ class ReadGE(Framer2DRC):
             iFrame = self.iFrame
         if hasattr(iFrame, '__len__'):
             'take care of case nframes>1 in last call to read'
-            retval = num.mean(self.omegas[self.iFrame])
+            retval = num.mean(self.omegas[iFrame])
         else:
             retval = self.omegas[iFrame]
         return retval
@@ -652,12 +984,8 @@ class ReadGE(Framer2DRC):
         return retval
     @classmethod
     def __getNFrames(cls, fileBytes):
-        assert (fileBytes - cls.__nbytes_header) % cls.__nbytes_frame == 0,\
-            'file size not correct'
-        nFrames = int((fileBytes - cls.__nbytes_header) / cls.__nbytes_frame)
-        if nFrames*cls.__nbytes_frame + cls.__nbytes_header != fileBytes:
-            raise RuntimeError, 'file size not correctly calculated'
-        return nFrames
+        retval = getNFramesFromBytes(fileBytes, cls.__nbytes_header, cls.__nbytes_frame)
+        return retval
     def __nextFile(self):
 
         # close in case already have a file going
@@ -686,7 +1014,7 @@ class ReadGE(Framer2DRC):
                 self.dark.astype(self.__frame_dtype_dflt)
                 self.__log('got dark from %d empty frames in file %s' % (nempty, fname))
             else:
-                self.img.seek(self.__nbytes_frame*nempty, 1)
+                self.img.seek(self.nbytesFrame*nempty, 1)
             self.nFramesRemain -= nempty
 
         if self.subtractDark and self.dark is None:
@@ -762,8 +1090,10 @@ class ReadGE(Framer2DRC):
         return thisframe
     def getDark(self):
         if self.dark is None:
-            raise RuntimeError, 'getDark called but reader does not have dark set'
-        return self.dark
+            retval = 0
+        else:
+            retval = self.dark
+        return retval
     def read(self, nskip=0, nframes=1, sumImg=False):
         """
         sumImg can be set to True or to something like numpy.maximum
@@ -885,7 +1215,7 @@ class ReadGE(Framer2DRC):
             self.__nextFile()
         if nskipThis > 0:
             # advance counter past empty frames
-            self.img.seek(self.__nbytes_frame*nskipThis, 1)
+            self.img.seek(self.nbytesFrame*nskipThis, 1)
             self.nFramesRemain -= nskipThis
 
         if data is None:
@@ -2738,7 +3068,8 @@ class Detector2DRC(DetectorBase):
                  reader, *args, **kwargs):
         
         if reader is None:
-            reader = newGenericReader(ncols, nrows)
+            readerKWArgs = kwargs.pop('readerKWArgs', {})
+            reader = newGenericReader(ncols, nrows, **readerKWArgs)
         
         """
         The following is meant to facilitate creation of generic detector types;
@@ -2756,6 +3087,7 @@ class Detector2DRC(DetectorBase):
             else:
                 def f_getDParamDflt():
                     return getDParamDflt(self)
+                f_getDParamDflt.im_class = self.__class__ # this is cheating?
             self.getDParamDflt = f_getDParamDflt
         if setDParamZero:
             if hasattr(setDParamZero, 'im_class'):
@@ -2763,6 +3095,7 @@ class Detector2DRC(DetectorBase):
             else:
                 def f_setDParamZero():
                     return setDParamZero(self)
+                f_setDParamZero.im_class = self.__class__ # this is cheating?
             self.setDParamZero = f_setDParamZero
         if getDParamScalings:
             if hasattr(getDParamScalings, 'im_class'):
@@ -2770,6 +3103,7 @@ class Detector2DRC(DetectorBase):
             else:
                 def f_getDParamScalings():
                     return getDParamScalings(self)
+                f_getDParamScalings.im_class = self.__class__ # this is cheating?
             self.getDParamScalings = f_getDParamScalings
         if getDParamRefineDflt:
             if hasattr(getDParamRefineDflt, 'im_class'):
@@ -2777,13 +3111,15 @@ class Detector2DRC(DetectorBase):
             else:
                 def f_getDParamRefineDflt():
                     return getDParamRefineDflt(self)
+                f_getDParamRefineDflt.im_class = self.__class__ # this is cheating?
             self.getDParamRefineDflt = f_getDParamRefineDflt
         if radialDistortion:
             if hasattr(radialDistortion, 'im_class'):            
                 f_radialDistortion = radialDistortion
             else:
-                def f_radialDistortion(*args):
-                    return radialDistortion(self, *args)
+                def f_radialDistortion(*fargs, **fkwargs):
+                    return radialDistortion(self, *fargs, **fkwargs)
+                f_radialDistortion.im_class = self.__class__ # this is cheating?
             self.radialDistortion = f_radialDistortion
         
         DetectorBase.__init__(self, reader)
@@ -2804,7 +3140,7 @@ class Detector2DRC(DetectorBase):
                 xc, yc, workDist, xTilt, yTilt, zTilt = args[0]
                 self.__initFromParams(xc, yc, workDist, xTilt, yTilt, zTilt, **kwargs)
             else:
-                raise RuntimeError, "don't know what to do with your initialization argument"
+                raise RuntimeError, "don't know what to do with your initialization argument "+str(args)
         else:
             self.__initFromParams(*args, **kwargs)
         self.pVecUncertainties = None
@@ -2864,6 +3200,10 @@ class Detector2DRC(DetectorBase):
         raise NotImplementedError
     def radialDistortion(self, xin, yin, invert=False):
         raise NotImplementedError
+
+    def getNewReader(self, filename, *args, **kwargs):
+        newR = self.reader.__class__(filename, self.ncols, self.nrows, *args, **kwargs)
+        return newR
 
     # methods that may want to override for a specific detector geometry
     def getParamDflt(self):
@@ -2985,7 +3325,7 @@ class Detector2DRC(DetectorBase):
 
         self.__updateFromPList(self.getParamDflt())
         self.__initBase()
-
+        
         return
     def __initFromDG(self, detectorGeomOther, pVec=None):
         self.__initFromParams( *detectorGeomOther.__makePList(flatten=False) )
@@ -3275,11 +3615,20 @@ class Detector2DRC(DetectorBase):
         eta by default is in [-pi,pi]
         if all data are in the left quadrants, remap eta into [0,2*pi]
         """
+        doMap = kwargs.pop('doMap',None)
         angs = self.xyoToAng(x0, y0, *args, **kwargs)
-        angs[1] = mapAngs(angs[1])
+        angs[1] = mapAngs(angs[1], doMap=doMap)
         return angs
     def makeNew(self, *args, **kwargs):
-        newDG = self.__class__(self, *args, **kwargs)
+        kwargs.setdefault('getDParamDflt', self.getDParamDflt)
+        kwargs.setdefault('setDParamZero', self.setDParamZero)
+        kwargs.setdefault('getDParamScalings', self.getDParamScalings)
+        kwargs.setdefault('getDParamRefineDflt', self.getDParamRefineDflt)
+        kwargs.setdefault('radialDistortion', self.radialDistortion)
+        newDG = self.__class__(self.__ncols, self.__nrows, self.__pixelPitch, 
+                               self.__vFactorUnc, self.__vDark, self.reader,
+                               self,
+                               *args, **kwargs)
         return newDG
 
     def angToXYO(self, x0, y0, *args, **kwargs):
@@ -3829,11 +4178,11 @@ class Detector2DRC(DetectorBase):
             ]
         if units == 'pixels':
             'make into integers'
-            xyoBBox[0] = ( max(int(math.floor(xyoBBox[0][0])), 0), 
-                           min(int(math.floor(xyoBBox[0][1])), self.nrows-1)+slicePad,
+            xyoBBox[0] = ( max( int(math.floor(xyoBBox[0][0])), 0), 
+                           min( int(math.floor(xyoBBox[0][1])), self.nrows-1)+slicePad,
                            )
-            xyoBBox[1] = ( max(int(math.floor(xyoBBox[1][0])), 0), 
-                           min(int(math.floor(xyoBBox[1][1])), self.ncols-1)+slicePad,
+            xyoBBox[1] = ( max( int(math.floor(xyoBBox[1][0])), 0), 
+                           min( int(math.floor(xyoBBox[1][1])), self.ncols-1)+slicePad,
                            )
         if reader is not None:
             'convert bounding box from omegas to frames'
@@ -4483,7 +4832,7 @@ def mar165IDim(mode):
     return idim
 
 class DetectorGeomMar165(Detector2DRC):
-    __vfu = 0.2 # value found based on repeated measurements (ruby, GE detector), but is rough guess
+    __vfu = 0.2 # made up
     __vdk = 1800 # made up
     def __init__(self, *args, **kwargs):
 
@@ -4525,7 +4874,7 @@ class DetectorGeomGE(Detector2DRC):
     pixels are numbered from (0,0);
     """
     
-    __vfu            = 0.2 # value found based on repeated measurements (ruby, GE detector), but is rough guess; NOT pixelPitch
+    __vfu            = 0.2 # made up
     __vdk            = 1800 # made up
     # 200 x 200 micron pixels
     __pixelPitch     = 0.2      # in mm
@@ -4547,7 +4896,8 @@ class DetectorGeomGE(Detector2DRC):
 
         reader = kwargs.pop('reader', None)
         if reader is None:
-            reader = ReadGE(None)
+            readerKWArgs = kwargs.pop('readerKWArgs', {})
+            reader = ReadGE(None, **readerKWArgs)
         
         Detector2DRC.__init__(self, 
                               self.__nrows, self.__ncols, self.__pixelPitch, 
@@ -4555,6 +4905,15 @@ class DetectorGeomGE(Detector2DRC):
                               reader,
                               *args, **kwargs)
         return
+
+    def getNewReader(self, filename, *args, **kwargs):
+        # newR = self.reader.__class__(filename, self.ncols, self.nrows, *args, **kwargs)
+        newR = ReadGE(filename, *args, **readerKWArgs)
+        return newR
+    def makeNew(self, *args, **kwargs):
+        kwargs.setdefault('reader',self.reader)
+        newDG = self.__class__(self, *args, **kwargs)
+        return newDG
 
     def getDParamDflt(self):
         return self.__dParamDflt
@@ -4944,38 +5303,26 @@ def getOmegaMMReaderList(readerList, overall=False):
 # ============================== Utility functions for instantiating detectors
 #
 def detectorList():
-    return ["ge", "mar165"]
+    return ["ge", "mar165", "generic"]
 
-def newDetector(detectorType):
+def newDetector(detectorType, *args, **kwargs):
     """Return a detector of the requested type
 
     INPUTS
 
     detectorType - a string in the detector type list [see detectorList()]
-"""
+    """
+    
     dt = detectorType.lower()
     if dt == "ge":
-        gParams    = [ 2.04800000e+02,  # XC
-                       2.04800000e+02,  # YC
-                       1.00000000e+03,  # D
-                       0.00000000e+00,  # xTilt (-ROTY from fit2d)
-                       0.00000000e+00,  # yTilt ( ROTX from fit2d)
-                       0.00000000e+00,  # zTilt (can't refine with powder; leave 0 unless you know otherwise)
-                       ]
-        dParams    = [ 1.0e-04,
-                      -3.0e-04,
-                       0.0e+00,
-                       2.0e+00,
-                       2.0e+00,
-                       2.0e+00,
-                       ]
-        #
-        #  For now, use default distortion parameters
-        #
-        #d = DetectorGeomGE(gParms, distortionParams=dParms)
-        d = DetectorGeomGE(gParams, distortionParams=dParams)
+        d = DetectorGeomGE(*args, **kwargs)
     elif dt == "mar165":
-        d = DetectorGeomMar165()
+        d = DetectorGeomMar165(*args, **kwargs)
+    elif dt == "generic":
+        ncols = kwargs.pop('ncols')
+        nrows = kwargs.pop('nrows')
+        pixelPitch = kwargs.pop('pixelPitch')
+        d = newGenericDetector(ncols, nrows, pixelPitch, *args, **kwargs)
     else:
         #d = None
         emsg = 'No such detector:  "%s"' % dt
@@ -4986,9 +5333,16 @@ def newDetector(detectorType):
 
     return d
 
-def newGenericReader(ncols, nrows, **kwargs):
-    framer = Framer2DRC(ncols, nrows, **kwargs)
-    return framer
+def newGenericReader(ncols, nrows, *args, **kwargs):
+    '''
+    currently just returns a Framer2DRC
+    '''
+    
+    # retval = Framer2DRC(ncols, nrows, **kwargs)
+    filename = kwargs.pop('filename', None)
+    retval = ReadGeneric(filename, ncols, nrows, *args, **kwargs)
+    
+    return retval
 
 def newGenericDetector(ncols, nrows, pixelPitch, *args, **kwargs):
     """

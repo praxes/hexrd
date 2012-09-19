@@ -60,7 +60,7 @@ from hexrd.xrd import crystallography
 from hexrd.xrd import detector
 from hexrd.xrd import xrdbase
 from hexrd.xrd.xrdbase import getGaussNDParams
-from hexrd.xrd import Rotations
+from hexrd.xrd import rotations
 from hexrd.xrd.rotations import mapAngle
 
 # from hexrd import uncertainty_analysis
@@ -117,8 +117,8 @@ def dilateObj(obj, shape, nDilate=1):
         )
     return newObj
 
-def emptyBox(inpt, obj, dtype=None):
-    dtype = dtype or inpt.dtype
+def emptyBox(obj, dtype):
+    # dtype = dtype or inpt.dtype
     vbox = num.empty(
         (obj[0].stop-obj[0].start, obj[1].stop-obj[1].start),
         dtype=dtype
@@ -127,8 +127,13 @@ def emptyBox(inpt, obj, dtype=None):
 def copyBox(inpt, obj):
     'deepcopy does not seem to do what we want with masked arrays'
     # vbox   = copy.deepcopy(inpt[useObj])
-    vbox = emptyBox(inpt, obj, dtype=inpt.dtype)
-    vbox[:,:] = inpt[obj]
+    vbox = emptyBox( obj, num.min_scalar_type(inpt) )
+    if num.isscalar(inpt):
+        vbox[:,:] = inpt
+    elif num.size(inpt) == 1:
+        vbox[:,:] = num.asscalar(inpt)
+    else:
+        vbox[:,:] = inpt[obj]
     return vbox
 
 def getSpot(inpt, labels, objs, index, keepWithinBBox, padSpot, darkframe=None):
@@ -201,7 +206,7 @@ def cullSpotUsingBin(spot, bin):
     xl     = spot['xl']
     yl     = spot['yl']
 
-    binSpot = emptyBox(bin, useObj, dtype=bool)
+    binSpot = emptyBox( useObj, bool )
     binSpot[:,:] = False
     binSpot[xl,yl] = True
     binSpot[bin[useObj]] = False
@@ -1476,6 +1481,7 @@ class Spot(object):
         self.marks = []
         self.debug = debugDflt
         self.__detectorGeom = None
+        self.__doMap = None
 
         self.setDetectorGeom(detectorGeom)
 
@@ -1696,11 +1702,14 @@ class Spot(object):
                 len(num.unique(self.oAll)) # len(self.data)
                 ])
         assert num.all(self.shape > 0), 'internal error in shape calculation'
+        
         self.xMM = (self.xAll.min(), self.xAll.max())
         self.yMM = (self.yAll.min(), self.yAll.max())
         self.oMM = (self.oAll.min(), self.oAll.max())
+        
         self.finalized = True
         return
+    
     def setDetectorGeom(self, detectorGeom, clobber=False):
         if self.__detectorGeom is not None:
             if detectorGeom != self.detectorGeom and not clobber:
@@ -1709,10 +1718,26 @@ class Spot(object):
         self.__detectorGeom = detectorGeom
         if detectorGeom is not None:
             self.__checkDG()
+        self.__doMap = None
         return
     def getDetectorGeom(self):
         return self.__detectorGeom
     detectorGeom = property(getDetectorGeom, setDetectorGeom, None)
+    
+    def getDoMap(self):
+        '''
+        centralize this decision so that it does not change with the use of quadrature and the like
+        '''
+        assert self.finalized, 'called on spot that was not finalized'
+        self.__checkDG()
+        if self.__doMap is None:
+            xyoToAng  = self.__detectorGeom.xyoToAngMap
+            tth, eta, ome = xyoToAng(self.xAll, self.yAll, self.oAll)
+            self.__doMap = num.all(num.cos(eta) < 0)
+        retval = self.__doMap
+        return retval
+    doMap = property(getDoMap, None, None)
+    
     def __checkDG(self):
         assert self.__detectorGeom is not None, \
             'need self.__detectorGeom to have been set'
@@ -1934,7 +1959,7 @@ class Spot(object):
         angToXYO  = self.__detectorGeom.angToXYO
         angPixelSize = self.angPixelSize
         
-        xAng, yAng, zAng, w = xyoToAng(self.xAll, self.yAll, self.oAll, outputDV=True)
+        xAng, yAng, zAng, w = xyoToAng(self.xAll, self.yAll, self.oAll, outputDV=True, doMap=self.doMap)
 
         nSubFuncs = len(self.__xyoCOMList)
 
@@ -1951,7 +1976,7 @@ class Spot(object):
             if debugMulti:
                 print >> fout,  'omega width is estimated at %g compared to pixel size of %g, flattening' % (fwhmOme, angPixelSize[2])
             self.flattenOmega()
-            xAng, yAng, zAng, w = xyoToAng(self.xAll, self.yAll, self.oAll, outputDV=True)
+            xAng, yAng, zAng, w = xyoToAng(self.xAll, self.yAll, self.oAll, outputDV=True, doMap=self.doMap)
             withOmega = False
 
         # minWidth = angPixelSize
@@ -2243,7 +2268,7 @@ class Spot(object):
 
         if quadr == 'auto':
             'get guess of xVec without quadrature, so that can guess appropriate quadrature'
-            xAng, yAng, zAng = xyoToAng(self.xAll, self.yAll, self.oAll)
+            xAng, yAng, zAng = xyoToAng(self.xAll, self.yAll, self.oAll, doMap=self.doMap)
             angPixelSize = self.angPixelSize
             if self.debug >1 : print >> fout,  'angPixelSize : '+str(angPixelSize)
 
@@ -2286,7 +2311,7 @@ class Spot(object):
                 intensityFunc = newFunc
                 withOmega = False
                 ndim = 2
-                xAng, yAng, zAng = xyoToAng(self.xAll, self.yAll, self.oAll)
+                xAng, yAng, zAng = xyoToAng(self.xAll, self.yAll, self.oAll, doMap=self.doMap)
 
             if not withOmega:
                 xVecWOQP = intensityFunc.guessXVec(xAng, yAng, v=self.vAll)
@@ -2350,19 +2375,6 @@ class Spot(object):
             args = (xAng, yAng,       wQP, self.vAll, vScale)
         
         # 'do not use existing fit in case it is bad' 
-        # com_xyo = self.xyoCOM(useFit=False)
-        # com_ang = xyoToAng(*com_xyo)
-        # #
-        # widths_xyo = self.shape * num.array([1., 1., self.delta_omega_abs])
-        # widths_ang = \
-        #     num.array(xyoToAng(*(com_xyo + 0.5 * widths_xyo))) - \
-        #     num.array(xyoToAng(*(com_xyo - 0.5 * widths_xyo)))
-        # if withOmega:
-        #     xVec0 = intensityFunc.guessXVec(com_ang, widths_ang,
-        #                                     self.vAll.mean(), self.vAll.min(), self.vAll.max())
-        # else:
-        #     xVec0 = intensityFunc.guessXVec(com_ang[0:2], widths_ang[0:2],
-        #                                     self.vAll.mean(), self.vAll.min(), self.vAll.max())
         xVec0 = intensityFunc.guessXVec(*args[0:-1]) # guessXVec does not take vScale
         fwhm = intensityFunc.getFWHM(xVec0)
         if num.any( fwhm <= 0. ):
@@ -2440,7 +2452,7 @@ class Spot(object):
         else:
             oQP = num.tile(self.oAll, (nQP,1)).T
 
-        xAng, yAng, zAng, dvQP = xyoToAng(xQP, yQP, oQP, outputDV=True)
+        xAng, yAng, zAng, dvQP = xyoToAng(xQP, yQP, oQP, outputDV=True, doMap=self.doMap)
 
         #wQP = num.dot(dvQP, num.diag(w)) # correct, but do with sparse instead
         wD = sparse.lil_matrix((nQP,nQP)); wD.setdiag(self.__q_w);
@@ -2569,7 +2581,7 @@ class Spot(object):
             print >> sys.stderr, "vSum %g <= 0, using only positive values" % (vSum)
             vSum = num.sum(self.vAll[self.vAll > 0])
             assert vSum > 0, 'vSum <= 0, all intensities are negative?'
-        a1, a2, a3 = self.__detectorGeom.xyoToAngMap(self.xAll, self.yAll, self.oAll)
+        a1, a2, a3 = self.__detectorGeom.xyoToAngMap(self.xAll, self.yAll, self.oAll, doMap=self.doMap)
         com_ang = num.array([
                 num.dot(a1, self.vAll) / vSum,
                 num.dot(a2, self.vAll) / vSum,
@@ -2618,7 +2630,6 @@ class Spot(object):
         more elaborate if detectorGeom is already set without a pVec, but
         that is probably asking for trouble
         """
-        pi = math.pi
 
         if self.__split:
             assert not getUncertainties, \
@@ -2658,7 +2669,7 @@ class Spot(object):
             else:
                 'want to convert to angular positions and do weighted average there'
                 #xyoCOM = self.__xyoCOM()
-                #retval = self.__detectorGeom.xyoToAngMap(*xyoCOM)
+                #retval = self.__detectorGeom.xyoToAngMap(*xyoCOM, doMap=self.doMap)
                 retval = self.__angCOM()
                 if getUncertainties:
                     if self.__fitUncertainties is not None:
@@ -4165,7 +4176,7 @@ class Spots(object):
                 if spot.getNSplit() > 1:
                     nFailedM = nFailedM + 1
         return nFailed, nFailedM
-    def report(self, pw=None):
+    def report(self, pw=None, scaleByMultip=True):
         assert not self.__multiprocMode, 'do not report in multiprocmode'
         nBins = self.nSpotBins()
         nSpotsTThAll     = num.empty(nBins) # dtype=int
@@ -4173,6 +4184,7 @@ class Spots(object):
         iBin = 0
         #claimed = num.array(self.__claimedBy, dtype=bool)
         claimed = self.checkClaims()
+        multipInv = 1.0
         for phaseID, planeDataThisPhase in self.planeDataDict.iteritems():
             planeDataEntry = planeDataThisPhase['planeData']
             hklList        = planeDataThisPhase['hklList']
@@ -4180,7 +4192,8 @@ class Spots(object):
             multip         = planeDataThisPhase['multip']
             for iHKL, hkl in enumerate(hklList):
                 # hklID = planeDataThisPhase['hklIDList'][iHKL]
-                multipInv = 1.0 / float(multip[iHKL])
+                if scaleByMultip:
+                    multipInv = 1.0 / float(multip[iHKL])
                 nSpotsTThAll[iBin]     = num.sum(tThAssoc[iHKL, :]) * multipInv
                 nSpotsTThClaimed[iBin] = num.sum(num.logical_and(tThAssoc[iHKL, :], claimed)) * multipInv
                 iBin += 1
@@ -4218,7 +4231,7 @@ class Spots(object):
                             omeTol=valunits.valWUnit('etaTol', 'angle', 1.00, 'degrees')):
 
         getFriedelPair = crystallography.getFriedelPair
-        angularDifference = Rotations.angularDifference
+        angularDifference = rotations.angularDifference
 
         if hasattr(etaTol, 'getVal'):
             etaTol = etaTol.getVal('radians')
