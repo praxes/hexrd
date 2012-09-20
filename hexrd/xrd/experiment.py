@@ -321,15 +321,16 @@ class Experiment(object):
             detector = self.detector
         dummySpots = SPT.Spots(planeData, None, detector, omegaRanges)
         sg = G.Grain(dummySpots, rMat=rMat, vMat=vMat)
-        if isinstance(output, file):
-            fid = output
-        elif isinstance(output, str):
-            fid = open(output, 'w')
-        else:
-            raise RuntimeError, "output must be a file object or string"
-        sg.findMatches(filename=output)
+        if output is not None:
+            if isinstance(output, file):
+                fid = output
+            elif isinstance(output, str):
+                fid = open(output, 'w')
+            else:
+                raise RuntimeError, "output must be a file object or string"
+            sg.findMatches(filename=output)
         return sg
-
+    
     @property
     def index_opts(self):
         """(get-only) Options for indexing"""
