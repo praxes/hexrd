@@ -161,12 +161,23 @@ PANEL FOR ...
     #                     ========== *** Access Methods
     #
     def getExclusions(self):
+        """Return exclusion list for unselected HKLs"""
         e = self.exclude
         for i in range(self.nhkls):
             e[i] = not self.listctrl.IsSelected(i)
             pass
 
         return e
+
+    def getTuples(self):
+        """Return tuples for selected HKLs"""
+        t = []
+        for i in range(self.nhkls):
+            if self.listctrl.IsSelected(i):
+                hklData = self.hkls[i]
+                t.append(tuple(hklData['hkl']))
+        
+        return t
     #
     #                     ========== *** Event Callbacks
     #
@@ -248,6 +259,9 @@ class selectHKLsDialog(wx.Dialog):
     #
     def getExclusions(self):
         return self.dataPanel.getExclusions()
+
+    def getTuples(self):
+        return self.dataPanel.getTuples()
     #
     #                     ========== *** Event Callbacks
     #

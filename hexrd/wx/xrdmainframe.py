@@ -121,7 +121,13 @@ class xrdMainFrame(wx.Frame):
         menuBar.Append(self.readerMenu,  "Reader")
 
         self.__makeDetectorMenu()
-        menuBar.Append(self.detectorMenu,  "Detector")
+        menuBar.Append(self.detectorMenu,  "Detector") 
+        
+        self.__makeSpotsMenu()
+        menuBar.Append(self.spotsMenu,  "Spots") 
+
+        self.__makeIndexerMenu()
+        menuBar.Append(self.indexerMenu,  "Indexer") 
 
         self.__makeHelpMenu()
         menuBar.Append(self.helpMenu,  "Help")
@@ -243,6 +249,68 @@ class xrdMainFrame(wx.Frame):
 
         return
 
+    def __makeSpotsMenu(self):
+        self.spotsMenu = wx.Menu('Spots')
+        #
+        self.spotsMenu.IDloadRaw = wx.NewId()
+        self.spotsMenu.Append(self.spotsMenu.IDloadRaw, 
+                              "Load raw spots", 
+                              "Load the raw spots to a file")
+        self.Bind(wx.EVT_MENU, self.OnSpotsLoadRaw, id=self.spotsMenu.IDloadRaw)
+        #
+        self.spotsMenu.IDsaveRaw = wx.NewId()
+        self.spotsMenu.Append(self.spotsMenu.IDsaveRaw, 
+                              "Save raw spots", 
+                              "Save the raw spots to a file")
+        self.Bind(wx.EVT_MENU, self.OnSpotsSaveRaw, id=self.spotsMenu.IDsaveRaw)
+        #
+        ## self.spotsMenu.IDsave = wx.NewId()
+        ## self.spotsMenu.Append(self.spotsMenu.IDsave, 
+        ##                       "Save post-processed spots", 
+        ##                       "Save the post-processed Spots class")
+        ## self.Bind(wx.EVT_MENU, self.OnSpotsSave, id=self.spotsMenu.IDsave)
+        ## #
+        ## self.spotsMenu.IDexportFLT = wx.NewId()
+        ## self.spotsMenu.Append(self.spotsMenu.IDexportFLT, 
+        ##                       "Export flt", 
+        ##                       "Export a fable flt file")
+        ## self.Bind(wx.EVT_MENU, self.OnSpotsExportFLT, id=self.spotsMenu.IDexportFLT)
+        ## #
+        ## self.spotsMenu.IDexportGVE = wx.NewId()
+        ## self.spotsMenu.Append(self.spotsMenu.IDexportGVE, 
+        ##                       "Export gve", 
+        ##                       "Export a fable gve file")
+        ## self.Bind(wx.EVT_MENU, self.OnSpotsExportGVE, id=self.spotsMenu.IDexportGVE)
+        return
+
+    def __makeIndexerMenu(self):
+        self.indexerMenu = wx.Menu('Indexing')
+        #
+        ## self.indexerMenu.IDloadRaw = wx.NewId()
+        ## self.indexerMenu.Append(self.indexerMenu.IDloadRMats, 
+        ##                       "Load rMats", 
+        ##                       "Load an array of rotation matrices")
+        ## self.Bind(wx.EVT_MENU, self.OnLoadRMats, id=self.indexerMenu.IDloadRMats)
+        #
+        self.indexerMenu.IDsaveRMats = wx.NewId()
+        self.indexerMenu.Append(self.indexerMenu.IDsaveRMats, 
+                              "Save rMats array", 
+                              "Save the indexed rotations matrices to binary (.npy)")
+        self.Bind(wx.EVT_MENU, self.OnSaveRMats, id=self.indexerMenu.IDsaveRMats)
+        
+        self.indexerMenu.IDexportGrainLog = wx.NewId()
+        self.indexerMenu.Append(self.indexerMenu.IDexportGrainLog, 
+                              "Export grains log file", 
+                              "Export the log file for all indexed rotations to ASCII")
+        self.Bind(wx.EVT_MENU, self.OnExportGrainLog, id=self.indexerMenu.IDexportGrainLog)
+        
+        self.indexerMenu.IDdumpGrainList = wx.NewId()
+        self.indexerMenu.Append(self.indexerMenu.IDdumpGrainList, 
+                              "Dump grain list", 
+                              "Export the grainList to a cPickle")
+        self.Bind(wx.EVT_MENU, self.OnDumpGrainList, id=self.indexerMenu.IDdumpGrainList)
+        return
+    
     def __makeHelpMenu(self):
         """Construct file menu"""
         self.helpMenu = wx.Menu('Help')
@@ -296,7 +364,7 @@ class xrdMainFrame(wx.Frame):
         material-list = <filename>
         reader-list = <filename>
         [options] # options for this experiment
-"""
+        """
         cfgFile = 'experiment.cfg'
         exp = wx.GetApp().ws
         #
@@ -430,6 +498,122 @@ class xrdMainFrame(wx.Frame):
         app.getCanvas().update()
 
         return
+    
+    #
+    # ========== Spots Menu
+    #
+    def OnSpotsLoadRaw(self, e):
+        """Load raw spots"""
+        app = wx.GetApp()
+        exp = app.ws
+
+        dlg = wx.FileDialog(self, 'Load Raw Spots', 
+                            style=wx.FD_OPEN | 
+                                  wx.FD_FILE_MUST_EXIST)
+        if dlg.ShowModal() == wx.ID_OK:
+            f = dlg.GetPath()
+            try:
+                exp.loadRawSpots(f)
+            except:
+                wx.MessageBox('failed to load file:  %s' % f)
+                pass
+            pass
+
+        dlg.Destroy()
+
+        self.updateFromExp()
+        
+        return
+
+    def OnSpotsSaveRaw(self, e):
+        """Save raw spots"""
+        app = wx.GetApp()
+        exp = app.ws
+
+        dlg = wx.FileDialog(self, 'Save Raw Spots', style=wx.FD_SAVE)
+        if dlg.ShowModal() == wx.ID_OK:
+            f = dlg.GetPath()
+            try:
+                exp.saveRawSpots(f)
+            except:
+                wx.MessageBox('failed to save file:  %s' % f)
+                pass
+            pass
+
+        dlg.Destroy()
+
+        self.updateFromExp()
+        return
+    
+    #
+    # ========== Indexer Menu
+    #
+    def OnSaveRMats(self, e):
+        """Save rMats to npy"""
+        app = wx.GetApp()
+        exp = app.ws
+
+        dlg = wx.FileDialog(self, 'Save rMats', style=wx.FD_SAVE)
+        if dlg.ShowModal() == wx.ID_OK:
+            f = dlg.GetPath()
+            try:
+                exp.saveRMats(f)
+            except:
+                wx.MessageBox('failed to write file:  %s' % f)
+                pass
+            pass
+        
+        dlg.Destroy()
+        
+        self.updateFromExp()
+        
+        return
+    
+    def OnExportGrainLog(self, e):
+        """Export grain log file"""
+        app = wx.GetApp()
+        exp = app.ws
+
+        dlg = wx.FileDialog(self, 'Export grain log', style=wx.FD_SAVE)
+        
+        if dlg.ShowModal() == wx.ID_OK:
+            f = dlg.GetPath()
+            exp.export_grainList(f)
+            # try:
+            #     exp.export_grainList(f)
+            # except:
+            #     wx.MessageBox('failed to write file:  %s' % f)
+            #     pass
+            # pass
+
+        dlg.Destroy()
+
+        self.updateFromExp()
+        
+        return
+    
+    def OnDumpGrainList(self, e):
+         """Load raw spots"""
+         app = wx.GetApp()
+         exp = app.ws
+         
+         dlg = wx.FileDialog(self, 'Dump grain list', style=wx.FD_SAVE) 
+         
+         if dlg.ShowModal() == wx.ID_OK:
+             f = dlg.GetPath()
+             try:
+                 exp.dump_grainList(f)
+             except:
+                 wx.MessageBox('failed to write file:  %s' % f)
+                 pass
+             pass
+         
+         dlg.Destroy()
+         
+         self.updateFromExp()
+         
+         return
+    
     #
     # ========== Readers MENU
     #
@@ -533,9 +717,11 @@ class xrdMainFrame(wx.Frame):
         dlg.Destroy()
 
         try:
+            self.SetStatusText('Loading Experiment File')
             app.ws = loadExp(f)
-        except:
-            wx.MessageBox('failed to load file')
+            self.SetStatusText('Done Loading Experiment File')
+        except Exception as e:
+            wx.MessageBox('failed to load experiment:\n%s' % str(e))
             pass
 
         self.updateFromExp()
@@ -554,9 +740,8 @@ class xrdMainFrame(wx.Frame):
 
         try:
             saveExp(exp, f)
-        except:
-            wx.MessageBox('failed to save file')
-            pass
+        except Exception as e:
+            wx.MessageBox('failed to load experiment:\n%s' % str(e))
 
         return
 

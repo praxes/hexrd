@@ -179,24 +179,7 @@ class cakingPanel(wx.Panel):
         #
         #  Now draw
         #
-        self.axes   = self.figure.gca()
-        self.axes.set_aspect('equal')
-
-        intensity = self.img_info['intensity']
-
-        self.axes.images = []
-        # show new image
-        self.axes.imshow(intensity, origin='upper',
-                         interpolation='nearest',
-                         cmap=self.cmPanel.cmap,
-                         vmin=self.cmPanel.cmin_val,
-                         vmax=self.cmPanel.cmax_val,
-                         aspect='auto')
-        #self.axes.set_aspect('equal')
-        self.axes.set_autoscale_on(False)
-
-        self.canvas.draw()
-
+        cCan = cakeDisplay(self, wx.NewId(), prOpts.CAKE_IMG, self.img_info)
         #
         pass
 
@@ -830,10 +813,10 @@ class sphericalOptsPanel(wx.Panel):
         #
         #  Integer inputs
         #
-        self.lump_lab = wx.StaticText(self, wx.NewId(), 'lump', style=wx.ALIGN_CENTER)
+        self.lump_lab = wx.StaticText(self, wx.NewId(), '# lumped frames (omega)', style=wx.ALIGN_CENTER)
         self.lump_spn  = wx.SpinCtrl(self, wx.NewId(), min=1, max=1000, initial=1)
 
-        self.bins_lab = wx.StaticText(self, wx.NewId(), 'bins', style=wx.ALIGN_CENTER)
+        self.bins_lab = wx.StaticText(self, wx.NewId(), 'azimuthal bins (eta)', style=wx.ALIGN_CENTER)
         self.bins_spn  = wx.SpinCtrl(self, wx.NewId(), min=1, max=10000, initial=600)
 
         self.thresh_lab = wx.StaticText(self, wx.NewId(), 'threshold',

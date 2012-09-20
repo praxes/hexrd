@@ -57,7 +57,7 @@ scripts = [
 
 setup(
     name = 'hexrd',
-    version = __version__,
+    version = '0.0.0',
     author = 'Joel Bernier, et al.',
     author_email = 'bernier2@llnl.gov',
     description = 'High energy diffraction microscopy',

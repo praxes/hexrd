@@ -38,6 +38,8 @@ from hexrd.xrd.experiment import *
 from hexrd.wx.guiconfig    import WindowParameters as WP
 from hexrd.wx.guiutil import ResetChoice, makeTitleBar
 from hexrd.wx.canvaspanel  import CanvasPanel
+
+from hexrd import valunits
 #
 #  DATA
 #
@@ -57,10 +59,11 @@ IMAGE_MODE_DICT_SEL = dict(zip(IMG_MODES, range(len(MODE_CHOICES))))
 #  * Dark file choices
 #
 DARK_CHO_NONE  = 'no dark image'
-DARK_CHO_FILE  = 'dark file'
+DARK_CHO_FILE  = 'dark image file'
+DARK_CHO_ARRAY = 'dark frame array'
 DARK_CHO_EMPTY = 'empty frames'
-DARK_CHOICES = [DARK_CHO_NONE, DARK_CHO_FILE, DARK_CHO_EMPTY]
-DARK_MODES   = [ReaderInput.DARK_MODE_NONE, ReaderInput.DARK_MODE_FILE, ReaderInput.DARK_MODE_EMPTY]
+DARK_CHOICES = [DARK_CHO_NONE, DARK_CHO_FILE, DARK_CHO_ARRAY, DARK_CHO_EMPTY]
+DARK_MODES   = [ReaderInput.DARK_MODE_NONE, ReaderInput.DARK_MODE_FILE, ReaderInput.DARK_MODE_ARRAY, ReaderInput.DARK_MODE_EMPTY]
 DARK_MODE_DICT = dict(zip(DARK_CHOICES, DARK_MODES))
 DARK_MODE_DICT_INV = dict(zip(DARK_MODES, DARK_CHOICES))
 #
@@ -484,7 +487,7 @@ class geReaderPanel(wx.Panel):
         #
         #  Enable/disable other interactors
         #
-        self.drk_but.Enable(mode == ReaderInput.DARK_MODE_FILE)
+        self.drk_but.Enable(mode == ReaderInput.DARK_MODE_FILE or mode == ReaderInput.DARK_MODE_ARRAY)
 
         #  Update info window
 
@@ -721,10 +724,10 @@ class MF_Subpanel(wx.Panel):
     #                     ========== *** Event Callbacks
     #
     def OnEditListCtrl(self, e):
-        """List control item Activated
-
+        """
+        List control item Activated
         Update information for that item.
-"""
+        """
         print 'item selected'
         print e.GetIndex(), e.GetColumn(), e.Column
         #print 'text: ', self.file_lctrl.GetItem(e.GetIndex(), e.GetColumn()).GetText()
@@ -940,24 +943,24 @@ class myListCtrl(wx.ListCtrl,
 
     def CloseEditor(self, e=None):
         exp = wx.GetApp().ws
-
+        
         listMixins.TextEditMixin.CloseEditor(self, e)
         i = self.curRow; j = self.curCol
 
         item = self.GetItem(i, j)
-
+        
         print 'item (%d, %d) modified' % (i, j)
         print 'item text: ', item.GetText()
-
+        
         fname = self.GetItem(i, 0).GetText()
-
+        
         try:
             numEm = int(self.GetItem(i, 1).GetText())
         except:
             numEm = exp.activeReader.imageNameD[fname][0]
             self.SetStringItem(i, j, str(numEm))
             pass
-
+        
         omin  = self.GetItem(i, 3).GetText()
         omax  = self.GetItem(i, 4).GetText()
         odel  = self.GetItem(i, 5).GetText()

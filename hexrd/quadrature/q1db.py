@@ -25,6 +25,7 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 import numpy as num
+from math import sqrt
 
 from .qloc1ddata import *
 
@@ -47,7 +48,6 @@ def qloc2():
     return xi, w
 
 def qloc3():
-    from math import sqrt
     nqpt = 3
     xi = num.empty([nqpt]) # ,ndim
     w  = num.empty([nqpt])
@@ -57,7 +57,6 @@ def qloc3():
     return xi, w
 
 def qloc4():
-    from math import sqrt
     nqpt = 4
     xi = num.empty([nqpt]) # ,ndim
     w  = num.empty([nqpt])
@@ -70,7 +69,6 @@ def qloc4():
     return xi, w
 
 def qloc5():
-    from math import sqrt
     nqpt = 5
     xi = num.empty([nqpt]) # ,ndim
     w  = num.empty([nqpt])
@@ -84,7 +82,6 @@ def qloc5():
     return xi, w
 
 def qloc8():
-    from math import sqrt
     nqpt = 8
     xi = num.empty([nqpt]) # ,ndim
     w  = num.empty([nqpt])

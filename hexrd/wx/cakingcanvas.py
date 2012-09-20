@@ -32,7 +32,7 @@ import wx
 
 import numpy
 
-from hexrd.xrd.Experiment  import PolarRebinOpts as prOpts
+from hexrd.xrd.experiment  import PolarRebinOpts as prOpts
 
 from hexrd.wx.guiconfig import WindowParameters as WP
 from hexrd.wx.guiutil import makeTitleBar
@@ -45,14 +45,18 @@ class cakeCanvas(wx.Panel):
     def __init__(self, parent, id, cakeType, data, **kwargs):
 	"""Constructor for cakeCanvas panel
 
-        INPUTS
-        cakeType -- full caking, ring-based or spherical (omega-eta map)
-        data     -- caking output, depending on cakeType
+        **INPUTS**
+        *cakeType* - flag for type of analysis: full image caking, ring-based or spherical (omega-eta map)
+        *data* - the object with data to be plotted caking, depending on *cakeType*
                  .. for rings case, a MultiRingBinned instance
+                 .. for full image case, img_info (output of polarRebin)
 
-        OUTPUTS
+        
+        **OUTPUTS**
+        *self* - this panel
 
-        DESCRIPTION
+        
+        **DESCRIPTION**
         Shows data on output canvas.
 """
 	#
@@ -95,6 +99,7 @@ class cakeCanvas(wx.Panel):
         #self.cmPanel.Disable()
         #
         if   self.cakeType == prOpts.CAKE_IMG:
+            self.opt_pan = imgOpts(self, wx.NewId())
             # full image caking panel
             pass
         elif self.cakeType == prOpts.CAKE_RNG:
@@ -343,7 +348,9 @@ class rngOpts(wx.Panel):
         if dlg.ShowModal() == wx.ID_OK:
             f = dlg.GetPath()
             try:
-                numpy.savetxt(f, self.errs)
+                # numpy.savetxt(f, self.errs)
+                p = self.GetParent()
+                p.data.getTThErrors(outputFile=f)
             except:
                 wx.MessageBox('failed to save file:  %s' % f)
                 pass
@@ -357,3 +364,113 @@ class rngOpts(wx.Panel):
     pass # end class
 #
 # -----------------------------------------------END CLASS:  rngOpts
+# ---------------------------------------------------CLASS:  imgOpts
+#
+class imgOpts(wx.Panel):
+    """Options panel for IMG (standard) caking canvas"""
+
+    def __init__(self, parent, id, **kwargs):
+	"""Constructor for imgOpts."""
+	#
+	wx.Panel.__init__(self, parent, id, **kwargs)
+	#
+        #  Data
+        #
+
+        #
+	#  Window Objects.
+	#
+        self.__makeObjects()
+	#
+	#  Bindings.
+	#
+	self.__makeBindings()
+	#
+	#  Sizing.
+	#
+	self.__makeSizers()
+	#
+	self.SetAutoLayout(True)
+        self.SetSizerAndFit(self.sizer)
+
+	return
+    #
+    # ============================== Internal Methods
+    #
+    def __makeObjects(self):
+        """Add interactors"""
+
+        self.tbarSizer = makeTitleBar(self, 'Full Image Rebinning Results')
+        #
+
+        return
+
+    def __makeBindings(self):
+        """Bind interactors"""
+        return
+
+    def __makeSizers(self):
+	"""Lay out the interactors"""
+
+	self.sizer = wx.BoxSizer(wx.VERTICAL)
+	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Show(self.tbarSizer, False)
+
+	return
+    #
+    # ============================== API
+    #
+    #                     ========== *** Access Methods
+    #
+    def update(self):
+        """Update canvas"""
+        p = self.GetParent()
+
+        intensity = p.data['intensity']
+
+        p.axes = p.figure.gca()
+        p.axes.set_aspect('equal')
+
+
+        p.axes.images = []
+        # show new image
+        p.axes.imshow(intensity, origin='upper',
+                      interpolation='nearest',
+                      aspect='auto')
+#                      cmap=self.cmPanel.cmap,
+#                      vmin=self.cmPanel.cmin_val,
+#                      vmax=self.cmPanel.cmax_val,
+        p.axes.set_autoscale_on(False)
+
+        p.canvas.draw()
+
+        return
+    #
+    #                     ========== *** Event Callbacks
+    #
+    def OnUpdate(self, e):
+        """Update canvas"""
+        self.update()
+        return
+
+    def OnExport(self, e):
+        """Export results to a text file"""
+        # export self.errs to a file
+        dlg = wx.FileDialog(self, 'Export Binning Data', style=wx.FD_SAVE)
+        if dlg.ShowModal() == wx.ID_OK:
+            f = dlg.GetPath()
+            try:
+                wx.MessageBox('would save to file:  %s' % f)
+                #exp.saveDetector(f)
+            except:
+                wx.MessageBox('failed to save file:  %s' % f)
+                pass
+            pass
+
+        dlg.Destroy()
+
+        return
+
+    pass # end class
+#
+# -----------------------------------------------END CLASS:  imgOpts

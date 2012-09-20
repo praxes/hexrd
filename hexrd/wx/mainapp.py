@@ -147,7 +147,9 @@ if __name__ == '__main__':
     #
     # Autload data
     #
-    app.mFrame.loadProject()
+    # * turning off autoload, using loadExperiment instead
+    #
+    # app.mFrame.loadProject()
     #
     # wx main loop
     #
