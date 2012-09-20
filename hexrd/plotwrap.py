@@ -41,7 +41,8 @@ what we need is something to make the figure and the canvas without the figure m
 '''
 import numpy as num
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('WXAgg')
+#matplotlib.use('TkAgg')
 import math
 
 # from matplotlib.backend_bases import Event
