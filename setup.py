@@ -45,8 +45,6 @@ for dirpath, dirnames, filenames in os.walk('hexrd'):
     else:
         del(dirnames[:])
 
-<<<<<<< HEAD
-=======
 with open('hexrd/__init__.py') as f:
     for line in f:
         if line[:11] == '__version__':
@@ -57,7 +55,6 @@ scripts = [
     'scripts/hexrd'
     ]
 
->>>>>>> nathan
 setup(
     name = 'hexrd',
     version = '0.0.0',
