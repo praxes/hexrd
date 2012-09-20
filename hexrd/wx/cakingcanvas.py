@@ -35,7 +35,7 @@ from matplotlib.axes import Axes
 from matplotlib.patches import Rectangle, Circle, Polygon
 from matplotlib.collections import PatchCollection
 
-from hexrd.matrixUtils import columnNorm, unitVector
+from hexrd.matrixutil import columnNorm, unitVector
 
 from hexrd.xrd.experiment  import PolarRebinOpts as prOpts
 from hexrd.xrd.xrdutil import makeMeasuredScatteringVectors as makeMSV

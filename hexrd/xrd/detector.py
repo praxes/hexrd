@@ -1,9 +1,9 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
-# Produced at the Lawrence Livermore National Laboratory.
-# Written by Joel Bernier <bernier2@llnl.gov> and others.
-# LLNL-CODE-529294.
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
+# Produced at the Lawrence Livermore National Laboratory. 
+# Written by Joel Bernier <bernier2@llnl.gov> and others. 
+# LLNL-CODE-529294. 
 # All rights reserved.
 #
 # This file is part of HEXRD. For details on dowloading the source,
@@ -74,7 +74,6 @@ r2d = 1.0/d2r
 
 bsize = 25000
 ztol  = 1e-10
-DFLT_XTOL = 1.0E-6
         
 def angToXYIdeal(tTh, eta, workDist):
     rho = num.tan(tTh) * workDist
@@ -611,10 +610,10 @@ class ReadGeneric(Framer2DRC):
         assert self.omegas is not None,\
             """instance does not have omega information"""
         return self.omegaMin, self.omegaMax
-    def getDeltaOmega(self):
+    def getDeltaOmega(self, nframes=1):
         assert self.omegas is not None,\
             """instance does not have omega information"""
-        return self.omegaDelta
+        return self.omegaDelta * nframes
     def getDark(self):
         'no dark yet supported'
         return 0
@@ -653,10 +652,10 @@ class ReadGeneric(Framer2DRC):
         assert self.omegas is not None,\
             """instance does not have omega information"""
         return self.omegaMin, self.omegaMax
-    def getDeltaOmega(self):
+    def getDeltaOmega(self, nframes=1):
         assert self.omegas is not None,\
             """instance does not have omega information"""
-        return self.omegaDelta
+        return self.omegaDelta * nframes
     def getDark(self):
         'no dark yet supported'
         return 0
@@ -937,10 +936,10 @@ class ReadGE(Framer2DRC):
         """number of total frames with real data, not number remaining"""
         nFramesTot = self.getNFramesFromFileInfo(self.fileInfo)
         return nFramesTot
-    def getDeltaOmega(self):
+    def getDeltaOmega(self, nframes=1):
         assert self.omegas is not None,\
             """instance does not have omega information"""
-        return self.omegaDelta
+        return self.omegaDelta * nframes
     def getOmegaMinMax(self):
         assert self.omegas is not None,\
             """instance does not have omega information"""
@@ -1902,7 +1901,7 @@ class MultiRingBinned:
     __location = '  MultiRingBinned'
     def __init__(self, detectorGeom, planeData,
                  dataFrame, 
-                 funcType = funcTypeDflt,
+                 funcType = funcTypeDflt, 
                  refineParamsDG = True,
                  refineParamsL = False,
                  targetNRho = None,
