@@ -516,8 +516,15 @@ class Experiment(object):
         fname -- the name of the file to save in
         """
         f = open(fname, 'w')
-        self._detInfo.mrbImages = [] # remove images before saving
-        cPickle.dump(self._detInfo, f)
+        # self._detInfo.mrbImages = [] # remove images before saving
+        # cPickle.dump(self._detInfo, f)
+        det_class = self.detector.__class__
+        det_plist = self.detector._Detector2DRC__makePList()
+        det_rflag = self.detector.refineFlags
+        print >> f, "# DETECTOR PARAMETERS"
+        print >> f, "# \n# %s\n#" % (det_class)
+        for i in range(len(det_plist)):
+            print >> f, "%1.8e\t%d" % (det_plist[i], det_rflag[i])
         f.close()
 
         return
@@ -531,7 +538,32 @@ class Experiment(object):
         """
         # should check the loaded file here
         f = open(fname, 'r')
-        self._detInfo = cPickle.load(f)
+        # 
+        lines = f.readlines()
+        # self._detInfo = cPickle.load(f)
+        det_class_str = None
+        for i in range(len(lines)):
+            if 'class' in lines[i]:
+                det_class_str = lines[i]
+        f.seek(0)
+        if det_class_str is None:
+            raise RuntimeError, "detector class label not recongined in file!"
+        else:
+            plist_rflags = numpy.loadtxt(f)
+            plist = plist_rflags[:, 0]
+            rflag = numpy.array(plist_rflags[:, 0], dtype=bool)
+            
+            exec_str = "DC = detector." + det_class_str.split('.')[-1].split("'")[0]
+            exec(exec_str)
+            
+            gp = plist[:6].tolist()
+            if len(plist[6:]) == 0:
+                dp = None
+            else:
+                dp = plist[6:].tolist()
+            self._detInfo  = DetectorInfo(gParms=gp, dParms=dp)
+            self.detector.setupRefinement(rflag)
+            self._detInfo.refineFlags = rflag
         f.close()
 
         return
