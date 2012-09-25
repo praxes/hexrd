@@ -114,14 +114,11 @@ class spotsPanel(wx.Panel):
             self, wx.NewId(), 
             'Active Reader', style=wx.ALIGN_RIGHT)
         self.aread_cho = wx.Choice(self, wx.NewId(), choices=['reader list'])
-	#self.Bind(wx.EVT_CHOICE, self.OActiveReader, self.aread_cho)
-
         
         self.rdr_lab = wx.StaticText(
             self, wx.NewId(), 
             'Used Readers', style=wx.ALIGN_RIGHT)
         self.rdr_lbx =  wx.ListBox(self, wx.NewId(), choices = ['r1', 'r2'])
-        #self.sizer.Add(self.rdr_lbx,  1, wx.EXPAND | wx.ALIGN_CENTER | wx.TOP, 5)
 
         self.nspot_lab = wx.StaticText(
             self, wx.NewId(), 

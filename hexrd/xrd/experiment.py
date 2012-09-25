@@ -551,7 +551,7 @@ class Experiment(object):
         else:
             plist_rflags = numpy.loadtxt(f)
             plist = plist_rflags[:, 0]
-            rflag = numpy.array(plist_rflags[:, 0], dtype=bool)
+            rflag = numpy.array(plist_rflags[:, 1], dtype=bool)
             
             exec_str = "DC = detector." + det_class_str.split('.')[-1].split("'")[0]
             exec(exec_str)
