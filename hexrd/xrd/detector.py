@@ -5508,6 +5508,16 @@ def newDetector(detectorType, *args, **kwargs):
 
     detectorType - a string in the detector type list [see detectorList()]
     """
+    if len(args) == 0:
+        if kwargs.has_key('gParms'):
+            args = kwargs.pop('gParms')
+        if kwargs.has_key('dParms'):
+            dp = kwargs.pop('dParms')
+            if dp:
+                kwargs['distortionParams'] = dp
+                pass
+            pass
+        pass
     
     dt = detectorType.lower()
     if dt == "ge":

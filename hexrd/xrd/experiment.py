@@ -1157,7 +1157,11 @@ GE reader is supported.
             drkFile = os.path.join(self.darkDir, self.darkName) 
         elif (self.darkMode == ReaderInput.DARK_MODE_ARRAY):
             drkFileName = os.path.join(self.darkDir, self.darkName) 
-            drkFile     = self.RC.frame(buffer=numpy.fromfile(drkFileName, dtype=self.RC.getReadDtype()))
+            drkFile     = self.RC.frame(
+                buffer=numpy.fromfile(drkFileName, 
+                                      dtype=self.RC._ReadGE__frame_dtype_read
+                                      )
+                )
         else:
             drkFile = None
             pass
@@ -1266,8 +1270,10 @@ class DetectorInfo(object):
     def __init__(self, gParms=[], dParms=[]):
         """Constructor for detectorInfo"""
         #
-	# self.detector  = detector.newDetector('ge', gParams=gParms, dParams=dParms) 
-        self.detector  = detector.newDetector('ge')
+	if gParms:              # maintain this keyword for compatability with Don's usage
+            self.detector  = detector.newDetector('ge', gParms=gParms, dParms=dParms) 
+        else:
+            self.detector  = detector.newDetector('ge')
         self.mrbImages = []
         self.fitParams = []
         #
