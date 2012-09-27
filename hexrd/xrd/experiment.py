@@ -1266,7 +1266,8 @@ class DetectorInfo(object):
     def __init__(self, gParms=[], dParms=[]):
         """Constructor for detectorInfo"""
         #
-	self.detector  = detector.newDetector('ge', gParams=gParms, dParams=dParms)
+	# self.detector  = detector.newDetector('ge', gParams=gParms, dParams=dParms) 
+        self.detector  = detector.newDetector('ge')
         self.mrbImages = []
         self.fitParams = []
         #
