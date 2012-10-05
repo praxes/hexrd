@@ -3150,55 +3150,16 @@ class Detector2DRC(DetectorBase):
             reader = newGenericReader(ncols, nrows, **readerKWArgs)
         
         """
-        The following is meant to facilitate creation of generic detector types;
-        It is rather ugly, but seems to work
+        The following is meant to facilitate creation of generic detector types
         """
-        getDParamDflt        = kwargs.pop('getDParamDflt', None)
-        setDParamZero        = kwargs.pop('setDParamZero', None)
-        getDParamScalings    = kwargs.pop('getDParamScalings', None)
-        getDParamRefineDflt  = kwargs.pop('getDParamRefineDflt', None)
-        radialDistortion     = kwargs.pop('radialDistortion', None)
-        #
-        if getDParamDflt:
-            if hasattr(getDParamDflt, 'im_class'):
-                f_getDParamDflt = getDParamDflt
-            else:
-                def f_getDParamDflt():
-                    return getDParamDflt(self)
-                f_getDParamDflt.im_class = self.__class__ # this is cheating?
-            self.getDParamDflt = f_getDParamDflt
-        if setDParamZero:
-            if hasattr(setDParamZero, 'im_class'):
-                f_setDParamZero = setDParamZero
-            else:
-                def f_setDParamZero():
-                    return setDParamZero(self)
-                f_setDParamZero.im_class = self.__class__ # this is cheating?
-            self.setDParamZero = f_setDParamZero
-        if getDParamScalings:
-            if hasattr(getDParamScalings, 'im_class'):
-                f_getDParamScalings = getDParamScalings
-            else:
-                def f_getDParamScalings():
-                    return getDParamScalings(self)
-                f_getDParamScalings.im_class = self.__class__ # this is cheating?
-            self.getDParamScalings = f_getDParamScalings
-        if getDParamRefineDflt:
-            if hasattr(getDParamRefineDflt, 'im_class'):
-                f_getDParamRefineDflt = getDParamRefineDflt
-            else:
-                def f_getDParamRefineDflt():
-                    return getDParamRefineDflt(self)
-                f_getDParamRefineDflt.im_class = self.__class__ # this is cheating?
-            self.getDParamRefineDflt = f_getDParamRefineDflt
-        if radialDistortion:
-            if hasattr(radialDistortion, 'im_class'):            
-                f_radialDistortion = radialDistortion
-            else:
-                def f_radialDistortion(*fargs, **fkwargs):
-                    return radialDistortion(self, *fargs, **fkwargs)
-                f_radialDistortion.im_class = self.__class__ # this is cheating?
-            self.radialDistortion = f_radialDistortion
+        optionalFuncs = ('getDParamDflt', 
+                         'setDParamZero', 
+                         'getDParamScalings', 
+                         'getDParamRefineDflt', 
+                         'radialDistortion') 
+        for optFunc in optionalFuncs:
+            if kwargs.has_key(optFunc):
+                self.__setattr__(optFunc, kwargs.pop(optFunc))
         
         DetectorBase.__init__(self, reader)
         
@@ -5581,15 +5542,15 @@ def newGenericDetector(ncols, nrows, pixelPitch, *args, **kwargs):
     readerKWArgs = kwargs.pop('readerKWArgs',{})
 
     'default functions corresponding to no distortion'
-    def getDParamDflt_dflt(slf):    
+    def getDParamDflt_dflt():    
         return []
-    def setDParamZero_dflt(slf):    
+    def setDParamZero_dflt():    
         return
-    def getDParamScalings_dflt(slf):    
+    def getDParamScalings_dflt():    
         return []
-    def getDParamRefineDflt_dflt(slf):
+    def getDParamRefineDflt_dflt():
         return []
-    def radialDistortion_dflt(slf, xin, yin, invert=False):
+    def radialDistortion_dflt(xin, yin, invert=False):
         'no distortion correction'
         return xin, yin
     
