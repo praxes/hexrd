@@ -205,13 +205,13 @@ class Experiment(object):
                     s1, s2, s3 = grain.findMatches(etaTol=etaTol, omeTol=omeTol, strainMag=fineDspTol,
                                                    updateSelf=True, claimingSpots=False, doFit=True, 
                                                    testClaims=True)
-                if grain.completeness > minCompl:
-                    export_grainList()
+                if grain.completeness > minCompl:                    
                     grainList.append(grain)
                     pass
                 pass
             pass
         self.grainList = grainList
+        # self.export_grainList()
         return
     
     def saveRMats(self, f):

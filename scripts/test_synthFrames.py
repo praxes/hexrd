@@ -33,6 +33,8 @@ test_synthFrames.py --test=makeSynthStack --test=stackToSpots --test=index
 
 test_synthFrames.py --test=makeSynthStack --test=stackToSpots --num-grains=25
 
+test_synthFrames.py --test=makeSynthStack --test=stackToSpots --num-grains=25 --args-in-degrees=True --ome-min=-60 --ome-max=60 --n-ome=240
+
 test_synthFrames.py --detector-geom='generic;[];{"ncols":512,"nrows":512,"pixelPitch":0.8}' --fwhm='(0.002, 0.01, 0.01)' --test=makeSynthStack --test=stackToSpots --test=index
 '''
 
@@ -41,23 +43,31 @@ import time
 
 import numpy as num
 import optparse
+
 from hexrd import valunits
-from hexrd.xrd import grain, xrdutil, detector, spotfinder, indexer
-from hexrd.xrd.spotfinder import Spots
 from hexrd import orientations as ors
+
+from hexrd.xrd            import grain, xrdutil, detector, spotfinder, indexer
+from hexrd.xrd.spotfinder import Spots
+from hexrd.xrd.material   import Material, loadMaterialList
 
 # from examples.rubyNIST import planeData
 #
-from examples import fe
-planeData = fe.getAlphaPD()
+## from examples import fe
+## planeData = fe.getAlphaPD()
+mat_list = loadMaterialList("../hexrd/data/all_materials.cfg")
+
+planeData = mat_list[-1].planeData
+planeData.exclusions = num.zeros( len(planeData.exclusions), dtype=bool )
+planeData.tThMax = detectorGeom.getTThMax()
 
 USAGE = '%s [options]' % __file__ + '\n\n' + usage
 
 'defaults'
 degToRad = num.pi/180.
-omeMin =  -60.*degToRad
-omeMax =   60.*degToRad
-nOme   =  240
+omeMin =  -90.*degToRad
+omeMax =   90.*degToRad
+nOme   =   360
 
 synthStackName = 'synth.stack'
 synthSpotsName = 'synth.spots'
@@ -93,13 +103,13 @@ def createParser(usage=USAGE):
         dest = "numGrains", 
         help = "number of grains to use [default=%default]")
 
-    parser.set_defaults(detectorGeomStr='ge:[]:{}')
+    parser.set_defaults(detectorGeomStr='ge;[];{}')
     parser.add_option (
         "-d", "--detector-geom", action = "store", type = "string",
         dest = "detectorGeomStr", 
         help = "detector [default=%default]")
 
-    parser.set_defaults(fwhmStr='(0.0005, 0.01, 0.01)')
+    parser.set_defaults(fwhmStr='(0.005, 0.01, 0.01)')
     parser.add_option (
         "--fwhm", action = "store", type = "string",
         dest = "fwhmStr", 
@@ -214,6 +224,7 @@ if __name__ == '__main__':
     detectorGeom = detector.newDetector(dgType, *args, **kwargs)
     
     tThMax = detectorGeom.getTThMax(func=num.max)
+    print tThMax/degToRad
     planeData.tThMax = tThMax
 
     ######################################################################
