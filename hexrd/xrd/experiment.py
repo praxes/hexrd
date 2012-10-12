@@ -1004,7 +1004,7 @@ GE reader is supported.
     FLIP_STRS  = ('',        'v',       'h',        'hv',     'cw90',   'ccw90')
     FLIP_DICT  = dict(zip(FLIP_MODES, FLIP_STRS))
     #
-    RC = detector.ReadGE
+    RC = detector.ReadGE        # HARD CODED DETECTOR CHOICE!!!
     
     def __init__(self, name='reader', desc='no description'):
         """Constructor for ReaderInput
@@ -1134,6 +1134,8 @@ GE reader is supported.
         fullPath = lambda fn: os.path.join(self.imageDir, fn)
         numEmpty = lambda fn: self.imageNameD[fn][0]
         imgInfo = [(fullPath(f), numEmpty(f)) for f in self.imageNames]
+        
+        ref_reader = self.RC(imgInfo)
         #
         # Check for omega info
         #
@@ -1157,9 +1159,9 @@ GE reader is supported.
             drkFile = os.path.join(self.darkDir, self.darkName) 
         elif (self.darkMode == ReaderInput.DARK_MODE_ARRAY):
             drkFileName = os.path.join(self.darkDir, self.darkName) 
-            drkFile     = self.RC.frame(
+            drkFile     = ref_reader.frame(
                 buffer=numpy.fromfile(drkFileName, 
-                                      dtype=self.RC._ReadGE__frame_dtype_read
+                                      dtype=ref_reader.dtypeRead
                                       )
                 )
         else:
