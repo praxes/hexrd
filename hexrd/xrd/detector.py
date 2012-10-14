@@ -55,6 +55,7 @@ from matplotlib.widgets import Slider, Button, RadioButtons
 
 from hexrd import xrd
 from hexrd.xrd.xrdbase import getGaussNDParams, dataToFrame
+from hexrd.xrd.crystallography import processWavelength
 from hexrd.xrd.rotations import mapAngle
 from hexrd.xrd.rotations import rotMatOfExpMap
 from hexrd.xrd.rotations import rotMatOfExpMap, arccosSafe
@@ -2394,6 +2395,9 @@ class MultiRingBinned:
 
         units can be:  'mm' <radius>, 'd-spacing', 'strain', 'radians' <tTh>, 'degrees' <tTh>
         """
+        # beam energy (jay s. wants this
+        beamEnergy = processWavelength(1.) / self.planeData.wavelength
+        
         # baseline ("ideal") tTh values
         tThs = self.planeData.getTTh()[self.iRingToHKL]
         
@@ -2475,9 +2479,9 @@ class MultiRingBinned:
             etaOut  = num.vstack([etaFloating, 2*num.pi + etaFloating]).T.flatten()
             rho0Out = num.vstack([rho0, rho0]).T.flatten()/rhoMax
             rhoOut  = num.vstack([rho, rho]).T.flatten()/rhoMax
-            
-            dataList = ["%d,%1.6e,%1.6e,%1.6e"
-                        % (idsOut[i], etaOut[i], rho0Out[i], rhoOut[i])
+                        
+            dataList = ["%d, %1.6e, %1.6e, %1.6e, %1.6e"
+                        % (idsOut[i], etaOut[i], rho0Out[i], rhoOut[i], beamEnergy)
                         for i in range(len(idsOut))]
             
             if isinstance(outputFile, file):
@@ -2492,7 +2496,8 @@ class MultiRingBinned:
             print >> fid, '# xTilt, yTilt, zTilt = (%1.3e, %1.3e, %1.3e)\n# ' % (self.detectorGeom.xTilt, self.detectorGeom.yTilt, self.detectorGeom.zTilt)
             print >> fid, '\n'.join(['# ' + str(hklIDs[i]) + ' --> ' + hklStr[i] for i in range(len(hklIDs))])
             print >> fid, '# '
-            print >> fid, '# ID, azimuth, ideal, measured\n# '
+            print >> fid, '# ID, azimuth, ideal, measured, energy\n# '
+            print >> fid, 'id, a, r0, r, e'
             print >> fid, '\n'.join(dataList)
             fid.close()
         return retval
