@@ -3155,55 +3155,16 @@ class Detector2DRC(DetectorBase):
             reader = newGenericReader(ncols, nrows, **readerKWArgs)
         
         """
-        The following is meant to facilitate creation of generic detector types;
-        It is rather ugly, but seems to work
+        The following is meant to facilitate creation of generic detector types
         """
-        getDParamDflt        = kwargs.pop('getDParamDflt', None)
-        setDParamZero        = kwargs.pop('setDParamZero', None)
-        getDParamScalings    = kwargs.pop('getDParamScalings', None)
-        getDParamRefineDflt  = kwargs.pop('getDParamRefineDflt', None)
-        radialDistortion     = kwargs.pop('radialDistortion', None)
-        #
-        if getDParamDflt:
-            if hasattr(getDParamDflt, 'im_class'):
-                f_getDParamDflt = getDParamDflt
-            else:
-                def f_getDParamDflt():
-                    return getDParamDflt(self)
-                f_getDParamDflt.im_class = self.__class__ # this is cheating?
-            self.getDParamDflt = f_getDParamDflt
-        if setDParamZero:
-            if hasattr(setDParamZero, 'im_class'):
-                f_setDParamZero = setDParamZero
-            else:
-                def f_setDParamZero():
-                    return setDParamZero(self)
-                f_setDParamZero.im_class = self.__class__ # this is cheating?
-            self.setDParamZero = f_setDParamZero
-        if getDParamScalings:
-            if hasattr(getDParamScalings, 'im_class'):
-                f_getDParamScalings = getDParamScalings
-            else:
-                def f_getDParamScalings():
-                    return getDParamScalings(self)
-                f_getDParamScalings.im_class = self.__class__ # this is cheating?
-            self.getDParamScalings = f_getDParamScalings
-        if getDParamRefineDflt:
-            if hasattr(getDParamRefineDflt, 'im_class'):
-                f_getDParamRefineDflt = getDParamRefineDflt
-            else:
-                def f_getDParamRefineDflt():
-                    return getDParamRefineDflt(self)
-                f_getDParamRefineDflt.im_class = self.__class__ # this is cheating?
-            self.getDParamRefineDflt = f_getDParamRefineDflt
-        if radialDistortion:
-            if hasattr(radialDistortion, 'im_class'):            
-                f_radialDistortion = radialDistortion
-            else:
-                def f_radialDistortion(*fargs, **fkwargs):
-                    return radialDistortion(self, *fargs, **fkwargs)
-                f_radialDistortion.im_class = self.__class__ # this is cheating?
-            self.radialDistortion = f_radialDistortion
+        optionalFuncs = ('getDParamDflt', 
+                         'setDParamZero', 
+                         'getDParamScalings', 
+                         'getDParamRefineDflt', 
+                         'radialDistortion') 
+        for optFunc in optionalFuncs:
+            if kwargs.has_key(optFunc):
+                self.__setattr__(optFunc, kwargs.pop(optFunc))
         
         DetectorBase.__init__(self, reader)
         
@@ -3351,7 +3312,7 @@ class Detector2DRC(DetectorBase):
     def __updateFromPList(self, plist):
         self.xc, self.yc, self.workDist, self.xTilt, self.yTilt, self.zTilt = plist[0:6]
         if hasattr(plist[6],'__len__'):
-            assert len(plist[6]) == 6, 'plist of wrong length : '+str(plist)
+            assert len(plist) >= 6, 'plist of wrong length : '+str(plist)
             self.dparms = plist[6]
         else:
             self.dparms = plist[6:]
@@ -4994,7 +4955,7 @@ class DetectorGeomGE(Detector2DRC):
 
     def getNewReader(self, filename, *args, **kwargs):
         # newR = self.reader.__class__(filename, self.ncols, self.nrows, *args, **kwargs)
-        newR = ReadGE(filename, *args, **readerKWArgs)
+        newR = ReadGE(filename, *args, **kwargs)
         return newR
     def makeNew(self, *args, **kwargs):
         kwargs.setdefault('reader',self.reader)
@@ -5506,40 +5467,27 @@ def getOmegaMMReaderList(readerList, overall=False):
 def detectorList():
     return ["ge", "mar165", "generic"]
 
-def newDetector(detectorType, gParams=[], dParams=[]):
+def newDetector(detectorType, *args, **kwargs):
     """Return a detector of the requested type
 
     INPUTS
 
     detectorType - a string in the detector type list [see detectorList()]
     """
+    if len(args) == 0:
+        if kwargs.has_key('gParms'):
+            args = kwargs.pop('gParms')
+        if kwargs.has_key('dParms'):
+            dp = kwargs.pop('dParms')
+            if dp:
+                kwargs['distortionParams'] = dp
+                pass
+            pass
+        pass
     
     dt = detectorType.lower()
-    
     if dt == "ge":
-        if gParams:
-            gprms = copy.copy(gParams)
-        else:
-            # Use default set
-            gprms = [ 2.00000000e+02,  # XC
-                      2.00000000e+02,  # YC
-                      1.00000000e+03,  # D
-                      0.00000000e+00,  # xTilt (-ROTY from fit2d)
-                      0.00000000e+00,  # yTilt ( ROTX from fit2d)
-                      0.00000000e+00,  # zTilt (can't refine with powder)
-                      ]
-
-        if dParams:
-            dprms = copy.copy(dParams)
-        else:
-            # note: dprms == [] does not work (see Detector2DRC.__init__)
-            dprms = None
-        
-        #
-        #  For now, use default distortion parameters
-        #
-        d = DetectorGeomGE(gprms, distortionParams=dprms)
-        
+        d = DetectorGeomGE(*args, **kwargs)
     elif dt == "mar165":
         d = DetectorGeomMar165(*args, **kwargs)
     elif dt == "generic":
@@ -5599,15 +5547,15 @@ def newGenericDetector(ncols, nrows, pixelPitch, *args, **kwargs):
     readerKWArgs = kwargs.pop('readerKWArgs',{})
 
     'default functions corresponding to no distortion'
-    def getDParamDflt_dflt(slf):    
+    def getDParamDflt_dflt():    
         return []
-    def setDParamZero_dflt(slf):    
+    def setDParamZero_dflt():    
         return
-    def getDParamScalings_dflt(slf):    
+    def getDParamScalings_dflt():    
         return []
-    def getDParamRefineDflt_dflt(slf):
+    def getDParamRefineDflt_dflt():
         return []
-    def radialDistortion_dflt(slf, xin, yin, invert=False):
+    def radialDistortion_dflt(xin, yin, invert=False):
         'no distortion correction'
         return xin, yin
     
