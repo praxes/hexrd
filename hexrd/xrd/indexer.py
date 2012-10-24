@@ -36,12 +36,14 @@ import time
 import numpy as num
 
 import hexrd.matrixutil as mUtil
-import hexrd.xrd.grain
-from hexrd.xrd.grain import makeMeasuredScatteringVectors
-import hexrd.xrd.rotations
-from hexrd.xrd.rotations import mapAngle, quatOfRotMat, quatProductMatrix, rotMatOfExpMap, rotMatOfQuat
-from hexrd.xrd.symmetry import toFundamentalRegion
-from hexrd.xrd import xrdbase
+
+from hexrd.xrd.grain     import Grain, makeMeasuredScatteringVectors
+from hexrd.xrd.rotations import \
+     discreteFiber, mapAngle, \
+     quatOfRotMat, quatProductMatrix, \
+     rotMatOfExpMap, rotMatOfQuat
+from hexrd.xrd.symmetry  import toFundamentalRegion
+from hexrd.xrd           import xrdbase
 
 if xrdbase.haveMultiProc:
     multiprocessing = xrdbase.multiprocessing # formerly import
@@ -238,14 +240,12 @@ nStdDev_MP         = None
 def testThisQ(thisQ):
     """
     NOTES:
-    (*) doFit is not done here -- in multiprocessing, that would end up happening on a remote process
-    and then different processes would have different data, unless spotsArray were made to be fancier
-    """
-    G = hexrd.xrd.grain
-    R = hexrd.xrd.rotations
-
-    """
-    kludge stuff so that this function is outside of fiberSearch
+    (*) doFit is not done here -- in multiprocessing, that would end
+        up happening on a remote process and then different processes
+        would have different data, unless spotsArray were made to be
+        fancier
+    
+    (*) kludge stuff so that this function is outside of fiberSearch
     """
     global multiProcMode_MP
     global spotsArray_MP
@@ -268,7 +268,7 @@ def testThisQ(thisQ):
 
     foundGrainData = None
     #print "testing %d of %d"% (iR+1, numTrials)
-    thisRMat = R.rotMatOfQuat(thisQ)
+    thisRMat = rotMatOfQuat(thisQ)
 
     ppfx = ''
     if multiProcMode:
@@ -358,7 +358,7 @@ def testThisQ(thisQ):
         #     etaTol=fineEtaTol)
         # if multiProcMode:
         #     foundGrain.strip()
-        cInfo = R.quatOfRotMat(candidate.rMat).flatten().tolist()
+        cInfo = quatOfRotMat(candidate.rMat).flatten().tolist()
         cInfo.append(candidate.completeness)
         print ppfx+"Grain found at q = [%1.2e, %1.2e, %1.2e, %1.2e] with completeness %g" \
               % tuple(cInfo)
@@ -400,8 +400,7 @@ def fiberSearch(spotsArray, hklList,
 
     the output is a concatenated list of orientation matrices ((n, 3, 3) numpy.ndarray).
     """
-    G = hexrd.xrd.grain
-    R = hexrd.xrd.rotations
+    
     assert hasattr(hklList, '__len__'), "the HKL list must have length, and len(hklList) > 0."
 
     nHKLs = len(hklList)
@@ -415,8 +414,8 @@ def fiberSearch(spotsArray, hklList,
 
     centroSymRefl = planeData.getCentroSymHKLs()
 
-    candidate = G.Grain(spotsArray, rMat=None,
-                        etaTol=etaTol, omeTol=omeTol)
+    candidate = Grain(spotsArray, rMat=None,
+                      etaTol=etaTol, omeTol=omeTol)
     multiProcMode = xrdbase.haveMultiProc and doMultiProc
     #
     global foundFlagShared
@@ -479,33 +478,33 @@ def fiberSearch(spotsArray, hklList,
             if friedelOnly:
                 iSpot, jSpot, angs_I, angs_J = stuff
 
-                Gplus  = G.makeMeasuredScatteringVectors(*angs_I)
-                Gminus = G.makeMeasuredScatteringVectors(*angs_J)
+                Gplus  = makeMeasuredScatteringVectors(*angs_I)
+                Gminus = makeMeasuredScatteringVectors(*angs_J)
 
                 Gvec = 0.5*(Gplus - Gminus)
                 maxSpots = 0.5*(sum(thisRingSpots) - sum(spotsArray.friedelPair[thisRingSpots] == -1))
             else:
                 iSpot, angs_I = stuff
-                Gvec  = G.makeMeasuredScatteringVectors(*angs_I)
+                Gvec  = makeMeasuredScatteringVectors(*angs_I)
                 maxSpots = sum(thisRingSpots)
             print "\nProcessing reflection %d (spot %d), %d remain unclaimed\n" % (iRefl+1, iSpot, maxSpots)
             if multiProcMode and debugMultiproc > 1:
                 marks = spotsArray._Spots__marks[:]
                 print 'marks : '+str(marks)
             # make the fiber;
-            qfib = R.discreteFiber(hklList[iHKL], Gvec,
-                                   B=bMat,
-                                   ndiv=nsteps,
-                                   invert=False,
-                                   csym=csym, ssym=None)[0]
+            qfib = discreteFiber(hklList[iHKL], Gvec,
+                                 B=bMat,
+                                 ndiv=nsteps,
+                                 invert=False,
+                                 csym=csym, ssym=None)[0]
             # if +/- hkl aren't in the symmetry group, need '-' fiber
             if not centroSymRefl[thisHKLID]:
                 minusHKL = -num.r_[hklList[iHKL]]
-                qfibM = R.discreteFiber(minusHKL, Gvec,
-                                        B=bMat,
-                                        ndiv=nsteps,
-                                        invert=False,
-                                        csym=csym, ssym=None)[0]
+                qfibM = discreteFiber(minusHKL, Gvec,
+                                      B=bMat,
+                                      ndiv=nsteps,
+                                      invert=False,
+                                      csym=csym, ssym=None)[0]
                 qfib = num.hstack([qfib, qfibM])
                 pass
             # cull out duplicate orientations
@@ -542,7 +541,7 @@ def fiberSearch(spotsArray, hklList,
                 order = num.argsort(trialGrainCompletenesses)[-1::-1]
                 for iTrialGrain in order:
                     foundGrainData = trialGrains[iTrialGrain]
-                    foundGrain = G.Grain(spotsArray, grainData=foundGrainData, claimingSpots=False)
+                    foundGrain = Grain(spotsArray, grainData=foundGrainData, claimingSpots=False)
                     'check completeness before accepting, especially important for multiproc'
                     foundGrain.checkClaims() # updates completeness
                     if debugMultiproc:
@@ -618,9 +617,14 @@ def pgRefine(x, etaOmeMaps, omegaRange, threshold):
     f = abs(1. - c)
     return f
 
-def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, etaRange=None, progressBar=False, doMultiProc=False, nCPUs=None, debug=False):
+def paintGrid(quats, etaOmeMaps,
+              threshold=None, bMat=None,
+              omegaRange=None, etaRange=None,
+              progressBar=False, doMultiProc=False,
+              nCPUs=None, debug=False):
     """
-    do a direct search of omega-eta maps to paint each orientation in quats with a completeness
+    do a direct search of omega-eta maps to paint each orientation in
+    quats with a completeness
 
     bMat is in CRYSTAL frame
 
@@ -635,21 +639,20 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
 
     ...make a new function that gets called by grain to do the g-vec angle computation?
     """
-    rot = hexrd.xrd.rotations
-
+    
     quats = num.atleast_2d(quats)
     if quats.size == 4:
         quats = quats.reshape(4, 1)
-
+    
     planeData = etaOmeMaps.planeData
-
+    
     hklIDs    = num.r_[etaOmeMaps.iHKLList]
     hklList   = num.atleast_2d(planeData.hkls[:, hklIDs].T).tolist()
     nHKLS     = len(hklIDs)
-
+    
     numEtas   = len(etaOmeMaps.etaEdges) - 1
     numOmes   = len(etaOmeMaps.omeEdges) - 1
-
+    
     if threshold is None:
         threshold = num.zeros(nHKLS)
         for i in range(nHKLS):
@@ -666,7 +669,7 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
         raise RuntimeError, "unknown threshold option.  should be a list of numbers or None"
     if bMat is None:
         bMat = planeData.latVecOps['B']
-
+    
     'index munging here -- look away'
     # mapIndices = num.indices([numEtas, numOmes])
     # etaIndices = mapIndices[0].flatten()
@@ -689,18 +692,18 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
         etaMin = [etagaRange[i][0] for i in range(len(etagaRange))]
         etaMax = [etagaRange[i][1] for i in range(len(etagaRange))]
 
-    # make list of rMats from input quats
-    rMatsList = [rot.rotMatOfQuat(quats[:, i]) for i in range(quats.shape[1])]
-
+    # obselete # # make list of rMats from input quats
+    # obselete # rMatsList = [rotMatOfQuat(quats[:, i]) for i in range(quats.shape[1])]
+    
     multiProcMode = xrdbase.haveMultiProc and doMultiProc
-
+    
     if multiProcMode:
         nCPUs = nCPUs or xrdbase.dfltNCPU
         print "INFO: using multiprocessing with %d processes\n" % (nCPUs)
     else:
         print "INFO: running in serial mode\n"
         nCPUs = 1
-
+    
     # assign the globals for paintGridThis
     global planeData_MP
     global omeMin_MP, omeMax_MP
@@ -727,9 +730,9 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
     retval = None
     if multiProcMode:
         pool = multiprocessing.Pool(nCPUs)
-        retval = pool.map(paintGridThis, rMatsList)
+        retval = pool.map(paintGridThis, quats.T)
     else:
-        retval = map(paintGridThis, rMatsList)
+        retval = map(paintGridThis, quats.T)
 
     planedata_mp  = None
     hklIDs_MP     = None
@@ -749,7 +752,7 @@ def paintGrid(quats, etaOmeMaps, threshold=None, bMat=None, omegaRange=None, eta
 
     return retval
 
-def paintGridThis(rMat):
+def paintGridThis(quat):
     """
     """
     # pull local vars from globals set in paintGrid
@@ -773,16 +776,18 @@ def paintGridThis(rMat):
     etaOmeMaps = etaOmeMaps_MP
     bMat       = bMat_MP
     threshold  = threshold_MP
-
+    
     debug = False
-
+    
     nHKLS     = len(hklIDs)
-
+    
+    rMat = rotMatOfQuat(quat.reshape(4, 1))
+    
     nPredRefl = 0
     nMeasRefl = 0
     reflInfoList = []
     dummySpotInfo = num.nan * num.ones(3)
-
+    
     hklCounterP = 0                 # running count of excpected (predicted) HKLs
     hklCounterM = 0                 # running count of "hit" HKLs
     for iHKL in range(nHKLS):
