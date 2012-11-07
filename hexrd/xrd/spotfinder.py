@@ -124,10 +124,17 @@ def emptyBox(obj, dtype):
         dtype=dtype
         )
     return vbox
+def getDtype(this):
+    if hasattr(this, 'dtype'):
+        retval = this.dtype
+    else:
+        retval = num.dtype(type(this))
+    return retval
+
 def copyBox(inpt, obj):
     'deepcopy does not seem to do what we want with masked arrays'
     # vbox   = copy.deepcopy(inpt[useObj])
-    vbox = emptyBox( obj, num.min_scalar_type(inpt) )
+    vbox = emptyBox( obj, getDtype(inpt) ) # num.min_scalar_type(inpt)
     if num.isscalar(inpt):
         vbox[:,:] = inpt
     elif num.size(inpt) == 1:

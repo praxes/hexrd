@@ -33,13 +33,13 @@ import copy
 import wx
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
-from hexrd.wx.guiutil import makeTitleBar, EmptyWindow
+from hexrd.wx.guiutil      import makeTitleBar, EmptyWindow
 from hexrd.wx.selecthkls   import selectHKLsDialog as HklsDlg 
 
-import hexrd.xrd.xrdbase as xrdBase
+import hexrd.xrd.xrdbase as xrdbase
 
-if xrdBase.haveMultiProc:
-    ncpus_DFLT = xrdBase.multiprocessing.cpu_count()
+if xrdbase.haveMultiProc:
+    ncpus_DFLT = xrdbase.multiprocessing.cpu_count()
 else:
     ncpus_DFLT = 1
 

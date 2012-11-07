@@ -168,8 +168,6 @@ class cakingPanel(wx.Panel):
             }
         logwin = logWindow(self, wx.NewId(), action, 'Standard Polar Rebinning')
         logwin.ShowModal()
-
-        return
         #
         #  ==============================
         #  Show rebin output on new window

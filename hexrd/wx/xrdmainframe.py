@@ -481,7 +481,7 @@ class xrdMainFrame(wx.Frame):
         dlg.Destroy()
 
         self.updateFromExp()
-        return
+        return    
 
     def OnCaking(self, e):
         """Raise the caking window"""

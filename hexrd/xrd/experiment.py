@@ -6,7 +6,7 @@
 # LLNL-CODE-529294.
 # All rights reserved.
 #
-# This file is part of HEXRD. For details on dowloading the source,
+# This file is part of HExrd. For details on dowloading the source,
 # see the file COPYING.
 #
 # Please also see the file LICENSE.
@@ -29,7 +29,7 @@
 ######################################################################
 ## TOP-LEVEL MODULES AND SOME GLOBALS
 ##
-"""Module for wrapping the main functionality of the XRD package.
+"""Module for wrapping the main functionality of the xrd package.
 
 The Experiment class is the primary interface.  Other classes
 are helpers.
@@ -107,7 +107,7 @@ class ImageModes(object):
 # ---------------------------------------------------CLASS:  Experiment
 #
 class Experiment(object):
-    """Wrapper for XRD functionality"""
+    """Wrapper for xrd functionality"""
     def __init__(self, cfgFile, matFile):
         """Constructor for Experiment
 
@@ -205,13 +205,13 @@ class Experiment(object):
                     s1, s2, s3 = grain.findMatches(etaTol=etaTol, omeTol=omeTol, strainMag=fineDspTol,
                                                    updateSelf=True, claimingSpots=False, doFit=True, 
                                                    testClaims=True)
-                if grain.completeness > minCompl:
-                    export_grainList()
+                if grain.completeness > minCompl:                    
                     grainList.append(grain)
                     pass
                 pass
             pass
         self.grainList = grainList
+        # self.export_grainList()
         return
     
     def saveRMats(self, f):
@@ -225,6 +225,7 @@ class Experiment(object):
             fid = f
         elif isinstance(f, str) or isinstance(f, unicode):
             fid = open(f, 'w')
+            pass
         cPickle.dump(self.grainList, fid)
         fid.close()
         return
@@ -320,15 +321,16 @@ class Experiment(object):
             detector = self.detector
         dummySpots = SPT.Spots(planeData, None, detector, omegaRanges)
         sg = G.Grain(dummySpots, rMat=rMat, vMat=vMat)
-        if isinstance(output, file):
-            fid = output
-        elif isinstance(output, str):
-            fid = open(output, 'w')
-        else:
-            raise RuntimeError, "output must be a file object or string"
-        sg.findMatches(filename=output)
+        if output is not None:
+            if isinstance(output, file):
+                fid = output
+            elif isinstance(output, str):
+                fid = open(output, 'w')
+            else:
+                raise RuntimeError, "output must be a file object or string"
+            sg.findMatches(filename=output)
         return sg
-
+    
     @property
     def index_opts(self):
         """(get-only) Options for indexing"""
@@ -514,8 +516,15 @@ class Experiment(object):
         fname -- the name of the file to save in
         """
         f = open(fname, 'w')
-        self._detInfo.mrbImages = [] # remove images before saving
-        cPickle.dump(self._detInfo, f)
+        # self._detInfo.mrbImages = [] # remove images before saving
+        # cPickle.dump(self._detInfo, f)
+        det_class = self.detector.__class__
+        det_plist = self.detector._Detector2DRC__makePList()
+        det_rflag = self.detector.refineFlags
+        print >> f, "# DETECTOR PARAMETERS"
+        print >> f, "# \n# %s\n#" % (det_class)
+        for i in range(len(det_plist)):
+            print >> f, "%1.8e\t%d" % (det_plist[i], det_rflag[i])
         f.close()
 
         return
@@ -529,7 +538,32 @@ class Experiment(object):
         """
         # should check the loaded file here
         f = open(fname, 'r')
-        self._detInfo = cPickle.load(f)
+        # 
+        lines = f.readlines()
+        # self._detInfo = cPickle.load(f)
+        det_class_str = None
+        for i in range(len(lines)):
+            if 'class' in lines[i]:
+                det_class_str = lines[i]
+        f.seek(0)
+        if det_class_str is None:
+            raise RuntimeError, "detector class label not recongined in file!"
+        else:
+            plist_rflags = numpy.loadtxt(f)
+            plist = plist_rflags[:, 0]
+            rflag = numpy.array(plist_rflags[:, 1], dtype=bool)
+            
+            exec_str = "DC = detector." + det_class_str.split('.')[-1].split("'")[0]
+            exec(exec_str)
+            
+            gp = plist[:6].tolist()
+            if len(plist[6:]) == 0:
+                dp = None
+            else:
+                dp = plist[6:].tolist()
+            self._detInfo  = DetectorInfo(gParms=gp, dParms=dp)
+            self.detector.setupRefinement(rflag)
+            self._detInfo.refineFlags = rflag
         f.close()
 
         return
@@ -902,7 +936,7 @@ GE reader is supported.
     FLIP_STRS  = ('',        'v',       'h',        'hv',     'cw90',   'ccw90')
     FLIP_DICT  = dict(zip(FLIP_MODES, FLIP_STRS))
     #
-    RC = detector.ReadGE
+    RC = detector.ReadGE        # HARD CODED DETECTOR CHOICE!!!
     
     def __init__(self, name='reader', desc='no description'):
         """Constructor for ReaderInput
@@ -1032,6 +1066,8 @@ GE reader is supported.
         fullPath = lambda fn: os.path.join(self.imageDir, fn)
         numEmpty = lambda fn: self.imageNameD[fn][0]
         imgInfo = [(fullPath(f), numEmpty(f)) for f in self.imageNames]
+        
+        ref_reader = self.RC(imgInfo)
         #
         # Check for omega info
         #
@@ -1052,12 +1088,14 @@ GE reader is supported.
         #
         subDark = not (self.darkMode == ReaderInput.DARK_MODE_NONE)
         if (self.darkMode == ReaderInput.DARK_MODE_FILE):
-            drkFile = os.path.join(self.darkDir, self.darkName)
+            drkFile = os.path.join(self.darkDir, self.darkName) 
         elif (self.darkMode == ReaderInput.DARK_MODE_ARRAY):
             drkFileName = os.path.join(self.darkDir, self.darkName) 
-            drkFile     = self.RC.frame(
-                buffer=numpy.fromfile(drkFileName,
-                                      dtype=self.RC.getReadDtype()))
+            drkFile     = ref_reader.frame(
+                buffer=numpy.fromfile(drkFileName, 
+                                      dtype=ref_reader.dtypeRead
+                                      )
+                )
         else:
             drkFile = None
             pass
@@ -1166,7 +1204,10 @@ class DetectorInfo(object):
     def __init__(self, gParms=[], dParms=[]):
         """Constructor for detectorInfo"""
         #
-	self.detector  = detector.newDetector('ge', gParams=gParms, dParams=dParms)
+	if gParms:              # maintain this keyword for compatability with Don's usage
+            self.detector  = detector.newDetector('ge', gParms=gParms, dParms=dParms) 
+        else:
+            self.detector  = detector.newDetector('ge')
         self.mrbImages = []
         self.fitParams = []
         #
@@ -1526,7 +1567,7 @@ def objFunc(x, grainList, scl):
         grainList[i].fit(display=False)
         
         angAxs = ROT.angleAxisOfRotMat(grainList[i].rMat)
-        biotT  = matrixUtils.symmToVecMV(grainList[i].vMat - numpy.eye(3))
+        biotT  = matrixutil.symmToVecMV(grainList[i].vMat - numpy.eye(3))
         pVec   = grainList[i].detectorGeom.pVec
         
         x = numpy.vstack([angAxs[0]*angAxs[1], biotT.reshape(6, 1), pVec.reshape(3, 1)])

@@ -500,6 +500,7 @@ class PlaneData(object):
                  hkls,
                  *args,
                  **kwargs):
+
         self.phaseID = None
         self.__doTThSort = True
         self.__exclusions = None
@@ -964,6 +965,7 @@ class PlaneData(object):
         """
         modeled after QFromU.m
         """
+
         # basis vectors
         Xl = num.vstack([1, 0, 0])          # X in the lab frame
         Yl = num.vstack([0, 1, 0])          # Y in the lab frame
@@ -1136,6 +1138,7 @@ class PlaneData(object):
         """
         modeled after QFromU.m
         """
+
         if bMat is None:
             bMat = self.__latVecOps['B']
 
@@ -1226,6 +1229,7 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
         to Deformed In Situ'', J. Eng. Mater. Technol. (2008). 130.
         DOI:10.1115/1.2870234
     """
+
     dispFlag  = False
     fableFlag = False
     chiTilt   = None

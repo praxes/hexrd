@@ -32,11 +32,12 @@ import wx
 import numpy
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
-from hexrd.wx.guiutil import makeTitleBar, EmptyWindow, ResetChoice
+from hexrd.wx.guiutil      import makeTitleBar, EmptyWindow, ResetChoice
 from hexrd.wx.logwindows   import logWindow
 from hexrd.wx.selecthkls   import selectHKLsDialog as HklsDlg 
 
-from hexrd.xrd.crystallography    import processWavelength
+from hexrd.xrd.crystallography import processWavelength
+
 #
 # ---------------------------------------------------CLASS:  spotsPanel
 #
@@ -89,7 +90,6 @@ class spotsPanel(wx.Panel):
         self.pado_box  = wx.CheckBox(self, wx.NewId(), 'Pad Omega')
         self.pads_box  = wx.CheckBox(self, wx.NewId(), 'Pad Spots')
 
-
         # Threshold
 
         self.thresh_lab = wx.StaticText(
@@ -114,14 +114,11 @@ class spotsPanel(wx.Panel):
             self, wx.NewId(), 
             'Active Reader', style=wx.ALIGN_RIGHT)
         self.aread_cho = wx.Choice(self, wx.NewId(), choices=['reader list'])
-	#self.Bind(wx.EVT_CHOICE, self.OnActiveReader, self.aread_cho)
-
         
         self.rdr_lab = wx.StaticText(
             self, wx.NewId(), 
             'Used Readers', style=wx.ALIGN_RIGHT)
         self.rdr_lbx =  wx.ListBox(self, wx.NewId(), choices = ['r1', 'r2'])
-        #self.sizer.Add(self.rdr_lbx,  1, wx.EXPAND | wx.ALIGN_CENTER | wx.TOP, 5)
 
         self.nspot_lab = wx.StaticText(
             self, wx.NewId(), 
@@ -142,7 +139,7 @@ class spotsPanel(wx.Panel):
             self, wx.NewId(), 
             'Active Material', style=wx.ALIGN_RIGHT)
         self.amat_cho = wx.Choice(self, wx.NewId(), choices=['mat list'])
-	#self.Bind(wx.EVT_CHOICE, self.OnActiveReader, self.aread_cho)
+	self.Bind(wx.EVT_CHOICE, self.OnMatChoice, self.aread_cho)
 
         
         self.hkls_lab = wx.StaticText(
@@ -307,14 +304,16 @@ class spotsPanel(wx.Panel):
 
         return
 
-    def OnChooseMat(self, evt):
-        """Choose sweep material"""
-        app = wx.GetApp(); exp = app.ws
+    def OnMatChoice(self, e):
+        """Select new material"""
+        exp = wx.GetApp().ws
 
-        matName = self.mat_cho.GetStringSelection()
-        #exp.phase0 = exp.matDict[matName]
-        #exp.phase0.planeData.tThMax = exp.detector.getTThMax()
-
+        sel = self.amat_cho.GetSelection()
+        if sel >= 0:
+            exp.activeMaterial = sel
+            self.updateFromExp()
+            pass
+    
         return
 
     def OnClearBut(self, evt):

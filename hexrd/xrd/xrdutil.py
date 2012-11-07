@@ -2646,15 +2646,27 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
                     debug=1,
                     ):
     """
-    intensityFunc is an instance of a class that works as an intensity fuction. 
+    intensityFunc is an instance of a class that works as an intensity
+    fuction.
     
-    spotParamsList should be a list with each entry being a list of arguments appropriate to the intensityFunc.constructParams function. For intensityFunc=spotfinder.IntensityFuncGauss3D(), each spotParamsList entry should be (center, fwhm, A), with center being the 3D spot center in angular coordinates (radians), fwhm being the (2-theta, eta, omega) widths in 3D, and A being an intensity scaling. 
+    spotParamsList should be a list with each entry being a list of
+    arguments appropriate to the intensityFunc.constructParams
+    function. For intensityFunc=spotfinder.IntensityFuncGauss3D(),
+    each spotParamsList entry should be (center, fwhm, A), with center
+    being the 3D spot center in angular coordinates (radians), fwhm
+    being the (2-theta, eta, omega) widths in 3D, and A being an
+    intensity scaling.
     
-    If output is specified as a string, then the frames with the given prefix are dumped to files instead of being accumulated in memory. If output is callable then frames are passed to output().
+    If output is specified as a string, then the frames with the given
+    prefix are dumped to files instead of being accumulated in
+    memory. If output is callable then frames are passed to output().
     
-    If asSparse is true then sparse matrices are used to reduce memory footprint. The asSparse option is currently not coded for the case of output having been specied.
+    If asSparse is true then sparse matrices are used to reduce memory
+    footprint. The asSparse option is currently not coded for the case
+    of output having been specied.
     
-    cutoffMult is the multiplier on the FWHM to determine the angular cutoff range for evaluating intensity for each spot. 
+    cutoffMult is the multiplier on the FWHM to determine the angular
+    cutoff range for evaluating intensity for each spot.
     """
     
     nFrames = len(omegas)
