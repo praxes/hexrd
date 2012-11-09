@@ -777,6 +777,9 @@ def paintGridThis(quat):
     bMat       = bMat_MP
     threshold  = threshold_MP
     
+    # need this for proper index generation
+    delOmeSign = num.sign(etaOmeMaps.omegas[1] - etaOmeMaps.omegas[0])
+    
     debug = False
     
     nHKLS     = len(hklIDs)
@@ -862,7 +865,10 @@ def paintGridThis(quat):
                 culledEtaIdx = None
             culledOmeIdx = num.where(etaOmeMaps.omeEdges - culledOme[iTTh] > 0)[0]
             if len(culledOmeIdx) > 0:
-                culledOmeIdx = culledOmeIdx[0] - 1
+                if delOmeSign > 0:
+                    culledOmeIdx = culledOmeIdx[0] - 1
+                else:
+                    culledOmeIdx = culledOmeIdx[-1]
                 if culledOmeIdx < 0:
                     culledOmeIdx = None
             else:
