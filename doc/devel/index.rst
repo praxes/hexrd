@@ -10,7 +10,7 @@ Contents:
 The primary interface is intended to be 
 through the Experiment module.  
 
-.. module:: hexrd.XRD.Experiment
+.. module:: hexrd.xrd.experiment
 .. autoclass:: Experiment
    :members:
 
