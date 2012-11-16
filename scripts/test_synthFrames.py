@@ -34,6 +34,8 @@ test_synthFrames.py --test=makeSynthStack --test=stackToSpots --test=index
 test_synthFrames.py --test=makeSynthStack --test=stackToSpots --num-grains=25
 
 test_synthFrames.py --detector-geom='generic;[];{"ncols":512,"nrows":512,"pixelPitch":0.8}' --fwhm='(0.002, 0.01, 0.01)' --test=makeSynthStack --test=stackToSpots --test=index
+
+test_synthFrames.py --detector-geom='generic;[];{"ncols":512,"nrows":512,"pixelPitch":0.8}' --fwhm='(0.002, 0.01, 0.01)' --test=makeSynthStack --args-in-degrees --ome-min=60.0 --ome-max=-60.0
 '''
 
 import os

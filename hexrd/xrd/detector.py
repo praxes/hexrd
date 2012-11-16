@@ -374,7 +374,7 @@ def omeToFrameRange(omega, omegas, omegaDelta):
     result can be a pair of frames if the specified omega is
     exactly on the border
     """
-    retval = num.where(num.abs(omegas - omega) <= omegaDelta*0.5)[0]
+    retval = num.where(num.abs(omegas - omega) <= num.abs(omegaDelta*0.5))[0]
     return retval
 
 def getNFramesFromBytes(fileBytes, nbytesHeader, nbytesFrame):
