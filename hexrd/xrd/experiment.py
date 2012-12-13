@@ -181,6 +181,7 @@ class Experiment(object):
     def refine_grains(self, 
                       minCompl,
                       nSubIter=3,
+                      doFit=False,
                       etaTol=valunits.valWUnit('etaTol', 'angle', 1.0, 'degrees'), 
                       omeTol=valunits.valWUnit('etaTol', 'angle', 1.0, 'degrees'), 
                       fineDspTol=5.0e-3, 
@@ -190,12 +191,12 @@ class Experiment(object):
         refine a grain list
         """
         # refine grains formally using a multi-pass refinement
-        nGrains    = self.fitRMats.shape[0]
+        nGrains    = self.rMats.shape[0]
         grainList = []
         for iG in range(nGrains):
             indexer.progress_bar(float(iG) / nGrains)
             grain = G.Grain(self.spots_for_indexing,
-                                rMat=self.fitRMats[iG, :, :], 
+                                rMat=self.rMats[iG, :, :], 
                                 etaTol=etaTol,
                                 omeTol=omeTol,
                                 claimingSpots=False)
@@ -203,7 +204,7 @@ class Experiment(object):
                 for i in range(nSubIter):
                     grain.fit()
                     s1, s2, s3 = grain.findMatches(etaTol=etaTol, omeTol=omeTol, strainMag=fineDspTol,
-                                                   updateSelf=True, claimingSpots=False, doFit=True, 
+                                                   updateSelf=True, claimingSpots=False, doFit=doFit, 
                                                    testClaims=True)
                 if grain.completeness > minCompl:                    
                     grainList.append(grain)
@@ -211,7 +212,7 @@ class Experiment(object):
                 pass
             pass
         self.grainList = grainList
-        # self.export_grainList()
+        self._fitRMats = numpy.array([self.grainList[i].rMat for i in range(len(grainList))])
         return
     
     def saveRMats(self, f):
@@ -1253,9 +1254,10 @@ class CalibrationInput(object):
     def cakeArgs(self):
         """(get only) Keyword arguments for polar rebinning"""
 
-        return {'verbose':True, 'numEta': self.numEta, 'corrected':self.corrected}
-
-
+        return {'verbose':True, 
+                'numEta': self.numEta, 
+                'etaRange':numpy.array([0., 2. * numpy.pi]),
+                'corrected':self.corrected}
     #
     pass  # end class
 #
