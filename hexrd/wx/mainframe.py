@@ -50,7 +50,7 @@ from hexrd.wx.caking          import cakingDialog
 #
 # ---------------------------------------------------CLASS:  xrdMainFrame
 #
-class xrdMainFrame(wx.Frame):
+class MainFrame(wx.Frame):
     #
     def __init__(self, parent, id, title='LLNL XRD Analysis Tool'):
         #
