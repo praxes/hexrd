@@ -50,7 +50,7 @@ from hexrd.wx.caking          import cakingDialog
 #
 # ---------------------------------------------------CLASS:  xrdMainFrame
 #
-class xrdMainFrame(wx.Frame):
+class MainFrame(wx.Frame):
     #
     def __init__(self, parent, id, title='LLNL XRD Analysis Tool'):
         #
@@ -741,7 +741,7 @@ class xrdMainFrame(wx.Frame):
         try:
             saveExp(exp, f)
         except Exception as e:
-            wx.MessageBox('failed to load experiment:\n%s' % str(e))
+            wx.MessageBox('failed to save experiment:\n%s' % str(e))
 
         return
 
