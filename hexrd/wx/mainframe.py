@@ -741,7 +741,7 @@ class MainFrame(wx.Frame):
         try:
             saveExp(exp, f)
         except Exception as e:
-            wx.MessageBox('failed to load experiment:\n%s' % str(e))
+            wx.MessageBox('failed to save experiment:\n%s' % str(e))
 
         return
 
