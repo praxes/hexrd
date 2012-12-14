@@ -313,7 +313,6 @@ class cakingPanel(wx.Panel):
             self.optSizer.Show(self.sph_pan)
             pass
 
-        #self.modeSizer.Layout()
         self.sizer.Layout()
 
         return
