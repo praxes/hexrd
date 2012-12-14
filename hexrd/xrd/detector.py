@@ -4934,12 +4934,6 @@ class DetectorGeomGE(Detector2DRC):
     __dParamRefineDflt = (True,      True,      True,    False,    False,    False)
     
     def __init__(self, *args, **kwargs):
-        
-        kwargs.setdefault('getDParamDflt',       self.getDParamDflt)
-        kwargs.setdefault('setDParamZero',       self.setDParamZero)
-        kwargs.setdefault('getDParamScalings',   self.getDParamScalings)
-        kwargs.setdefault('getDParamRefineDflt', self.getDParamRefineDflt)
-        kwargs.setdefault('radialDistortion',    self.radialDistortion)
 
         reader = kwargs.pop('reader', None)
         if reader is None:
