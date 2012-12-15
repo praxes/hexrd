@@ -275,8 +275,14 @@ class CanvasPanel(wx.Panel):
         """Update the image according to the options in the option panel
 
         KEYWORD ARGS
-        newImage -- if True then display image for first time on these axes
+        newImage -- if True then display image afresh (False by default)
+        loadImage -- if True, then image was loaded from saved list (False by default)
 """
+        kwargs.setdefault('newImage', False)
+        kwargs.setdefault('loadImage', False)
+
+        ni = kwargs['newImage']
+        li = kwargs['loadImage']
         #
         #  Show image if box is checked.
         #
@@ -288,12 +294,6 @@ class CanvasPanel(wx.Panel):
             #wx.MessageBox('no image'); return
             pass
         else:
-            if 'newImage' in kwargs:
-                ni = kwargs['newImage']
-            else:
-                ni = False
-                pass
-
             si = self.showImage_box.IsChecked()
 
             if ni:
@@ -337,7 +337,17 @@ class CanvasPanel(wx.Panel):
         # Update image list
         #
         acho = self.ail_cho
-        ResetChoice(acho, exp.img_names, acho.GetStringSelection())
+        if li:
+            # set text box to name of interactors
+            name = acho.GetStringSelection()
+            ResetChoice(acho, exp.img_names, name)
+            self.nam_txt.ChangeValue(name)
+        else:
+            if exp.img_names: # to handle init case on load exp
+                ResetChoice(acho, exp.img_names, exp.img_names[0])
+            acho.SetSelection(wx.NOT_FOUND)
+            self.nam_txt.ChangeValue('<unnamed image>')
+            pass
         
         return
 
@@ -392,18 +402,20 @@ class CanvasPanel(wx.Panel):
         exp = wx.GetApp().ws
         exp.active_img = evt.GetSelection()
 
-        self.update(newImage=True)
+        self.update(loadImage=True, newImage=True)
         
         return
     
     def OnNameImg(self, evt):
         """Name the curent Image"""
         exp = wx.GetApp().ws
-        
-        exp.add_to_img_list(evt.GetString())
-        
-        
-        self.update() # necessary?
+
+        name = evt.GetString()
+        exp.add_to_img_list(name)
+        acho = self.ail_cho
+        ResetChoice(acho, exp.img_names, name)
+
+        self.update(loadImage=True, newImage=True)
         
         return
     

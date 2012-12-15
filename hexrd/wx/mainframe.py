@@ -426,6 +426,8 @@ class MainFrame(wx.Frame):
     def updateFromExp(self):
         """Update all subwindows"""
         self.nBook.updateFromExp()
+        self.canvasPanel.update()
+        
         return
     #
     #                     ========== *** Event Callbacks
@@ -720,6 +722,7 @@ class MainFrame(wx.Frame):
             self.SetStatusText('Loading Experiment File')
             app.ws = loadExp(f)
             self.SetStatusText('Done Loading Experiment File')
+            self.updateFromExp()
         except Exception as e:
             wx.MessageBox('failed to load experiment:\n%s' % str(e))
             pass
