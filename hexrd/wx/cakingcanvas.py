@@ -436,13 +436,20 @@ class imgOpts(wx.Panel):
 
         p.axes.images = []
         # show new image
-        p.axes.imshow(intensity, origin='upper',
-                      interpolation='nearest',
-                      aspect='auto',
-                      cmap=self.cmPanel.cmap,
-                      vmin=self.cmPanel.cmin_val,
-                      vmax=self.cmPanel.cmax_val)
-        p.axes.set_autoscale_on(False)
+        if intensity.shape[0] == 1:
+            import pdb;pdb.set_trace()
+            p.axes.plot(intensity.flatten(), 'b-')
+            p.axes.set_title('Intensity Profile')
+            p.axes.set_ylabel('Intensity [arb. units]')
+            p.axes.autoscale()
+        else:
+            p.axes.imshow(intensity, origin='upper',
+                          interpolation='nearest',
+                          aspect='auto',
+                          cmap=self.cmPanel.cmap,
+                          vmin=self.cmPanel.cmin_val,
+                          vmax=self.cmPanel.cmax_val)
+            p.axes.set_autoscale_on(False)
 
         p.canvas.draw()
 
