@@ -168,7 +168,7 @@ class Experiment(object):
         #
         return s
     #
-    # =====================U========= API
+    # ============================== API
     #
     # ==================== Image List
     #
@@ -176,8 +176,24 @@ class Experiment(object):
 
     @property
     def active_img(self):
-        """(get-only) Current image"""
+        """Current image"""
         return self.__active_img
+
+    @active_img.setter
+    def active_img(self, v):
+        """Set active image from list by number or name"""
+        if isinstance(v, int):
+            self.__active_img = self.img_list[v]
+        else:
+            # v is a string
+            istar = 0
+            for i in range(len(self.img_list)):
+                if v == self.img_names[i]:
+                    istar = i
+                    break
+            
+            self.__active_img = self.img_list[istar]
+            pass
         
     # property:  img_list
 
@@ -192,6 +208,7 @@ class Experiment(object):
 
     def add_to_img_list(self, name):
         """Append the active image to the image list"""
+        # NEED TO: check names for duplication
         self.img_names.append(name)
         self.img_list.append(self.active_img)
         

@@ -189,6 +189,7 @@ class CanvasPanel(wx.Panel):
         self.Bind(wx.EVT_CHECKBOX, self.OnCheckCalRanges, self.showCalRanges_box)
 
         self.Bind(wx.EVT_TEXT_ENTER, self.OnNameImg, self.nam_txt)
+	self.Bind(wx.EVT_CHOICE, self.OnLoadImg, self.ail_cho)
 
         return
     
@@ -309,7 +310,7 @@ class CanvasPanel(wx.Panel):
                                  visible=si)
                 self.axes.set_autoscale_on(False)
                 self.axes.format_coord =  lambda x, y: str(x) + str(y)
-                # print 'number of images in current axes:  %d' % len(self.axes.get_images())
+                # 
             else:
                 # set visibility of axes image
                 images = self.axes.get_images()
@@ -336,7 +337,7 @@ class CanvasPanel(wx.Panel):
         # Update image list
         #
         acho = self.ail_cho
-        ResetChoice(acho, exp.img_names, acho.GetStringSelection)
+        ResetChoice(acho, exp.img_names, acho.GetStringSelection())
         
         return
 
@@ -386,6 +387,14 @@ class CanvasPanel(wx.Panel):
 
         return
     #                     ========== *** Event Callbacks
+    def OnLoadImg(self, evt):
+        """Load image from list"""
+        exp = wx.GetApp().ws
+        exp.active_img = evt.GetSelection()
+
+        self.update(newImage=True)
+        
+        return
     
     def OnNameImg(self, evt):
         """Name the curent Image"""
