@@ -38,7 +38,7 @@ import numpy
 #  XRD package
 #
 from hexrd.wx.guiconfig import WindowParameters as WP
-from hexrd.wx.guiutil import ResetChoice,makeTitleBar
+from hexrd.wx.guiutil import ResetChoice, makeTitleBar, EmptyWindow
 from hexrd.wx.canvasutil import *
 
 from hexrd.wx.floatcontrol import *
@@ -117,6 +117,15 @@ class CanvasPanel(wx.Panel):
         self.optSizer.Add(self.showCalRanges_box, 0, wx.LEFT | wx.EXPAND)
         self.optSizer.AddSpacer(1)
         #
+        #  Add image list management
+        #
+        self.ail_lab = wx.StaticText(self, wx.NewId(), 'Load Image', style=wx.ALIGN_CENTER)
+        self.ail_cho = wx.Choice(self, wx.NewId(), choices=[])
+        self.nam_lab = wx.StaticText(self, wx.NewId(), 'Name Image', style=wx.ALIGN_CENTER)
+        self.nam_txt = wx.TextCtrl(self, wx.NewId(), value='<none>',
+                                    style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
+        self.eil_but  = wx.Button(self, wx.NewId(), 'Edit List')
+        #
         #  Add colormap panel
         #
         self.cmPanel = cmapPanel(self, wx.NewId())
@@ -134,7 +143,7 @@ class CanvasPanel(wx.Panel):
             exp = wx.GetApp().ws
             det = exp.detector
             pd  = exp.activeMaterial.planeData
-            img = exp.activeImage
+            img = exp.active_img
             if img is None:  return
 
             mainFrame = wx.GetApp().GetTopWindow()
@@ -149,8 +158,10 @@ class CanvasPanel(wx.Panel):
                 dsp = 0.5*pd.wavelength/numpy.sin(0.5*tth)
                 intens = img[yadj, xadj]
                 hkls = str(pd.getHKLs(asStr=True, allHKLs=True, thisTTh=tth))
-                statText = "px=%g, py=%g, x=%g, y=%g, rho=%g, d=%g, tth=%g, eta=%g, int=%g, HKLs=%s" %\
-                           (x, y, cartx, carty, rho, dsp, r2d*tth, r2d*eta, intens, hkls)
+                statText = "px=%g, py=%g, x=%g, y=%g, rho=%g, d=%g, "\
+                           "tth=%g, eta=%g, int=%g, HKLs=%s" %\
+                           (x, y, cartx, carty, rho, dsp,
+                            r2d*tth, r2d*eta, intens, hkls)
 
                 mainFrame.SetStatusText(statText)
                 pass
@@ -176,15 +187,32 @@ class CanvasPanel(wx.Panel):
         self.Bind(wx.EVT_CHECKBOX, self.OnCheckImage,     self.showImage_box)
         self.Bind(wx.EVT_CHECKBOX, self.OnCheckCalRings,  self.showCalRings_box)
         self.Bind(wx.EVT_CHECKBOX, self.OnCheckCalRanges, self.showCalRanges_box)
-        return
 
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnNameImg, self.nam_txt)
+
+        return
+    
     def __makeSizers(self):
 	"""Lay out the interactors"""
+        nrow = 0; ncol = 2; padx = pady = 5
+	self.ilsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) 
+	self.ilsizer.AddGrowableCol(1, 1)
+
+        self.ilsizer.Add(self.ail_lab,  0, wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 5)
+        self.ilsizer.Add(self.ail_cho,  1, wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 5)
+        self.ilsizer.Add(self.nam_lab,  0, wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 5)
+        self.ilsizer.Add(self.nam_txt,  1, wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 5)
+        self.ilsizer.Add(EmptyWindow(self),  0, wx.ALIGN_CENTER|wx.TOP, 5)
+        self.ilsizer.Add(self.eil_but,  1, wx.ALIGN_CENTER|wx.TOP, 5)
+
+	self.osizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.osizer.Add(self.optSizer, 0)
+        self.osizer.Add(self.ilsizer, 1)
 
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.tbarSizer, 0,
                        wx.EXPAND| wx.BOTTOM, 10)
-        self.sizer.Add(self.optSizer, 0, wx.LEFT | wx.TOP | wx.GROW)
+        self.sizer.Add(self.osizer,   0, wx.LEFT | wx.TOP | wx.GROW)
         self.sizer.Add(self.cmPanel,  0, wx.LEFT | wx.TOP | wx.GROW)
         self.sizer.Add(self.canvas,   1, wx.LEFT | wx.TOP | wx.GROW)
         self.sizer.Add(self.toolbar,  0, wx.LEFT | wx.EXPAND)
@@ -253,7 +281,7 @@ class CanvasPanel(wx.Panel):
         #
         app = wx.GetApp()
         exp = app.ws
-        img = exp.activeImage
+        img = exp.active_img
 
         if img is None:
             #wx.MessageBox('no image'); return
@@ -304,7 +332,12 @@ class CanvasPanel(wx.Panel):
         #ResetChoice(rcho, exp.matNames, rcho.GetStringSelection)
         #
         self.draw()
-
+        #
+        # Update image list
+        #
+        acho = self.ail_cho
+        ResetChoice(acho, exp.img_names, acho.GetStringSelection)
+        
         return
 
     def draw(self): self.canvas.draw()
@@ -353,7 +386,18 @@ class CanvasPanel(wx.Panel):
 
         return
     #                     ========== *** Event Callbacks
-
+    
+    def OnNameImg(self, evt):
+        """Name the curent Image"""
+        exp = wx.GetApp().ws
+        
+        exp.add_to_img_list(evt.GetString())
+        
+        
+        self.update() # necessary?
+        
+        return
+    
     def OnCheckCalRings(self, evt):
         """Callback for calRings_box"""
         self.update()

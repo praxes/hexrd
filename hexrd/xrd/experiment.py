@@ -151,7 +151,12 @@ class Experiment(object):
         self._index_opts = IndexOptions()
         self._fitRMats = []
         #
-        #  Add hydra interface
+        #  Image Lists
+        #
+        self._img_list = []
+        self._img_names = []
+        #
+        #  Add hydra interface (not really functional)
         #
         self._hydra = Hydra()
 
@@ -165,6 +170,43 @@ class Experiment(object):
     #
     # =====================U========= API
     #
+    # ==================== Image List
+    #
+    # property:  active_img
+
+    @property
+    def active_img(self):
+        """(get-only) Current image"""
+        return self.__active_img
+        
+    # property:  img_list
+
+    @property
+    def img_list(self):
+        """(get only) List of saved images (get only)"""
+        if not hasattr(self, '_img_list'):
+            self._img_list = []
+            self._img_names = []
+            
+        return self._img_list
+
+    def add_to_img_list(self, name):
+        """Append the active image to the image list"""
+        self.img_names.append(name)
+        self.img_list.append(self.active_img)
+        
+        return
+
+    # property:  img_names
+
+    @property
+    def img_names(self):
+        """(get-only) List of names for saved images"""
+        if not hasattr(self, '_img_names'):
+            self._img_names = []
+            
+        return self._img_names
+#
     # ==================== Indexing
     #
     # property:  fitRMats
@@ -792,9 +834,9 @@ class Experiment(object):
         return self.__numFrame
 
     @property
-    def activeImage(self):
+    def activeImage(self): # to be removed (use active_img instead)
         """Active image"""
-        return self.__active_img
+        return self.active_img
     #
     # ==================== Calibration
     #
