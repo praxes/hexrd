@@ -145,6 +145,7 @@ class cakingPanel(wx.Panel):
         #
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 5)
+        self.tbarSizer.Show(False)
 	self.sizer.Add(self.modeSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         #
         self.sizer.Layout()
