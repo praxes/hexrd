@@ -185,17 +185,17 @@ class cmapPanel(wx.Panel):
     def OnChooseCmap(self, e):
         self.cmap_name = self.cmap_cho.GetStringSelection()
         self.cmap = copy.deepcopy(getattr(cm, self.cmap_name))
-        self.update(newImage=True)
+        self.update(updateImage=True)
         return
 
     def OnSetCmin(self, e):
         self.cmin_val = float(self.cmin_txt.GetValue())
-        self.update(newImage=True)
+        self.update(updateImage=True)
         return
 
     def OnSetCmax(self, e):
         self.cmax_val = float(self.cmax_txt.GetValue())
-        self.update(newImage=True)
+        self.update(updateImage=True)
         return
 
     def OnSetUnder(self, e):
@@ -205,7 +205,7 @@ class cmapPanel(wx.Panel):
             self.cmap.set_under('b')
             pass
 
-        self.update(newImage=True)
+        self.update(updateImage=True)
 
         return
 
@@ -217,7 +217,7 @@ class cmapPanel(wx.Panel):
             self.cmap.set_over('r')
             pass
 
-        self.update(newImage=True)
+        self.update(updateImage=True)
 
         return
 

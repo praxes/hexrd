@@ -44,7 +44,15 @@ from hexrd.xrd.experiment import newName  # need better place for newName functi
 class ListEditor(wx.Panel):
     """ListEditor """
     def __init__(self, parent, id, mylist, **kwargs):
-	"""Constructor for ListEditor."""
+	"""Constructor for ListEditor
+
+        mylist - list of items to modify
+
+        Keyword Arguments
+        =================
+
+        none yet
+        """
 	#
 	wx.Panel.__init__(self, parent, id, **kwargs)
 	#
@@ -264,3 +272,22 @@ class ListEditDlg(wx.Dialog):
 #
 # -----------------------------------------------END CLASS:  ListEditDlg
 #
+# ---------------------------------------------------CLASS:  ListItem
+#
+class NamedItem(object):
+    """Class for associating names with data items for use in list editor"""
+    def __init__(self, name, data):
+        """Constructor for ListItem"""
+        #
+	self.name = name
+        self.data = data
+        #
+        return
+    #
+    # ============================== API
+    #
+
+    #
+    pass  # end class
+#
+# -----------------------------------------------END CLASS:  ListItem

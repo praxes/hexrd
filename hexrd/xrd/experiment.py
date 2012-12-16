@@ -182,7 +182,9 @@ class Experiment(object):
     @active_img.setter
     def active_img(self, v):
         """Set active image from list by number or name"""
-        if isinstance(v, int):
+        if v is None:
+            self.__active_img = None
+        elif isinstance(v, int):
             self.__active_img = self.img_list[v]
         else:
             # v is a string

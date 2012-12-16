@@ -426,7 +426,7 @@ class MainFrame(wx.Frame):
     def updateFromExp(self):
         """Update all subwindows"""
         self.nBook.updateFromExp()
-        self.canvasPanel.update()
+        self.canvasPanel.update(onInit=True)
         
         return
     #

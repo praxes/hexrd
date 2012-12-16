@@ -40,7 +40,7 @@ import numpy
 from hexrd.wx.guiconfig import WindowParameters as WP
 from hexrd.wx.guiutil import ResetChoice, makeTitleBar, EmptyWindow
 from hexrd.wx.canvasutil import *
-
+from hexrd.wx.listeditor import NamedItem, ListEditDlg
 from hexrd.wx.floatcontrol import *
 #
 #  Data
@@ -190,6 +190,8 @@ class CanvasPanel(wx.Panel):
 
         self.Bind(wx.EVT_TEXT_ENTER, self.OnNameImg, self.nam_txt)
 	self.Bind(wx.EVT_CHOICE, self.OnLoadImg, self.ail_cho)
+        self.Bind(wx.EVT_BUTTON, self.OnEditImg, self.eil_but)
+
 
         return
     
@@ -280,9 +282,13 @@ class CanvasPanel(wx.Panel):
 """
         kwargs.setdefault('newImage', False)
         kwargs.setdefault('loadImage', False)
+        kwargs.setdefault('updateImage', False)
+        kwargs.setdefault('onInit', False)
 
         ni = kwargs['newImage']
         li = kwargs['loadImage']
+        ui = kwargs['updateImage']
+        oninit = kwargs['onInit']
         #
         #  Show image if box is checked.
         #
@@ -291,16 +297,18 @@ class CanvasPanel(wx.Panel):
         img = exp.active_img
 
         if img is None:
-            #wx.MessageBox('no image'); return
-            pass
+            # no active image, but possibly one on the axes
+            images = self.axes.get_images()
+            if images:
+                img0 = images[0]
+                img0.set_visible(False)
         else:
             si = self.showImage_box.IsChecked()
 
-            if ni:
-                # delete old image first
-                # print 'deleting old images'
+            if ni or ui:
+                # not using axes image list
                 self.axes.images = []
-                # show new image
+
                 self.axes.imshow(img,
                                  origin='upper',
                                  interpolation='nearest',
@@ -343,12 +351,12 @@ class CanvasPanel(wx.Panel):
             ResetChoice(acho, exp.img_names, name)
             self.nam_txt.ChangeValue(name)
         else:
-            if exp.img_names: # to handle init case on load exp
-                ResetChoice(acho, exp.img_names, exp.img_names[0])
-            acho.SetSelection(wx.NOT_FOUND)
-            self.nam_txt.ChangeValue('<unnamed image>')
-            pass
-        
+            if ni or oninit:
+                if exp.img_names: # to handle init case on load exp
+                    ResetChoice(acho, exp.img_names, exp.img_names[0])
+                    acho.SetSelection(wx.NOT_FOUND)
+                    self.nam_txt.ChangeValue('<unnamed image>')
+            
         return
 
     def draw(self): self.canvas.draw()
@@ -397,6 +405,52 @@ class CanvasPanel(wx.Panel):
 
         return
     #                     ========== *** Event Callbacks
+    def OnEditImg(self, evt):
+        """Edit image list"""
+        exp = wx.GetApp().ws
+
+        #
+        # Since images do not have a name attribute, use NamedItem class
+        # to make list with names
+        #
+        ilist = exp.img_list
+        iname = exp.img_names
+        nilist = [NamedItem(iname[i], ilist[i]) for i in range(len(iname))]
+
+        ssel = self.ail_cho.GetStringSelection()
+        
+        dlg = ListEditDlg(self, wx.NewId(), nilist)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+        exp.img_list[:] = [item.data for item in nilist]
+        exp.img_names[:] = [item.name for item in nilist]
+
+        #
+        # Now reset choice by hand in case current image was dropped
+        #
+        if (not ssel):
+            # new names, but no selection
+            ResetChoice(self.ail_cho, exp.img_names, ssel)
+            self.ail_cho.SetSelection(wx.NOT_FOUND)
+            li = False
+        elif (ssel in exp.img_names):
+            # new names, keep old selection
+            exp.active_img = ssel
+            ResetChoice(self.ail_cho, exp.img_names, ssel)
+            li = True
+        else:
+            # new names, old selection gone
+            exp.active_img = None
+            ResetChoice(self.ail_cho, exp.img_names, '')
+            self.ail_cho.SetSelection(wx.NOT_FOUND)
+            li = False
+
+        ni = not li
+        self.update(newImage=ni, loadImage=li)
+
+        return
+    
     def OnLoadImg(self, evt):
         """Load image from list"""
         exp = wx.GetApp().ws
@@ -411,11 +465,15 @@ class CanvasPanel(wx.Panel):
         exp = wx.GetApp().ws
 
         name = evt.GetString()
-        exp.add_to_img_list(name)
         acho = self.ail_cho
-        ResetChoice(acho, exp.img_names, name)
-
-        self.update(loadImage=True, newImage=True)
+        achosel = acho.GetSelection()
+        if achosel == wx.NOT_FOUND:
+            exp.add_to_img_list(name)
+            ResetChoice(acho, exp.img_names, name)
+            self.update(loadImage=True, newImage=True)
+        else:
+            exp.img_names[achosel] = name
+            ResetChoice(acho, exp.img_names, name)
         
         return
     
