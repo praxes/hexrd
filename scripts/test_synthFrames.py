@@ -36,6 +36,9 @@ test_synthFrames.py --test=makeSynthStack --test=stackToSpots --num-grains=25
 test_synthFrames.py --detector-geom='generic;[];{"ncols":512,"nrows":512,"pixelPitch":0.8}' --fwhm='(0.002, 0.01, 0.01)' --test=makeSynthStack --test=stackToSpots --test=index
 
 test_synthFrames.py --detector-geom='generic;[];{"ncols":512,"nrows":512,"pixelPitch":0.8}' --fwhm='(0.002, 0.01, 0.01)' --test=makeSynthStack --args-in-degrees --ome-min=60.0 --ome-max=-60.0
+
+# test for reader that wraps around:
+python -i ~/Projects/XRD/git/hexrd/scripts/test_synthFrames.py --detector-geom='generic;[];{"ncols":512,"nrows":512,"pixelPitch":0.8}' --fwhm='(0.001, 0.02, 0.02)' --args-in-degrees --ome-min=180.0 --ome-max=-180.0 --n-ome=240 --test=makeSynthStack --test=stackToSpots --test=index 
 '''
 
 import os
@@ -60,6 +63,8 @@ degToRad = num.pi/180.
 omeMin =  -60.*degToRad
 omeMax =   60.*degToRad
 nOme   =  240
+cutoffMult = 3.0 # to keep things less computationally expensive
+threshold = 200 # 20
 
 synthStackName = 'synth.stack'
 synthSpotsName = 'synth.spots'
@@ -140,7 +145,10 @@ def makeRandGrains(numGrains, omegaMM, detectorGeom):
     spotsDummy = Spots(planeData, None, detectorGeom, omegaMM)
 
     if numGrains == 1:
-        rMats = num.atleast_3d(num.eye(3)).T
+        import orientations as ors
+        r = ors.RotInv(3.08805198-num.pi, 0., 1., 0.).toMatrix()
+        # r = num.eye(3)
+        rMats = num.atleast_3d(r).T
     else:
         quats = num.atleast_2d(ors.Quat.getRandQuat(n=numGrains)).T
         rMats = ors.quatToMat(quats)
@@ -199,7 +207,7 @@ if __name__ == '__main__':
     if opts.nOme is not None:
         nOme = opts.nOme
 
-    omegaMM = (omeMin, omeMax)
+    omegaMM = ( min(omeMin, omeMax), max(omeMin, omeMax) )
     deltaOme = (omeMax-omeMin)/nOme # may be negative
     omegas = num.linspace(omeMin + 0.5*deltaOme, omeMax - 0.5*deltaOme, nOme)
 
@@ -245,7 +253,7 @@ if __name__ == '__main__':
         # writer = detector.ReadGE(None, omeMin, deltaOme, doFlip=False).getWriter(synthStackName)
         writer = detectorGeom.reader.getWriter(synthStackName)
         stack = xrdutil.makeSynthFrames(spotParamsList, detectorGeom, omegas, 
-                                        cutoffMult=3.0, # to keep things less computationally expensive
+                                        cutoffMult=cutoffMult,
                                         output=writer, debug=debug)
         writer.close()
         '''
@@ -283,11 +291,10 @@ if __name__ == '__main__':
         reader = detectorGeom.getNewReader(synthStackName, omeMin, deltaOme, doFlip=False, subtractDark=False)
         assert reader.getNFrames() == nOme, 'not the expected number of frames'
         
-        threshold = 20
         minPx = 4
         spots = spotfinder.Spots.findSpotsOmegaStack(
             reader, 0, 
-            threshold, minPx, debug=True, 
+            threshold, minPx, debug=debug,
             overlapPixelDistance=None,
             discardAtBounds=True)
         print 'found %d spots in the image stack' % (len(spots))
@@ -361,15 +368,16 @@ if __name__ == '__main__':
                                    doRefinement=False)
         print 'found %d grains' % (rMat.shape[0])
     
-        etaTol    = valunits.valWUnit("etaTol","ANGLE",0.0625,"degrees")
-        omeTol    = valunits.valWUnit("omeTol","ANGLE",0.2500,"degrees")
-        strainMag = 1e-3
+        # etaTol    = valunits.valWUnit("etaTol","ANGLE",0.0625,"degrees")
+        # omeTol    = valunits.valWUnit("omeTol","ANGLE",0.2500,"degrees")
         firstGrain = grain.Grain(spotsForFit,
                                  rMat=rMat[0, :, :],
                                  etaTol=etaTol,
                                  omeTol=omeTol)
         
         firstGrain.fit()
+	reflInfo, fPairs, completeness = firstGrain.findMatches(updateSelf=True)
+        print 'after fit, completeness is %g' % (completeness)
 
     ######################################################################
     # add more tests here as see fit
