@@ -32,7 +32,7 @@ import wx
 
 import numpy
 
-from hexrd.xrd.Experiment  import PolarRebinOpts as prOpts
+from hexrd.xrd.experiment  import PolarRebinOpts as prOpts
 
 from hexrd.wx.guiconfig import WindowParameters as WP
 from hexrd.wx.guiutil import makeTitleBar

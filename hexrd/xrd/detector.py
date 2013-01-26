@@ -53,7 +53,6 @@ from matplotlib import cm, colors
 from matplotlib import mlab
 from matplotlib.widgets import Slider, Button, RadioButtons
 
-from hexrd import XRD
 from hexrd.xrd.xrdbase import getGaussNDParams
 from hexrd.xrd.rotations import mapAngle
 from hexrd.xrd.rotations import rotMatOfExpMap

@@ -330,4 +330,4 @@ def applySym(vec, qsym, csFlag=False, cullPM=False, tol=1e-8):
 #######################################################
 # Module containing functions relevant to rotations
 #   - must place here to enforce circular import
-from Rotations import quatOfAngleAxis, rotMatOfQuat, quatProductMatrix, fixQuat
+from rotations import quatOfAngleAxis, rotMatOfQuat, quatProductMatrix, fixQuat

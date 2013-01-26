@@ -56,12 +56,11 @@ from hexrd import matrixutil as mUtil
 from hexrd.matrixutil import rowNorm
 from hexrd import plotwrap
 
-from hexrd import XRD
 from hexrd.xrd import crystallography
 from hexrd.xrd import detector
 from hexrd.xrd import xrdbase
 from hexrd.xrd.xrdbase import getGaussNDParams
-from hexrd.xrd import Rotations
+from hexrd.xrd import rotations
 from hexrd.xrd.rotations import mapAngle
 
 
@@ -4055,7 +4054,7 @@ class Spots(object):
                             omeTol=valunits.valWUnit('etaTol', 'angle', 1.00, 'degrees')):
 
         getFriedelPair = crystallography.getFriedelPair
-        angularDifference = Rotations.angularDifference
+        angularDifference = rotations.angularDifference
 
         if hasattr(etaTol, 'getVal'):
             etaTol = etaTol.getVal('radians')

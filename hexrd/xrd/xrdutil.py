@@ -56,7 +56,7 @@ from hexrd.xrd.detector import getCMap
 from hexrd.xrd import xrdbase
 from hexrd.xrd.xrdbase import dataToFrame
 from hexrd.xrd.xrdbase import multiprocessing
-from hexrd.xrd import Rotations as rot
+from hexrd.xrd import rotations as rot
 from hexrd.xrd.rotations import mapAngle
 from hexrd.xrd import spotfinder
 
