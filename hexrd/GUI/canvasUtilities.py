@@ -149,8 +149,8 @@ class cmapPanel(wx.Panel):
         #
         #  colormap sizer
         #
-        nrow = 1; ncol = 3; padx = 5; pady = 5
-	self.cmSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        nrow = 3; ncol = 3; padx = 5; pady = 5
+        self.cmSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
         
         self.cmSizer.Add(self.cmap_lab, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.Add(self.cmap_cho, 0, wx.EXPAND | wx.ALIGN_RIGHT)
@@ -164,8 +164,8 @@ class cmapPanel(wx.Panel):
         self.cmSizer.Add(self.cmax_txt, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.Add(self.cmOver_box, 0, wx.EXPAND | wx.ALIGN_RIGHT)
 	
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.cmSizer,   0, wx.EXPAND|wx.ALIGN_RIGHT)
 
 	return

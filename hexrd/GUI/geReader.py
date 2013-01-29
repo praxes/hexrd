@@ -222,7 +222,7 @@ class geReaderPanel(wx.Panel):
         self.browse_spn = wx.SpinCtrl(self, wx.NewId(), min=0, initial=0)
         self.browse_inf = wx.TextCtrl(self, wx.NewId(), value='', 
                                       style=wx.RAISED_BORDER|wx.TE_READONLY)
-	self.sizer = wx.BoxSizer(wx.HORIZONTAL|wx.VERTICAL)
+        self.sizer = wx.BoxSizer(wx.HORIZONTAL)
         #
         #  Orientation
         #
@@ -884,25 +884,25 @@ class infoPanel(wx.Panel):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-        nrow = 1; ncol = 2; padx = 5; pady = 5
-	self.fgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
-	self.fgsizer.AddGrowableCol(1, 1)
-	#self.fgsizer.AddGrowableRow(num, proportion)
+        nrow = 2; ncol = 2; padx = 5; pady = 5
+        self.fgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
+        self.fgsizer.AddGrowableCol(1, 1)
+        #self.fgsizer.AddGrowableRow(num, proportion)
 
-	self.fgsizer.Add(self.img_txt_lab, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
-	self.fgsizer.Add(self.img_txt,     1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.fgsizer.Add(self.img_txt_lab, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
+        self.fgsizer.Add(self.img_txt,     1, wx.EXPAND|wx.ALIGN_CENTER)
 	
-	self.fgsizer.Add(self.drk_txt_lab, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
-	self.fgsizer.Add(self.drk_txt,     1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.fgsizer.Add(self.drk_txt_lab, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
+        self.fgsizer.Add(self.drk_txt,     1, wx.EXPAND|wx.ALIGN_CENTER)
         #
         #  Main sizer
         #
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
 
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.fgsizer,   0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.fgsizer,   0, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #

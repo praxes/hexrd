@@ -125,7 +125,7 @@ class spotsPanel(wx.Panel):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-        nrow = 3; ncol = 2; padx = 5; pady = 5
+        nrow = 4; ncol = 2; padx = 5; pady = 5
         self.fgSizer = wx.FlexGridSizer(nrow, ncol, padx, pady) 
         self.fgSizer.AddGrowableCol(1, 1)
         #  1. material selector
@@ -143,8 +143,8 @@ class spotsPanel(wx.Panel):
 	#
         #  ========== Main Sizer
         #
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.fgSizer,   1, wx.ALIGN_RIGHT)
         self.sizer.Add(self.run,       0, wx.ALIGN_RIGHT)
 

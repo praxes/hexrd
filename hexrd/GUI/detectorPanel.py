@@ -277,7 +277,7 @@ class detectorPanel(wx.Panel):
         #
         #  Geometry sizer
         #
-        nrow = 10; ncol = 2; padx = 5; pady = 5
+        nrow = 12; ncol = 2; padx = 5; pady = 5
         self.geoSizer = wx.FlexGridSizer(nrow, ncol, padx, pady) 
         self.geoSizer.AddGrowableCol(0, 1)
         self.geoSizer.AddGrowableCol(1, 1)
