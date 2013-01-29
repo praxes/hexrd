@@ -72,7 +72,7 @@ space group data.
              -- the material name as a section
 """
         #
-	self.name = name
+        self.name = name
         self.description = ''
         #
         if cfgP:

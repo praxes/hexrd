@@ -403,7 +403,7 @@ class IntensityFunc3D(object):
 class IntensityFuncGauss3D(IntensityFunc3D):
     """
     8 parameters:
-    	centers (3)
+        centers (3)
         FWHMs   (3)
         scaling  (1)
         background (1)
@@ -535,7 +535,7 @@ class IntensityFuncGauss3DGenEll(IntensityFunc3D):
     """
     generalization of IntensityFuncGauss3D to have principal axes generally aligned
     11 parameters:
-    	centers (3)
+        centers (3)
         diagonal "fwhm" (3)
         scaling  (1)
         off-diagonal (3)
@@ -1080,7 +1080,7 @@ class IntensityFunc2D(object):
 class IntensityFuncGauss2D(IntensityFunc2D):
     """
     6 parameters:
-    	centers (2)
+        centers (2)
         FWHMs   (2)
         scaling  (1)
         background (1)
@@ -2744,7 +2744,7 @@ class Spot(object):
 
         spots is a list of Spot instances;
         tests is a list of tests to be applied;
-        	For convenience, some tests have been defined as static methods off of the
+                For convenience, some tests have been defined as static methods off of the
                 Spot class.
                 If a test is tests has a length, then the non-first entries are
                 used as arguments.
@@ -2961,7 +2961,7 @@ class Spots(object):
         """
         planeData : an instance or list (for multiple phases) of the PlaneData class
         data : can any of:
-        	spots : list of Spot instances, all of which must have been finalized
+                spots : list of Spot instances, all of which must have been finalized
                 spotAngCoords : spot positions in angular coordinates
                 None
         detectorGeom : an instance of DetectorGeomGE or the like
@@ -4176,7 +4176,7 @@ class Spots(object):
         probably most useful when omega steps are large
 
         reader has been created by doing something like:
-        	fileInfo = [('RUBY_4537.raw', 2), ('RUBY_4538.raw', 2)]
+                fileInfo = [('RUBY_4537.raw', 2), ('RUBY_4538.raw', 2)]
                 reader = detector.ReadGE(fileInfo, subtractDark=True)
 
         if go to parallel processing, perhaps return first and last lables for doing merges
@@ -4542,7 +4542,7 @@ class SpotsIterator:
                 if self.spots.friedelPair[self.__iter_pnt] > self.__iter_pnt:
                     """ checking > self.__iter_pnt will only be True for the
                     master spot if have done:
-                    	friedelPair[iSpot] = jSpot
+                        friedelPair[iSpot] = jSpot
                         friedelPair[jSpot] = iSpot
                     to set up the data
                     """

@@ -300,7 +300,7 @@ class ReadGE(Reader):
 
     *) In multiframe images where background subtraction is requested but no
        dark is specified, attempts to use the
-       empty frame(s).	An error is returned if there are not any specified.
+       empty frame(s).  An error is returned if there are not any specified.
        If there are multiple empty frames, the average is used.
 
     """
@@ -3489,7 +3489,7 @@ class Detector2DRC(DetectorBase):
         """
         return a list of indices for sets of overlaping two-theta ranges;
         to plot, can do something like:
-        	mask = self.readerClass.getEmptyMask()
+                mask = self.readerClass.getEmptyMask()
           mask[indices] = True
 
         With cullDupl set true, eliminate HKLs with duplicate 2-thetas

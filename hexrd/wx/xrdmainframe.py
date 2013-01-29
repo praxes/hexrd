@@ -58,31 +58,31 @@ class xrdMainFrame(wx.Frame):
         #
         wx.Frame.__init__(self, parent, id, title)
         self.SetBackgroundColour(WP.BG_COLOR_FRAME)
-	#
+        #
         #  Data
         #
 
         #
-	#  Window Objects, menu bar and status bar.
-	#
-        self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
+        #  Window Objects, menu bar and status bar.
         #
-	self.SetAutoLayout(True)
+        self.__makeObjects()
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.updateFromExp()
         #
         self.Show(False)
 
-	return
+        return
 
     pass # class
     #
@@ -102,7 +102,7 @@ class xrdMainFrame(wx.Frame):
         # Notebook
         #
         self.nBook = xrdNoteBook(self, wx.NewId())
-	#
+        #
         # A Statusbar in the bottom of the window
         #
         self.CreateStatusBar()
@@ -170,7 +170,7 @@ class xrdMainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnMaterialsEdit, id=self.materialMenu.IDedit)
         #  ===== Save List
         self.materialMenu.IDsave = wx.NewId()
-	self.materialMenu.Append(self.materialMenu.IDsave,
+        self.materialMenu.Append(self.materialMenu.IDsave,
                            "Save material list",
                            "Save the material list to a file.")
         self.Bind(wx.EVT_MENU, self.OnMaterialsSave, id=self.materialMenu.IDsave)
@@ -183,7 +183,7 @@ class xrdMainFrame(wx.Frame):
 
         # ===== Load List
         self.readerMenu.IDloadl = wx.NewId()
-	self.readerMenu.Append(self.readerMenu.IDloadl,
+        self.readerMenu.Append(self.readerMenu.IDloadl,
                            "Load reader list",
                            "Load the reader list to from a file")
         self.Bind(wx.EVT_MENU, self.OnReadersLoad, id=self.readerMenu.IDloadl)
@@ -195,7 +195,7 @@ class xrdMainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnReadersEdit, id=self.readerMenu.IDedit)
         # ===== Save List
         self.readerMenu.IDsave = wx.NewId()
-	self.readerMenu.Append(self.readerMenu.IDsave,
+        self.readerMenu.Append(self.readerMenu.IDsave,
                            "Save reader list",
                            "Save the reader list to a file")
         self.Bind(wx.EVT_MENU, self.OnReadersSave, id=self.readerMenu.IDsave)
@@ -205,7 +205,7 @@ class xrdMainFrame(wx.Frame):
         # ===== Hydra
         #
         self.readerMenu.IDhydra = wx.NewId()
-	self.readerMenu.Append(self.readerMenu.IDhydra,
+        self.readerMenu.Append(self.readerMenu.IDhydra,
                            "Hydra interface",
                            "Open the hydra interface")
         self.Bind(wx.EVT_MENU, self.OnHydra, id=self.readerMenu.IDhydra)
@@ -219,13 +219,13 @@ class xrdMainFrame(wx.Frame):
 
         # ===== Load
         self.detectorMenu.IDload = wx.NewId()
-	self.detectorMenu.Append(self.detectorMenu.IDload,
+        self.detectorMenu.Append(self.detectorMenu.IDload,
                            "Load detector",
                            "Load a saved detector from a file")
         self.Bind(wx.EVT_MENU, self.OnDetectorLoad, id=self.detectorMenu.IDload)
         # ===== Save
         self.detectorMenu.IDsave = wx.NewId()
-	self.detectorMenu.Append(self.detectorMenu.IDsave,
+        self.detectorMenu.Append(self.detectorMenu.IDsave,
                            "Save detector",
                            "Save the detector to a file")
         self.Bind(wx.EVT_MENU, self.OnDetectorSave, id=self.detectorMenu.IDsave)
@@ -236,7 +236,7 @@ class xrdMainFrame(wx.Frame):
         #
         # ===== Save
         self.detectorMenu.IDcake = wx.NewId()
-	self.detectorMenu.Append(self.detectorMenu.IDcake,
+        self.detectorMenu.Append(self.detectorMenu.IDcake,
                            "Polar Rebinning",
                            "Bring up a window for polar rebinning (caking)")
         self.Bind(wx.EVT_MENU, self.OnCaking, id=self.detectorMenu.IDcake)
@@ -263,20 +263,20 @@ class xrdMainFrame(wx.Frame):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
         self.hSizer = wx.BoxSizer(wx.HORIZONTAL)
-	self.hSizer.Add(self.nBook,       1,
+        self.hSizer.Add(self.nBook,       1,
                         wx.EXPAND|wx.ALIGN_CENTER|wx.RIGHT, 10)
-	self.hSizer.Add(self.canvasPanel, 1,
+        self.hSizer.Add(self.canvasPanel, 1,
                         wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 8)
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	#self.sizer.Add(self.tbarSizer, 0,
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        #self.sizer.Add(self.tbarSizer, 0,
         #     wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 10)
-	self.sizer.Add(self.hSizer, 1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.hSizer, 1, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
 
     def __updateDetectorPage(self):
         """Update the detector page"""

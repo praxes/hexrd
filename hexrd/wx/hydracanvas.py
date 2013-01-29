@@ -52,30 +52,30 @@ from hexrd.wx.floatcontrol import *
 class hydraCanvasPanel(wx.Panel):
     """hydraCanvasPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for hydraCanvasPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for hydraCanvasPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -128,9 +128,9 @@ class hydraCanvasPanel(wx.Panel):
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t,
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
-	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
+        self.titlebar = wx.StaticText(self, -1, t,
+                                         style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
         myToolTip = r"""
 PANEL FOR ...
 """
@@ -143,14 +143,14 @@ PANEL FOR ...
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.canvas,   1, wx.LEFT | wx.TOP | wx.GROW)
         self.sizer.Add(self.toolbar,  0, wx.LEFT | wx.EXPAND)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -186,29 +186,29 @@ class hydraCanvasFrame(wx.Frame):
         #  Pass option dictionary or string.
         #
         wx.Frame.__init__(self, parent, id, title)
-	#
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.Show(True)
 
-	return
+        return
 
     pass # class
     #
@@ -218,7 +218,7 @@ class hydraCanvasFrame(wx.Frame):
         """Add interactors"""
 
         self.__makeTitleBar('Hydra Canvas')
-	#
+        #
         # A Statusbar in the bottom of the window
         #
         self.CreateStatusBar()
@@ -226,7 +226,7 @@ class hydraCanvasFrame(wx.Frame):
         # Create the panel.
         #
         self.hcanvas = hydraCanvasPanel(self, wx.NewId())
-	#
+        #
         # Creating the menubar.
         #
         menuBar = wx.MenuBar()
@@ -241,9 +241,9 @@ class hydraCanvasFrame(wx.Frame):
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t,
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
-	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_FRAME)
+        self.titlebar = wx.StaticText(self, -1, t,
+                                         style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_FRAME)
         myToolTip = r"""
 FRAME FOR ...
 """
@@ -256,13 +256,13 @@ FRAME FOR ...
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.hcanvas, 1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.hcanvas, 1, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #

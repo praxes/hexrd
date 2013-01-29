@@ -41,33 +41,33 @@ from hexrd.wx.guiconfig import WindowParameters as WP
 class selectHKLsPanel(wx.Panel):
     """selectHKLsPanel.py """
     def __init__(self, parent, id, mat, **kwargs):
-	"""Constructor for selectHKLsPanel.py
+        """Constructor for selectHKLsPanel.py
 
         mat - crystallographic material
 """
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
         self.mat = mat
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -81,9 +81,9 @@ class selectHKLsPanel(wx.Panel):
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t,
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
-	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
+        self.titlebar = wx.StaticText(self, -1, t,
+                                         style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
         myToolTip = r"""
 PANEL FOR ...
 """
@@ -92,14 +92,14 @@ PANEL FOR ...
         return
 
     def __makeListCtrl(self):
-	"""Make the list control"""
+        """Make the list control"""
         #
-	LStyle = wx.LC_REPORT
-	#
-	listctrl = wx.ListView(self, wx.NewId(), style=LStyle)
-	listctrl.InsertColumn(0, 'HKL')
-	listctrl.InsertColumn(1, 'd-spacing')
-	listctrl.InsertColumn(2, '2-theta (deg)')
+        LStyle = wx.LC_REPORT
+        #
+        listctrl = wx.ListView(self, wx.NewId(), style=LStyle)
+        listctrl.InsertColumn(0, 'HKL')
+        listctrl.InsertColumn(1, 'd-spacing')
+        listctrl.InsertColumn(2, '2-theta (deg)')
         listctrl.SetColumnWidth(0, 200)
         listctrl.SetColumnWidth(1, wx.LIST_AUTOSIZE_USEHEADER)
         listctrl.SetColumnWidth(2, wx.LIST_AUTOSIZE_USEHEADER)
@@ -139,7 +139,7 @@ PANEL FOR ...
         self.hkls    = hkls
         self.exclude = excl
 
-	return listctrl
+        return listctrl
 
     def __makeBindings(self):
         """Bind interactors"""
@@ -148,13 +148,13 @@ PANEL FOR ...
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.listctrl, 1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.listctrl, 1, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -185,53 +185,53 @@ PANEL FOR ...
 class selectHKLsDialog(wx.Dialog):
     """selectHKLsDialog """
     def __init__(self, parent, id, mat, **kwargs):
-	"""Constructor for selectHKLsDialog"""
-	#
+        """Constructor for selectHKLsDialog"""
+        #
         myCaption = 'HKL Selector'
         myStyle   = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER
-	wx.Dialog.__init__(self, parent, id,
+        wx.Dialog.__init__(self, parent, id,
                            style=myStyle, title=myCaption)
-	#
-	#  Data Objects.
-	#
+        #
+        #  Data Objects.
+        #
 
-	#
-	#  Windows.
-	#
-	self.titlebar = wx.StaticText(self, -1, 'selectHKLsDialog',
-				      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        #
+        #  Windows.
+        #
+        self.titlebar = wx.StaticText(self, -1, 'selectHKLsDialog',
+                                      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
         self.dataPanel = selectHKLsPanel(self, wx.NewId(), mat)
         self.dataPanel.SetMinSize((400,400))
-	#
-	#  Bindings.
-	#
-	self._makeBindings()
-	#
-	#  Sizing.
-	#
-	self._makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self._makeBindings()
+        #
+        #  Sizing.
+        #
+        self._makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	#  Events.
-	#
+        #
+        #  Events.
+        #
 
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
     def _makeBindings(self):
-	"""Bind interactors to functions"""
+        """Bind interactors to functions"""
 
-	return
+        return
 
     def _makeSizers(self):
-	"""Lay out windows"""
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.titlebar,  0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.dataPanel, 1, wx.EXPAND|wx.ALIGN_CENTER)
+        """Lay out windows"""
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.titlebar,  0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.dataPanel, 1, wx.EXPAND|wx.ALIGN_CENTER)
         #
         #  Add buttons
         #
@@ -240,7 +240,7 @@ class selectHKLsDialog(wx.Dialog):
         #
         self.sizer.Show(self.titlebar, False)
 
-	return
+        return
     #
     # ============================== API
     #

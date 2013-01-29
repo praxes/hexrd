@@ -44,30 +44,30 @@ from hexrd.xrd.experiment import newName  # need better place for newName functi
 class ListEditor(wx.Panel):
     """ListEditor """
     def __init__(self, parent, id, mylist, **kwargs):
-	"""Constructor for ListEditor."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for ListEditor."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
         self.mylist = mylist
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -87,9 +87,9 @@ class ListEditor(wx.Panel):
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t,
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
-	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
+        self.titlebar = wx.StaticText(self, -1, t,
+                                         style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
         myToolTip = r"""
 PANEL FOR ...
 """
@@ -107,29 +107,29 @@ PANEL FOR ...
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         #
         #  Button sizer
         #
         butAlign = wx.ALIGN_LEFT
-	self.butSizer = wx.BoxSizer(wx.VERTICAL)
+        self.butSizer = wx.BoxSizer(wx.VERTICAL)
 
-	self.butSizer.Add(self.up_but,   0, butAlign)
-	self.butSizer.Add(self.down_but, 0, butAlign)
-	self.butSizer.Add(self.del_but,  0, butAlign)
-	self.butSizer.Add(self.copy_but, 0, butAlign)
-	#
+        self.butSizer.Add(self.up_but,   0, butAlign)
+        self.butSizer.Add(self.down_but, 0, butAlign)
+        self.butSizer.Add(self.del_but,  0, butAlign)
+        self.butSizer.Add(self.copy_but, 0, butAlign)
+        #
         #  Main sizer
         #
-	nrow = 1; ncol = 2; padx = 5; pady = 5
-	self.sizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
-	self.sizer.AddGrowableCol(0, 1)
-	self.sizer.AddGrowableRow(0, 1)
+        nrow = 1; ncol = 2; padx = 5; pady = 5
+        self.sizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.sizer.AddGrowableCol(0, 1)
+        self.sizer.AddGrowableRow(0, 1)
 
         self.sizer.Add(self.main_lbx,  1, wx.EXPAND | wx.ALIGN_CENTER | wx.RIGHT, 5)
         self.sizer.Add(self.butSizer,  0)
 
-	return
+        return
 
     def _resetLbox(self):
         """Reset entries in listbox to match list"""
@@ -216,49 +216,49 @@ PANEL FOR ...
 class ListEditDlg(wx.Dialog):
     """ListEditDlg """
     def __init__(self, parent, id, mylist, **kwargs):
-	"""Constructor for ListEditDlg"""
-	#
-	wx.Dialog.__init__(self, parent, id,
-                           style=wx.RESIZE_BORDER|wx.DEFAULT_DIALOG_STYLE)
-	#
-	#  Data Objects.
-	#
-	#
-	#  Windows.
-	#
-	self.titlebar = wx.StaticText(self, -1, 'List Editor',
-				      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        """Constructor for ListEditDlg"""
         #
-	self.list_ed = ListEditor(self, wx.NewId(), mylist)
-	#
-	#  Bindings.
-	#
-	self.makeBindings()
-	#
-	#  Sizing.
-	#
-	self.makeSizers()
-	#
-	self.SetAutoLayout(True)
+        wx.Dialog.__init__(self, parent, id,
+                           style=wx.RESIZE_BORDER|wx.DEFAULT_DIALOG_STYLE)
+        #
+        #  Data Objects.
+        #
+        #
+        #  Windows.
+        #
+        self.titlebar = wx.StaticText(self, -1, 'List Editor',
+                                      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        #
+        self.list_ed = ListEditor(self, wx.NewId(), mylist)
+        #
+        #  Bindings.
+        #
+        self.makeBindings()
+        #
+        #  Sizing.
+        #
+        self.makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	#  Events.
-	#
+        #
+        #  Events.
+        #
 
-	#
-	return
+        #
+        return
 
     def makeBindings(self):
-	"""Bind interactors to functions"""
-	return
+        """Bind interactors to functions"""
+        return
 
     def makeSizers(self):
-	"""Lay out windows"""
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.list_ed,  1, wx.EXPAND|wx.ALIGN_CENTER)
+        """Lay out windows"""
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.list_ed,  1, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
 
     pass # end class
 #

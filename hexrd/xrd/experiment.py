@@ -633,7 +633,7 @@ GE reader is supported.
         self.imageNameD = dict()
         # Dark file
         self.darkMode = ReaderInput.DARK_MODE_NONE
-	self.darkDir  = ''
+        self.darkDir  = ''
         self.darkName = ''
         # File aggregation
         self.aggFun = ReaderInput.AGG_FUN_NONE
@@ -796,7 +796,7 @@ class CalibrationInput(object):
 
         self.corrected = False
         #
-	self.calMat = mat
+        self.calMat = mat
 
         return
     #
@@ -870,7 +870,7 @@ class DetectorInfo(object):
     def __init__(self):
         """Constructor for detectorInfo"""
         #
-	self.detector  = detector.newDetector('ge')
+        self.detector  = detector.newDetector('ge')
         self.mrbImages = []
         self.fitParams = []
         #
@@ -982,7 +982,7 @@ class PolarRebinOpts(object):
             correct = True
 """
         #
-	self.type = cakeMethods[0]
+        self.type = cakeMethods[0]
         #
         #  Standard (whole image) rebinning
         #

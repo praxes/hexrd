@@ -386,7 +386,7 @@ static int TestAll(int Range)
           iList, jList,
           XS_Name[ixXS(MGC)], MG_Names[ixPG(MGC)]);
         fflush(stdout);
-	
+
 #ifdef JUNK
         i = GetSpaceGroupType(SgOps, NULL, NULL);
         printf("SgNumber = %d\n", i);

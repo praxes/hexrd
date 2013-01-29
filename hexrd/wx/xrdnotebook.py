@@ -32,14 +32,14 @@
 #  Notebook Styles and Events
 #
 """
-wxNB_TOP 	Place tabs on the top side.
-wxNB_LEFT 	Place tabs on the left side.
-wxNB_RIGHT 	Place tabs on the right side.
-wxNB_BOTTOM 	Place tabs under instead of above the notebook pages.
-wxNB_FIXEDWIDTH 	(Windows only) All tabs will have same width.
-wxNB_MULTILINE 	(Windows only) There can be several rows of tabs.
-wxNB_NOPAGETHEME 	(Windows only) Display a solid colour on notebook pages, and not a gradient, which can reduce performance.
-wxNB_FLAT 	(Windows CE only) Show tabs in a flat style.
+wxNB_TOP        Place tabs on the top side.
+wxNB_LEFT       Place tabs on the left side.
+wxNB_RIGHT      Place tabs on the right side.
+wxNB_BOTTOM     Place tabs under instead of above the notebook pages.
+wxNB_FIXEDWIDTH         (Windows only) All tabs will have same width.
+wxNB_MULTILINE  (Windows only) There can be several rows of tabs.
+wxNB_NOPAGETHEME        (Windows only) Display a solid colour on notebook pages, and not a gradient, which can reduce performance.
+wxNB_FLAT       (Windows CE only) Show tabs in a flat style.
 
 
 EVT_NOTEBOOK_PAGE_CHANGED
@@ -60,9 +60,9 @@ from hexrd.wx.grainpanel import grainPanel
 class xrdNoteBook(wx.Notebook):
     """xrdNoteBook """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for xrdNoteBook."""
-	#
-	wx.Notebook.__init__(self, parent, id, **kwargs)
+        """Constructor for xrdNoteBook."""
+        #
+        wx.Notebook.__init__(self, parent, id, **kwargs)
         #
         #  Add pages to notebook, maintaining a dictionary
         #  of pages by page title.
@@ -100,8 +100,8 @@ class xrdNoteBook(wx.Notebook):
         #
         self.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.OnPageChange, self)
 
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #

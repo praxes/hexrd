@@ -43,7 +43,7 @@ from hexrd.wx.canvasutil import *
 class cakeCanvas(wx.Panel):
     """cakeCanvas """
     def __init__(self, parent, id, cakeType, data, **kwargs):
-	"""Constructor for cakeCanvas panel
+        """Constructor for cakeCanvas panel
 
         INPUTS
         cakeType -- full caking, ring-based or spherical (omega-eta map)
@@ -55,32 +55,32 @@ class cakeCanvas(wx.Panel):
         DESCRIPTION
         Shows data on output canvas.
 """
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
         self.cakeType = cakeType
         self.data     = data
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.opt_pan.update() # make initial plot
- 	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -129,17 +129,17 @@ class cakeCanvas(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
         #
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Show(self.tbarSizer, False)
-	self.sizer.Add(self.opt_pan,   0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.canvas,    1, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.toolbar,   0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.opt_pan,   0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.canvas,    1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.toolbar,   0, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -170,30 +170,30 @@ class cakeDisplay(wx.Frame):
         #  Pass option dictionary or string.
         #
         wx.Frame.__init__(self, parent, id, title)
-	#
+        #
         #  Data
         #
         self.cakeType = cakeType
         self.data     = data
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.Show(True)
 
-	return
+        return
     #
     # ============================== Internal Methods
     #
@@ -205,11 +205,11 @@ class cakeDisplay(wx.Frame):
         #  Add canvas panel
         #
         self.cpan = cakeCanvas(self, wx.NewId(),  self.cakeType, self.data)
-	#
+        #
         # A Statusbar in the bottom of the window
         #
         self.CreateStatusBar()
-	#
+        #
         # Creating the menubar.
         #
         # menuBar = wx.MenuBar()
@@ -227,13 +227,13 @@ class cakeDisplay(wx.Frame):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.cpan,      1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.cpan,      1, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -253,30 +253,30 @@ class rngOpts(wx.Panel):
     unitList = ['d-spacing', 'radians', 'strain', 'degrees']
 
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for rngOpts."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for rngOpts."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
 
-	return
+        return
     #
     # ============================== Internal Methods
     #
@@ -287,7 +287,7 @@ class rngOpts(wx.Panel):
         #
         self.unit_cho = wx.Choice(self, wx.NewId(), choices=rngOpts.unitList)
         self.exp_but  = wx.Button(self, wx.NewId(), 'Export')
-	#self.Bind(wx.EVT_CHOICE, self.OnChoice, self.choice)
+        #self.Bind(wx.EVT_CHOICE, self.OnChoice, self.choice)
 
         return
 
@@ -298,15 +298,15 @@ class rngOpts(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Show(self.tbarSizer, False)
         self.sizer.Add(self.unit_cho, 0, wx.ALIGN_LEFT)
         self.sizer.Add(self.exp_but,  0, wx.ALIGN_LEFT|wx.TOP, 5)
 
-	return
+        return
     #
     # ============================== API
     #

@@ -88,7 +88,7 @@ class SpaceGroup(object):
         INPUTS
         sgnum -- (int) space group number (between 1 and 230)
 """
-	self.sgnum  = sgnum  # call before sglite (sets Hall symbol)
+        self.sgnum  = sgnum  # call before sglite (sets Hall symbol)
         #
         # Do not include SgOps type as target, as that will make
         # this class unpicklable.

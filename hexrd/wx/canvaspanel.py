@@ -52,30 +52,30 @@ r2d = 180.0/numpy.pi
 class CanvasPanel(wx.Panel):
     """CanvasPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for CanvasPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for CanvasPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -87,9 +87,9 @@ class CanvasPanel(wx.Panel):
         #  Make options sizer
         #
         nrow = 0; ncol = 2; padx = 5; pady = 5
-	self.optSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
-	#self.optSizer.AddGrowableCol(num, proportion)
-	#self.optSizer.AddGrowableRow(num, proportion)
+        self.optSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        #self.optSizer.AddGrowableCol(num, proportion)
+        #self.optSizer.AddGrowableRow(num, proportion)
         #
         #  ===== OPTIONS
         #
@@ -179,17 +179,17 @@ class CanvasPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0,
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0,
                        wx.EXPAND| wx.BOTTOM, 10)
         self.sizer.Add(self.optSizer, 0, wx.LEFT | wx.TOP | wx.GROW)
         self.sizer.Add(self.cmPanel,  0, wx.LEFT | wx.TOP | wx.GROW)
         self.sizer.Add(self.canvas,   1, wx.LEFT | wx.TOP | wx.GROW)
         self.sizer.Add(self.toolbar,  0, wx.LEFT | wx.EXPAND)
 
-	return
+        return
     #
     #  Helper functions
     #

@@ -43,31 +43,31 @@ from hexrd.wx.guiutil import ResetChoice, AddSpacer
 class matPanel(wx.Panel):
     """matPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for matPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
+        """Constructor for matPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
         self.SetBackgroundColour(WP.BG_COLOR_PANEL)
-	#
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -178,9 +178,9 @@ class matPanel(wx.Panel):
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t,
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
-	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
+        self.titlebar = wx.StaticText(self, -1, t,
+                                         style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
         myToolTip = r"""
 PANEL FOR ...
 """
@@ -206,13 +206,13 @@ PANEL FOR ...
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
-	#  Header
+        """Lay out the interactors"""
+        #  Header
         ncol = 3; nrow = 3; padx = pady = 5;
         headsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
-	#self.fgsizer.AddGrowableRow(num, proportion)
-	headsizer.AddGrowableCol(1, 1)
-	headsizer.AddGrowableCol(2, 1)
+        #self.fgsizer.AddGrowableRow(num, proportion)
+        headsizer.AddGrowableCol(1, 1)
+        headsizer.AddGrowableCol(2, 1)
         # material list
         headsizer.Add(self.curr_lab, 0, wx.EXPAND|wx.ALIGN_CENTER)
         headsizer.Add(self.mats_cho, 0, wx.EXPAND|wx.ALIGN_CENTER)
@@ -226,8 +226,8 @@ PANEL FOR ...
         #
         nrow = 4; ncol = 4; padx = pady = 5;
         lpsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
-	lpsizer.AddGrowableCol(1, 1)
-	lpsizer.AddGrowableCol(3, 1)
+        lpsizer.AddGrowableCol(1, 1)
+        lpsizer.AddGrowableCol(3, 1)
         # units
         lpsizer.Add(self.units_lab,  0,wx.ALIGN_CENTER)
         lpsizer.Add(self.dunits_cho,  1, wx.ALIGN_CENTER)
@@ -253,8 +253,8 @@ PANEL FOR ...
         #
         nrow = 5; ncol = 3; padx = pady = 5;
         sgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
-	sgsizer.AddGrowableCol(1, 1)
-	sgsizer.AddGrowableCol(2, 1)
+        sgsizer.AddGrowableCol(1, 1)
+        sgsizer.AddGrowableCol(2, 1)
         #  labels
         sgsizer.Add(self.sg_lab,   0, wx.ALIGN_CENTER)
         sgsizer.Add(self.hall_lab, 0, wx.ALIGN_CENTER)
@@ -282,16 +282,16 @@ PANEL FOR ...
         #
         #  ==================== MAIN SIZER
         #
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(headsizer,     1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(headsizer,     1, wx.EXPAND|wx.ALIGN_CENTER)
         #
         #  ==================== MAIN SIZER
         #
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.titlebar, 0,
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.titlebar, 0,
                        wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 10)
-	self.sizer.Add(headsizer,     1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(headsizer,     1, wx.EXPAND|wx.ALIGN_CENTER)
 
         AddSpacer(self, self.sizer, WP.BG_COLOR_TITLEBAR_PANEL1)
 
@@ -299,11 +299,11 @@ PANEL FOR ...
 
         AddSpacer(self, self.sizer, WP.BG_COLOR_TITLEBAR_PANEL1)
 
-	self.sizer.Add(lpsizer, 1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(lpsizer, 1, wx.EXPAND|wx.ALIGN_CENTER)
 
         #self.sizer.Show(self.titlebar, False)
 
-	return
+        return
     #
     # ============================== API
     #

@@ -40,31 +40,31 @@ from hexrd.xrd.crystallography    import processWavelength
 class spotsPanel(wx.Panel):
     """spotsPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for spotsPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
+        """Constructor for spotsPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
         self.SetBackgroundColour(WP.BG_COLOR_PANEL)
-	#
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -77,7 +77,7 @@ class spotsPanel(wx.Panel):
 
         # Material Choice
 
-	self.mat_lab = wx.StaticText(self, -1, 'material',
+        self.mat_lab = wx.StaticText(self, -1, 'material',
                                      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
         self.mat_cho = wx.Choice(self, wx.NewId(), choices=exp.matNames)
 
@@ -114,7 +114,7 @@ class spotsPanel(wx.Panel):
 
     def __makeBindings(self):
         """Bind interactors"""
-	self.Bind(wx.EVT_CHOICE,     self.OnChooseMat,  self.mat_cho)
+        self.Bind(wx.EVT_CHOICE,     self.OnChooseMat,  self.mat_cho)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnBeamEnergy, self.beam_txt)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnThreshold,  self.thresh_txt)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnMinPX,      self.minpx_txt)
@@ -124,7 +124,7 @@ class spotsPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         nrow = 3; ncol = 2; padx = 5; pady = 5
         self.fgSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
         self.fgSizer.AddGrowableCol(1, 1)
@@ -140,15 +140,15 @@ class spotsPanel(wx.Panel):
         #  4. min PX
         self.fgSizer.Add(self.minpx_lab,       0, wx.ALIGN_RIGHT)
         self.fgSizer.Add(self.minpx_txt,       0, wx.ALIGN_RIGHT)
-	#
+        #
         #  ========== Main Sizer
         #
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.fgSizer,   1, wx.ALIGN_RIGHT)
         self.sizer.Add(self.run,       0, wx.ALIGN_RIGHT)
 
-	return
+        return
     #
     # ============================== API
     #

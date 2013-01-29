@@ -1212,7 +1212,7 @@ static PyTypeObject SgOpsType = {
 
         /* Space for future expansion */
         0L,0L,0L,
-	Py_TPFLAGS_DEFAULT,               /* tp_flags */
+        Py_TPFLAGS_DEFAULT,               /* tp_flags */
         NULL
 };
 
@@ -1239,7 +1239,7 @@ static PyTypeObject EqMIxType = {
 
         /* Space for future expansion */
         0L,0L,0L,
-	Py_TPFLAGS_DEFAULT,               /* tp_flags */
+        Py_TPFLAGS_DEFAULT,               /* tp_flags */
         NULL
 };
 
@@ -1288,13 +1288,13 @@ initsglite(void)
   /* changes for use in mdef*/
 
   SgOpsType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&SgOpsType) < 0) 
+  if (PyType_Ready(&SgOpsType) < 0)
     return;
   Py_INCREF(&SgOpsType);
   PyModule_AddObject(m, "SgOps", (PyObject *)&SgOpsType);
 
   EqMIxType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&EqMIxType) < 0) 
+  if (PyType_Ready(&EqMIxType) < 0)
     return;
   Py_INCREF(&EqMIxType);
   PyModule_AddObject(m, "EqMIx", (PyObject *)&EqMIxType);

@@ -306,7 +306,7 @@ def quatOfAngleAxis(angle, rotaxis):
             "must be a list, int, float, or ndarray."
 
     if rotaxis.shape[1] == 1:
-	rotaxis = tile(rotaxis, (1, n))
+        rotaxis = tile(rotaxis, (1, n))
     else:
         if rotaxis.shape[1] != n:
             raise RuntimeError, "rotation axes argument has incompatible shape"
