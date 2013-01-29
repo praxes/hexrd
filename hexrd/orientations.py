@@ -1,25 +1,25 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2007-2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2007-2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
-# 
+#
 # This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
-# 
+#
 # Please also see the file LICENSE.
-# 
+#
 # This program is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License (as published by the Free Software
 # Foundation) version 2.1 dated February 1999.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY 
-# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the 
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Lesser General Public
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
@@ -36,8 +36,8 @@ from numpy import *
 import numpy as num
 import scipy.linalg
 
-import hexrd.matrixUtils as mU
-from hexrd.matrixUtils import normvec3, normalized, cross, normvec
+import hexrd.matrixutil as mU
+from hexrd.matrixutil import normvec3, normalized, cross, normvec
 
 if __name__ != '__main__':
     debug = 0
@@ -54,7 +54,7 @@ piby3 = pi / 3.0
 I3 = eye(3, dtype='float64')
 
 def arccosSafe(temp):
-    # protect against numbers slightly larger than 1 in magnitude 
+    # protect against numbers slightly larger than 1 in magnitude
     # due to round-off
     if temp > 1.00001:
         print >> sys.stderr, "attempt to take arccos of %s" % temp
@@ -83,7 +83,7 @@ def traceToAng(tr):
 
 def matToCanova(r):
     euler = zeros(3, dtype='float64')
-                
+
     euler[1] = arccosSafe(r[2,2])
 
     if (abs(abs(r[2,2]) - 1.0) > epsHedge):
@@ -108,7 +108,7 @@ def invToRodr(inv):
         r[:] = tan(inv[0] * 0.5) * inv[1:]
     return r
 
-def rodrToInv(rodr): 
+def rodrToInv(rodr):
     'do not check for divide-by-zero'
     vect = False
     sqr3i = 1./sqrt(3.)
@@ -133,7 +133,7 @@ def rodrToInv(rodr):
             inv[1:] = rodr[:] / factor
     return inv
 
-def rodrToQuat(rodr): 
+def rodrToQuat(rodr):
     return invToQuat(rodrToInv(rodr))
 
 def invToQuat(inv):
@@ -151,14 +151,14 @@ def invToQuat(inv):
         sth    = sin(inv[0] * 0.5)
         q[1:4] = sth * inv[1:]
     return q
-    
+
 def bungeToMat(euler):
-    
+
     mat = zeros([3,3], dtype='float64')
 
     c = num.cos(euler[:])
     s = num.sin(euler[:])
-    
+
     mat[0, 0]  =  c[0]*c[2] - s[0]*c[1]*s[2]
     mat[1, 0]  =  s[0]*c[2] + c[0]*c[1]*s[2]
     mat[2, 0]  =  s[1]*s[2]
@@ -168,13 +168,13 @@ def bungeToMat(euler):
     mat[0, 2]  =  s[0]*s[1]
     mat[1, 2]  = -c[0]*s[1]
     mat[2, 2]  =  c[1]
-    
+
     return mat
 
 def matToQuat(r):
     """
     based on Spurrier's algorithm for quaternion extraction, as
-    described in \cite{sim-vuq-85a} 
+    described in \cite{sim-vuq-85a}
 
     returns a 4-vector, not a Quat instance
 
@@ -183,7 +183,7 @@ def matToQuat(r):
     author      = {J. C. Simo and L. {Vu Quoc}},
     title       = {Three dimensional finite strain rod model part
                    {II}: computational aspects, Memorandum
-                   No. {UCB/ERL M85/31}},  
+                   No. {UCB/ERL M85/31}},
     institution = {Electronics Research Laboratory, College of
                    Engineering, University of California, Berkeley},
     year        = {1985}
@@ -194,7 +194,7 @@ def matToQuat(r):
     tr  = r[0,0]+r[1,1]+r[2,2]
     rDiag = array([r[0,0],r[1,1],r[2,2]])
     maxDiag = rDiag.max()
-    
+
     if tr > maxDiag:
         quat[0] = 0.5 * sqrt(1 + tr)
         temp = 4.0 * quat[0]
@@ -216,7 +216,7 @@ def matToQuat(r):
         quat[0]   = (r[mk,mj] - r[mj,mk])/temp
         quat[mjq] = (r[mj,mi] + r[mi,mj])/temp
         quat[mkq] = (r[mk,mi] + r[mi,mk])/temp
-    
+
     return quat
 
 def matToThetaN(r):
@@ -227,9 +227,9 @@ def matToThetaN(r):
     about invariance of tr(R)
 
     references:
-    1) box 4 in Simo and VuQuoc, 1985, ERL Berkeley memorandum 
-    no. UCB/ERL M85/31 
-    2) Marin and Dawson 98 part 1, 
+    1) box 4 in Simo and VuQuoc, 1985, ERL Berkeley memorandum
+    no. UCB/ERL M85/31
+    2) Marin and Dawson 98 part 1,
     equation for update d_rstar (exponential mapping)
 
     n is in vector notation of a skew tensor according to
@@ -265,8 +265,8 @@ def matToThetaN(r):
     else:
         # determine magnitude of axis components from symm part of R
         #
-        # have already ruled out the identity and small rotations 
-        # (close to identity) handled by theta .LE. skew_symm_meth 
+        # have already ruled out the identity and small rotations
+        # (close to identity) handled by theta .LE. skew_symm_meth
         # case above, so this factor is okay
         factor = 1./(2.- trR1) # 1/(3-tr(R))
 
@@ -355,49 +355,49 @@ def quatToMat(quat):
     """
     if quat.shape[0] != 4:
         raise RuntimeError, "input is the wrong shape"
-    
+
     n    = quat.shape[1]
     rmat = zeros((n, 3, 3), dtype='float64')
-    
+
     for i in range(n):
         theta = 2. * arccosSafe(quat[0, i])
-        
+
         # find axial vector
         if (theta > tinyRotAng):
             a = sin(theta) / theta
             b = (1. - cos(theta)) / (theta*theta)
             w = (theta / sin(0.5 * theta)) * quat[1:4, i]
-            
+
             wskew = array([[   0., -w[2],  w[1]],
                            [ w[2],    0., -w[0]],
                            [-w[1],  w[0],    0.]])
-            
+
             rmat[i, :, :] = I3 + a * wskew + b * dot(wskew, wskew)
         else:
             rmat[i, :, :] = I3
-    
+
     return rmat
 
 def quatToProdMat(quat, mult='right'):
     """
     Form 4 x 4 arrays to perform the quaternion product
-    
+
     USAGE
         qmats = quatToProdMat(quats, mult='right')
-        
+
     INPUTS
         1) quats is (4, n), a numpy ndarray array of n quaternions
-           horizontally concatenated 
+           horizontally concatenated
         2) mult is a keyword arg, either 'left' or 'right', denoting
            the sense of the multiplication:
-            
+
                       / quatToProdMat(h, 'right') * q
            q * h  --> <
-                      \ quatToProdMat(q, 'left') * h 
+                      \ quatToProdMat(q, 'left') * h
 
     OUTPUTS
         1) qmats is (n, 4, 4), the left or right quaternion product
-           operator 
+           operator
 
     NOTES
        *) This function is intended to replace a cross-product based
@@ -408,28 +408,28 @@ def quatToProdMat(quat, mult='right'):
 
     if quats.shape[0] != 4:
         raise RuntimeError, "input is the wrong size along the 0-axis"
-    
+
     nq = quats.shape[1]
-    
+
     q0 = quats[0, :].copy()
     q1 = quats[1, :].copy()
     q2 = quats[2, :].copy()
     q3 = quats[3, :].copy()
-    
+
     if mult == 'right':
-        qmats = array([[ q0], [ q1], [ q2], [ q3], 
+        qmats = array([[ q0], [ q1], [ q2], [ q3],
                        [-q1], [ q0], [-q3], [ q2],
                        [-q2], [ q3], [ q0], [-q1],
                        [-q3], [-q2], [ q1], [ q0]])
     elif mult == 'left':
-        qmats = array([[ q0], [ q1], [ q2], [ q3], 
+        qmats = array([[ q0], [ q1], [ q2], [ q3],
                        [-q1], [ q0], [ q3], [-q2],
                        [-q2], [-q3], [ q0], [ q1],
                        [-q3], [ q2], [-q1], [ q0]])
-    
+
     # some fancy reshuffling:
     qmats = transpose(reshape(qmats.T, (nq, 4, 4)), (0, 2, 1))
-    
+
     return qmats
 
 def sampleToLatticeT2(A_sm, C):
@@ -459,7 +459,7 @@ class RotationParameterization:
     def toMatrix(self):
         """use matrix as common representation
         all classes should have a constructor that works using this
-        
+
             **  Construct [C] matrix (Kocks convention)
             **         {a}      = [C] {a}
             **            sm             cr
@@ -560,7 +560,7 @@ class RotInv(RotationParameterization):
                 raise RuntimeError, "unrecoverable error"
         elif len(args) == 1:
             a = args[0]
-            if (hasattr(a,"toInv")): 
+            if (hasattr(a,"toInv")):
                 "use direct conversion, assuming it is more efficient"
                 newInv = a.toInv()
                 self.theta = newInv.theta
@@ -621,7 +621,7 @@ class RotInv(RotationParameterization):
         mat[0,1] = am1 * self.n[0] * self.n[1] - self.n[2] * b
         mat[0,2] = am1 * self.n[0] * self.n[2] + self.n[1] * b
         mat[1,0] = am1 * self.n[0] * self.n[1] + self.n[2] * b
-        mat[1,1] = am1 * self.n[1] * self.n[1] + a  
+        mat[1,1] = am1 * self.n[1] * self.n[1] + a
         mat[1,2] = am1 * self.n[1] * self.n[2] - self.n[0] * b
         mat[2,0] = am1 * self.n[0] * self.n[2] - self.n[1] * b
         mat[2,1] = am1 * self.n[1] * self.n[2] + self.n[0] * b
@@ -663,7 +663,7 @@ class CanovaEuler(RotationParameterization):
         return kocks
     def toMatrix(self):
         return (self.toKocks()).toMatrix()
-    
+
 class KocksEuler(RotationParameterization):
     "Kocks Euler angles see equation 6 page 65 of koc-tom-wen-98a (Kocks, Tome, & Wenk; Texture and Anisotropy)"
     def __init__(self, *args):
@@ -706,7 +706,7 @@ class KocksEuler(RotationParameterization):
         return bunge
     def toMatrix(self):
         mat = zeros([3,3], dtype='float64')
-        
+
         sps = sin(self.euler[0])
         cps = cos(self.euler[0])
         sth = sin(self.euler[1])
@@ -725,7 +725,7 @@ class KocksEuler(RotationParameterization):
         mat[2,2] =  cth
 
         return mat
-        
+
 class BungeEuler(RotationParameterization):
     '''Bunge Euler angles
     see koc-tom-wen-98a (Kocks, Tome, & Wenk; Texture and Anisotropy)
@@ -763,18 +763,18 @@ class BungeEuler(RotationParameterization):
         'trusting Table 1a of koc-tom-wen-98a (Kocks, Tome, & Wenk; Texture and Anisotropy)'
         e_k1 = self.euler[0] - piby2
         e_k2 = self.euler[1]
-        e_k3 = piby2         - self.euler[2] 
+        e_k3 = piby2         - self.euler[2]
         kocks = KocksEuler(e_k1, e_k2, e_k3)
         return kocks
     def toMatrix(self):
         #return self.toKocks().toMatrix()
         mat = bungeToMatrix(self.euler)
         return mat
-        
+
 # // Find the quaternion for this q vector and its canonical representation
 # Quaternion rot = quatFinder.find(qhat, L);
 # rot = findCanonical(rot);
-# 
+#
 # // Quaternion components are (r, i, j, k).  A Vector is a standard
 # // vector in 3-space.
 # Vector v(rot.i(), rot.j(), rot.k());
@@ -782,11 +782,11 @@ class BungeEuler(RotationParameterization):
 # double alpha = 2.0* std::atan(v.length());
 # v.normalize();
 # v *= alpha *0.5;
-# 
+#
 # v += Vector(0.5, 0.5, 0.5);
-# 
+#
 # PIX color;
-# 
+#
 # color.r = short( 255*fabs(v[0]*v[0]) );
 # color.g = short( 255*fabs(v[1]*v[1]) );
 # color.b = short( 255*fabs(v[2]*v[2]) );
@@ -935,7 +935,7 @@ class Quat(RotationParameterization):
     def transpose(self):
         "transpose the quaternion in place; retains metadata"
         self.q[1:4] = -self.q[1:4]
-        return 
+        return
     def normalized(self):
         "return normalize quaternion"
         temp = self.q[:] * self.q[:]
@@ -963,21 +963,21 @@ class Quat(RotationParameterization):
         return RotInv(*invParams)
     def toMatrix(self):
         mat = zeros([3,3], dtype='float64')
-        
+
         x0sq = self.q[0]*self.q[0]
         x1sq = self.q[1]*self.q[1]
         x2sq = self.q[2]*self.q[2]
         x3sq = self.q[3]*self.q[3]
-        
+
         x0x1 = self.q[0]*self.q[1]
         x0x2 = self.q[0]*self.q[2]
         x0x3 = self.q[0]*self.q[3]
-        
+
         x1x2 = self.q[1]*self.q[2]
         x1x3 = self.q[1]*self.q[3]
-        
+
         x2x3 = self.q[2]*self.q[3]
-        
+
         mat[0,0] = x0sq+x1sq-x2sq-x3sq
         mat[0,1] = 2.0*(x1x2-x0x3)
         mat[0,2] = 2.0*(x1x3+x0x2)
@@ -987,9 +987,9 @@ class Quat(RotationParameterization):
         mat[2,0] = 2.0*(x1x3-x0x2)
         mat[2,1] = 2.0*(x2x3+x0x1)
         mat[2,2] = x0sq-x1sq-x2sq+x3sq
-        
+
         return mat
-        
+
 class SymmGroup:
     "symmetry group"
     __misorZeroTol = 1e-6
@@ -1001,31 +1001,31 @@ class SymmGroup:
                     self.nSymm = int(24)
                     self.qSymm = [ Quat() for i in range(self.nSymm)]
 
-                    self.setQuatI(0,  (  1.,  0.,  0.,  0.  )  ) #  11 
-                    self.setQuatI(1,  (  1.,  1.,  1.,  1.  )  ) #  12 
-                    self.setQuatI(2,  ( -1.,  1.,  1.,  1.  )  ) #  13 
-                    self.setQuatI(3,  (  1.,  0.,  0.,  1.  )  ) #  21 
-                    self.setQuatI(4,  (  0.,  0.,  1.,  1.  )  ) #  22 
-                    self.setQuatI(5,  ( -1.,  0.,  1.,  0.  )  ) #  23 
-                    self.setQuatI(6,  (  0.,  0.,  0.,  1.  )  ) #  31 
-                    self.setQuatI(7,  ( -1., -1.,  1.,  1.  )  ) #  32 
-                    self.setQuatI(8,  ( -1., -1.,  1., -1.  )  ) #  33 
-                    self.setQuatI(9,  ( -1.,  0.,  0.,  1.  )  ) #  41 
-                    self.setQuatI(10, ( -1., -1.,  0.,  0.  )  ) #  42 
-                    self.setQuatI(11, (  0., -1.,  0., -1.  )  ) #  43 
-                    self.setQuatI(12, (  0.,  1.,  1.,  0.  )  ) #  51 
-                    self.setQuatI(13, ( -1.,  1.,  0.,  0.  )  ) #  52 
-                    self.setQuatI(14, (  1.,  0.,  1.,  0.  )  ) #  53 
-                    self.setQuatI(15, (  0.,  0., -1.,  0.  )  ) #  61 
-                    self.setQuatI(16, (  1., -1., -1.,  1.  )  ) #  62 
-                    self.setQuatI(17, (  1., -1.,  1.,  1.  )  ) #  63 
-                    self.setQuatI(18, (  0.,  1., -1.,  0.  )  ) #  71 
-                    self.setQuatI(19, (  0.,  0., -1.,  1.  )  ) #  72 
-                    self.setQuatI(20, (  0., -1.,  0.,  1.  )  ) #  73 
-                    self.setQuatI(21, (  0.,  1.,  0.,  0.  )  ) #  81 
-                    self.setQuatI(22, ( -1.,  1., -1.,  1.  )  ) #  82 
-                    self.setQuatI(23, ( -1., -1., -1.,  1.  )  ) #  83 
-    
+                    self.setQuatI(0,  (  1.,  0.,  0.,  0.  )  ) #  11
+                    self.setQuatI(1,  (  1.,  1.,  1.,  1.  )  ) #  12
+                    self.setQuatI(2,  ( -1.,  1.,  1.,  1.  )  ) #  13
+                    self.setQuatI(3,  (  1.,  0.,  0.,  1.  )  ) #  21
+                    self.setQuatI(4,  (  0.,  0.,  1.,  1.  )  ) #  22
+                    self.setQuatI(5,  ( -1.,  0.,  1.,  0.  )  ) #  23
+                    self.setQuatI(6,  (  0.,  0.,  0.,  1.  )  ) #  31
+                    self.setQuatI(7,  ( -1., -1.,  1.,  1.  )  ) #  32
+                    self.setQuatI(8,  ( -1., -1.,  1., -1.  )  ) #  33
+                    self.setQuatI(9,  ( -1.,  0.,  0.,  1.  )  ) #  41
+                    self.setQuatI(10, ( -1., -1.,  0.,  0.  )  ) #  42
+                    self.setQuatI(11, (  0., -1.,  0., -1.  )  ) #  43
+                    self.setQuatI(12, (  0.,  1.,  1.,  0.  )  ) #  51
+                    self.setQuatI(13, ( -1.,  1.,  0.,  0.  )  ) #  52
+                    self.setQuatI(14, (  1.,  0.,  1.,  0.  )  ) #  53
+                    self.setQuatI(15, (  0.,  0., -1.,  0.  )  ) #  61
+                    self.setQuatI(16, (  1., -1., -1.,  1.  )  ) #  62
+                    self.setQuatI(17, (  1., -1.,  1.,  1.  )  ) #  63
+                    self.setQuatI(18, (  0.,  1., -1.,  0.  )  ) #  71
+                    self.setQuatI(19, (  0.,  0., -1.,  1.  )  ) #  72
+                    self.setQuatI(20, (  0., -1.,  0.,  1.  )  ) #  73
+                    self.setQuatI(21, (  0.,  1.,  0.,  0.  )  ) #  81
+                    self.setQuatI(22, ( -1.,  1., -1.,  1.  )  ) #  82
+                    self.setQuatI(23, ( -1., -1., -1.,  1.  )  ) #  83
+
                     self.symmName = "cubic"
 
                 elif a == 'hexag':
@@ -1033,7 +1033,7 @@ class SymmGroup:
                     self.qSymm = [ Quat() for i in range(self.nSymm)]
 
                     halfsqr3 = sqrt(3.)*0.5
-    
+
                     self.setQuatI(0,  ( 1.,     0.,      0.,      0.      )  ) #  00
                     self.setQuatI(1,  ( 0.,     1.,      0.,      0.      )  ) #  20
                     self.setQuatI(2,  ( 0.,     halfsqr3,  0.5,   0.      )  ) #  21
@@ -1046,7 +1046,7 @@ class SymmGroup:
                     self.setQuatI(9,  ( 0.,    0.,      0.,      1.       )  ) #  62
                     self.setQuatI(10, ( halfsqr3, 0.,      0.,     -0.5   )  ) #  63
                     self.setQuatI(11, ( 0.5,  0.,      0.,     -halfsqr3  )  ) #  64
-    
+
                     self.symmName = "hexag"
 
                 else:
@@ -1137,7 +1137,7 @@ class SymmGroup:
         return result
     def getQArray(self):
         retval = num.array(map(lambda x:x.q, self.qSymm))
-        return retval 
+        return retval
     def checkForBinary(self, qList):
         binaryRelatedTo = zeros((len(qList),len(qList)), dtype=bool)
         for iQ, q_i in enumerate(qList):
@@ -1166,7 +1166,7 @@ def writeQuats(qList, f):
         print >> f, "%s %s %s %s" % (q.q[0],q.q[1],q.q[2],q.q[3])
 #
 # from mmod_set_texture_evppg:
-#    CALL mat_x_mat_3(state%c, sc_rel%B_matx(:,:,i_cnst), c_cnst) 
+#    CALL mat_x_mat_3(state%c, sc_rel%B_matx(:,:,i_cnst), c_cnst)
 #    CALL tensor_to_quat(texture(:,i_cnst), c_cnst)
 # texture(:,i_cnst) then has texture quat for the constituent
 #
@@ -1207,9 +1207,9 @@ def makeQuatsComponents(nGrain, scale=None):
 
 def millerBravais2Normal(invec, *args):
     """
-    Generate the normal(s) for a plane(s) given in 
+    Generate the normal(s) for a plane(s) given in
        the Miller-Bravais convention for the
-       hexagonal basis {a1, a2, a3, c}.  The 
+       hexagonal basis {a1, a2, a3, c}.  The
        basis for the output {o1, o2, o3}
        is chosen such that:
 
@@ -1227,7 +1227,7 @@ def millerBravais2Normal(invec, *args):
     r1 = invec[0]
     r2 = (2*invec[1] + invec[0]) / sqrt(3.)
     r3 = invec[3]/aspect
-    
+
     outvec = num.array([r1,r2,r3])
     outvec = outvec / math.sqrt(num.dot(outvec,outvec))
 
@@ -1238,11 +1238,11 @@ class Fiber:
     Like John Edmiston's MakeFiber class, but with the implementation more tightly coupled to the rest of the code base
     """
     def __init__(self, latVec, recipVec):
-        
+
         self.latVec   = mU.normalized(latVec)
         self.recipVec = mU.normalized(recipVec)
 
-        self.qBase  = q1  = Quat(RotInv('align', 
+        self.qBase  = q1  = Quat(RotInv('align',
                                                 self.latVec,
                                                 self.recipVec)
                                      )
@@ -1254,17 +1254,17 @@ class Fiber:
         #
         self.e1 = e1
         self.e2 = e2
-        
+
         return
     def __sub__(self,other):
-        return self.distBetweenFibers(other)        
+        return self.distBetweenFibers(other)
     def distBetweenFibers(self,other):
         """
-Compute the distance between two fibers using the polar decomposition of the projection operator taking one geodesic plane to the other. 
+Compute the distance between two fibers using the polar decomposition of the projection operator taking one geodesic plane to the other.
 input: instance of MakeFiber class
 output: (max_eigenvalue, Rotation at max_eigenvalue), intersecting fibers would have max_eigenvalue ~ 1. Rotation at max_eigenvalue would be the 'closest' Rotation which would relate the two fibers.
         """
-        
+
         e1,e2 = self.e1,self.e2
         e1_,e2_ = other.e1,other.e2
         F11 = num.dot(e1,e1_);F12 = num.dot(e1,e2_);
@@ -1277,7 +1277,7 @@ output: (max_eigenvalue, Rotation at max_eigenvalue), intersecting fibers would 
         C = num.dot(F.T,F)
         eigval,eigvec = num.linalg.eig(C)
         l1,l2 = map(float,eigval);
-        u1,u2 = eigvec[:,0],eigvec[:,1]        
+        u1,u2 = eigvec[:,0],eigvec[:,1]
         if(l1>l2):
             max_eigval = l1
             max_eigvec = u1
@@ -1306,7 +1306,7 @@ output: (max_eigenvalue, Rotation at max_eigenvalue), intersecting fibers would 
         #just for initial testing of the fiber method, trying to understand the properties
         if(abs(sqrt(q1_*q1_+q2_*q2_) - mU.normvec(q_min_dist))>1.0e-3 and max_eigval>=.9999):
             raise Exception, 'min dist quaternion is not in both planes'
-           
+
         R_min_dist = Quat(q_min_dist) # da.quaternion_map(q_min_dist)
         return max_eigval,R_min_dist
 
@@ -1314,7 +1314,3 @@ output: (max_eigenvalue, Rotation at max_eigenvalue), intersecting fibers would 
         qAxis = Quat(ors.RotInv(angle, self.latVec))
         qCur  = self.qBase * qAxis
         return qCur.q
-
-
-
-    
