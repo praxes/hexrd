@@ -251,10 +251,10 @@ PANEL FOR ...
         #
         #  Space group
         #
-        nrow = 5; ncol = 3; padx = pady = 5;
+        nrow = 6; ncol = 3; padx = pady = 5;
         sgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
-	sgsizer.AddGrowableCol(1, 1)
-	sgsizer.AddGrowableCol(2, 1)
+        sgsizer.AddGrowableCol(1, 1)
+        sgsizer.AddGrowableCol(2, 1)
         #  labels
         sgsizer.Add(self.sg_lab,   0, wx.ALIGN_CENTER)
         sgsizer.Add(self.hall_lab, 0, wx.ALIGN_CENTER)
