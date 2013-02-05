@@ -113,11 +113,11 @@ class xrdApp(wx.PySimpleApp):
 #
 # -----------------------------------------------END CLASS:  xrdApp
 
-if __name__ == '__main__':
+def execute(*args):
     #
     #  Run program stand-alone.
     #
-    app = xrdApp(*sys.argv[1:])
+    app = xrdApp(*args)
     app.mframe = MainFrame(None, wx.NewId())
     app.SetTopWindow(app.mframe)
 
@@ -155,4 +155,5 @@ if __name__ == '__main__':
     #
     app.MainLoop()
 
-    pass
+if __name__ == '__main__':
+    execute(*sys.argv[1:])

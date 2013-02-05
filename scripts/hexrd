@@ -4,4 +4,4 @@ import sys
 from hexrd.wx import mainapp
 
 
-mainapp.execute(*sys.argv)
+mainapp.execute(*sys.argv[1:])
