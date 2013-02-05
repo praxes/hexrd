@@ -223,7 +223,7 @@ class geReaderPanel(wx.Panel):
         self.browse_spn = wx.SpinCtrl(self, wx.NewId(), min=0, initial=0)
         self.browse_inf = wx.TextCtrl(self, wx.NewId(), value='',
                                       style=wx.RAISED_BORDER|wx.TE_READONLY)
-        self.sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
         #
         #  Orientation
         #
