@@ -62,30 +62,30 @@ __all__ = ['matplotlib',
 class cmapPanel(wx.Panel):
     """cmapPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for cmapPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
+        """Constructor for cmapPanel."""
         #
-	#  Window Objects.
-	#
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
         #  Data
         #
         self.cmap = copy.deepcopy(getattr(cm, self.cmap_name))
-	#
-	self.SetAutoLayout(True)
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -145,12 +145,12 @@ class cmapPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         #
         #  colormap sizer
         #
         nrow = 3; ncol = 3; padx = 5; pady = 5
-	self.cmSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.cmSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
 
         self.cmSizer.Add(self.cmap_lab, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.Add(self.cmap_cho, 0, wx.EXPAND | wx.ALIGN_RIGHT)
@@ -164,11 +164,11 @@ class cmapPanel(wx.Panel):
         self.cmSizer.Add(self.cmax_txt, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.Add(self.cmOver_box, 0, wx.EXPAND | wx.ALIGN_RIGHT)
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.cmSizer,   0, wx.EXPAND|wx.ALIGN_RIGHT)
 
-	return
+        return
     #
     # ============================== API
     #

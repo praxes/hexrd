@@ -46,9 +46,9 @@ from hexrd.xrd.experiment import loadExp, ImageModes
 class xrdApp(wx.PySimpleApp):
     """xrdApp"""
     def __init__(self, *args):
-	"""Constructor for xrdApp"""
-	#
-	wx.PySimpleApp.__init__(self)
+        """Constructor for xrdApp"""
+        #
+        wx.PySimpleApp.__init__(self)
         #
         # No command args for now, due to mac build issue (64bit, argv emulation)
         #
@@ -61,13 +61,13 @@ class xrdApp(wx.PySimpleApp):
 
         self.__makeData(f)
 
-	self.mframe = None
+        self.mframe = None
         #
-	return
+        return
 
     def __makeData(self, inpFile):
         """Keep globals for easy access from subwindows"""
-	#
+        #
         #  Data
         #
         #  * XRD Workspace

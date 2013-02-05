@@ -132,35 +132,35 @@ def updVals(r, ind, s):  # Is this used?
 class geReaderPanel(wx.Panel):
     """geReaderPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for geReaderPanel
+        """Constructor for geReaderPanel
 
         The approach here is to maintain an active reader
         in the underlying Experiment module.  Each interactor
         then modifies attributes of that reader.
 """
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.update()
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -223,7 +223,7 @@ class geReaderPanel(wx.Panel):
         self.browse_spn = wx.SpinCtrl(self, wx.NewId(), min=0, initial=0)
         self.browse_inf = wx.TextCtrl(self, wx.NewId(), value='',
                                       style=wx.RAISED_BORDER|wx.TE_READONLY)
-	self.sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.sizer = wx.BoxSizer(wx.HORIZONTAL)
         #
         #  Orientation
         #
@@ -263,13 +263,13 @@ class geReaderPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
         nrow = 9; ncol = 4; padx = 5; pady = 5
-	self.fgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
-	self.fgsizer.AddGrowableCol(2, 1)
-	self.fgsizer.AddGrowableCol(3, 1)
-	#self.fgsizer.AddGrowableRow(num, proportion)
+        self.fgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
+        self.fgsizer.AddGrowableCol(2, 1)
+        self.fgsizer.AddGrowableCol(3, 1)
+        #self.fgsizer.AddGrowableRow(num, proportion)
         self.fgsizer.Add(self.curr_lab, 0, wx.ALIGN_RIGHT)
         self.fgsizer.Add(wx.Window(self, -1), 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.fgsizer.Add(self.rdrs_cho, 0, wx.ALIGN_RIGHT)
@@ -316,17 +316,17 @@ class geReaderPanel(wx.Panel):
         self.fgsizer.Add(self.browse_spn,       0, wx.ALIGN_RIGHT)
         self.fgsizer.Add(self.browse_inf,       0, wx.ALIGN_CENTER | wx.EXPAND)
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0,
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0,
                        wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 10)
-	self.sizer.Add(self.fgsizer,    0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.sizer.Add(self.fgsizer,    0, wx.EXPAND|wx.ALIGN_RIGHT)
 
-	self.sizer.Add(self.sp_single,   0, wx.EXPAND|wx.ALIGN_RIGHT)
-	self.sizer.Add(self.sp_multi,    0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.sizer.Add(self.sp_single,   0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.sizer.Add(self.sp_multi,    0, wx.EXPAND|wx.ALIGN_RIGHT)
 
-	self.sizer.Add(self.sp_info,    0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.sizer.Add(self.sp_info,    0, wx.EXPAND|wx.ALIGN_RIGHT)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -635,30 +635,30 @@ class geReaderPanel(wx.Panel):
 class MF_Subpanel(wx.Panel):
     """MF_Subpanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for MF_Subpanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for MF_Subpanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -675,17 +675,17 @@ class MF_Subpanel(wx.Panel):
         return
 
     def __makeListCtrl(self):
-	"""Make the list control"""
+        """Make the list control"""
         #
-	LStyle = wx.LC_REPORT|wx.LC_SINGLE_SEL
-	#
-	listctrl = myListCtrl(self, wx.NewId(), style=LStyle)
-	listctrl.InsertColumn(0, 'Image File')
-	listctrl.InsertColumn(1, 'Empty Frames')
-	listctrl.InsertColumn(2, 'Total Frames')
-	listctrl.InsertColumn(3, 'Omega Min')
-	listctrl.InsertColumn(4, 'Omega Max')
-	listctrl.InsertColumn(5, 'Delta')
+        LStyle = wx.LC_REPORT|wx.LC_SINGLE_SEL
+        #
+        listctrl = myListCtrl(self, wx.NewId(), style=LStyle)
+        listctrl.InsertColumn(0, 'Image File')
+        listctrl.InsertColumn(1, 'Empty Frames')
+        listctrl.InsertColumn(2, 'Total Frames')
+        listctrl.InsertColumn(3, 'Omega Min')
+        listctrl.InsertColumn(4, 'Omega Max')
+        listctrl.InsertColumn(5, 'Delta')
         listctrl.SetColumnWidth(1, wx.LIST_AUTOSIZE_USEHEADER)
         listctrl.SetColumnWidth(2, wx.LIST_AUTOSIZE_USEHEADER)
         listctrl.SetColumnWidth(3, wx.LIST_AUTOSIZE_USEHEADER)
@@ -693,7 +693,7 @@ class MF_Subpanel(wx.Panel):
         listctrl.SetColumnWidth(5, wx.LIST_AUTOSIZE_USEHEADER)
         listctrl.SetColumnWidth(0, 200)
 
-	return listctrl
+        return listctrl
 
     def __makeBindings(self):
         """Bind interactors"""
@@ -704,14 +704,14 @@ class MF_Subpanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
 
-	self.sizer.Add(self.tbarSizer,  0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.tbarSizer,  0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.file_lctrl, 1, wx.EXPAND | wx.ALIGN_CENTER | wx.TOP, 5)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -748,30 +748,30 @@ class MF_Subpanel(wx.Panel):
 class SF_Subpanel(wx.Panel):
     """SF_Subpanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for SF_Subpanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for SF_Subpanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -787,31 +787,31 @@ class SF_Subpanel(wx.Panel):
         return
 
     def __makeListCtrl(self):
-	"""Make the list control"""
+        """Make the list control"""
         #
-	LStyle = wx.LC_REPORT|wx.LC_SINGLE_SEL
-	#
-	listctrl = wx.ListCtrl(self, wx.NewId(), style=LStyle)
-	listctrl.InsertColumn(0, 'Image File')
-	listctrl.InsertColumn(1, 'Omega')
+        LStyle = wx.LC_REPORT|wx.LC_SINGLE_SEL
+        #
+        listctrl = wx.ListCtrl(self, wx.NewId(), style=LStyle)
+        listctrl.InsertColumn(0, 'Image File')
+        listctrl.InsertColumn(1, 'Omega')
         listctrl.SetColumnWidth(1, wx.LIST_AUTOSIZE_USEHEADER)
         listctrl.SetColumnWidth(0, 200)
 
-	return listctrl
+        return listctrl
 
     def __makeBindings(self):
         """Bind interactors"""
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
 
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.file_lctrl, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.file_lctrl, 0, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -830,30 +830,30 @@ class SF_Subpanel(wx.Panel):
 class infoPanel(wx.Panel):
     """infoPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for infoPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for infoPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -884,26 +884,26 @@ class infoPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         nrow = 2; ncol = 2; padx = 5; pady = 5
-	self.fgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
-	self.fgsizer.AddGrowableCol(1, 1)
-	#self.fgsizer.AddGrowableRow(num, proportion)
+        self.fgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
+        self.fgsizer.AddGrowableCol(1, 1)
+        #self.fgsizer.AddGrowableRow(num, proportion)
 
-	self.fgsizer.Add(self.img_txt_lab, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
-	self.fgsizer.Add(self.img_txt,     1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.fgsizer.Add(self.img_txt_lab, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
+        self.fgsizer.Add(self.img_txt,     1, wx.EXPAND|wx.ALIGN_CENTER)
 
-	self.fgsizer.Add(self.drk_txt_lab, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
-	self.fgsizer.Add(self.drk_txt,     1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.fgsizer.Add(self.drk_txt_lab, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
+        self.fgsizer.Add(self.drk_txt,     1, wx.EXPAND|wx.ALIGN_CENTER)
         #
         #  Main sizer
         #
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
 
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.fgsizer,   0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.fgsizer,   0, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -930,14 +930,14 @@ class myListCtrl(wx.ListCtrl,
                  listMixins.TextEditMixin):
     """myListCtrl:  subclassing to include mixins"""
     def __init__(self, parent, ID, **kwargs):
-	"""Constructor for ListCtrl"""
-	#
-	wx.ListCtrl.__init__(self, parent, ID, **kwargs)
+        """Constructor for ListCtrl"""
+        #
+        wx.ListCtrl.__init__(self, parent, ID, **kwargs)
         listMixins.ListCtrlAutoWidthMixin.__init__(self)
         listMixins.TextEditMixin.__init__(self)
-	#
+        #
 
-	return
+        return
 
     def CloseEditor(self, e=None):
         exp = wx.GetApp().ws

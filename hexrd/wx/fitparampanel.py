@@ -44,33 +44,33 @@ EVT_FIT_PARAM   = wx.PyEventBinder(EVT_FIT_PARAM_T, 1)
 class fitParamPanel(wx.Panel):
     """fitParamPanel """
     def __init__(self, parent, id, fParams, **kwargs):
-	"""Constructor for fitParamPanel.
+        """Constructor for fitParamPanel.
 
         NOTE that fitParams is argument.
 """
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
         self.fParams = fParams
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -96,9 +96,9 @@ class fitParamPanel(wx.Panel):
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t,
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
-	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR)
+        self.titlebar = wx.StaticText(self, -1, t,
+                                         style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR)
         myToolTip = r"""
 PANEL FOR managing data for fit parameters
 """
@@ -119,14 +119,14 @@ PANEL FOR managing data for fit parameters
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
-	nrow = self.fParams.getNumParam()
+        """Lay out the interactors"""
+        nrow = self.fParams.getNumParam()
         ncol = self.nColumns
         padx = pady =5 # px
 
-	self.fgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
-	self.fgsizer.AddGrowableCol(0, 1)
-	self.fgsizer.AddGrowableCol(1, 1)
+        self.fgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
+        self.fgsizer.AddGrowableCol(0, 1)
+        self.fgsizer.AddGrowableCol(1, 1)
         for p in self.fParams:
             name = p.getProp('name')
             row  = self.rowDict[name]
@@ -136,7 +136,7 @@ PANEL FOR managing data for fit parameters
 
         self.sizer = self.fgsizer
 
-	return
+        return
     #
     # ============================== API
     #

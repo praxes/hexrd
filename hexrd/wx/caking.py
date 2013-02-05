@@ -54,32 +54,32 @@ piBy180 = numpy.pi / 180.0
 class cakingPanel(wx.Panel):
     """cakingPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for cakingPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for cakingPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.update(showImg=True)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -108,14 +108,14 @@ class cakingPanel(wx.Panel):
     def __makeBindings(self):
         """Bind interactors"""
         #
-	self.Bind(wx.EVT_CHOICE, self.OnChooseMethod, self.method_cho)
+        self.Bind(wx.EVT_CHOICE, self.OnChooseMethod, self.method_cho)
         self.Bind(wx.EVT_BUTTON, self.OnRun,    self.run_but)
 
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
-	#
+        """Lay out the interactors"""
+        #
         #  Control sizer
         #
         self.ctrlSizer = wx.BoxSizer(wx.VERTICAL)
@@ -143,10 +143,10 @@ class cakingPanel(wx.Panel):
         #
         #  Main Sizer
         #
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 5)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 5)
         self.tbarSizer.Show(False)
-	self.sizer.Add(self.modeSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.modeSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         #
         self.sizer.Layout()
         #
@@ -154,7 +154,7 @@ class cakingPanel(wx.Panel):
         #
         self.OnChooseMethod(None)
 
-	return
+        return
 
     def __cake_img(self):
         """Execute rebinning for IMG case
@@ -272,11 +272,11 @@ class cakingPanel(wx.Panel):
             nEtaBins=nbins,
             threshold=thresh,
             debug=True)
-        
+
         self.omeEta = CollapseOmeEta(reader, pdata, hklIDs, det, **kwargs)
 
         cCan = cakeDisplay(self, wx.NewId(), prOpts.CAKE_SPH, self.omeEta)
-        
+
         return
     #
     # ============================== API
@@ -341,53 +341,53 @@ class cakingPanel(wx.Panel):
 class cakingDialog(wx.Dialog):
     """cakingDialog """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for cakingDialog"""
-	#
-	wx.Dialog.__init__(self, parent, id, title="Polar Rebinning",
+        """Constructor for cakingDialog"""
+        #
+        wx.Dialog.__init__(self, parent, id, title="Polar Rebinning",
                            style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
-	#
-	#  Data Objects.
-	#
+        #
+        #  Data Objects.
+        #
 
-	#
-	#  Windows.
-	#
-	self.titlebar = wx.StaticText(self, -1, 'cakingDialog',
-				      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        #
+        #  Windows.
+        #
+        self.titlebar = wx.StaticText(self, -1, 'cakingDialog',
+                                      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
         self.dataPanel = cakingPanel(self, wx.NewId())
-	#
-	#  Bindings.
-	#
-	self._makeBindings()
-	#
-	#  Sizing.
-	#
-	self._makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self._makeBindings()
+        #
+        #  Sizing.
+        #
+        self._makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	#  Events.
-	#
+        #
+        #  Events.
+        #
 
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
     def _makeBindings(self):
-	"""Bind interactors to functions"""
-	return
+        """Bind interactors to functions"""
+        return
 
     def _makeSizers(self):
-	"""Lay out windows"""
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.titlebar,  0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.dataPanel, 1, wx.EXPAND|wx.ALIGN_CENTER)
+        """Lay out windows"""
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.titlebar,  0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.dataPanel, 1, wx.EXPAND|wx.ALIGN_CENTER)
         #
         self.sizer.Show(self.titlebar, False)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -407,32 +407,32 @@ class cakingDialog(wx.Dialog):
 class standardOptsPanel(wx.Panel):
     """standardOptsPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for standardOptsPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for standardOptsPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.update()
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -486,12 +486,12 @@ class standardOptsPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         #
         #  Rho and Eta subdivisions
         #
         nrow = 0; ncol = 4; padx = pady = 5
-	self.mmSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.mmSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
         # top row (header)
         self.mmSizer.AddSpacer(1)
         self.mmSizer.Add(self.min_lab, 0, wx.EXPAND|wx.ALIGN_CENTER)
@@ -511,7 +511,7 @@ class standardOptsPanel(wx.Panel):
         #  Other options
         #
         nrow = 0; ncol = 2; padx = pady = 5
-	self.optSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.optSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
         #
         self.optSizer.AddSpacer(1)
         self.optSizer.Add(self.corr_cbox, 0, wx.EXPAND|wx.ALIGN_CENTER)
@@ -525,20 +525,20 @@ class standardOptsPanel(wx.Panel):
         self.hsizer = wx.BoxSizer(wx.HORIZONTAL)
         sep = wx.StaticLine(self, -1, style=wx.LI_VERTICAL, size=(5,5))
         sep.SetBackgroundColour('black')
-	self.hsizer.Add(self.optSizer,  0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.hsizer.Add(self.optSizer,  0, wx.EXPAND|wx.ALIGN_CENTER)
         self.hsizer.Add(sep, 0, wx.EXPAND|wx.ALIGN_CENTER|wx.LEFT|wx.RIGHT, 5)
-	self.hsizer.Add(self.mmSizer,   0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.hsizer.Add(self.mmSizer,   0, wx.EXPAND|wx.ALIGN_CENTER)
         #
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.hsizer,    1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.hsizer,    1, wx.EXPAND|wx.ALIGN_CENTER)
         #
         #  For mac, refresh the windows to display initial value
         #
         self.rmin_spn.Refresh()
         self.Refresh()
 
-	return
+        return
     #
     # ============================== API
     #
@@ -593,33 +593,33 @@ class standardOptsPanel(wx.Panel):
 class multiringOptsPanel(wx.Panel):
     """multiringOptsPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for multiringOptsPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for multiringOptsPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
         self.emin = 0
         self.emax = 360
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.update()
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -665,7 +665,7 @@ class multiringOptsPanel(wx.Panel):
         self.Bind(wx.EVT_TEXT_ENTER, self.OnUpdate, rp.waveAng_txt)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnUpdate, rp.waveKEV_txt)
 
-	self.Bind(wx.EVT_CHOICE,     self.OnUpdate, rp.width_cho)
+        self.Bind(wx.EVT_CHOICE,     self.OnUpdate, rp.width_cho)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnUpdate, rp.width_txt)
 
         self.Bind(wx.EVT_BUTTON,     self.OnUpdate, rp.hkl_but)
@@ -673,14 +673,14 @@ class multiringOptsPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         #
         #  Caking sizer
         #
         nrow = 0; ncol = 4; padx = pady = 5
-	self.cakeSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.cakeSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
         #
-	self.cakeSizer.AddGrowableCol(0, 1)
+        self.cakeSizer.AddGrowableCol(0, 1)
         self.cakeSizer.Add(self.numEta_lab, 1, wx.ALIGN_RIGHT)
         self.cakeSizer.Add(self.numEta_spn, 0, wx.ALIGN_LEFT)
         self.cakeSizer.Add(self.numRho_lab, 1, wx.ALIGN_RIGHT)
@@ -691,12 +691,12 @@ class multiringOptsPanel(wx.Panel):
         self.cakeSizer.Add(self.emax_lab, 1, wx.ALIGN_RIGHT)
         self.cakeSizer.Add(self.emax_txt, 0, wx.ALIGN_LEFT)
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.cakeSizer,  0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.ring_pan,  0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.cakeSizer,  0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.ring_pan,  0, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -747,30 +747,30 @@ class multiringOptsPanel(wx.Panel):
 class sphericalOptsPanel(wx.Panel):
     """sphericalOptsPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for sphericalOptsPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for sphericalOptsPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -835,7 +835,7 @@ class sphericalOptsPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         nrow = 0; ncol = 2; padx = pady = 5
         self.sz_spn = wx.FlexGridSizer(nrow, ncol, padx, pady)
         vpad = 6
@@ -846,14 +846,14 @@ class sphericalOptsPanel(wx.Panel):
         self.sz_spn.Add(self.thresh_lab, 0, wx.ALIGN_RIGHT|wx.RIGHT, 10)
         self.sz_spn.Add(self.thresh_spn, 0, wx.ALIGN_RIGHT|wx.BOTTOM, vpad)
 
-	self.sz_cho = wx.BoxSizer(wx.VERTICAL)
+        self.sz_cho = wx.BoxSizer(wx.VERTICAL)
         self.sz_cho.Add(self.matl_cho,  0, wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 5)
         self.sz_cho.Add(self.read_cho,  0, wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 5)
         self.sz_cho.Add(self.hkls_but,  0, wx.ALIGN_CENTER|wx.TOP, 5)
 
         nrow = 0; ncol = 2; padx = pady = 5
-	self.sz_orient = wx.FlexGridSizer(nrow, ncol, padx, pady)
-	self.sz_orient.AddGrowableCol(1, 1)
+        self.sz_orient = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.sz_orient.AddGrowableCol(1, 1)
         self.sz_orient.Add(self.angle_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT|wx.RIGHT, 10)
         self.sz_orient.Add(self.angle_flt, 1, wx.EXPAND|wx.ALIGN_LEFT)
         self.sz_orient.Add(self.axis1_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT|wx.RIGHT, 10)
@@ -870,9 +870,9 @@ class sphericalOptsPanel(wx.Panel):
                          wx.EXPAND|wx.ALIGN_CENTER|wx.RIGHT, 10)
         self.sz_opts.Add(self.sz_orient, 1, wx.EXPAND|wx.ALIGN_CENTER)
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.sz_opts,   1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.sz_opts,   1, wx.EXPAND|wx.ALIGN_CENTER)
 
         # Turn off orientation controls
 
@@ -885,8 +885,8 @@ class sphericalOptsPanel(wx.Panel):
         self.sz_orient.Show(self.axis2_flt, False)
         self.sz_orient.Show(self.axis3_lab, False)
         self.sz_orient.Show(self.axis3_flt, False)
-        
-	return
+
+        return
     #
     # ============================== API
     #

@@ -47,7 +47,7 @@ from hexrd import valunits
 
 from hexrd.xrd import detector
 from hexrd.xrd import grain      as G
-from hexrd.xrd import indexer    
+from hexrd.xrd import indexer
 from hexrd.xrd import rotations  as ROT
 from hexrd.xrd import spotfinder as SPT
 from hexrd.xrd import xrdutil
@@ -193,10 +193,10 @@ class Experiment(object):
                 if v == self.img_names[i]:
                     istar = i
                     break
-            
+
             self.__active_img = self.img_list[istar]
             pass
-        
+
     # property:  img_list
 
     @property
@@ -205,7 +205,7 @@ class Experiment(object):
         if not hasattr(self, '_img_list'):
             self._img_list = []
             self._img_names = []
-            
+
         return self._img_list
 
     def add_to_img_list(self, name):
@@ -213,7 +213,7 @@ class Experiment(object):
         # NEED TO: check names for duplication
         self.img_names.append(name)
         self.img_list.append(self.active_img)
-        
+
         return
 
     # property:  img_names
@@ -223,7 +223,7 @@ class Experiment(object):
         """(get-only) List of names for saved images"""
         if not hasattr(self, '_img_names'):
             self._img_names = []
-            
+
         return self._img_names
 #
     # ==================== Indexing
@@ -236,17 +236,17 @@ class Experiment(object):
         if not hasattr(self, '_fitRMats'):
             self._fitRMats = []
         return self._fitRMats
-    
+
     # property:  index_opts
-    
-    def refine_grains(self, 
+
+    def refine_grains(self,
                       minCompl,
                       nSubIter=3,
                       doFit=False,
-                      etaTol=valunits.valWUnit('etaTol', 'angle', 1.0, 'degrees'), 
-                      omeTol=valunits.valWUnit('etaTol', 'angle', 1.0, 'degrees'), 
-                      fineDspTol=5.0e-3, 
-                      fineEtaTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees'), 
+                      etaTol=valunits.valWUnit('etaTol', 'angle', 1.0, 'degrees'),
+                      omeTol=valunits.valWUnit('etaTol', 'angle', 1.0, 'degrees'),
+                      fineDspTol=5.0e-3,
+                      fineEtaTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees'),
                       fineOmeTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees')):
         """
         refine a grain list
@@ -257,7 +257,7 @@ class Experiment(object):
         for iG in range(nGrains):
             indexer.progress_bar(float(iG) / nGrains)
             grain = G.Grain(self.spots_for_indexing,
-                                rMat=self.rMats[iG, :, :], 
+                                rMat=self.rMats[iG, :, :],
                                 etaTol=etaTol,
                                 omeTol=omeTol,
                                 claimingSpots=False)
@@ -265,9 +265,9 @@ class Experiment(object):
                 for i in range(nSubIter):
                     grain.fit()
                     s1, s2, s3 = grain.findMatches(etaTol=etaTol, omeTol=omeTol, strainMag=fineDspTol,
-                                                   updateSelf=True, claimingSpots=False, doFit=doFit, 
+                                                   updateSelf=True, claimingSpots=False, doFit=doFit,
                                                    testClaims=True)
-                if grain.completeness > minCompl:                    
+                if grain.completeness > minCompl:
                     grainList.append(grain)
                     pass
                 pass
@@ -275,12 +275,12 @@ class Experiment(object):
         self.grainList = grainList
         self._fitRMats = numpy.array([self.grainList[i].rMat for i in range(len(grainList))])
         return
-    
+
     def saveRMats(self, f):
         """save rMats to npy file"""
         numpy.save(f, self.rMats)
         return
-    
+
     def dump_grainList(self, f):
         """dump grainList to cPickle"""
         if isinstance(f, file):
@@ -291,12 +291,12 @@ class Experiment(object):
         cPickle.dump(self.grainList, fid)
         fid.close()
         return
-    
-    def export_grainList(self, f, 
+
+    def export_grainList(self, f,
                          dspTol=5.0e-3,
-                         etaTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees'), 
+                         etaTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees'),
                          omeTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees'),
-                         doFit=False, 
+                         doFit=False,
                          sort=True):
         """
         export method for grainList
@@ -306,19 +306,19 @@ class Experiment(object):
         elif isinstance(f, str) or isinstance(f, unicode):
             fid = open(f, 'w')
             pass
-        
+
         if sort:
-            loop_idx = numpy.argsort([self.grainList[i].completeness 
+            loop_idx = numpy.argsort([self.grainList[i].completeness
                                       for i in range(len(self.grainList))])[::-1]
         else:
             loop_idx = range(len(self.grainList))
             pass
-        
+
         for iG in loop_idx:
             #
             # this grain
             grain = self.grainList[iG]
-            # 
+            #
             # useful locals
             q   = ROT.quatOfRotMat(grain.rMat)
             R   = grain.rMat
@@ -362,21 +362,21 @@ class Experiment(object):
             print >> fid, '#\n#    final completeness for grain %d: %g%%\n' % (iG, grain.completeness*100) + \
                   '#####################\n'
             pass
-        
+
         fid.close()
-        
+
         return
-    
-    def simulateGrain(self, 
+
+    def simulateGrain(self,
                       rMat=numpy.eye(3),
                       vMat=numpy.r_[1., 1., 1., 0., 0., 0.],
                       planeData=None,
                       detector=None,
-                      omegaRanges=[(-pi, pi),], 
+                      omegaRanges=[(-pi, pi),],
                       output=None):
         """
         Simulate a grain with choice of active material
-        """ 
+        """
         if planeData is None:
             planeData = self.activeMaterial.planeData
         if detector is None:
@@ -392,7 +392,7 @@ class Experiment(object):
                 raise RuntimeError, "output must be a file object or string"
             sg.findMatches(filename=output)
         return sg
-    
+
     @property
     def index_opts(self):
         """(get-only) Options for indexing"""
@@ -402,7 +402,7 @@ class Experiment(object):
 
     def _run_grainspotter(self):
         return
-    
+
     def _run_fiber_search(self):
 
         iopts = self.index_opts
@@ -427,7 +427,7 @@ class Experiment(object):
         self.rMats = retval[0]
         self.grainList = retval[1]
         return
-            
+
     def run_indexer(self):
         """Run indexer"""
         iopts = self.index_opts
@@ -436,7 +436,7 @@ class Experiment(object):
             self._run_fiber_search()
         else:
             self._run_grainspotter()
-        
+
         return
     #
     # ==================== Spots
@@ -445,20 +445,20 @@ class Experiment(object):
         """Reset the list of spots"""
         self._spots = []
         self._spots_ind = []
-        
+
         return
     # property:  spot_readers
 
     def saveRawSpots(self, fname):
         """Save the detector information to a file
-        
+
         INPUTS
         fname -- the name of the file to save in
         """
         f = open(fname, 'w')
         cPickle.dump(self._spots, f)
         f.close()
-        
+
         return
 
     def loadRawSpots(self, fname):
@@ -472,7 +472,7 @@ class Experiment(object):
         f = open(fname, 'r')
         self._spots = cPickle.load(f)
         f.close()
-        
+
         return
 
     @property
@@ -481,7 +481,7 @@ class Experiment(object):
         if not hasattr(self, '_spot_readers'):
             self._spot_readers = []
         return self._spot_readers
-    
+
     # property:  spots_for_indexing
 
     @property
@@ -490,7 +490,7 @@ class Experiment(object):
         if not hasattr(self, '_spots_ind'):
             self._spots_ind = []
         return self._spots_ind
-    
+
     # property:  raw_spots
 
     @property
@@ -499,7 +499,7 @@ class Experiment(object):
         if not hasattr(self, '_spots'):
             self._spots = []
         return self._spots
-    
+
     # property:  spotOpts
 
     @property
@@ -515,10 +515,10 @@ class Experiment(object):
         findSOS = SPT.Spots.findSpotsOmegaStack
         opts = self.spotOpts
         #
-        newspots = findSOS(self.activeReader.makeReader(), 
+        newspots = findSOS(self.activeReader.makeReader(),
                            opts.nframes,
-                           opts.thresh, 
-                           opts.minPix, 
+                           opts.thresh,
+                           opts.minPix,
                            discardAtBounds=opts.discardAtBounds,
                            keepWithinBBox=opts.keepWithinBBox,
                            overlapPixelDistance=opts.overlap,
@@ -528,7 +528,7 @@ class Experiment(object):
                            )
         self._spots += newspots
         self._spot_readers.append(self.activeReader.name)
-        
+
         return
 
     def get_spots_ind(self):
@@ -543,7 +543,7 @@ class Experiment(object):
         readerInpList = [self.getSavedReader(rn) for rn in self._spot_readers]
         readerList = [ri.makeReader() for ri in readerInpList]
         ominfo = [reader.getOmegaMinMax() for reader in readerList]
-        self._spots_ind = SPT.Spots(pd, culledSpots, self.detector, ominfo)        
+        self._spots_ind = SPT.Spots(pd, culledSpots, self.detector, ominfo)
         return
     #
     # ==================== Detector
@@ -570,7 +570,7 @@ class Experiment(object):
         self._detInfo  = DetectorInfo(gParms=gp, dParms=dp)
 
         return
-    
+
     def saveDetector(self, fname):
         """Save the detector information to a file
 
@@ -600,7 +600,7 @@ class Experiment(object):
         """
         # should check the loaded file here
         f = open(fname, 'r')
-        # 
+        #
         lines = f.readlines()
         # self._detInfo = cPickle.load(f)
         det_class_str = None
@@ -614,10 +614,10 @@ class Experiment(object):
             plist_rflags = numpy.loadtxt(f)
             plist = plist_rflags[:, 0]
             rflag = numpy.array(plist_rflags[:, 1], dtype=bool)
-            
+
             exec_str = "DC = detector." + det_class_str.split('.')[-1].split("'")[0]
             exec(exec_str)
-            
+
             gp = plist[:6].tolist()
             if len(plist[6:]) == 0:
                 dp = None
@@ -999,7 +999,7 @@ GE reader is supported.
     FLIP_DICT  = dict(zip(FLIP_MODES, FLIP_STRS))
     #
     RC = detector.ReadGE        # HARD CODED DETECTOR CHOICE!!!
-    
+
     def __init__(self, name='reader', desc='no description'):
         """Constructor for ReaderInput
 
@@ -1020,7 +1020,7 @@ GE reader is supported.
         self.imageNameD = dict()
         # Dark file
         self.darkMode = ReaderInput.DARK_MODE_NONE
-	self.darkDir  = ''
+        self.darkDir  = ''
         self.darkName = ''
         # File aggregation
         self.aggFun = ReaderInput.AGG_FUN_NONE
@@ -1128,7 +1128,7 @@ GE reader is supported.
         fullPath = lambda fn: os.path.join(self.imageDir, fn)
         numEmpty = lambda fn: self.imageNameD[fn][0]
         imgInfo = [(fullPath(f), numEmpty(f)) for f in self.imageNames]
-        
+
         ref_reader = self.RC(imgInfo)
         #
         # Check for omega info
@@ -1139,7 +1139,7 @@ GE reader is supported.
         if omin is not None:
             odel = dinfo[nfile - 1][3]
             print "omega min and delta: ", omin, odel
-            omargs = (valunits.valWUnit('omin', 'angle', float(omin), 'degrees'), 
+            omargs = (valunits.valWUnit('omin', 'angle', float(omin), 'degrees'),
                       valunits.valWUnit('odel', 'angle', float(odel), 'degrees'))
         else:
             omargs = ()
@@ -1150,11 +1150,11 @@ GE reader is supported.
         #
         subDark = not (self.darkMode == ReaderInput.DARK_MODE_NONE)
         if (self.darkMode == ReaderInput.DARK_MODE_FILE):
-            drkFile = os.path.join(self.darkDir, self.darkName) 
+            drkFile = os.path.join(self.darkDir, self.darkName)
         elif (self.darkMode == ReaderInput.DARK_MODE_ARRAY):
-            drkFileName = os.path.join(self.darkDir, self.darkName) 
+            drkFileName = os.path.join(self.darkDir, self.darkName)
             drkFile     = ref_reader.frame(
-                buffer=numpy.fromfile(drkFileName, 
+                buffer=numpy.fromfile(drkFileName,
                                       dtype=ref_reader.dtypeRead
                                       )
                 )
@@ -1175,7 +1175,7 @@ GE reader is supported.
                     dark         = drkFile,
                     doFlip       = doFlip,
                     flipArg      = flipArg)
-        
+
         return r
     #
     pass  # end class
@@ -1193,7 +1193,7 @@ class CalibrationInput(object):
 
         self.corrected = False
         #
-	self.calMat = mat
+        self.calMat = mat
 
         return
     #
@@ -1247,8 +1247,8 @@ class CalibrationInput(object):
     def cakeArgs(self):
         """(get only) Keyword arguments for polar rebinning"""
 
-        return {'verbose':True, 
-                'numEta': self.numEta, 
+        return {'verbose':True,
+                'numEta': self.numEta,
                 'etaRange':numpy.array([0., 2. * numpy.pi]),
                 'corrected':self.corrected}
     #
@@ -1267,8 +1267,8 @@ class DetectorInfo(object):
     def __init__(self, gParms=[], dParms=[]):
         """Constructor for detectorInfo"""
         #
-	if gParms:              # maintain this keyword for compatability with Don's usage
-            self.detector  = detector.newDetector('ge', gParms=gParms, dParms=dParms) 
+        if gParms:              # maintain this keyword for compatability with Don's usage
+            self.detector  = detector.newDetector('ge', gParms=gParms, dParms=dParms)
         else:
             self.detector  = detector.newDetector('ge')
         self.mrbImages = []
@@ -1383,7 +1383,7 @@ class PolarRebinOpts(object):
             correct = True
         """
         #
-	self.type = cakeMethods[0]
+        self.type = cakeMethods[0]
         #
         #  Standard (whole image) rebinning
         #
@@ -1433,9 +1433,9 @@ class SpotOptions(object):
     #
     # call to findSpotsOmegaStack for reference:
     #
-    ### def findSpotsOmegaStack(reader, 
+    ### def findSpotsOmegaStack(reader,
     ###                         nFrames,
-    ###                         threshold, minPx, 
+    ###                         threshold, minPx,
     ###                         discardAtBounds=True,
     ###                         keepWithinBBox=True,
     ###                         overlapPixelDistance=None,  # float, if specified
@@ -1443,13 +1443,13 @@ class SpotOptions(object):
     ###                         padOmega=True,
     ###                         padSpot=True,
     ###                         debug=False, pw=None):
-    
+
     def __init__(self):
         """SpotOptions Constructor"""
         #
         self.nframes = 0   # means use all
         self.thresh = 1000 # need reasonable initial value
-	self.minPix = 4    # reasonable initial value
+        self.minPix = 4    # reasonable initial value
         self.discardAtBounds = True
         self.keepWithinBBox = True
         self.overlap = None
@@ -1477,11 +1477,11 @@ class IndexOptions(object):
     #
     INDEX_CHOICES = ['Fiber Search', 'GrainSpotter']
     INDEX_CHOICE_IDS = [IND_FIBER, IND_GSPOT] = range(2)
-    
+
     def __init__(self):
         """Constructor for indexOptions"""
         self.index_method = self.IND_FIBER
-        
+
         self.fsHKLs=[]
         self.preserveClaims=False
         self.friedelOnly=False
@@ -1499,7 +1499,7 @@ class IndexOptions(object):
         return
     #
     pass
-	
+
 # -----------------------------------------------END CLASS:  indexOptions
 # ================================================== Utility Functions
 #
@@ -1532,14 +1532,14 @@ def loadExp(inpFile, matFile=DFLT_MATFILE):
 
     inpFile -- the name of either the config file or the saved exp file;
                empty string means start new experiment
-    matFile -- name of the materials file 
+    matFile -- name of the materials file
 """
     #
     if not matFile:
         print >> sys.stderr, 'no material file found'
         sys.exit(1)
         pass
-        
+
     root, ext = os.path.splitext(inpFile)
     #
     if ext == '.cfg' or not inpFile:
@@ -1584,10 +1584,10 @@ def refineDetector(grainList, scl=None, gtol=1.0e-6):
 
     # call to optimization routine
     xopt = optimize.fmin_bfgs(objFunc, x0, args=(grainList, scl), gtol=gtol)
-    
+
     # recall objective to set detector geometries properly with solution
     objFunc(xopt, grainList, scl)
-    
+
     return xopt / scl
 
 def objFunc(x, grainList, scl):
@@ -1597,7 +1597,7 @@ def objFunc(x, grainList, scl):
     xc      = x[0]                        # beam x-center
     zTilt   = x[1]                        # zTilt --> inclination of oscill. axis on detector
     chiTilt = x[2]                        # zTilt --> inclination of oscill. axis on detector
-    
+
     for i in range(len(grainList)):
         grainList[i].detectorGeom.xc      = xc
         grainList[i].detectorGeom.zTilt   = zTilt
@@ -1606,13 +1606,13 @@ def objFunc(x, grainList, scl):
     # use first grain by default (any will do)
     tmpDG      = grainList[0].detectorGeom.makeNew()
     tmpDG.pVec = None
-    
+
     # reset the detector used by all spots
     # each grain currently carried th
     # ...PRIME CANDIDATE FOR OPTIMIZATION/CLEANUP/GENERALIZATION...
     # ...perhaps loop over only the spots used by the grains in grainList?...
     # grainList[0].spots.resetDetectorGeom(tmpDG)
-    
+
     # strip out quantities to hand off to the fit objective fuction to get residual contribution
     resd = []
     for i in range(len(grainList)):
@@ -1628,11 +1628,11 @@ def objFunc(x, grainList, scl):
         # refit grains to new detector -- mainly for fixing pVecs
         grainList[i].updateGVecs()
         grainList[i].fit(display=False)
-        
+
         angAxs = ROT.angleAxisOfRotMat(grainList[i].rMat)
         biotT  = matrixutil.symmToVecMV(grainList[i].vMat - numpy.eye(3))
         pVec   = grainList[i].detectorGeom.pVec
-        
+
         x = numpy.vstack([angAxs[0]*angAxs[1], biotT.reshape(6, 1), pVec.reshape(3, 1)])
         resd.append(grainList[i]._fitF_objFunc(x))
         pass

@@ -39,30 +39,30 @@ from hexrd.wx.hydracanvas import hydraCanvasFrame
 class HydraControlPanel(wx.Panel):
     """HydraControlPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for HydraControlPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for HydraControlPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -99,9 +99,9 @@ class HydraControlPanel(wx.Panel):
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t,
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
-	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
+        self.titlebar = wx.StaticText(self, -1, t,
+                                         style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_PANEL)
         myToolTip = r"""
 PANEL FOR ...
 """
@@ -121,9 +121,9 @@ PANEL FOR ...
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         nrow = 4; ncol = 2; padx = pady = 5
-	self.fgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.fgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
         self.fgsizer.Add(self.img1_lab, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.fgsizer.Add(self.img1_cho, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.fgsizer.Add(self.img2_lab, 0, wx.EXPAND|wx.ALIGN_CENTER)
@@ -136,14 +136,14 @@ PANEL FOR ...
         self.fgsizer.Add(wx.Window(self, -1), 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.fgsizer.Add(self.load_but, 0, wx.EXPAND|wx.ALIGN_CENTER)
 
-	#self.fgsizer.AddGrowableCol(num, proportion)
-	#self.fgsizer.AddGrowableRow(num, proportion)
+        #self.fgsizer.AddGrowableCol(num, proportion)
+        #self.fgsizer.AddGrowableRow(num, proportion)
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.fgsizer,  0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.fgsizer,  0, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -210,29 +210,29 @@ class HydraControlFrame(wx.Frame):
         #  Pass option dictionary or string.
         #
         wx.Frame.__init__(self, parent, id, title)
-	#
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.Show(True)
 
-	return
+        return
 
     pass # class
     #
@@ -242,11 +242,11 @@ class HydraControlFrame(wx.Frame):
         """Add interactors"""
 
         self.hydraPanel = HydraControlPanel(self, wx.NewId())
-	#
+        #
         # A Statusbar in the bottom of the window
         #
         self.CreateStatusBar()
-	#
+        #
         # Creating the menubar.
         #
         menuBar = wx.MenuBar()
@@ -261,9 +261,9 @@ class HydraControlFrame(wx.Frame):
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t,
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
-	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_FRAME)
+        self.titlebar = wx.StaticText(self, -1, t,
+                                         style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_FRAME)
         myToolTip = r"""
 FRAME FOR: hydra user controls
 """
@@ -276,12 +276,12 @@ FRAME FOR: hydra user controls
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.hydraPanel, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.hydraPanel, 0, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #

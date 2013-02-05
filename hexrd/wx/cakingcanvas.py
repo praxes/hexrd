@@ -49,7 +49,7 @@ from hexrd.wx.canvasutil import *
 class cakeCanvas(wx.Panel):
     """cakeCanvas """
     def __init__(self, parent, id, cakeType, data, **kwargs):
-	"""Constructor for cakeCanvas panel
+        """Constructor for cakeCanvas panel
 
         **INPUTS**
         *cakeType* - flag for type of analysis: full image caking, ring-based or spherical (omega-eta map)
@@ -57,40 +57,40 @@ class cakeCanvas(wx.Panel):
                  .. for rings case, a MultiRingBinned instance
                  .. for full image case, img_info (output of polarRebin)
 
-        
+
         **OUTPUTS**
         *self* - this panel
 
-        
+
         **DESCRIPTION**
         Shows data on output canvas.
 """
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
         self.cakeType = cakeType
         self.data     = data
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.opt_pan.update() # make initial plot
- 	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -111,7 +111,7 @@ class cakeCanvas(wx.Panel):
             # omega-eta panel
             self.opt_pan = sphOpts(self, wx.NewId())
             pass
-        
+
         self._makeFigureCanvas()
         #
 
@@ -136,17 +136,17 @@ class cakeCanvas(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
         #
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Show(self.tbarSizer, False)
-	self.sizer.Add(self.opt_pan,   0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.canvas,    1, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.toolbar,   0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.opt_pan,   0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.canvas,    1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.toolbar,   0, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -177,30 +177,30 @@ class cakeDisplay(wx.Frame):
         #  Pass option dictionary or string.
         #
         wx.Frame.__init__(self, parent, id, title)
-	#
+        #
         #  Data
         #
         self.cakeType = cakeType
         self.data     = data
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.Show(True)
 
-	return
+        return
     #
     # ============================== Internal Methods
     #
@@ -212,11 +212,11 @@ class cakeDisplay(wx.Frame):
         #  Add canvas panel
         #
         self.cpan = cakeCanvas(self, wx.NewId(),  self.cakeType, self.data)
-	#
+        #
         # A Statusbar in the bottom of the window
         #
         self.CreateStatusBar()
-	#
+        #
         # Creating the menubar.
         #
         # menuBar = wx.MenuBar()
@@ -234,13 +234,13 @@ class cakeDisplay(wx.Frame):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.cpan,      1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.cpan,      1, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -260,30 +260,30 @@ class rngOpts(wx.Panel):
     unitList = ['d-spacing', 'radians', 'strain', 'degrees']
 
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for rngOpts."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for rngOpts."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
 
-	return
+        return
     #
     # ============================== Internal Methods
     #
@@ -294,7 +294,7 @@ class rngOpts(wx.Panel):
         #
         self.unit_cho = wx.Choice(self, wx.NewId(), choices=rngOpts.unitList)
         self.exp_but  = wx.Button(self, wx.NewId(), 'Export')
-	#self.Bind(wx.EVT_CHOICE, self.OnChoice, self.choice)
+        #self.Bind(wx.EVT_CHOICE, self.OnChoice, self.choice)
 
         return
 
@@ -305,15 +305,15 @@ class rngOpts(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Show(self.tbarSizer, False)
         self.sizer.Add(self.unit_cho, 0, wx.ALIGN_LEFT)
         self.sizer.Add(self.exp_but,  0, wx.ALIGN_LEFT|wx.TOP, 5)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -372,30 +372,30 @@ class imgOpts(wx.Panel):
     """Options panel for IMG (standard) caking canvas"""
 
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for imgOpts."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for imgOpts."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
 
-	return
+        return
     #
     # ============================== Internal Methods
     #
@@ -411,13 +411,13 @@ class imgOpts(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
-	self.sizer = wx.BoxSizer(wx.HORIZONTAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        """Lay out the interactors"""
+        self.sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Show(self.tbarSizer, False)
-	self.sizer.Add(self.cmPanel,   1, wx.EXPAND|wx.ALIGN_CENTER)        
+        self.sizer.Add(self.cmPanel,   1, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -427,7 +427,7 @@ class imgOpts(wx.Panel):
         """Update canvas"""
         p   = self.GetParent()
         # tlp = wx.GetTopLevelParent(self)
-        
+
         intensity = p.data['intensity']
 
         p.axes = p.figure.gca()
@@ -489,32 +489,32 @@ class sphOpts(wx.Panel):
     """Options panel for SPH (omega-eta) caking canvas"""
     [DISP_RAW, DISP_QUICK, DISP_FULL] = range(3)
     DISP_METHODS = ['Raw', 'Quick Render', 'Full Render']
-    
+
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for sphOpts."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for sphOpts."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
 
-	return
+        return
     #
     # ============================== Internal Methods
     #
@@ -535,19 +535,19 @@ class sphOpts(wx.Panel):
 
         self.idata = 0
         self.dispm = self.DISP_RAW
-        
+
         return
 
     def __makeBindings(self):
         """Bind interactors"""
-	self.Bind(wx.EVT_CHOICE, self.OnHKLChoice, self.hkl_cho)
-	self.Bind(wx.EVT_CHOICE, self.OnDispChoice, self.disp_cho)
+        self.Bind(wx.EVT_CHOICE, self.OnHKLChoice, self.hkl_cho)
+        self.Bind(wx.EVT_CHOICE, self.OnDispChoice, self.disp_cho)
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        """Lay out the interactors"""
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Show(self.tbarSizer, True)
         self.osizer = wx.BoxSizer(wx.VERTICAL)
         self.osizer.Add(self.hkl_cho,  1, wx.ALIGN_LEFT|wx.TOP, 5)
@@ -556,8 +556,8 @@ class sphOpts(wx.Panel):
         self.csizer.Add(self.osizer, 1, wx.ALIGN_RIGHT|wx.TOP, 5)
         self.csizer.Add(self.cmPanel, 1, wx.ALIGN_LEFT|wx.TOP, 5)
         self.sizer.Add(self.csizer, 1, wx.ALIGN_CENTER|wx.EXPAND)
-        
-	return
+
+        return
     #
     # ============================== API
     #
@@ -567,12 +567,12 @@ class sphOpts(wx.Panel):
         """Update canvas"""
         p = self.GetParent()
         exp = wx.GetApp().ws
-        
+
         ome_eta = p.data
         hkldata = ome_eta.getData(self.idata)
 
         if self.dispm == self.DISP_RAW:
-            
+
             p.figure.delaxes(p.axes)
             p.axes = p.figure.gca()
             p.axes.set_aspect('equal')
@@ -580,12 +580,12 @@ class sphOpts(wx.Panel):
             # show new image
             p.axes.imshow(hkldata, origin='upper',
                           interpolation='nearest',
-                          aspect='auto', 
+                          aspect='auto',
                           cmap=self.cmPanel.cmap,
                           vmin=self.cmPanel.cmin_val,
                           vmax=self.cmPanel.cmax_val)
             p.axes.set_autoscale_on(False)
-            
+
             p.canvas.draw()
 
         elif self.dispm == self.DISP_QUICK:
@@ -613,7 +613,7 @@ class sphOpts(wx.Panel):
         offset = 2.5*radius
         nocolor = 'none'
         pdir_cho = 'X'  # to come from choice interactor
-        
+
         # parent window and data
 
         exp = wx.GetApp().ws
@@ -630,7 +630,7 @@ class sphOpts(wx.Panel):
         p.axes.axis([-2.0, offset+2.0, -1.5, 1.5])
 
         # outlines for pole figure
-        
+
         C1 = Circle((0,0), radius)
         C2 = Circle((offset,0), radius)
         outline_circles = [C1, C2]
@@ -638,19 +638,19 @@ class sphOpts(wx.Panel):
         p.axes.add_collection(pc_outl)
 
         # build the rectangles
-        
+
         pf_rects = []
 
         tTh = exp.activeMaterial.planeData.getTTh()[self.idata]
-            
-        etas  = ome_eta.etaEdges 
+
+        etas  = ome_eta.etaEdges
         netas = len(etas) - 1
         deta = abs(etas[1] - etas[0])
 
-        omes  = ome_eta.omeEdges 
+        omes  = ome_eta.omeEdges
         nomes = len(omes) - 1
         dome = abs(omes[1] - omes[0])
-        
+
         if pdir_cho == 'X':
             pdir = numpy.c_[1, 0, 0].T  # X
         elif pdir_cho == 'Y':
@@ -664,7 +664,7 @@ class sphOpts(wx.Panel):
             for j in range(netas):
                 qc = makeMSV(tTh, etas[j] + 0.5*deta, omes[i] + 0.5*dome)
 
-                qll = makeMSV(tTh,        etas[j],        omes[i])                
+                qll = makeMSV(tTh,        etas[j],        omes[i])
                 qlr = makeMSV(tTh, etas[j] + deta,        omes[i])
                 qur = makeMSV(tTh, etas[j] + deta, omes[i] + dome)
                 qul = makeMSV(tTh,        etas[j], omes[i] + dome)
@@ -721,7 +721,7 @@ class sphOpts(wx.Panel):
                 pf_rects.append(Polygon(xy, aa=False))
                 pass
             pass
-        
+
         cmap=matplotlib.cm.jet
         pf_coll = PatchCollection(pf_rects, cmap=cmap, edgecolors='None')
         pf_coll.set_array(numpy.array(hkldata.T.flatten()))
@@ -737,14 +737,14 @@ class sphOpts(wx.Panel):
         """HKL selection"""
         self.idata = self.hkl_cho.GetSelection()
         self.update()
-        
+
         return
-    
+
     def OnDispChoice(self, e):
         """HKL selection"""
         self.dispm = self.disp_cho.GetSelection()
         self.update()
-        
+
         return
     def OnUpdate(self, e):
         """Update canvas"""

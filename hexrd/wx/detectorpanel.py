@@ -68,31 +68,31 @@ AngstromTimesKev = processWavelength(1.0)
 class detectorPanel(wx.Panel):
     """plotPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for plotPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
+        """Constructor for plotPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
         self.SetBackgroundColour(WP.BG_COLOR_PANEL)
-	#
+        #
         #  Data
         #
         #  *** NONE YET ***
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -267,11 +267,11 @@ class detectorPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         #
         #  Material sizer
         #
-	matSizer = wx.BoxSizer(wx.HORIZONTAL)
+        matSizer = wx.BoxSizer(wx.HORIZONTAL)
         matSizer.Add(self.mats_lab, 0, wx.ALIGN_RIGHT)
         matSizer.Add(self.mats_cho, 0, wx.ALIGN_LEFT|wx.LEFT, 5)
         #
@@ -328,9 +328,9 @@ class detectorPanel(wx.Panel):
         #  Caking sizer
         #
         nrow = 0; ncol = 2; padx = pady = 5
-	self.cakeSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.cakeSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
         #
-	self.cakeSizer.AddGrowableCol(0, 1)
+        self.cakeSizer.AddGrowableCol(0, 1)
         self.cakeSizer.Add(self.numEta_lab, 1, wx.ALIGN_RIGHT)
         self.cakeSizer.Add(self.numEta_spn, 0, wx.ALIGN_LEFT)
         self.cakeSizer.Add(self.numRho_lab, 1, wx.ALIGN_RIGHT)
@@ -355,7 +355,7 @@ class detectorPanel(wx.Panel):
         AddSpacer(self, self.sizer, WP.BG_COLOR_TITLEBAR_PANEL1)
         self.sizer.Add(self.runFit_but, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
 
-	return
+        return
 
     def __initExclusions(self):
         """Nothing yet"""
