@@ -149,7 +149,7 @@ class cmapPanel(wx.Panel):
         #
         #  colormap sizer
         #
-        nrow = 1; ncol = 3; padx = 5; pady = 5
+        nrow = 3; ncol = 3; padx = 5; pady = 5
 	self.cmSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
 
         self.cmSizer.Add(self.cmap_lab, 0, wx.EXPAND | wx.ALIGN_RIGHT)

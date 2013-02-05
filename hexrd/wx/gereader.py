@@ -223,7 +223,7 @@ class geReaderPanel(wx.Panel):
         self.browse_spn = wx.SpinCtrl(self, wx.NewId(), min=0, initial=0)
         self.browse_inf = wx.TextCtrl(self, wx.NewId(), value='',
                                       style=wx.RAISED_BORDER|wx.TE_READONLY)
-	self.sizer = wx.BoxSizer(wx.HORIZONTAL|wx.VERTICAL)
+	self.sizer = wx.BoxSizer(wx.HORIZONTAL)
         #
         #  Orientation
         #
@@ -885,7 +885,7 @@ class infoPanel(wx.Panel):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-        nrow = 1; ncol = 2; padx = 5; pady = 5
+        nrow = 2; ncol = 2; padx = 5; pady = 5
 	self.fgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
 	self.fgsizer.AddGrowableCol(1, 1)
 	#self.fgsizer.AddGrowableRow(num, proportion)
@@ -941,24 +941,24 @@ class myListCtrl(wx.ListCtrl,
 
     def CloseEditor(self, e=None):
         exp = wx.GetApp().ws
-        
+
         listMixins.TextEditMixin.CloseEditor(self, e)
         i = self.curRow; j = self.curCol
 
         item = self.GetItem(i, j)
-        
+
         print 'item (%d, %d) modified' % (i, j)
         print 'item text: ', item.GetText()
-        
+
         fname = self.GetItem(i, 0).GetText()
-        
+
         try:
             numEm = int(self.GetItem(i, 1).GetText())
         except:
             numEm = exp.activeReader.imageNameD[fname][0]
             self.SetStringItem(i, j, str(numEm))
             pass
-        
+
         omin  = self.GetItem(i, 3).GetText()
         omax  = self.GetItem(i, 4).GetText()
         odel  = self.GetItem(i, 5).GetText()

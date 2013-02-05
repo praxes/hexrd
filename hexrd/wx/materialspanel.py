@@ -223,7 +223,7 @@ PANEL FOR ...
         # material name
         headsizer.Add(self.name_lab, 1, wx.EXPAND|wx.ALIGN_CENTER)
         headsizer.Add(self.name_txt, 1, wx.EXPAND|wx.ALIGN_CENTER)
-        headsizer.Add(self.new_but,  1, wx.ALIGN_RIGHT)        
+        headsizer.Add(self.new_but,  1, wx.ALIGN_RIGHT)
         #
         # lattice params
         #
@@ -254,7 +254,7 @@ PANEL FOR ...
         #
         #  Space group
         #
-        nrow = 5; ncol = 3; padx = pady = 5;
+        nrow = 6; ncol = 3; padx = pady = 5;
         sgsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
 	sgsizer.AddGrowableCol(1, 1)
 	sgsizer.AddGrowableCol(2, 1)
@@ -299,7 +299,7 @@ PANEL FOR ...
 	self.sizer.Add(lpsizer, 1, wx.EXPAND|wx.ALIGN_CENTER)
 
         self.sizer.Add(self.ring_pan, 1, wx.EXPAND|wx.ALIGN_CENTER)
-        
+
 	return
     #
     # ============================== API
