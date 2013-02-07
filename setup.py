@@ -71,4 +71,5 @@ setup(
         'wxpython (>= 2.8)',
         ),
     scripts = scripts,
-)
+    package_data = {'hexrd': ['COPYING', 'wx/hexrd.png', 'data/materials.cfg'] }
+    )
