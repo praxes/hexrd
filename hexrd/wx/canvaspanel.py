@@ -39,9 +39,9 @@ import numpy
 #
 from hexrd.wx.guiconfig import WindowParameters as WP
 from hexrd.wx.guiutil import ResetChoice, makeTitleBar, EmptyWindow
-from hexrd.wx.canvasutil import *
 from hexrd.wx.listeditor import NamedItem, ListEditDlg
-from hexrd.wx.floatcontrol import *
+from hexrd.wx.canvasutil import FigureCanvas, NavigationToolbar2WxAgg,\
+     Figure, cmapPanel
 #
 #  Data
 #

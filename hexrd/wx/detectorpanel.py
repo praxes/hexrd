@@ -55,7 +55,7 @@ from hexrd.xrd.crystallography import processWavelength
 #
 from hexrd.wx.guiconfig import WindowParameters as WP
 from hexrd.wx.guiutil import ResetChoice, AddSpacer, EmptyWindow, makeTitleBar
-from hexrd.wx.floatcontrol import *
+from hexrd.wx.floatcontrol import FloatControl, EVT_FLOAT_CTRL
 from hexrd.wx.logwindows   import logWindow
 from hexrd.wx.ringsubpanel import ringPanel
 from hexrd.wx.selecthkls   import selectHKLsDialog as hklsDlg #TBR
@@ -71,7 +71,7 @@ class detectorPanel(wx.Panel):
         """Constructor for plotPanel."""
         #
         wx.Panel.__init__(self, parent, id, **kwargs)
-        self.SetBackgroundColour(WP.BG_COLOR_PANEL)
+        self.SetBackgroundColourg(WP.BG_COLOR_PANEL)
         #
         #  Data
         #

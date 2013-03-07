@@ -44,7 +44,6 @@ import matplotlib
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg
 from matplotlib.figure                 import Figure
-from matplotlib                        import pyplot
 from matplotlib                        import cm
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
@@ -54,7 +53,6 @@ __all__ = ['matplotlib',
            'FigureCanvas',
            'NavigationToolbar2WxAgg',
            'Figure',
-           'pyplot',
            'cmapPanel']
 #
 # ---------------------------------------------------CLASS:  cmapPanel

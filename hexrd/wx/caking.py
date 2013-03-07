@@ -36,13 +36,12 @@ from hexrd.xrd import detector
 from hexrd.xrd.experiment  import PolarRebinOpts as prOpts
 from hexrd.xrd.xrdutil    import CollapseOmeEta
 
-from hexrd.wx.canvasutil import *
 from hexrd.wx.guiconfig    import WindowParameters as WP
 from hexrd.wx.guiutil import makeTitleBar
 from hexrd.wx.ringsubpanel import ringPanel
 from hexrd.wx.selecthkls   import selectHKLsDialog as hklsDlg
 from hexrd.wx.logwindows   import logWindow
-from hexrd.wx.floatcontrol import *
+from hexrd.wx.floatcontrol import FloatControl
 from hexrd.wx.cakingcanvas import cakeDisplay
 #
 #  Module Data
