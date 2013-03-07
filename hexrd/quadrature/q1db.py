@@ -27,7 +27,21 @@
 import numpy as num
 from math import sqrt
 
-from .qloc1ddata import *
+# formerly:  qloc1ddata
+
+ndim = 1
+
+xi_a2  = sqrt(1.0e0/3.0e0) # 0.577350269189626e0
+xi_a3  = sqrt(0.6e0)
+
+xi_8a= 0.960289856497536e0
+xi_8b= 0.796666477413627e0
+xi_8c= 0.525532409916329e0
+xi_8d= 0.183434642495650e0
+w_8a = 0.101228536290376e0
+w_8b = 0.222381034453374e0
+w_8c = 0.313706645877887e0
+w_8d = 0.362683783378362e0
 
 def qloc1():
     nqpt = 1
