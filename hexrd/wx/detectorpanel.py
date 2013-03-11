@@ -45,7 +45,6 @@ import numpy
 #  XRD Modules
 #
 from hexrd.xrd            import detector
-from hexrd.xrd.material   import *
 from hexrd.xrd.experiment import FitModes
 
 from hexrd.xrd.crystallography import dUnit as WAVELENGTH_UNIT
