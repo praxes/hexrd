@@ -22,6 +22,7 @@ class TestQuadrature(unittest.TestCase):
         """1D Quadrature Rules"""
         for npts in q1db.available:
             self.__check1d(npts, 2*npts -1)
+
     def test_2d(self):
         """2D Quadrature Rules"""
         print "\nChecking 2D rules"
@@ -86,8 +87,9 @@ class TestQuadrature(unittest.TestCase):
         tmp = [1.0/(2*float(n)) for n in npts]
         trueval = np.prod(tmp)
 
-        print '   nD rule: %s (%s)' % (repr(rule), repr(npts))
-        print '      value: %f, true = %f' % (integral, trueval)
+        self.assertTrue(np.abs(integral - trueval) < self.tol,
+                        '%s  value: %f, true = %f' % (repr(rule), integral, trueval))
+        print '   nD rule: %s (%s) OK' % (repr(rule), repr(npts))
 
         return
 #
