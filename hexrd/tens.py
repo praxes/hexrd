@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2007-2012, Lawrence Livermore National Security, LLC.
+# Copyright (c) 2007-2013, Lawrence Livermore National Security, LLC.
 # Produced at the Lawrence Livermore National Laboratory.
 # Written by Joel Bernier <bernier2@llnl.gov> and others.
 # LLNL-CODE-529294.
@@ -28,8 +28,8 @@
 # stuff for representations of tensor components: tens.py
 import sys
 from math import sqrt
-
-from numpy import *
+from numpy import dtype, tile, matrix, math, place, rank, array, size, \
+     zeros, copy, where, float64, sqrt, identity, source, add, log, ndarray
 import numpy as num
 
 # this section replaces former hexrd.constants module

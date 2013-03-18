@@ -70,7 +70,7 @@ class detectorPanel(wx.Panel):
         """Constructor for plotPanel."""
         #
         wx.Panel.__init__(self, parent, id, **kwargs)
-        self.SetBackgroundColourg(WP.BG_COLOR_PANEL)
+        self.SetBackgroundColour(WP.BG_COLOR_PANEL)
         #
         #  Data
         #
