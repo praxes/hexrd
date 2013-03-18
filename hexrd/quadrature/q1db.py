@@ -30,6 +30,7 @@ from math import sqrt
 # formerly:  qloc1ddata
 
 ndim = 1
+available = [1,2,3,4,5,8]
 
 xi_a2  = sqrt(1.0e0/3.0e0) # 0.577350269189626e0
 xi_a3  = sqrt(0.6e0)
@@ -111,7 +112,7 @@ def qloc8():
 
 def qLoc(quadr, promote=False):
     if promote:
-        nqp = num.array([1,2,3,4,5,8])
+        nqp = num.array(available)
         'the following may raise an exception if quadr is too big:'
         quadr = nqp[num.where(nqp >= quadr)][0]
     if quadr == 8:

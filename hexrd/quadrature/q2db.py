@@ -26,6 +26,8 @@
 # ============================================================
 import numpy as num
 
+from . import q1db
+
 # formerly:  qloc2ddata
 
 ndim = 2
@@ -71,10 +73,10 @@ def qloc4():
     xi = num.empty([nqpt,ndim])
     w  = num.empty([nqpt])
 
-    xi[0,0]=xil;  xi[0,1]=xil;  w[1] = wj;
-    xi[1,0]=xil;  xi[1,1]=xim;  w[2] = wj;
-    xi[2,0]=xim;  xi[2,1]=xil;  w[3] = wj;
-    xi[3,0]=xim;  xi[3,1]=xim;  w[4] = wj;
+    xi[0,0]=xil;  xi[0,1]=xil;  w[0] = wj;
+    xi[1,0]=xil;  xi[1,1]=xim;  w[1] = wj;
+    xi[2,0]=xim;  xi[2,1]=xil;  w[2] = wj;
+    xi[3,0]=xim;  xi[3,1]=xim;  w[3] = wj;
 
     return xi, w
 
@@ -99,7 +101,6 @@ def qLocFrom1D(quadr1d):
     given accuracy may be available with fewer quadrature points
     using a native 3D rule
     """
-    from ..quadrature import q1db
 
     if hasattr(quadr1d,'__len__'):
         assert len(quadr1d) == ndim, 'wrong length'

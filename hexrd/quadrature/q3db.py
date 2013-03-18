@@ -26,6 +26,8 @@
 # ============================================================
 import numpy as num
 
+from . import q1db
+
 ndim = 3
 # formerly:  qloc3ddata
 
@@ -129,8 +131,6 @@ def qLocFrom1D(quadr1d):
     given accuracy may be available with fewer quadrature points
     using a native 3D rule
     """
-    from ..quadrature import q1db
-
     if hasattr(quadr1d,'__len__'):
         assert len(quadr1d) == ndim, 'wrong length'
     else:
