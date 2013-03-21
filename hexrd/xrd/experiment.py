@@ -181,6 +181,7 @@ class Experiment(object):
     def refine_grains(self, 
                       minCompl,
                       nSubIter=3,
+                      doFit=False,
                       etaTol=valunits.valWUnit('etaTol', 'angle', 1.0, 'degrees'), 
                       omeTol=valunits.valWUnit('etaTol', 'angle', 1.0, 'degrees'), 
                       fineDspTol=5.0e-3, 
@@ -190,12 +191,12 @@ class Experiment(object):
         refine a grain list
         """
         # refine grains formally using a multi-pass refinement
-        nGrains    = self.fitRMats.shape[0]
+        nGrains    = self.rMats.shape[0]
         grainList = []
         for iG in range(nGrains):
             indexer.progress_bar(float(iG) / nGrains)
             grain = G.Grain(self.spots_for_indexing,
-                                rMat=self.fitRMats[iG, :, :], 
+                                rMat=self.rMats[iG, :, :], 
                                 etaTol=etaTol,
                                 omeTol=omeTol,
                                 claimingSpots=False)
@@ -203,7 +204,7 @@ class Experiment(object):
                 for i in range(nSubIter):
                     grain.fit()
                     s1, s2, s3 = grain.findMatches(etaTol=etaTol, omeTol=omeTol, strainMag=fineDspTol,
-                                                   updateSelf=True, claimingSpots=False, doFit=True, 
+                                                   updateSelf=True, claimingSpots=False, doFit=doFit, 
                                                    testClaims=True)
                 if grain.completeness > minCompl:                    
                     grainList.append(grain)
@@ -211,7 +212,7 @@ class Experiment(object):
                 pass
             pass
         self.grainList = grainList
-        # self.export_grainList()
+        self._fitRMats = numpy.array([self.grainList[i].rMat for i in range(len(grainList))])
         return
     
     def saveRMats(self, f):
@@ -905,74 +906,6 @@ class Experiment(object):
     pass  # end class
 #
 # -----------------------------------------------END CLASS:  Experiment
-#
-# ================================================== Utility Functions
-#
-def newName(name, nlist):
-    """return a name not in the list, but based on name input"""
-    if name not in nlist: return name
-
-    i=1
-    while i:
-        name_i = '%s %d' % (name, i)
-        if name_i not in nlist:
-            break
-
-        i += 1
-        pass
-
-    return name_i
-
-def saveExp(e, f):
-    """save experiment to file"""
-    print 'saving file:  %s' % f
-    fobj = open(f, 'w')
-    cPickle.dump(e, fobj)
-    fobj.close()
-    print 'save succeeded'
-
-    return
-
-def loadExp(inpFile, matFile=DFLT_MATFILE):
-    """Load an experiment from a config file or from a saved exp file
-
-    inpFile -- the name of either the config file or the saved exp file;
-               empty string means start new experiment
-    matFile -- name of the materials file
-"""
-    #
-    if not matFile:
-        print >> sys.stderr, 'no material file found'
-        sys.exit(1)
-        pass
-
-    root, ext = os.path.splitext(inpFile)
-    #
-    if ext == '.cfg' or not inpFile:
-        #  Instantiate from config file
-        exp = Experiment(inpFile, matFile)
-    elif ext == '.exp':
-        #  Load existing experiment
-        try:
-            print 'loading saved file:  %s' % inpFile
-            f = open(inpFile, 'r')
-            exp = cPickle.load(f)
-            f.close()
-            print '... load succeeded'
-        except:
-            print '... load failed ... please check your data file'
-            raise
-            sys.exit()
-            pass
-    else:
-        #  Not recognized
-        print 'file is neither .cfg or .exp', inpFile
-        sys.exit(1)
-        pass
-
-    return exp
-
-#
 # ---------------------------------------------------CLASS:  geReaderInput
 #
 class ReaderInput(object):
@@ -1253,9 +1186,10 @@ class CalibrationInput(object):
     def cakeArgs(self):
         """(get only) Keyword arguments for polar rebinning"""
 
-        return {'verbose':True, 'numEta': self.numEta, 'corrected':self.corrected}
-
-
+        return {'verbose':True, 
+                'numEta': self.numEta, 
+                'etaRange':numpy.array([0., 2. * numpy.pi]),
+                'corrected':self.corrected}
     #
     pass  # end class
 #

@@ -37,6 +37,7 @@ from hexrd.xrd.material import Material
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
 from hexrd.wx.guiutil import ResetChoice, AddSpacer
+from hexrd.wx.ringsubpanel import ringPanel
 #
 # ---------------------------------------------------CLASS:  matPanel
 #
@@ -94,6 +95,10 @@ class matPanel(wx.Panel):
                                         'MATERIAL NAME', style=wx.ALIGN_CENTER)
         self.name_txt = wx.TextCtrl(self, wx.NewId(), value=Material.DFLT_NAME,
                                       style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
+        #
+        #  Rings panel
+        #
+        self.ring_pan = ringPanel(self, wx.NewId())
         #
         #  Categories
         #
@@ -208,19 +213,17 @@ PANEL FOR ...
     def __makeSizers(self):
 	"""Lay out the interactors"""
 	#  Header
-        ncol = 3; nrow = 3; padx = pady = 5;
+        ncol = 3; nrow = 2; padx = pady = 5;
         headsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) # m x n, paddings
-	#self.fgsizer.AddGrowableRow(num, proportion)
-	headsizer.AddGrowableCol(1, 1)
-	headsizer.AddGrowableCol(2, 1)
+	headsizer.AddGrowableCol(1)
         # material list
-        headsizer.Add(self.curr_lab, 0, wx.EXPAND|wx.ALIGN_CENTER)
-        headsizer.Add(self.mats_cho, 0, wx.EXPAND|wx.ALIGN_CENTER)
-        headsizer.Add(self.new_but,  0, wx.ALIGN_RIGHT)
+        headsizer.Add(self.curr_lab, 1, wx.EXPAND|wx.ALIGN_CENTER)
+        headsizer.Add(self.mats_cho, 1, wx.EXPAND|wx.ALIGN_CENTER)
+        headsizer.Add(wx.Window(self, -1), 1, wx.EXPAND|wx.ALIGN_CENTER)
         # material name
-        headsizer.Add(self.name_lab, 0, wx.EXPAND|wx.ALIGN_CENTER)
-        headsizer.Add(wx.Window(self, -1), 0, wx.EXPAND|wx.ALIGN_CENTER)
-        headsizer.Add(self.name_txt, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        headsizer.Add(self.name_lab, 1, wx.EXPAND|wx.ALIGN_CENTER)
+        headsizer.Add(self.name_txt, 1, wx.EXPAND|wx.ALIGN_CENTER)
+        headsizer.Add(self.new_but,  1, wx.ALIGN_RIGHT)        
         #
         # lattice params
         #
@@ -283,12 +286,6 @@ PANEL FOR ...
         #  ==================== MAIN SIZER
         #
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(headsizer,     1, wx.EXPAND|wx.ALIGN_CENTER)
-        #
-        #  ==================== MAIN SIZER
-        #
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.titlebar, 0,
                        wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 10)
 	self.sizer.Add(headsizer,     1, wx.EXPAND|wx.ALIGN_CENTER)
@@ -301,8 +298,8 @@ PANEL FOR ...
 
 	self.sizer.Add(lpsizer, 1, wx.EXPAND|wx.ALIGN_CENTER)
 
-        #self.sizer.Show(self.titlebar, False)
-
+        self.sizer.Add(self.ring_pan, 1, wx.EXPAND|wx.ALIGN_CENTER)
+        
 	return
     #
     # ============================== API

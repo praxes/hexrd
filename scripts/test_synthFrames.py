@@ -33,7 +33,7 @@ test_synthFrames.py --test=makeSynthStack --test=stackToSpots --test=index
 
 test_synthFrames.py --test=makeSynthStack --test=stackToSpots --num-grains=25
 
-test_synthFrames.py --test=makeSynthStack --test=stackToSpots --num-grains=25 --args-in-degrees=True --ome-min=-60 --ome-max=60 --n-ome=240
+test_synthFrames.py --test=makeSynthStack --test=stackToSpots --num-grains=2 --args-in-degrees=True --ome-min=60 --ome-max=-60 --n-ome=120
 
 test_synthFrames.py --detector-geom='generic;[];{"ncols":512,"nrows":512,"pixelPitch":0.8}' --fwhm='(0.002, 0.01, 0.01)' --test=makeSynthStack --test=stackToSpots --test=index
 '''
@@ -57,9 +57,9 @@ from hexrd.xrd.material   import Material, loadMaterialList
 ## planeData = fe.getAlphaPD()
 mat_list = loadMaterialList("../hexrd/data/all_materials.cfg")
 
-planeData = mat_list[-1].planeData
+planeData = mat_list[2].planeData
 planeData.exclusions = num.zeros( len(planeData.exclusions), dtype=bool )
-planeData.tThMax = detectorGeom.getTThMax()
+planeData.tThMax = 0.17
 
 USAGE = '%s [options]' % __file__ + '\n\n' + usage
 
@@ -222,7 +222,7 @@ if __name__ == '__main__':
     args = eval(argsStr); kwargs = eval(kwargsStr);
     kwargs.setdefault('readerKWArgs',{"doFlip":False})
     detectorGeom = detector.newDetector(dgType, *args, **kwargs)
-    
+    detectorGeom.workDist = 2000.
     tThMax = detectorGeom.getTThMax(func=num.max)
     print tThMax/degToRad
     planeData.tThMax = tThMax

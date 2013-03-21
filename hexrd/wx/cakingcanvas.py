@@ -99,11 +99,6 @@ class cakeCanvas(wx.Panel):
 
         self.tbarSizer = makeTitleBar(self, 'cakeCanvas')
         #
-        #  see if we need cmPanel
-        #
-        #self.cmPanel = cmapPanel(self, wx.NewId())
-        #self.cmPanel.Disable()
-        #
         if   self.cakeType == prOpts.CAKE_IMG:
             self.opt_pan = imgOpts(self, wx.NewId())
             # full image caking panel
@@ -406,10 +401,9 @@ class imgOpts(wx.Panel):
     #
     def __makeObjects(self):
         """Add interactors"""
-
         self.tbarSizer = makeTitleBar(self, 'Full Image Rebinning Results')
+        self.cmPanel = cmapPanel(self, wx.NewId())
         #
-
         return
 
     def __makeBindings(self):
@@ -418,10 +412,10 @@ class imgOpts(wx.Panel):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
+	self.sizer = wx.BoxSizer(wx.HORIZONTAL)
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Show(self.tbarSizer, False)
+	self.sizer.Add(self.cmPanel,   1, wx.EXPAND|wx.ALIGN_CENTER)        
 
 	return
     #
@@ -429,10 +423,11 @@ class imgOpts(wx.Panel):
     #
     #                     ========== *** Access Methods
     #
-    def update(self):
+    def update(self, **kwargs):
         """Update canvas"""
-        p = self.GetParent()
-
+        p   = self.GetParent()
+        # tlp = wx.GetTopLevelParent(self)
+        
         intensity = p.data['intensity']
 
         p.axes = p.figure.gca()
@@ -443,10 +438,10 @@ class imgOpts(wx.Panel):
         # show new image
         p.axes.imshow(intensity, origin='upper',
                       interpolation='nearest',
-                      aspect='auto')
-#                      cmap=self.cmPanel.cmap,
-#                      vmin=self.cmPanel.cmin_val,
-#                      vmax=self.cmPanel.cmax_val,
+                      aspect='auto',
+                      cmap=self.cmPanel.cmap,
+                      vmin=self.cmPanel.cmin_val,
+                      vmax=self.cmPanel.cmax_val)
         p.axes.set_autoscale_on(False)
 
         p.canvas.draw()
@@ -519,7 +514,7 @@ class sphOpts(wx.Panel):
     def __makeObjects(self):
         """Add interactors"""
         exp = wx.GetApp().ws
-        
+        self.cmPanel = cmapPanel(self, wx.NewId())
         self.tbarSizer = makeTitleBar(self, 'Omega-Eta Plots',
                                       color=WP.BG_COLOR_TITLEBAR_PANEL1)
 
@@ -544,20 +539,24 @@ class sphOpts(wx.Panel):
 
     def __makeSizers(self):
 	"""Lay out the interactors"""
-
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Show(self.tbarSizer, True)
-        self.sizer.Add(self.hkl_cho, 0, wx.ALIGN_RIGHT|wx.TOP, 5)
-        self.sizer.Add(self.disp_cho, 1, wx.ALIGN_RIGHT|wx.TOP, 5)
-
+        self.osizer = wx.BoxSizer(wx.VERTICAL)
+        self.osizer.Add(self.hkl_cho,  1, wx.ALIGN_LEFT|wx.TOP, 5)
+        self.osizer.Add(self.disp_cho, 1, wx.ALIGN_LEFT|wx.TOP, 5)
+        self.csizer =wx.BoxSizer(wx.HORIZONTAL)
+        self.csizer.Add(self.osizer, 1, wx.ALIGN_RIGHT|wx.TOP, 5)
+        self.csizer.Add(self.cmPanel, 1, wx.ALIGN_LEFT|wx.TOP, 5)
+        self.sizer.Add(self.csizer, 1, wx.ALIGN_CENTER|wx.EXPAND)
+        
 	return
     #
     # ============================== API
     #
     #                     ========== *** Access Methods
     #
-    def update(self):
+    def update(self, **kwargs):
         """Update canvas"""
         p = self.GetParent()
         exp = wx.GetApp().ws
@@ -574,10 +573,10 @@ class sphOpts(wx.Panel):
             # show new image
             p.axes.imshow(hkldata, origin='upper',
                           interpolation='nearest',
-                          aspect='auto')
-            # cmap=self.cmPanel.cmap,
-            # vmin=self.cmPanel.cmin_val,
-            # vmax=self.cmPanel.cmax_val,
+                          aspect='auto', 
+                          cmap=self.cmPanel.cmap,
+                          vmin=self.cmPanel.cmin_val,
+                          vmax=self.cmPanel.cmax_val)
             p.axes.set_autoscale_on(False)
             
             p.canvas.draw()

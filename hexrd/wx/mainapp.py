@@ -33,7 +33,7 @@ import os, sys
 import wx
 
 from hexrd.wx import guiconfig
-from hexrd.wx.xrdmainframe import xrdMainFrame
+from hexrd.wx.mainframe import MainFrame
 #
 #  mdef Modules
 #
@@ -61,7 +61,7 @@ class xrdApp(wx.PySimpleApp):
 
         self.__makeData(f)
 
-	self.mFrame = None
+	self.mframe = None
         #
 	return
 
@@ -118,8 +118,8 @@ if __name__ == '__main__':
     #  Run program stand-alone.
     #
     app = xrdApp(*sys.argv[1:])
-    app.mFrame = xrdMainFrame(None, wx.NewId())
-    app.SetTopWindow(app.mFrame)
+    app.mframe = MainFrame(None, wx.NewId())
+    app.SetTopWindow(app.mframe)
 
     #if len(sys.argv) == 1:
     #    app = xrdApp()
@@ -139,17 +139,17 @@ if __name__ == '__main__':
     splashImage = wx.Bitmap(os.path.join(splashDir, splashFile))
     #
     wx.SplashScreen(splashImage, wx.SPLASH_CENTRE_ON_PARENT|wx.SPLASH_TIMEOUT,
-                    1000, app.mFrame)
+                    1000, app.mframe)
     #
     # Main frame
     #
-    app.mFrame.Show(True)
+    app.mframe.Show(True)
     #
     # Autload data
     #
     # * turning off autoload, using loadExperiment instead
     #
-    # app.mFrame.loadProject()
+    # app.mframe.loadProject()
     #
     # wx main loop
     #

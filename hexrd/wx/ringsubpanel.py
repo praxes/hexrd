@@ -41,9 +41,8 @@ from hexrd.wx.selecthkls   import selectHKLsDialog as hklsDlg
 #
 from hexrd.xrd.crystallography import dUnit as WAVELENGTH_UNIT
 from hexrd.xrd.crystallography import processWavelength
-
-# AngstromTimesKev = 12.39854 # from APS site (lose digits accuracy this way)
-AngstromTimesKev = processWavelength(1.0)
+#
+AngstromTimesKev = processWavelength(1.0) # 12.39854 (lose digits accuracy this way)
 #
 widChoices = ['two theta', 'strain']
 widStrain = 1; widTwoTheta = 0
