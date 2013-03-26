@@ -35,6 +35,7 @@ import exceptions
 import StringIO
 import ctypes
 import multiprocessing
+import logging
 
 import numpy as num
 from matplotlib import cm
@@ -70,7 +71,6 @@ debugMulti = True
 debugFit = False
 debugMasked = False
 debugFrameRefs = False
-debugFinalize = False
 
 structureNDI_label = num.array([
     [0,1,0],
@@ -1688,21 +1688,25 @@ class Spot(object):
                 self.yAll = self.data['y'][:][0]
                 length    = len(self.vAll)
                 self.oAll = num.tile(self.data['omega'][:][0], length)
+
         if cullDupl:
-            'cull duplicates that could have happened due to merging of spots'
-            xyo = num.empty( len(self.vAll), dtype=[('x',int),('y',int),('o',float)] )
-            xyo['x'], xyo['y'], xyo['o'] = self.xAll[:], self.yAll[:], self.oAll[:]
-            try:
-                xyoUnique, indices = num.unique(xyo, return_index=True)
-            except TypeError:
-                xyoUnique, indices = num.unique1d(xyo, return_index=True)
-            if debugFinalize:
-                nDiscard = len(self.vAll) - len(indices)
-                if nDiscard > 0:
-                    print '   finalize : %d of %d pixels are duplicate, discarding' % (nDiscard, len(self.vAll))
-            self.xAll, self.yAll, self.oAll = xyoUnique['x'], xyoUnique['y'], xyoUnique['o']
-            self.vAll = self.vAll[indices]
-            self.darkAll = self.darkAll[indices]
+            # cull duplicates that could have happened due to merging of spots
+            dtp = num.dtype([('x', int), ('y', int), ('v', float), ('o', float), ('d', float)])
+            len_vall = len(self.vAll)
+            temp_a = num.array([(self.xAll[j], self.yAll[j], self.vAll[j], self.oAll[j],
+                                 self.darkAll[j]) for j in range(len_vall)], dtype=dtp)
+            temp_u = num.unique(temp_a)
+            self.xAll = temp_u['x']
+            self.yAll = temp_u['y']
+            self.oAll = temp_u['o']
+            self.vAll = temp_u['v']
+            self.darkAll = temp_u['d']
+
+            nDiscard = len_vall - len(self.vAll)
+            debug_msg = 'finalize: %d of %d pixels are duplicate, discarding' % \
+              (nDiscard, len_vall)
+            logging.debug(debug_msg)
+
         self.shape = num.array([
                 self.xAll.max()-self.xAll.min()+1,
                 self.yAll.max()-self.yAll.min()+1,
