@@ -45,7 +45,6 @@ import numpy
 #  XRD Modules
 #
 from hexrd.xrd            import detector
-from hexrd.xrd.material   import *
 from hexrd.xrd.experiment import FitModes
 
 from hexrd.xrd.crystallography import dUnit as WAVELENGTH_UNIT
@@ -55,7 +54,7 @@ from hexrd.xrd.crystallography import processWavelength
 #
 from hexrd.wx.guiconfig import WindowParameters as WP
 from hexrd.wx.guiutil import ResetChoice, AddSpacer, EmptyWindow, makeTitleBar
-from hexrd.wx.floatcontrol import *
+from hexrd.wx.floatcontrol import FloatControl, EVT_FLOAT_CTRL
 from hexrd.wx.logwindows   import logWindow
 from hexrd.wx.ringsubpanel import ringPanel
 from hexrd.wx.selecthkls   import selectHKLsDialog as hklsDlg #TBR

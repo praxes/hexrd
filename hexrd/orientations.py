@@ -32,7 +32,13 @@ import copy
 import math
 from math import sqrt
 
-from numpy import *
+from numpy import all, indices, dtype, eye, tan, sin, mat,\
+     arctan2, math, transpose, place, arccos,\
+     array, size, zeros, short, std, double, trace,\
+     exp, sum, dot, random, copy, ones, where, argmax, cos, float64, pi, arcsin,\
+     fabs, reshape, cross, sqrt, shape, source, around, unique, mod,\
+     ndarray
+
 import numpy as num
 import scipy.linalg
 
@@ -145,7 +151,7 @@ def invToM(theta, n0, n1, n2):
     mat[0,1] = am1 * n0 * n1 - n2 * b
     mat[0,2] = am1 * n0 * n2 + n1 * b
     mat[1,0] = am1 * n0 * n1 + n2 * b
-    mat[1,1] = am1 * n1 * n1 + a  
+    mat[1,1] = am1 * n1 * n1 + a
     mat[1,2] = am1 * n1 * n2 - n0 * b
     mat[2,0] = am1 * n0 * n2 - n1 * b
     mat[2,1] = am1 * n1 * n2 + n0 * b

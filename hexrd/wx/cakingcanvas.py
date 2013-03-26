@@ -31,6 +31,7 @@
 import wx
 
 import numpy
+import matplotlib
 from matplotlib.axes import Axes
 from matplotlib.patches import Rectangle, Circle, Polygon
 from matplotlib.collections import PatchCollection
@@ -42,7 +43,8 @@ from hexrd.xrd.xrdutil import makeMeasuredScatteringVectors as makeMSV
 
 from hexrd.wx.guiconfig import WindowParameters as WP
 from hexrd.wx.guiutil import makeTitleBar
-from hexrd.wx.canvasutil import *
+from hexrd.wx.canvasutil import FigureCanvas, NavigationToolbar2WxAgg,\
+     Figure, cmapPanel
 #
 # ---------------------------------------------------CLASS:  cakeCanvas
 #
