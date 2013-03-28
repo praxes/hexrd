@@ -45,7 +45,6 @@ from hexrd.wx.guiutil import makeTitleBar
 from hexrd.wx.xrdnotebook  import xrdNoteBook
 from hexrd.wx.canvaspanel  import CanvasPanel
 from hexrd.wx.listeditor      import ListEditDlg
-from hexrd.wx.hydrainterface  import HydraControlFrame
 from hexrd.wx.caking          import cakingDialog
 #
 # ---------------------------------------------------CLASS:  xrdMainFrame
