@@ -973,7 +973,7 @@ class PlaneData(object):
 
         chiRotMat = num.eye(3)
         if chiTilt is not None:
-            chiRotMat = rotMatOfExpMap(chiTilt*Yl)
+            chiRotMat = rotMatOfExpMap(chiTilt*Xl)
 
         # projection operators
         Pxy = num.eye(3) - num.dot(Zl, Zl.T)    # xy-plane
