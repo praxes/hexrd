@@ -30,8 +30,8 @@
 """
 import wx
 
-from hexrd.GUI.guiConfig import WindowParameters as WP
-from hexrd.GUI.guiUtilities import makeTitleBar
+from hexrd.wx.guiconfig import WindowParameters as WP
+from hexrd.wx.guiutil   import makeTitleBar
 #
 # ---------------------------------------------------CLASS:  GrainPanel
 #
