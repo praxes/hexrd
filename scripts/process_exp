@@ -1,0 +1,342 @@
+#! /usr/bin/env python
+#
+"""Run hexrd spot finding and indexing with suites of options
+
+* For options with multiple type, we can set up custom conversion functions,
+  e.g "none_or_int", or "none_or_bool"
+"""
+import sys
+import argparse
+import itertools
+import time
+import csv
+import traceback
+from ConfigParser import SafeConfigParser as Parser
+from decimal import Decimal
+
+import numpy
+
+from hexrd.xrd.experiment import loadExp
+#
+# Module data
+#
+NL = '\n'
+RAN = 'success'
+TIME_DIGITS = 3
+
+class Timings(object):
+    spots_raw = 'time-raw'
+    spots_ass = 'time-assoc'
+    index_fib = 'time-index'
+
+def bool_str(s):
+    """determine true or false from string"""
+    if s.lower() in ['1', 'yes', 'on', 'true']:
+        return True
+    elif s.lower() in ['0', 'no', 'off', 'false']:
+        return False
+    else:
+        raise ValueError('cannot make boolean from input')
+    return
+
+def quit_opts(s):
+    """process quit options for indexing
+
+    options can be, e.g.:  '', 'none', '2-hkls', '5-grains', etc.
+    """
+    sl = s.lower()
+    if len(s) == 0 or sl == 'none':
+        qa = None
+    else:
+        [sn, t] = sl.split('-')
+        n = int(sn)
+        if t == 'hkls' or (t == 'hkl' and n == 1): # accept 1-hkl
+            qa = {'nHKLs': n}
+        elif t == 'grains':
+            qa = n
+        else:
+            return ValueError('cannot understand quit option')
+
+    return qa
+
+class AttItem(object):
+    """Single attribute item"""
+    def __init__(self, name, convert):
+        """Name and conversion type (for strings)"""
+        self.name = name
+        self.convert = convert
+
+class AttList(object):
+    """Attribute list"""
+    def __init__(self, parser, sec, atts):
+        """Initialize data from config file parser
+
+        *parser* the config file parser
+"""
+        self.sec = sec
+        self.atts = atts
+        for a in atts:
+            vals = [a.convert(v) for v in parser.get(sec, a.name).split()]
+            setattr(self, a.name, vals)
+
+        self.names = [a.name for a in self.atts]
+        inputs = [getattr(self, a.name) for a in self.atts]
+        self.values = itertools.product(*inputs)
+
+        return
+
+    def __str__(self):
+        """Describe test values"""
+        s = 'section: %s\n' % self.sec
+        s += (len(s) - 1) * '-' + NL
+        for a in self.atts:
+            s += '%s: %s\n' % (a.name, str(getattr(self, a.name)))
+
+        return s
+
+    def set_atts(self, item, vals):
+        """Set attributes on item to the particular values"""
+        for i in range(len(self.atts)):
+            a = self.atts[i]
+            v = vals[i]
+            setattr(item, a.name, v)
+
+        return
+#
+# ================================================== Execute
+#
+# Sections to set up attributes for spots and for indexing.
+#
+def spot_atts():
+    """Return spot attributes and section name"""
+
+     # opts.nframes,
+     # opts.thresh,
+     # opts.minPix,
+     # discardAtBounds=opts.discardAtBounds,
+     # keepWithinBBox=opts.keepWithinBBox,
+     # overlapPixelDistance=opts.overlap,   [float or None]
+     # nframesLump=opts.nflump,             [int]
+     # padOmega=opts.padOmega,
+     # padSpot=opts.padSpot,
+
+    name = 'spots'
+    alist = [AttItem('thresh', int),
+             AttItem('minPix', int),
+             AttItem('discardAtBounds', bool_str),
+             AttItem('keepWithinBBox', bool_str),
+             AttItem('padOmega', bool_str),
+             AttItem('padSpot', bool_str),
+             ]
+    return (name, alist)
+
+def index_atts():
+    #
+    # From Experiment:
+    #
+    # self.fsHKLs=[]
+    # self.preserveClaims=False
+    # self.friedelOnly=False
+    # self.doRefinement=True
+    # self.doMultiProc=True
+    # self.etaTol=0.25
+    # self.omeTol=0.50
+    # self.minCompleteness=0.67
+    # self.minPctClaimed=0.70
+    # self.nsteps=360
+    #
+    # self.quitAfter=None
+    #
+    # THESE for later
+    #
+    # self.nCPUs=None
+    # self.dspTol=None
+    #
+    name = 'index'
+    alist = [AttItem('preserveClaims', bool_str),
+             AttItem('friedelOnly', bool_str),
+             AttItem('doRefinement', bool_str),
+             AttItem('doMultiProc', bool_str),
+             AttItem('etaTol', float),
+             AttItem('omeTol', float),
+             AttItem('minCompleteness', float),
+             AttItem('minPctClaimed', float),
+             AttItem('nsteps', int),
+             AttItem('quitAfter', quit_opts),
+             ]
+    return (name, alist)
+
+def compute_atts_spots(e, t):
+    """Spot postprocessing
+
+    *e* is Experiment, Exception or None
+    *t* is timings
+"""
+    ca_list = ['spots-ran', Timings.spots_raw, Timings.spots_ass,
+               'num-spots', 'num-assoc']
+
+    if e is None:
+        out = ca_list
+    elif isinstance(e, Exception):
+        traw = round(t[Timings.spots_raw], TIME_DIGITS)
+        tass = round(t[Timings.spots_ass], TIME_DIGITS)
+        out = [e.__class__, traw, tass, 0, 0]
+    else:
+        nfound = len(e.raw_spots)
+        nassoc = numpy.sum(e.spots_for_indexing.nTThAssoc == 0)
+        traw = round(t[Timings.spots_raw], TIME_DIGITS)
+        tass = round(t[Timings.spots_ass], TIME_DIGITS)
+        out = [RAN, traw, tass, nfound, nassoc]
+
+    return out
+
+def compute_atts_index(e, t):
+    """Indexing postprocessing
+    *e* is Experiment, Exception or None
+    *t* is timings
+"""
+    ca_list = ['index-ran', Timings.index_fib]
+
+    if e is None:
+        out = ca_list
+    elif isinstance(e, Exception):
+        tfib = round(t[Timings.index_fib], TIME_DIGITS)
+        out = [e.__class__, tfib]
+    else:
+        tfib = round(t[Timings.index_fib], TIME_DIGITS)
+        out = [RAN, tfib]
+
+    return out
+
+def execute(args):
+    """Main execution"""
+    #
+    # command line args first
+    #
+    p = set_options()
+    a = p.parse_args(args)
+    #
+    # parse config file
+    #
+    cfgparser = Parser()
+    cfgparser.optionxform = str # case sensitive
+    optfiles = '%s.cfg' % a.name
+    if a.defaults:
+        optfiles = [optfiles, '%s.cfg' % a.defaults]
+    cfgparser.read(optfiles)
+
+    sec, al = spot_atts()
+    spot_al = AttList(cfgparser, sec, al)
+    print spot_al
+
+    sec, al = index_atts()
+    index_al = AttList(cfgparser, sec, al)
+    print index_al
+    #
+    # Now run suite of cases
+    #
+    exp = loadExp(a.project)
+
+    csvfile = file('%s.csv' % a.name, 'w')
+    csvwriter = csv.writer(csvfile)
+
+    iteropts = []
+    all_atts = ['run-id']
+    if a.spots:
+        iteropts.append(spot_al.values)
+        all_atts += spot_al.names
+        all_atts += compute_atts_spots(None, None)
+    if a.index:
+        iteropts.append(index_al.values)
+        all_atts += index_al.names
+        all_atts += compute_atts_index(None, None)
+    opt_iterator = itertools.product(*iteropts)
+
+    csvwriter.writerow(all_atts)
+
+    tdict = dict()
+    runid = 0
+    for vlist in opt_iterator:
+        print 16*'=' + ' Run # ', runid
+        print 5*' ' + 'parameters: ', vlist
+        print
+
+        runok = True
+        ind = 0
+        csvlist = [runid]
+        if a.spots:
+            print 'calling spots'
+            v = vlist[ind]
+            ind += 1
+            spot_al.set_atts(exp.spotOpts, v)
+
+            try:
+                exp.clear_spots()
+                # Time spot finding
+                # . raw spots
+                # . spots for indexing
+                t0 = time.clock(); t1 = t0; t2 = t0
+                exp.find_raw_spots()
+                t1 = time.clock()
+                exp.get_spots_ind()
+                t2 = time.clock()
+                ecomp = exp
+            except Exception as e:
+                traceback.print_exc(limit=20, file=sys.stdout)
+                ecomp = e
+                runok = False
+
+            tdict[Timings.spots_raw] = t1 - t0
+            tdict[Timings.spots_ass] = t2 - t1
+
+            csvlist += list(v) + compute_atts_spots(ecomp, tdict)
+
+        if a.index and runok:
+            print 'calling indexer'
+            v = vlist[ind]
+            index_al.set_atts(exp.index_opts, v)
+            exp.index_opts.fsHKLs = [tuple(h) for h in
+                                     exp.activeMaterial.planeData.getHKLs()]
+            try:
+                t0 = time.clock(); t1 = t0
+                exp.run_indexer()
+                t1 = time.clock()
+                ecomp = exp
+            except Exception as e:
+                traceback.print_exc(limit=20, file=sys.stdout)
+                ecomp = e
+                runok = False
+
+            tdict[Timings.index_fib] = t1 - t0
+            csvlist += list(v) + compute_atts_index(ecomp, tdict)
+
+        csvwriter.writerow(csvlist)
+        runid += 1
+
+    csvfile.close()
+
+    return
+
+def set_options():
+    """Set options for command line
+
+    Probably want directory to run in as well.
+    """
+    DEFAULT_BN = 'exp-opts'
+
+    parser = argparse.ArgumentParser(description="exercise hexrd experiment options")
+
+    parser.add_argument("project", help="name of saved experiment file")
+    parser.add_argument("-d", "--defaults", help="basename of file (.cfg) with default options")
+    parser.add_argument("-n", "--name", help="basename of test (.cfg) and output files",
+                        default=DEFAULT_BN)
+    parser.add_argument("-s", "--spots", help="run spot finding",
+                        action="store_true")
+    parser.add_argument("-i", "--index", help="run indexing",
+                        action="store_true")
+
+    return parser
+
+
+if __name__ == '__main__':
+    execute(sys.argv[1:])
