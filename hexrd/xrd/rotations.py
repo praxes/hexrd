@@ -680,7 +680,8 @@ def discreteFiber(c, s, B=I3, ndiv=120, invert=False, csym=None, ssym=None):
         q0 = vstack( [ zeros(npts), ax ] )
 
         # find rotations
-        phi = arange(0, 2*pi, 2*pi/ndiv)
+        # note: the following line fixes bug with use of arange with float increments
+        phi = arange(0, ndiv) * (2*pi/float(ndiv))
         qh  = quatOfAngleAxis(phi, tile(c[:, i_c], (ndiv, 1)).T)
 
         # the fibers, arraged as (npts, 4, ndiv)
