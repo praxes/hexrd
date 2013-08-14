@@ -264,6 +264,7 @@ def execute(args):
         runok = True
         ind = 0
         csvlist = [runid]
+        runbase = "%s-run-%d" % (a.name, runid)
         if a.spots:
             print 'calling spots'
             v = vlist[ind]
@@ -309,6 +310,13 @@ def execute(args):
 
             tdict[Timings.index_fib] = t1 - t0
             csvlist += list(v) + compute_atts_index(ecomp, tdict)
+
+            # save grain list and log
+            exp.dump_grainList("%s.grainList" % runbase)
+            exp.export_grainList("%s.grainLog" % runbase,
+                                 dspTol=exp.index_opts.dspTol,
+                                 etaTol=exp.index_opts.etaTol,
+                                 omeTol=exp.index_opts.omeTol)
 
         csvwriter.writerow(csvlist)
         runid += 1
