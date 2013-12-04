@@ -26,7 +26,11 @@
 # ============================================================
 from distutils.core import setup, Extension
 import os
+import numpy
 
+np_include_dir = os.path.join(numpy.get_include(), 'numpy')
+
+# for SgLite
 srclist = ['sgglobal.c','sgcb.c','sgcharmx.c','sgfile.c',
            'sggen.c','sghall.c','sghkl.c','sgltr.c','sgmath.c','sgmetric.c',
            'sgnorm.c','sgprop.c','sgss.c','sgstr.c','sgsymbols.c',
@@ -34,9 +38,17 @@ srclist = ['sgglobal.c','sgcb.c','sgcharmx.c','sgfile.c',
 srclist = [os.path.join('hexrd/sglite', f) for f in srclist]
 
 sglite_mod = Extension('hexrd.xrd.sglite', sources=srclist,
-                   define_macros = [('PythonTypes', 1)])
+                   define_macros=[('PythonTypes', 1)])
 
-ext_modules = [sglite_mod]
+# for transforms
+srclist = ['transforms_CAPI.c', 'transforms_CFUNC.c']
+srclist = [os.path.join('hexrd/transforms', f) for f in srclist]
+
+transforms_mod = Extension('hexrd.xrd._transforms_CAPI', sources=srclist,
+                           include_dirs=[np_include_dir])
+
+# all modules
+ext_modules = [sglite_mod, transforms_mod]
 
 packages = []
 for dirpath, dirnames, filenames in os.walk('hexrd'):
