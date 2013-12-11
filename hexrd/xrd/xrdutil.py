@@ -36,6 +36,7 @@ import numpy as num
 from scipy import sparse
 from scipy.linalg import svd
 from scipy import ndimage
+import scipy.optimize as opt
 
 import matplotlib
 from matplotlib.widgets import Slider, Button, RadioButtons
@@ -2825,3 +2826,50 @@ def validateQVecAngles(angList, angMin, angMax):
         #
         reflInRange = reflInRange | ( abs(dp - wedgeAngle) <= num.sqrt(rot.tinyRotAng) )
     return reflInRange
+
+def tVec_d_from_old_parfile(old_par, detOrigin):
+    beamXYD = ge[:3, 0]
+    rMat_d  = xf.makeDetectorRotMat(old_par[3:6, 0])
+    bVec_ref = num.c_[0., 0., -1.].T
+    args=(rMat_d, beamXYD, detOrigin, bVec_ref)
+    tvd_xy = opt.leastsq(objFun_tVec_d, -beamXYD[:2], args=args)[0]
+    return num.hstack([tvd_xy, -beamXYD[2]]).reshape(3, 1)
+
+def objFun_tVec_d(tvd_xy, rMat_d, beamXYD, detOrigin, bHat_l):
+    """
+    """
+    xformed_xy = beamXYD[:2] - detOrigin
+    tVec_d = num.hstack([tvd_xy, -beamXYD[2]]).T
+    n_d    = rMat_d[:, 2]
+    
+    bVec_l = (num.dot(n_d, tVec_d) / num.dot(n_d, bHat_l)) * bHat_l
+    bVec_d = num.hstack([xformed_xy, 0.]).T 
+
+    return num.dot(rMat_d, bVec_d).flatten() + tVec_d.flatten() - bVec_l.flatten()
+
+def beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, detOrigin):
+    # calculate beam position
+    Zd_l = num.dot(rMat_d, num.c_[0, 0, 1].T)
+    bScl = num.dot(Zd_l.T, tVec_d) / num.dot(Zd_l.T, bVec_ref)
+    beamPos_l = bScl*bVec_ref 
+    return num.dot(rMat_d.T, beamPos_l - tVec_d_ref) + num.hstack([detOrigin, -tVec_d[2]]).reshape(3, 1)
+
+def write_old_parfile(filename, results):
+    if isinstance(filename, file):
+        fid = filename
+    elif isinstance(filename, str) or isinstance(filename, unicode):
+        fid = open(filename, 'w')
+        pass
+    rMat_d = xf.makeDetectorRotMat(results['tiltAngles'])
+    tVec_d = results['tVec_d'] - results['tVec_s']
+    beamXYD = beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, detOrigin)
+    det_plist = num.zeros(12)
+    det_plist[:3]  = beamXYD.flatten()
+    det_plist[3:6] = results['tiltAngles']
+    det_plist[6:]  = results['dParams']
+    print >> fid, "# DETECTOR PARAMETERS (from new geometry model fit)"
+    print >> fid, "# \n# <class 'hexrd.xrd.detector.DetectorGeomGE'>\n#"
+    for i in range(len(det_plist)):
+        print >> fid, "%1.8e\t%d" % (det_plist[i], 0)
+    fid.close()
+    return

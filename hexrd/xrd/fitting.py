@@ -1,8 +1,11 @@
 import numpy as np
 from scipy import optimize as opt
 
-from hexrd.xrd import transforms as xf
-from hexrd.xrd import distortion as dFuncs
+from hexrd     import matrixutil as mutil
+
+from hexrd.xrd import transforms      as xf
+from hexrd.xrd import transforms_CAPI as xfcapi
+from hexrd.xrd import distortion      as dFuncs
 
 import pdb
 
@@ -29,16 +32,18 @@ pScl_ref    = np.array([1, 1, 1,
                         1, 1, 1])
 bVec_ref    = xf.bVec_ref
 eta_ref     = xf.eta_ref
-
+vVec_ref    = np.r_[1., 1., 1., 0., 0., 0.]
 # ######################################################################
 # Funtions
 
 def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength, 
                             tiltAngles, chi, expMap_c,
                             tVec_d, tVec_s, tVec_c, 
+                            vMat=vVec_ref,
                             beamVec=bVec_ref, etaVec=eta_ref, 
                             distortion=(dFunc_ref, dParams_ref, dFlag_ref, dScl_ref), 
-                            pFlag=pFlag_ref, pScl=pScl_ref):
+                            pFlag=pFlag_ref, pScl=pScl_ref,
+                            factor=10, xtol=1e-8, ftol=1e-8):
     """
     """
     dFunc   = distortion[0]
@@ -74,9 +79,9 @@ def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
     refineFlag = np.hstack([pFlag, dFlag])
     scl        = np.hstack([pScl, dScl])
     pFit       = pFull[refineFlag] 
-    fitArgs    = (pFull, pFlag, dFunc, dFlag, xyo_det, hkls_idx, bMat, wavelength, beamVec, etaVec)
+    fitArgs    = (pFull, pFlag, dFunc, dFlag, xyo_det, hkls_idx, bMat, vMat, wavelength, beamVec, etaVec)
     
-    results = opt.leastsq(objFuncSX, pFit, args=fitArgs, diag=scl[refineFlag].flatten(), factor=1, ftol=1e-10)
+    results = opt.leastsq(objFuncSX, pFit, args=fitArgs, diag=scl[refineFlag].flatten(), factor=factor, xtol=xtol, ftol=ftol)
     
     pFit_opt = results[0]
 
@@ -84,10 +89,106 @@ def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
     retval[refineFlag] = pFit_opt
     return retval
 
-# pdb.set_trace()
+def matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength, 
+                vMat=vVec_ref, 
+                beamVec=bVec_ref, etaVec=eta_ref):
+    """
+    """
+    # get omegas for rMat_s calculation
+    meas_omes  = xyo_det[:, 2] 
+    
+    oangs0, oangs1 = xf.oscillAnglesOfHKLs(hkls_idx, chi, rMat_c, bMat, wavelength, 
+                                           vMat=vMat, 
+                                           beamVec=beamVec, 
+                                           etaVec=etaVec)
+
+    calc_omes  = np.vstack( [xf.mapAngle(oangs0[2, :]), 
+                             xf.mapAngle(oangs1[2, :]) ] )
+    match_omes = np.argsort(abs(np.tile(meas_omes, (2, 1)) - calc_omes), axis=0) == 0
+    calc_omes  = calc_omes.T.flatten()[match_omes.T.flatten()]
+
+    return match_omes, calc_omes
+
+def objFuncFitGrain(gFit, gFull, gFlag, 
+                    detectorParams, 
+                    xyo_det, hkls_idx, bMat, wavelength, 
+                    bVec, eVec, 
+                    dFunc, dParams,
+                    simOnly=False):
+    """
+    gFull[0]  = expMap_c[0]
+    gFull[1]  = expMap_c[1]
+    gFull[2]  = expMap_c[2]
+    gFull[3]  = tVec_c[0]
+    gFull[4]  = tVec_c[1]
+    gFull[5]  = tVec_c[2]
+    gFull[6]  = vMat_MV[0]
+    gFull[7]  = vMat_MV[1]
+    gFull[8]  = vMat_MV[2]
+    gFull[9]  = vMat_MV[3]
+    gFull[10] = vMat_MV[4]
+    gFull[11] = vMat_MV[5]
+    
+    detectorParams[0]  = tiltAngles[0]
+    detectorParams[1]  = tiltAngles[1]
+    detectorParams[2]  = tiltAngles[2]
+    detectorParams[3]  = tVec_d[0]
+    detectorParams[4]  = tVec_d[1]
+    detectorParams[5]  = tVec_d[2]
+    detectorParams[6]  = chi
+    detectorParams[7]  = tVec_s[0]
+    detectorParams[8]  = tVec_s[1]
+    detectorParams[9]  = tVec_s[2]
+    """
+    npts   = len(xyo_det)
+
+    gFull[gFlag] = gFit
+    
+    xy_unwarped = dFunc(xyo_det[:, :2], dParams)
+    
+    rMat_d = xfcapi.makeDetectorRotMat(detectorParams[:3])
+    tVec_d = detectorParams[3:6].reshape(3, 1)
+    chi    = detectorParams[6]
+    tVec_s = detectorParams[7:10].reshape(3, 1)
+    
+    rMat_c = xfcapi.makeRotMatOfExpMap(gFull[:3])
+    tVec_c = gFull[3:6].reshape(3, 1)
+    vVec_s = gFull[6:]
+    vMat_s = mutil.vecMVToSymm(vVec_s)
+
+    gVec_c = np.dot(bMat, hkls_idx)                 # gVecs with magnitudes in CRYSTAL frame
+    gVec_s = np.dot(vMat_s, np.dot(rMat_c, gVec_c)) # stretched gVecs in SAMPLE frame
+    gHat_c = mutil.unitVector(
+        np.dot(rMat_c.T, gVec_s)) # unit reciprocal lattice vectors in CRYSTAL frame
+    
+    match_omes, calc_omes = matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength, 
+                                        vMat=vVec_s, beamVec=bVec, etaVec=eVec)
+    
+    xy_det = np.zeros((npts, 2))
+    for i in range(npts):
+        rMat_s = xfcapi.makeOscillRotMat(np.r_[chi, calc_omes[i]])
+        xy_det[i, :] = xf.gvecToDetectorXY(gHat_c[:, i].reshape(3, 1), 
+                                           rMat_d, rMat_s, rMat_c, 
+                                           tVec_d, tVec_s, tVec_c, 
+                                           beamVec=bVec).flatten()
+        pass
+    if np.any(np.isnan(xy_det)):
+        print "infeasible pFull"
+    
+    # return values
+    # retval = np.sum((xy_det - xy_unwarped[:, :2])**2)
+    if simOnly:
+        retval = np.hstack([xy_det, calc_omes.reshape(npts, 1)])
+    else:
+        # retval = np.sum( (xy_det - xy_unwarped[:, :2])**2, axis=1)
+        retval = np.sum( (np.hstack([xy_det, calc_omes.reshape(npts, 1)])
+                          - np.hstack([xy_unwarped[:, :2], xyo_det[:, 2].reshape(npts, 1)])
+                          )**2, axis=1)
+    return retval
+
 def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag, 
-              xyo_det, hkls_idx, bMat, wavelength, 
-              bVec, eVec):
+              xyo_det, hkls_idx, bMat, vMat, wavelength, 
+              bVec, eVec, simOnly=False):
 
     npts   = len(xyo_det)
     
@@ -99,31 +200,25 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
     dParams = pFull[-len(dFlag):]
     xy_unwarped = dFunc(xyo_det[:, :2], dParams)
     
+    # detector quantities
     rMat_d = xf.makeDetectorRotMat(pFull[:3])
     tVec_d = pFull[3:6].reshape(3, 1)
-
-    chi = pFull[6]
-
+    
+    # sample quantities
+    chi    = pFull[6]
     tVec_s = pFull[7:10].reshape(3, 1)
     
+    # crystal quantities
     gVec_c = np.dot(bMat, hkls_idx)
     rMat_c = xf.makeRotMatOfExpMap(pFull[10:13])
     tVec_c = pFull[13:16].reshape(3, 1)
     
-    # get omegas for rMat_s calculation
-    meas_omes  = xyo_det[:, 2] 
-    
-    oangs0, oangs1 = xf.oscillAnglesOfHKLs(hkls_idx, chi, rMat_c, bMat, wavelength, 
-                                           beamVec=bVec, etaVec=eVec)
-
-    calc_omes  = np.vstack( [xf.mapAngle(oangs0[2, :]), 
-                             xf.mapAngle(oangs1[2, :]) ] )
-    match_omes = np.argsort(abs(np.tile(meas_omes, (2, 1)) - calc_omes), axis=0) == 0
-    calc_omes  = calc_omes.T.flatten()[match_omes.T.flatten()]
-    
+    match_omes, calc_omes = matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength, 
+                                        vMat=vMat, beamVec=bVec, etaVec=eVec)    
     xy_det = np.zeros((npts, 2))
     for i in range(npts):
         rMat_s = xf.makeOscillRotMat([chi, calc_omes[i]])
+        # rMat_s = xf.makeOscillRotMat([chi, meas_omes[i]])
         xy_det[i, :] = xf.gvecToDetectorXY(gVec_c[:, i].reshape(3, 1), 
                                            rMat_d, rMat_s, rMat_c, 
                                            tVec_d, tVec_s, tVec_c, 
@@ -134,7 +229,13 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
     
     # return values
     # retval = np.sum((xy_det - xy_unwarped[:, :2])**2)
-    retval = np.sum( (xy_det - xy_unwarped[:, :2])**2, axis=1)
+    if simOnly:
+        retval = np.hstack([xy_det, calc_omes.reshape(npts, 1)])
+    else:
+        # retval = np.sum( (xy_det - xy_unwarped[:, :2])**2, axis=1)
+        retval = np.sum( (np.hstack([xy_det, calc_omes.reshape(npts, 1)])
+                          - np.hstack([xy_unwarped[:, :2], xyo_det[:, 2].reshape(npts, 1)])
+                          )**2, axis=1)
     return retval
 
 def geomParamsToInput(tiltAngles, chi, expMap_c,
@@ -177,4 +278,3 @@ def inputToGeomParams(p):
     retval['dParams']    = p[16:]
               
     return retval
-

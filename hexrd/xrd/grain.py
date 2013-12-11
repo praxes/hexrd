@@ -874,16 +874,16 @@ class Grain(object):
                     measAnglesString = '%f       \t%f       \t%f       \t' % tuple(r2d*reflInfo['measAngles'][i])
                     measXYOString    = '%f       \t%f       \t%f' % tuple(reflInfo['measXYO'][i]*convMeasXYO)
                 else:
-                    measAnglesString = '%1.4e\t%1.4e\t%1.4e\t' % tuple(r2d*reflInfo['measAngles'][i])
-                    measXYOString    = '%1.4e\t%1.4e\t%1.4e' % tuple(reflInfo['measXYO'][i]*convMeasXYO)
+                    measAnglesString = '%1.12e\t%1.12e\t%1.12e\t' % tuple(r2d*reflInfo['measAngles'][i])
+                    measXYOString    = '%1.12e\t%1.12e\t%1.12e' % tuple(reflInfo['measXYO'][i]*convMeasXYO)
 
                 print >> fid, '\t%d\t' % (reflInfo['iRefl'][i]) + \
                               '%d\t' % (reflInfo['iHKL'][i]) + \
                               '%d\t%d\t%d\t' % tuple(reflInfo['hkl'][i]) + \
-                              '%1.4e\t%1.4e\t%1.4e\t' % tuple(r2d*reflInfo['predAngles'][i]) + \
+                              '%1.12e\t%1.12e\t%1.12e\t' % tuple(r2d*reflInfo['predAngles'][i]) + \
                               measAnglesString + \
-                              '%1.4e\t%1.4e\t%1.4e\t' % tuple(r2d*reflInfo['diffAngles'][i]) + \
-                              '%1.4e\t%1.4e\t%1.4e\t' % tuple(reflInfo['predQvec'][i]) + \
+                              '%1.12e\t%1.12e\t%1.12e\t' % tuple(r2d*reflInfo['diffAngles'][i]) + \
+                              '%1.12e\t%1.12e\t%1.12e\t' % tuple(reflInfo['predQvec'][i]) + \
                               measXYOString
 
         return reflInfo, fPairs, completeness #, (nMeasRefl, nPredRefl)
@@ -1309,7 +1309,7 @@ class Grain(object):
             lp = num.array(self.latticeParameters)
             print >> fout, 'final objective function value: %1.3e\n' % (sum(infodict['fvec']**2))
             print >> fout, 'refined orientation: \n' + \
-                  '[%1.4e, %1.4e, %1.4e, %1.4e]\n' % (q1[0], q1[1], q1[2], q1[3])
+                  '[%1.12e, %1.12e, %1.12e, %1.12e]\n' % (q1[0], q1[1], q1[2], q1[3])
             print >> fout, 'refined biot strain matrix: \n' + \
                   '%1.3e, %1.3e, %1.3e\n' % (E1[0, 0], E1[0, 1], E1[0, 2]) + \
                   '%1.3e, %1.3e, %1.3e\n' % (E1[1, 0], E1[1, 1], E1[1, 2]) + \

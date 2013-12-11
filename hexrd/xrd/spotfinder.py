@@ -151,7 +151,7 @@ def getSpot(inpt, labels, objs, index, keepWithinBBox, padSpot, darkframe=None):
 
     spot = {}
 
-    iSpot = index - 1
+    iSpot = int(index) - 1
     obj = objs[iSpot]
     objDilated = dilateObj(obj, labels.shape)
 
@@ -189,7 +189,7 @@ def getSpot(inpt, labels, objs, index, keepWithinBBox, padSpot, darkframe=None):
     x = xl + useObj[0].start
     y = yl + useObj[1].start
 
-    iSpot = index - 1
+    iSpot = int(index) - 1
     obj = objs[iSpot]
     spot['index'] = index
     spot['obj']   = useObj
@@ -231,7 +231,7 @@ def getValuesOnly(inpt, labels, objs, index):
     labels is from ndimage.label;
     objs is from ndimage.find_objects
     """
-    iSpot = index - 1
+    iSpot = int(index) - 1
     obj = objs[iSpot]
 
     xl, yl = num.where(labels[obj] == index)
@@ -279,7 +279,7 @@ def getImCOM(inpt, labels, objs, index, floor=None, getVSum=False):
     return sum of intensity as well if getVSum is True
     """
 
-    iSpot = index - 1
+    iSpot = int(index) - 1
     obj = objs[iSpot]
 
     indices = getIndices(inpt, labels, objs[index-1], index)
@@ -315,11 +315,13 @@ def getObjSize(labels, objs, index):
     labels is from ndimage.label;
     objs is from ndimage.find_objects
     """
-    iSpot = index - 1
-    obj = objs[iSpot]
-
-    objSize = num.sum(labels[obj] == index)
-
+    if len(objs) == 0:
+        objSize = 0
+    else:
+        iSpot = int(index) - 1
+        obj = objs[iSpot]
+        
+        objSize = num.sum(labels[obj] == index)
     return objSize
 
 def spotFinderSingle(
@@ -349,7 +351,7 @@ def spotFinderSingle(
         com = num.empty([numSpots,2])
     nPx = num.empty([numSpots],dtype=int)
     for iSpot in range(numSpots):
-        index = iSpot+1
+        index = int(iSpot) + 1
         if debug:
             print 'ojbect %d : %s' % (iSpot, str(thisframe[objs[iSpot]]))
 
@@ -384,7 +386,7 @@ def spotFinderSingle(
     spotDataList = []
     for iSpot in range(numSpots):
         if not keepers[iSpot]: continue
-        index = iSpot+1
+        index = int(iSpot) + 1
         spot = getSpot(thisframe, labels, objs, index, keepWithinBBox, False, darkframe=darkframe) # padSpot
         spotDataList.append(spot)
     return labels, objs, spotDataList, bin
@@ -4517,7 +4519,7 @@ class Spots(object):
                                 spotIndexsUnique = spotIndexsUnique[1:]
                             for index in spotIndexsUnique:
 
-                                iSpot = index-1
+                                iSpot = int(index) - 1
                                 spotData = spotDataList[iSpot]
                                 assert spotData['index'] == index, 'index mismatch'
                                 activeSpot.append(spotData, omega, iFrame)

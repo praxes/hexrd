@@ -2,8 +2,12 @@ import os, sys
 import numpy as np
 import scipy.sparse as sparse
 
+from hexrd import matrixutil as mutil
+
 from numpy import float_ as nFloat
 from numpy import int_ as nInt
+
+from hexrd.xrd import distortion as dFuncs
 
 # ######################################################################
 # Module Data
@@ -25,6 +29,10 @@ zeroVec = np.array([0.0,0.0,0.0])
 # reference beam direction and eta=0 ref in LAB FRAME for standard geometry
 bVec_ref = -Zl
 eta_ref  =  Xl
+
+# distortion for warping detector coords
+dFunc_ref   = dFuncs.GE_41RT
+dParams_ref = [0., 0., 0., 2., 2., 2]
 
 # ######################################################################
 # Funtions
@@ -129,6 +137,7 @@ def gvecToDetectorXY(gVec_c,
 def detectorXYToGvec(xy_det,
                      rMat_d, rMat_s,
                      tVec_d, tVec_s, tVec_c,
+                     distortion=(dFunc_ref, dParams_ref), 
                      beamVec=bVec_ref, etaVec=eta_ref):
     """
     Takes a list cartesian (x, y) pairs in the detector coordinates and calculates
@@ -156,6 +165,8 @@ def detectorXYToGvec(xy_det,
     bHat_l = unitVector(beamVec.reshape(3, 1)) # make sure beam direction is a unit vector
     eHat_l = unitVector(etaVec.reshape(3, 1))  # make sure eta=0 direction is a unit vector
 
+    xy_det = distortion[0](xy_det, distortion[1])
+    
     # form in-plane vectors for detector points list in DETECTOR FRAME
     P2_d = np.hstack([np.atleast_2d(xy_det), np.zeros((npts, 1))]).T
 
@@ -186,7 +197,7 @@ def detectorXYToGvec(xy_det,
     return (tTh, eta), gVec_l
 
 def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
-                       beamVec=bVec_ref, etaVec=eta_ref):
+                       vMat=None, beamVec=bVec_ref, etaVec=eta_ref):
     """
     Takes a list of unit reciprocal lattice vectors in crystal frame to the
     specified detector-relative frame, subject to the conditions:
@@ -250,13 +261,19 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     Laue condition cannot be satisfied (filled with NaNs in the results
     array here)
     """
-    gVec_c = np.dot(bMat, hkls)                    # reciprocal lattice vectors in CRYSTAL frame
-    gHat_c = unitVector(gVec_c)                    # unit reciprocal lattice vectors in CRYSTAL frame
-    gHat_s = unitVector(np.dot(rMat_c, gVec_c))    # unit reciprocal lattice vectors in SAMPLE frame
-    bHat_l = unitVector(beamVec.reshape(3, 1))     # make sure beam direction is a unit vector
-    eHat_l = unitVector(etaVec.reshape(3, 1))      # make sure eta=0 direction is a unit vector
-    sintht = 0.5 * wavelength * columnNorm(gVec_c) # sin of the Bragg angle assoc. with wavelength
-    cchi = np.cos(chi); schi = np.sin(chi)         # sin and cos of the oscillation axis tilt
+    if vMat is None:
+        vVec_s = np.c_[1., 1., 1., 0., 0., 0.].T
+    else:
+        vVec_s = vMat
+    gVec_c = np.dot(bMat, hkls)                     # reciprocal lattice vectors in CRYSTAL frame
+    vMat_s = mutil.vecMVToSymm(vVec_s)              # stretch tensor in SAMPLE frame
+    gVec_s = np.dot(vMat_s, np.dot(rMat_c, gVec_c)) # reciprocal lattice vectors in SAMPLE frame
+    gHat_s = unitVector(gVec_s)                     # unit reciprocal lattice vectors in SAMPLE frame
+    gHat_c = np.dot(rMat_c.T, gHat_s)               # unit reciprocal lattice vectors in CRYSTAL frame
+    bHat_l = unitVector(beamVec.reshape(3, 1))      # make sure beam direction is a unit vector
+    eHat_l = unitVector(etaVec.reshape(3, 1))       # make sure eta=0 direction is a unit vector
+    sintht = 0.5 * wavelength * columnNorm(gVec_s)  # sin of the Bragg angle assoc. with wavelength
+    cchi = np.cos(chi); schi = np.sin(chi)          # sin and cos of the oscillation axis tilt
 
     # coefficients for harmonic equation
     a = gHat_s[2, :]*bHat_l[0] + schi*gHat_s[0, :]*bHat_l[1] - cchi*gHat_s[0, :]*bHat_l[2]
