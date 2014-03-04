@@ -39,11 +39,11 @@ vVec_ref    = np.r_[1., 1., 1., 0., 0., 0.]
 def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength, 
                             tiltAngles, chi, expMap_c,
                             tVec_d, tVec_s, tVec_c, 
-                            vMat=vVec_ref,
+                            vInv=vVec_ref,
                             beamVec=bVec_ref, etaVec=eta_ref, 
                             distortion=(dFunc_ref, dParams_ref, dFlag_ref, dScl_ref), 
                             pFlag=pFlag_ref, pScl=pScl_ref,
-                            factor=10, xtol=1e-8, ftol=1e-8):
+                            factor=0.1, xtol=1e-8, ftol=1e-8):
     """
     """
     dFunc   = distortion[0]
@@ -79,9 +79,11 @@ def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
     refineFlag = np.hstack([pFlag, dFlag])
     scl        = np.hstack([pScl, dScl])
     pFit       = pFull[refineFlag] 
-    fitArgs    = (pFull, pFlag, dFunc, dFlag, xyo_det, hkls_idx, bMat, vMat, wavelength, beamVec, etaVec)
+    fitArgs    = (pFull, pFlag, dFunc, dFlag, xyo_det, hkls_idx,
+                  bMat, vInv, wavelength, beamVec, etaVec)
     
-    results = opt.leastsq(objFuncSX, pFit, args=fitArgs, diag=scl[refineFlag].flatten(), factor=factor, xtol=xtol, ftol=ftol)
+    results = opt.leastsq(objFuncSX, pFit, args=fitArgs, diag=scl[refineFlag].flatten(),
+                          factor=factor, xtol=xtol, ftol=ftol)
     
     pFit_opt = results[0]
 
@@ -90,15 +92,17 @@ def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
     return retval
 
 def matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength, 
-                vMat=vVec_ref, 
+                vInv=vVec_ref, 
                 beamVec=bVec_ref, etaVec=eta_ref):
     """
+    For a given list of (x, y, ome) points, outputs the index into the results from
+    oscillAnglesOfHKLs, including the calculated omega values.
     """
     # get omegas for rMat_s calculation
     meas_omes  = xyo_det[:, 2] 
     
     oangs0, oangs1 = xf.oscillAnglesOfHKLs(hkls_idx, chi, rMat_c, bMat, wavelength, 
-                                           vMat=vMat, 
+                                           vInv=vInv, 
                                            beamVec=beamVec, 
                                            etaVec=etaVec)
 
@@ -122,12 +126,12 @@ def objFuncFitGrain(gFit, gFull, gFlag,
     gFull[3]  = tVec_c[0]
     gFull[4]  = tVec_c[1]
     gFull[5]  = tVec_c[2]
-    gFull[6]  = vMat_MV[0]
-    gFull[7]  = vMat_MV[1]
-    gFull[8]  = vMat_MV[2]
-    gFull[9]  = vMat_MV[3]
-    gFull[10] = vMat_MV[4]
-    gFull[11] = vMat_MV[5]
+    gFull[6]  = vInv_MV[0]
+    gFull[7]  = vInv_MV[1]
+    gFull[8]  = vInv_MV[2]
+    gFull[9]  = vInv_MV[3]
+    gFull[10] = vInv_MV[4]
+    gFull[11] = vInv_MV[5]
     
     detectorParams[0]  = tiltAngles[0]
     detectorParams[1]  = tiltAngles[1]
@@ -154,7 +158,7 @@ def objFuncFitGrain(gFit, gFull, gFlag,
     rMat_c = xfcapi.makeRotMatOfExpMap(gFull[:3])
     tVec_c = gFull[3:6].reshape(3, 1)
     vVec_s = gFull[6:]
-    vMat_s = mutil.vecMVToSymm(vVec_s)
+    vMat_s = mutil.vecMVToSymm(vVec_s)              # NOTE: Inverse of V from F = V * R
 
     gVec_c = np.dot(bMat, hkls_idx)                 # gVecs with magnitudes in CRYSTAL frame
     gVec_s = np.dot(vMat_s, np.dot(rMat_c, gVec_c)) # stretched gVecs in SAMPLE frame
@@ -162,7 +166,7 @@ def objFuncFitGrain(gFit, gFull, gFlag,
         np.dot(rMat_c.T, gVec_s)) # unit reciprocal lattice vectors in CRYSTAL frame
     
     match_omes, calc_omes = matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength, 
-                                        vMat=vVec_s, beamVec=bVec, etaVec=eVec)
+                                        vInv=vVec_s, beamVec=bVec, etaVec=eVec)
     
     xy_det = np.zeros((npts, 2))
     for i in range(npts):
@@ -187,7 +191,7 @@ def objFuncFitGrain(gFit, gFull, gFlag,
     return retval
 
 def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag, 
-              xyo_det, hkls_idx, bMat, vMat, wavelength, 
+              xyo_det, hkls_idx, bMat, vInv, wavelength, 
               bVec, eVec, simOnly=False):
 
     npts   = len(xyo_det)
@@ -214,7 +218,7 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
     tVec_c = pFull[13:16].reshape(3, 1)
     
     match_omes, calc_omes = matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength, 
-                                        vMat=vMat, beamVec=bVec, etaVec=eVec)    
+                                        vInv=vInv, beamVec=bVec, etaVec=eVec)    
     xy_det = np.zeros((npts, 2))
     for i in range(npts):
         rMat_s = xf.makeOscillRotMat([chi, calc_omes[i]])
@@ -225,7 +229,7 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
                                            beamVec=bVec).flatten()
         pass
     if np.any(np.isnan(xy_det)):
-        print "infeasible pFull"
+        print "infeasible pFull: may want to scale back finite difference step size"
     
     # return values
     # retval = np.sum((xy_det - xy_unwarped[:, :2])**2)

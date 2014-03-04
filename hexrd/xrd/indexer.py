@@ -45,6 +45,9 @@ from hexrd.xrd.rotations import \
 from hexrd.xrd.symmetry  import toFundamentalRegion
 from hexrd.xrd           import xrdbase
 
+from hexrd.xrd import transforms      as xf
+from hexrd.xrd import transforms_CAPI as xfcapi
+
 if xrdbase.haveMultiProc:
     multiprocessing = xrdbase.multiprocessing # formerly import
 
@@ -631,6 +634,7 @@ def pgRefine(x, etaOmeMaps, omegaRange, threshold):
 def paintGrid(quats, etaOmeMaps,
               threshold=None, bMat=None,
               omegaRange=None, etaRange=None,
+              omeTol=d2r, etaTol=d2r, 
               progressBar=False, doMultiProc=False,
               nCPUs=None, debug=False):
     """
@@ -717,8 +721,8 @@ def paintGrid(quats, etaOmeMaps,
 
     # assign the globals for paintGridThis
     global planeData_MP
-    global omeMin_MP, omeMax_MP
-    global etaMin_MP, etaMax_MP
+    global omeMin_MP, omeMax_MP, omeTol_MP
+    global etaMin_MP, etaMax_MP, etaTol_MP
     global omeIndices_MP, etaIndices_MP
     global hklList_MP, hklIDs_MP
     global etaOmeMaps_MP
@@ -729,9 +733,11 @@ def paintGrid(quats, etaOmeMaps,
     hklList_MP    = hklList
     omeMin_MP     = omeMin
     omeMax_MP     = omeMax
+    omeTol_MP     = omeTol
     omeIndices_MP = omeIndices
     etaMin_MP     = etaMin
     etaMax_MP     = etaMax
+    etaTol_MP     = etaTol
     etaIndices_MP = etaIndices
     etaOmeMaps_MP = etaOmeMaps
     bMat_MP       = bMat
@@ -768,8 +774,8 @@ def paintGridThis(quat):
     """
     # pull local vars from globals set in paintGrid
     global planeData_MP
-    global omeMin_MP, omeMax_MP
-    global etaMin_MP, etaMax_MP
+    global omeMin_MP, omeMax_MP, omeTol_MP
+    global etaMin_MP, etaMax_MP, etaTol_MP
     global omeIndices_MP, etaIndices_MP
     global hklList_MP, hklIDs_MP
     global etaOmeMaps_MP
@@ -780,9 +786,11 @@ def paintGridThis(quat):
     hklList    = hklList_MP
     omeMin     = omeMin_MP
     omeMax     = omeMax_MP
+    omeTol     = omeTol_MP
     omeIndices = omeIndices_MP
     etaMin     = etaMin_MP
     etaMax     = etaMax_MP
+    etaTol     = etaTol_MP
     etaIndices = etaIndices_MP
     etaOmeMaps = etaOmeMaps_MP
     bMat       = bMat_MP
@@ -790,10 +798,16 @@ def paintGridThis(quat):
 
     # need this for proper index generation
     delOmeSign = num.sign(etaOmeMaps.omegas[1] - etaOmeMaps.omegas[0])
-
+    
+    del_ome = abs(etaOmeMaps.omegas[1] - etaOmeMaps.omegas[0])
+    del_eta = abs(etaOmeMaps.etas[1] - etaOmeMaps.etas[0])
+    
+    dpix_ome = round(omeTol / del_ome)
+    dpix_eta = round(etaTol / del_eta)
+    
     debug = False
 
-    nHKLS     = len(hklIDs)
+    nHKLs = len(hklIDs)
 
     rMat = rotMatOfQuat(quat.reshape(4, 1))
 
@@ -804,66 +818,42 @@ def paintGridThis(quat):
 
     hklCounterP = 0                 # running count of excpected (predicted) HKLs
     hklCounterM = 0                 # running count of "hit" HKLs
-    for iHKL in range(nHKLS):
+    for iHKL in range(nHKLs):
         # for control of tolerancing
-        symHKLs   = planeData.getSymHKLs()[hklIDs[iHKL]]
+        symHKLs   = num.array(planeData.getSymHKLs()[hklIDs[iHKL]], dtype=float).T
         tThRanges = planeData.getTThRanges()[hklIDs[iHKL]]
 
-        # make all theoretical scattering vectors
-        predQvec, predQAng0, predQAng1 = \
-                  planeData.makeTheseScatteringVectors([hklList[iHKL]], rMat, bMat=bMat)
+        # oscillation angle arrays
+        oangs0, oangs1 = xfcapi.oscillAnglesOfHKLs(symHKLs, 0., rMat, bMat,
+                                                   planeData.wavelength, 
+                                                   beamVec=num.r_[ 0.,  0., -1.].T,
+                                                   etaVec=num.r_[ 1.,  0.,  0.].T)
+        
+        angList       = num.vstack([oangs0, oangs1])
+        angList[:, 1] = xf.mapAngle(angList[:, 1])
+        angList[:, 2] = xf.mapAngle(angList[:, 2])
+        
+        if omeMin is None:
+            omeMin = [-num.pi, ]
+            omeMax = [ num.pi, ]
+        if etaMin is None:
+            etaMin = [-num.pi, ]
+            etaMax = [ num.pi, ]
+            
+        angMask = num.logical_and(
+            xf.validateAngleRanges(angList[:, 2], omeMin, omeMax),
+            xf.validateAngleRanges(angList[:, 2], etaMin, etaMax))
+        
+        allAngs_m = angList[angMask, :]
+        
+        # duplicate HKLs
+        allHKLs_m = num.vstack([symHKLs, symHKLs])[angMask, :]
 
-        # work with generated spots for iHKL
-        # allPredAng = zip(predQAng0[iHKL], predQAng1[iHKL])
-        allPredAng = zip(predQAng0, predQAng1)
-
-        # filter using omega range
-        if omeMin is not None:
-            reflInRangeOme0 = num.zeros(allPredAng[2][0].shape, dtype=bool)
-            reflInRangeOme1 = num.zeros(allPredAng[2][1].shape, dtype=bool)
-            for iOme in range(len(omeMin)):
-                reflInRangeOme0 = reflInRangeOme0 | (
-                    (allPredAng[2][0] >= omeMin[iOme]) &
-                    (allPredAng[2][0] <= omeMax[iOme]) )
-                reflInRangeOme1 = reflInRangeOme1 | (
-                    (allPredAng[2][1] >= omeMin[iOme]) &
-                    (allPredAng[2][1] <= omeMax[iOme]) )
-                pass
-        else:
-            reflInRangeOme0 = num.ones(allPredAng[2][0].shape, dtype=bool)
-            reflInRangeOme1 = num.ones(allPredAng[2][1].shape, dtype=bool)
-            pass
-
-        if etaMin is not None:
-            reflInRangeEta0 = num.zeros(allPredAng[2][0].shape, dtype=bool)
-            reflInRangeEta1 = num.zeros(allPredAng[2][1].shape, dtype=bool)
-            for iEta in range(len(etaMin)):
-                reflInRangeEta0 = reflInRangeEta0 | (
-                    (allPredAng[1][0] >= etaMin[iEta]) &
-                    (allPredAng[1][0] <= etaMax[iEta]) )
-                reflInRangeEta1 = reflInRangeEta1 | (
-                    (allPredAng[1][1] >= etaMin[iEta]) &
-                    (allPredAng[1][1] <= etaMax[iEta]) )
-                pass
-        else:
-            reflInRangeEta0 = num.ones(allPredAng[2][0].shape, dtype=bool)
-            reflInRangeEta1 = num.ones(allPredAng[2][1].shape, dtype=bool)
-            pass
-
-        reflInRange0 = reflInRangeOme0 & reflInRangeEta0
-        reflInRange1 = reflInRangeOme1 & reflInRangeEta1
-
-        # get culled angle and hkl lists for predicted spots
-        culledTTh = num.r_[ allPredAng[0][0][reflInRange0], allPredAng[0][1][reflInRange1] ]
-        culledEta = num.r_[ allPredAng[1][0][reflInRange0], allPredAng[1][1][reflInRange1] ]
-        culledOme = num.r_[ allPredAng[2][0][reflInRange0], allPredAng[2][1][reflInRange1] ]
-
-        culledHKLs = num.hstack( [
-            symHKLs[:, reflInRange0],
-            symHKLs[:, reflInRange1] ] )
-
-        culledQvec = num.c_[ predQvec[:, reflInRange0], predQvec[:, reflInRange1] ]
-
+        culledTTh  = allAngs_m[:, 0]
+        culledEta  = allAngs_m[:, 1]
+        culledOme  = allAngs_m[:, 2]
+        culledHKLs = allHKLs_m.T
+        
         nThisPredRefl = len(culledTTh)
         hklCounterP += nThisPredRefl
         for iTTh in range(nThisPredRefl):
@@ -886,8 +876,19 @@ def paintGridThis(quat):
                 culledOmeIdx = None
 
             if culledEtaIdx is not None and culledOmeIdx is not None:
-                pixelVal = etaOmeMaps.dataStore[iHKL][omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ]
-                isHit = pixelVal >= threshold[iHKL]
+                if dpix_ome > 1 or dpix_eta > 1:
+                    i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
+                                                num.arange(-dpix_eta, dpix_eta + 1))
+                    i_sup = omeIndices[culledOmeIdx] + num.array([i_dil.flatten()], dtype=int)
+                    j_sup = etaIndices[culledEtaIdx] + num.array([j_dil.flatten()], dtype=int)
+                    # catch shit that falls off detector... maybe make this fancy enough to wrap at 2pi?
+                    i_max, j_max = etaOmeMaps.dataStore[iHKL].shape
+                    idx_mask = num.logical_and(num.logical_and(i_sup >= 0, i_sup < i_max),
+                                               num.logical_and(j_sup >= 0, j_sup < j_max))
+                    pixelVal = etaOmeMaps.dataStore[iHKL][i_sup[idx_mask], j_sup[idx_mask]]
+                else:
+                    pixelVal = etaOmeMaps.dataStore[iHKL][omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ]
+                isHit = num.any(pixelVal >= threshold[iHKL])
                 if isHit:
                     hklCounterM += 1
                     pass
@@ -900,7 +901,10 @@ def paintGridThis(quat):
                 pass
             pass # close loop on signed reflections
         pass # close loop on HKL
-    retval = float(hklCounterM) / float(hklCounterP)
+    if hklCounterP == 0:
+        retval = 0.
+    else:
+        retval = float(hklCounterM) / float(hklCounterP)
     return retval
 
 def progress_bar(progress):
