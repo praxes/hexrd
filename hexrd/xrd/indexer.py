@@ -32,6 +32,7 @@ import ctypes
 import tempfile
 import glob
 import time
+import pdb
 
 import numpy as num
 
@@ -685,13 +686,23 @@ def paintGrid(quats, etaOmeMaps,
     if bMat is None:
         bMat = planeData.latVecOps['B']
 
-    'index munging here -- look away'
+    """
+    index munging here -- look away
+
+    order of ome-eta map arrays is (i, j) --> (ome, eta)
+    i.e. eta varies fastest.
+    """
     # mapIndices = num.indices([numEtas, numOmes])
     # etaIndices = mapIndices[0].flatten()
     # omeIndices = mapIndices[1].T.flatten()
-    etaIndices = num.tile(range(numEtas), (numOmes))
-    omeIndices = num.tile(range(numOmes), (numEtas))
-
+    # etaIndices = num.tile(range(numEtas), (numOmes))
+    # omeIndices = num.tile(range(numOmes), (numEtas))
+    # j_eta, i_ome = np.meshgrid(range(numEtas), range(numOmes))
+    # etaIndices = j_eta.flatten()
+    # omeIndices = i_ome.flatten()
+    etaIndices = num.r_[range(numEtas)]
+    omeIndices = num.r_[range(numOmes)]
+    
     omeMin = None
     omeMax = None
     if omegaRange is None:              # this NEEDS TO BE FIXED!
@@ -806,7 +817,9 @@ def paintGridThis(quat):
     dpix_eta = round(etaTol / del_eta)
     
     debug = False
-
+    if debug:
+        print "using ome, eta dilitations of (%d, %d) pixels" % (dpix_ome, dpix_eta)
+    
     nHKLs = len(hklIDs)
 
     rMat = rotMatOfQuat(quat.reshape(4, 1))
@@ -874,9 +887,9 @@ def paintGridThis(quat):
                     culledOmeIdx = None
             else:
                 culledOmeIdx = None
-
+            
             if culledEtaIdx is not None and culledOmeIdx is not None:
-                if dpix_ome > 1 or dpix_eta > 1:
+                if dpix_ome > 0 or dpix_eta > 0:
                     i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
                                                 num.arange(-dpix_eta, dpix_eta + 1))
                     i_sup = omeIndices[culledOmeIdx] + num.array([i_dil.flatten()], dtype=int)
@@ -884,7 +897,7 @@ def paintGridThis(quat):
                     # catch shit that falls off detector... maybe make this fancy enough to wrap at 2pi?
                     i_max, j_max = etaOmeMaps.dataStore[iHKL].shape
                     idx_mask = num.logical_and(num.logical_and(i_sup >= 0, i_sup < i_max),
-                                               num.logical_and(j_sup >= 0, j_sup < j_max))
+                                               num.logical_and(j_sup >= 0, j_sup < j_max))                    
                     pixelVal = etaOmeMaps.dataStore[iHKL][i_sup[idx_mask], j_sup[idx_mask]]
                 else:
                     pixelVal = etaOmeMaps.dataStore[iHKL][omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ]
@@ -1172,5 +1185,3 @@ def writeGVE(spotsArray, fileroot, **kwargs):
           positionString + '\n'
     fid.close()
     return
-
-
