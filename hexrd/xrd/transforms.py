@@ -197,7 +197,7 @@ def detectorXYToGvec(xy_det,
     return (tTh, eta), gVec_l
 
 def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
-                       vVeci=None, beamVec=bVec_ref, etaVec=eta_ref):
+                       vInv=None, beamVec=bVec_ref, etaVec=eta_ref):
     """
     Takes a list of unit reciprocal lattice vectors in crystal frame to the
     specified detector-relative frame, subject to the conditions:
@@ -213,10 +213,10 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     wavelength -- float representing the x-ray wavelength in Angstroms
 
     Optional Keyword Arguments:
-    vVeci   -- (6,  ) ndarray containing the 6 independent component of the inverse stretch tensor in the SAMPLE FRAME (MV)
     beamVec -- (3, 1) ndarray containing the incident beam direction components in the LAB FRAME
     etaVec  -- (3, 1) ndarray containing the reference azimuth direction components in the LAB FRAME
-
+    vInv    -- (6, 1) ndarray containing the indep. components of the inverse left stretch tensor
+                      in the SAMPLE FRAME in the Mandel-Voigt notation
     Outputs:
     ome0 -- (3, n) ndarray containing the feasible (tTh, eta, ome) triplets for each input hkl (first solution)
     ome1 -- (3, n) ndarray containing the feasible (tTh, eta, ome) triplets for each input hkl (second solution)
@@ -262,10 +262,11 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     Laue condition cannot be satisfied (filled with NaNs in the results
     array here)
     """
-    if vVeci is None:
+    if vInv is None:
         vVec_s = np.c_[1., 1., 1., 0., 0., 0.].T
     else:
-        vVec_s = vVeci
+        vVec_s = vInv
+    
     gVec_c = np.dot(bMat, hkls)                     # reciprocal lattice vectors in CRYSTAL frame
     vMat_s = mutil.vecMVToSymm(vVec_s)              # stretch tensor in SAMPLE frame
     gVec_s = np.dot(vMat_s, np.dot(rMat_c, gVec_c)) # reciprocal lattice vectors in SAMPLE frame
@@ -708,48 +709,9 @@ def makeEtaFrameRotMat(bHat_l, eHat_l):
     Ye = np.cross(Ze.flatten(), Xe.flatten()).reshape(3, 1)
     return np.hstack([Xe, Ye, Ze])
 
-def validateAngleRanges_old(angList, angMin, angMax):
-    angList = np.atleast_1d(angList)   # needs to have 'shape'
-
-    angMin = np.atleast_1d(angMin)    # need to have len
-    angMax = np.atleast_1d(angMax)    # need to have len
-
-    assert len(angMin) == len(angMax), "length of min and max angular limits must match!"
-
-    reflInRange = np.zeros(angList.shape, dtype=bool)
-
-    """
-    the algorithm won't work if the range is >= pi; therefore we have to pre-process
-    split up the ranges, and split them into chunks of, say, 90 degrees as necessary
-    """
-    angRange_l = []
-    for i in range(len(angMin)):
-        if abs(angMax[i] - angMin[i]) >= np.pi:
-            tmpRange = np.r_[np.arange(angMin[i], angMax[i], 0.5*np.pi), angMax[i]]
-            tmpRange = np.c_[tmpRange[:-1], tmpRange[1:]].tolist()
-            for j in range(len(tmpRange)):
-                angRange_l.append(tmpRange[j])
-        else:
-            angRange_l.append([angMin[i], angMax[i]])
-            pass
-        pass
-    for i in range(len(angRange_l)):
-        #
-        limVecMin = np.r_[np.cos(angRange_l[i][0]), np.sin(angRange_l[i][0])]
-        limVecMax = np.r_[np.cos(angRange_l[i][1]), np.sin(angRange_l[i][1])]
-        #
-        wedgeAngle = np.arccos( np.dot( limVecMin, limVecMax ) )
-        #
-        tVec = np.c_[ np.cos(angList), np.sin(angList) ]
-        #
-        dp = np.arccos( np.dot(tVec, limVecMin) ) + np.arccos( np.dot(tVec, limVecMax) )
-        #
-        reflInRange = reflInRange | ( abs(dp - wedgeAngle) <= sqrt_epsf )
-    return reflInRange
-
 def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     """
-    a better way to go.  find out if an angle is in the range 
+    A better way to go.  find out if an angle is in the range 
     CCW or CW from start to stop
     """
     angList = np.atleast_1d(angList).flatten()      # needs to have len
@@ -799,7 +761,8 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     return reflInRange
 
 def rotate_vecs_about_axis(angle, axis, vecs):
-    """rotate vectors about an axis
+    """
+    Rotate vectors about an axis
 
     INPUTS
     *angle* - array of angles (len == 1 or n)

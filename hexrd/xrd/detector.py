@@ -283,7 +283,7 @@ class Framer2DRC(object):
         else:
             assert mask is None,\
                 'not coded: multiframe with mask'
-            shape = (nframes, self.rows, self.ncols)
+            shape = (nframes, self.nrows, self.ncols)
         if buffer is None:
             retval = num.zeros(shape, dtype=dtype)
         else:
