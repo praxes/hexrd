@@ -32,14 +32,14 @@ pScl_ref    = np.array([1, 1, 1,
                         1, 1, 1])
 bVec_ref    = xf.bVec_ref
 eta_ref     = xf.eta_ref
-vVeci_ref    = np.r_[0.9997, 1.001, 0.9997, 0., 0., 0.]
+vInv_ref    = np.r_[0.9997, 1.001, 0.9997, 0., 0., 0.]
 # ######################################################################
 # Funtions
 
 def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength, 
                             tiltAngles, chi, expMap_c,
                             tVec_d, tVec_s, tVec_c, 
-                            vInv=vVec_ref,
+                            vInv=vInv_ref,
                             beamVec=bVec_ref, etaVec=eta_ref, 
                             distortion=(dFunc_ref, dParams_ref, dFlag_ref, dScl_ref), 
                             pFlag=pFlag_ref, pScl=pScl_ref,
@@ -92,7 +92,7 @@ def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
     return retval
 
 def matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength, 
-                vInv=vVec_ref, beamVec=bVec_ref, etaVec=eta_ref):
+                vInv=vInv_ref, beamVec=bVec_ref, etaVec=eta_ref):
     """
     For a given list of (x, y, ome) points, outputs the index into the results from
     oscillAnglesOfHKLs, including the calculated omega values.
@@ -156,8 +156,8 @@ def objFuncFitGrain(gFit, gFull, gFlag,
     
     rMat_c = xfcapi.makeRotMatOfExpMap(gFull[:3])
     tVec_c = gFull[3:6].reshape(3, 1)
-    vVec_s = gFull[6:]
-    vMat_s = mutil.vecMVToSymm(vVec_s)              # NOTE: Inverse of V from F = V * R
+    vInv_s = gFull[6:]
+    vMat_s = mutil.vecMVToSymm(vInv_s)              # NOTE: Inverse of V from F = V * R
 
     gVec_c = np.dot(bMat, hkls_idx)                 # gVecs with magnitudes in CRYSTAL frame
     gVec_s = np.dot(vMat_s, np.dot(rMat_c, gVec_c)) # stretched gVecs in SAMPLE frame
@@ -165,7 +165,7 @@ def objFuncFitGrain(gFit, gFull, gFlag,
         np.dot(rMat_c.T, gVec_s)) # unit reciprocal lattice vectors in CRYSTAL frame
     
     match_omes, calc_omes = matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength, 
-                                        vInv=vVec_s, beamVec=bVec, etaVec=eVec)
+                                        vInv=vInv_s, beamVec=bVec, etaVec=eVec)
     
     xy_det = np.zeros((npts, 2))
     for i in range(npts):
@@ -216,7 +216,7 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
     tVec_c = pFull[13:16].reshape(3, 1)
     
     gVec_c = np.dot(bMat, hkls_idx)
-    vMat_s = mutil.vecMVToSymm(vVeci)               # stretch tensor in SAMPLE frame
+    vMat_s = mutil.vecMVToSymm(vInv)                # stretch tensor comp matrix from MV notation in SAMPLE frame
     gVec_s = np.dot(vMat_s, np.dot(rMat_c, gVec_c)) # reciprocal lattice vectors in SAMPLE frame
     gHat_s = mutil.unitVector(gVec_s)               # unit reciprocal lattice vectors in SAMPLE frame
     gHat_c = np.dot(rMat_c.T, gHat_s)               # unit reciprocal lattice vectors in CRYSTAL frame
