@@ -32,18 +32,18 @@ pScl_ref    = np.array([1, 1, 1,
                         1, 1, 1])
 bVec_ref    = xf.bVec_ref
 eta_ref     = xf.eta_ref
-vVec_ref    = np.r_[1., 1., 1., 0., 0., 0.]
+vVeci_ref    = np.r_[0.9997, 1.001, 0.9997, 0., 0., 0.]
 # ######################################################################
 # Funtions
 
 def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength, 
                             tiltAngles, chi, expMap_c,
                             tVec_d, tVec_s, tVec_c, 
-                            vMat=vVec_ref,
+                            vVeci=vVeci_ref,
                             beamVec=bVec_ref, etaVec=eta_ref, 
                             distortion=(dFunc_ref, dParams_ref, dFlag_ref, dScl_ref), 
                             pFlag=pFlag_ref, pScl=pScl_ref,
-                            factor=10, xtol=1e-8, ftol=1e-8):
+                            factor=0.1, xtol=1e-8, ftol=1e-8):
     """
     """
     dFunc   = distortion[0]
@@ -79,7 +79,7 @@ def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
     refineFlag = np.hstack([pFlag, dFlag])
     scl        = np.hstack([pScl, dScl])
     pFit       = pFull[refineFlag] 
-    fitArgs    = (pFull, pFlag, dFunc, dFlag, xyo_det, hkls_idx, bMat, vMat, wavelength, beamVec, etaVec)
+    fitArgs    = (pFull, pFlag, dFunc, dFlag, xyo_det, hkls_idx, bMat, vVeci, wavelength, beamVec, etaVec)
     
     results = opt.leastsq(objFuncSX, pFit, args=fitArgs, diag=scl[refineFlag].flatten(), factor=factor, xtol=xtol, ftol=ftol)
     
@@ -90,7 +90,7 @@ def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
     return retval
 
 def matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength, 
-                vMat=vVec_ref, 
+                vVeci=vVeci_ref, 
                 beamVec=bVec_ref, etaVec=eta_ref):
     """
     """
@@ -98,7 +98,7 @@ def matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength,
     meas_omes  = xyo_det[:, 2] 
     
     oangs0, oangs1 = xf.oscillAnglesOfHKLs(hkls_idx, chi, rMat_c, bMat, wavelength, 
-                                           vMat=vMat, 
+                                           vVeci=vVeci, 
                                            beamVec=beamVec, 
                                            etaVec=etaVec)
 
@@ -122,12 +122,12 @@ def objFuncFitGrain(gFit, gFull, gFlag,
     gFull[3]  = tVec_c[0]
     gFull[4]  = tVec_c[1]
     gFull[5]  = tVec_c[2]
-    gFull[6]  = vMat_MV[0]
-    gFull[7]  = vMat_MV[1]
-    gFull[8]  = vMat_MV[2]
-    gFull[9]  = vMat_MV[3]
-    gFull[10] = vMat_MV[4]
-    gFull[11] = vMat_MV[5]
+    gFull[6]  = vVeci_MV[0]
+    gFull[7]  = vVeci_MV[1]
+    gFull[8]  = vVeci_MV[2]
+    gFull[9]  = vVeci_MV[3]
+    gFull[10] = vVeci_MV[4]
+    gFull[11] = vVeci_MV[5]
     
     detectorParams[0]  = tiltAngles[0]
     detectorParams[1]  = tiltAngles[1]
@@ -162,7 +162,7 @@ def objFuncFitGrain(gFit, gFull, gFlag,
         np.dot(rMat_c.T, gVec_s)) # unit reciprocal lattice vectors in CRYSTAL frame
     
     match_omes, calc_omes = matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength, 
-                                        vMat=vVec_s, beamVec=bVec, etaVec=eVec)
+                                        vVeci=vVec_s, beamVec=bVec, etaVec=eVec)
     
     xy_det = np.zeros((npts, 2))
     for i in range(npts):
@@ -187,7 +187,7 @@ def objFuncFitGrain(gFit, gFull, gFlag,
     return retval
 
 def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag, 
-              xyo_det, hkls_idx, bMat, vMat, wavelength, 
+              xyo_det, hkls_idx, bMat, vVeci, wavelength, 
               bVec, eVec, simOnly=False):
 
     npts   = len(xyo_det)
@@ -209,22 +209,28 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
     tVec_s = pFull[7:10].reshape(3, 1)
     
     # crystal quantities
-    gVec_c = np.dot(bMat, hkls_idx)
     rMat_c = xf.makeRotMatOfExpMap(pFull[10:13])
     tVec_c = pFull[13:16].reshape(3, 1)
     
+    gVec_c = np.dot(bMat, hkls_idx)
+    vMat_s = mutil.vecMVToSymm(vVeci)               # stretch tensor in SAMPLE frame
+    gVec_s = np.dot(vMat_s, np.dot(rMat_c, gVec_c)) # reciprocal lattice vectors in SAMPLE frame
+    gHat_s = mutil.unitVector(gVec_s)               # unit reciprocal lattice vectors in SAMPLE frame
+    gHat_c = np.dot(rMat_c.T, gHat_s)               # unit reciprocal lattice vectors in CRYSTAL frame
+    
     match_omes, calc_omes = matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength, 
-                                        vMat=vMat, beamVec=bVec, etaVec=eVec)    
+                                        vVeci=vVeci, beamVec=bVec, etaVec=eVec)    
     xy_det = np.zeros((npts, 2))
     for i in range(npts):
         rMat_s = xf.makeOscillRotMat([chi, calc_omes[i]])
         # rMat_s = xf.makeOscillRotMat([chi, meas_omes[i]])
-        xy_det[i, :] = xf.gvecToDetectorXY(gVec_c[:, i].reshape(3, 1), 
+        xy_det[i, :] = xf.gvecToDetectorXY(gHat_c[:, i].reshape(3, 1), 
                                            rMat_d, rMat_s, rMat_c, 
                                            tVec_d, tVec_s, tVec_c, 
                                            beamVec=bVec).flatten()
         pass
     if np.any(np.isnan(xy_det)):
+        import pdb;pdb.set_trace()
         print "infeasible pFull"
     
     # return values

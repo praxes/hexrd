@@ -197,7 +197,7 @@ def detectorXYToGvec(xy_det,
     return (tTh, eta), gVec_l
 
 def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
-                       vMat=None, beamVec=bVec_ref, etaVec=eta_ref):
+                       vVeci=None, beamVec=bVec_ref, etaVec=eta_ref):
     """
     Takes a list of unit reciprocal lattice vectors in crystal frame to the
     specified detector-relative frame, subject to the conditions:
@@ -213,8 +213,9 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     wavelength -- float representing the x-ray wavelength in Angstroms
 
     Optional Keyword Arguments:
-    beamVec -- (3, 1) mdarray containing the incident beam direction components in the LAB FRAME
-    etaVec  -- (3, 1) mdarray containing the reference azimuth direction components in the LAB FRAME
+    vVeci   -- (6,  ) ndarray containing the 6 independent component of the inverse stretch tensor in the SAMPLE FRAME (MV)
+    beamVec -- (3, 1) ndarray containing the incident beam direction components in the LAB FRAME
+    etaVec  -- (3, 1) ndarray containing the reference azimuth direction components in the LAB FRAME
 
     Outputs:
     ome0 -- (3, n) ndarray containing the feasible (tTh, eta, ome) triplets for each input hkl (first solution)
@@ -261,10 +262,10 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     Laue condition cannot be satisfied (filled with NaNs in the results
     array here)
     """
-    if vMat is None:
+    if vVeci is None:
         vVec_s = np.c_[1., 1., 1., 0., 0., 0.].T
     else:
-        vVec_s = vMat
+        vVec_s = vVeci
     gVec_c = np.dot(bMat, hkls)                     # reciprocal lattice vectors in CRYSTAL frame
     vMat_s = mutil.vecMVToSymm(vVec_s)              # stretch tensor in SAMPLE frame
     gVec_s = np.dot(vMat_s, np.dot(rMat_c, gVec_c)) # reciprocal lattice vectors in SAMPLE frame
