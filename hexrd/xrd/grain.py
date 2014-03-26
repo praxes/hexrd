@@ -849,7 +849,7 @@ class Grain(object):
         else:
             fPairs = []
 
-        completeness = len(reducedIRefl)/float(nPredRefl)
+        completeness = len(reducedIRefl)/max(1.0, float(nPredRefl))
 
         if updateSelf:
             self.grainSpots   = reflInfo

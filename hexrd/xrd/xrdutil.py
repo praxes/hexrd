@@ -2063,6 +2063,8 @@ def pullFromStack(reader, detectorGeom, tThMM, angWidth, angCen,
                   ):
     """
     angWidth is distance from angCen, so actually half-width
+    
+    do not yet deal with wrap-around (eg, reader that spans 2*pi)
     """
     omeStep = reader.getDeltaOmega()
     etaStep = getEtaResolution(detectorGeom, angCen[0])
@@ -2079,7 +2081,7 @@ def pullFromStack(reader, detectorGeom, tThMM, angWidth, angCen,
     xyfCen  = num.array(detectorGeom.angToXYO(*angCen, units='pixels')) # omega is in angles
     xyfCen[2] = reader.omegaToFrame(xyfCen[2], float=True)
 
-    xyfBBox = detectorGeom.angToXYOBBox(angCen, angPM, units='pixels', reader=reader) # omega is in frame -- passed the reader
+    xyfBBox = detectorGeom.angToXYOBBox(angCen, angPM, units='pixels', reader=reader, forSlice=True, doWrap=False) # omega is in frame -- passed the reader
     xyfBBox_0 = num.array([sl[0] for sl in xyfBBox])
 
     pixelData = reader.readBBox(xyfBBox, raw=False)
@@ -2639,6 +2641,15 @@ def pfigFromSpots(spots, iHKL, phaseID=None,
 
         return retval
 
+
+def mapAngCen(ang, angCen):
+    """
+    map angle ang into equivalent value that is closest to angCen
+    """
+    shift = num.pi-angCen
+    retval = num.mod(ang + shift, 2.0*num.pi) - shift
+    return retval
+
 def makeSynthFrames(spotParamsList, detectorGeom, omegas, 
                     intensityFunc=spotfinder.IntensityFuncGauss3D(), 
                     asSparse=None, 
@@ -2687,7 +2698,7 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
         angCen = intensityFunc.getCenter(xVec)
         fwhm   = intensityFunc.getFWHM(xVec)
         angPM  = fwhm * cutoffMult
-        xyfBBox = detectorGeom.angToXYOBBox(angCen, angPM, units='pixels', omegas=omegas)
+        xyfBBox = detectorGeom.angToXYOBBox(angCen, angPM, units='pixels', omegas=omegas, forSlice=True, doWrap=True)
         # xyfBBox_0 = num.array([sl[0] for sl in xyfBBox])
         # stack[slice(*xyfBBox[0]), slice(*xyfBBox[1]), slice(*xyfBBox[2])]
         
@@ -2736,13 +2747,16 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
         
         for spot, xyfBBox, xVec in spotList:
             
-            if iFrame < xyfBBox[2][0] or iFrame >= xyfBBox[2][1]:
-                '>= for upper end because is meant to be used as a slice'
+            if not detector.frameInRange(iFrame, xyfBBox[2]):
                 if debug>2: print 'spot %s not on frame %d' % (spot.key, iFrame)
                 continue
-            
-            'calculate intensities at the omega for this frame'
-            spot.oAll[:] = omega
+
+            """
+            calculate intensities at the omega for this frame
+            shift omega in case spot is near branch cut
+            """
+            angCen = intensityFunc.getCenter(xVec)
+            spot.oAll[:] = mapAngCen(omega, angCen[2])
             vCalc = spot.getVCalc(intensityFunc, xVec, noBkg=True) 
             if debug>1:print 'frame %d spot %s max %g' % ( iFrame, spot.key, vCalc.max() )
             
