@@ -8,13 +8,16 @@ from scipy import ndimage
 
 from ConfigParser import SafeConfigParser
 
-# gotta set PYTHONPATH
-cfgfile = 'default.cfg'
-parser = SafeConfigParser()
-parser.read(cfgfile)
+# check PYTHONPATH
+try:
+    import hexrd
+except:
+    cfgfile = 'default.cfg'
+    parser = SafeConfigParser()
+    parser.read(cfgfile)
 
-HEXRD_ROOT = parser.get('base', 'hexrd_root')
-sys.path.append(HEXRD_ROOT)
+    HEXRD_ROOT = parser.get('base', 'hexrd_root')
+    sys.path.append(HEXRD_ROOT)
 
 # now can import hexrd modules
 from hexrd     import matrixutil as mutil
@@ -25,6 +28,18 @@ from hexrd.xrd import rotations  as rot
 from hexrd.xrd          import xrdutil
 from hexrd.xrd.xrdbase  import multiprocessing
 from hexrd.xrd.detector import ReadGE
+
+haveScikit = False
+try:
+    from sklearn.cluster          import dbscan
+    from sklearn.metrics.pairwise import pairwise_distances
+    haveScikit = True
+except:
+    print "System does not have SciKit installed, using scipy fallback"
+
+"""
+##################### BEGIN COMPUTATION HERE #####################
+"""
 
 # constants
 d2r = np.pi/180.
@@ -183,10 +198,14 @@ def run_cluster(complPG, qfib, qsym,
     
     print "Feeding %d orientations above %.1f%% to clustering" % (qfib_r.shape[1], 100*min_compl)
     
-    cl = cluster.hierarchy.fclusterdata(qfib_r.T, d2r*cl_radius, 
-                                        criterion='distance', 
-                                        metric=quatDistance)
-    
+    if haveScikit:
+        print "Using scikit..."
+        pdist = pairwise_distances(qfib_r.T, Y=None, metric=quatDistance, n_jobs=-2)
+        core_samples, labels = dbscan(pdist, eps=d2r*cl_radius, min_samples=2, metric='precomputed')
+        cl = np.array(labels, dtype=int) + 1
+    else:
+        cl = cluster.hierarchy.fclusterdata(qfib_r.T, d2r*cl_radius, criterion='distance', metric=quatDistance)
+        
     nblobs = len(np.unique(cl))
     
     qbar = np.zeros((4, nblobs))
@@ -242,8 +261,7 @@ if __name__ == "__main__":
     elif num_above == 1:
         qbar = qfib[:, np.r_[compl] > min_compl]
     else:
-        qbar, cl = run_cluster(compl, qfib, pd.getQSym(), 
-                               cl_radius=cl_radius, min_compl=min_compl)
+        qbar, cl = run_cluster(compl, qfib, pd.getQSym(), cl_radius=cl_radius, min_compl=min_compl)
     
     # SAVE OUTPUT
     np.savetxt(out_filename, qbar.T, fmt="%1.12e", delimiter="\t")
