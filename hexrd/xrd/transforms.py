@@ -515,29 +515,19 @@ def arccosSafe(temp):
     """
     Protect against numbers slightly larger than 1 in magnitude due to round-off
     """
-
-    # Oh, the tricks we must play to make this overloaded and robust...
-    if type(temp) is list:
-        temp = nd.asarray(temp)
-    elif type(temp) is ndarray:
-        if len(temp.shape) == 0:
-            temp = temp.reshape(1)
-
-    if (temp > 1.00001).any():
+    temp = np.atleast_1d(temp)
+    if np.any(abs(temp) > 1.00001):
         print >> sys.stderr, "attempt to take arccos of %s" % temp
         raise RuntimeError, "unrecoverable error"
-    elif (temp < -1.00001).any():
-        print >> sys.stderr, "attempt to take arccos of %s" % temp
-        raise RuntimeError, "unrecoverable error"
-
+    
     gte1 = temp >=  1.
     lte1 = temp <= -1.
 
     temp[gte1] =  1
     temp[lte1] = -1
-
-    ang = arccos(temp)
-
+    
+    ang = np.arccos(temp)
+    
     return ang
 
 def angularDifference(angList0, angList1, units=angularUnits):
@@ -806,3 +796,73 @@ def rotate_vecs_about_axis(angle, axis, vecs):
       + 2. * np.tile(qdota, (3, 1)) * qv \
       + 2. * np.tile(q0, (3, 1)) * qcrossn
     return v_rot
+
+def quat_product_matrix(q, mult='right'):
+    """
+    Form 4 x 4 array to perform the quaternion product
+
+    USAGE
+        qmat = quatProductMatrix(q, mult='right')
+
+    INPUTS
+        1) quats is (4,), an iterable representing a unit quaternion
+           horizontally concatenated
+        2) mult is a keyword arg, either 'left' or 'right', denoting
+           the sense of the multiplication:
+
+                       / quatProductMatrix(h, mult='right') * q
+           q * h  --> <
+                       \ quatProductMatrix(q, mult='left') * h
+
+    OUTPUTS
+        1) qmat is (4, 4), the left or right quaternion product
+           operator
+
+    NOTES
+       *) This function is intended to replace a cross-product based
+          routine for products of quaternions with large arrays of
+          quaternions (e.g. applying symmetries to a large set of
+          orientations).
+    """
+    if mult == 'right':
+        qmat = np.array([[ q[0], -q[1], -q[2], -q[3]],
+                         [ q[1],  q[0],  q[3], -q[2]],
+                         [ q[2], -q[3],  q[0],  q[1]],
+                         [ q[3],  q[2], -q[1],  q[0]],
+                         ])
+    elif mult == 'left':
+        qmat = np.array([[ q[0], -q[1], -q[2], -q[3]],
+                         [ q[1],  q[0], -q[3],  q[2]],
+                         [ q[2],  q[3],  q[0], -q[1]],
+                         [ q[3], -q[2],  q[1],  q[0]],
+                         ])
+    return qmat
+
+def quat_distance(q1, q2, qsym):
+    """
+    """
+    # qsym from PlaneData objects are (4, nsym)
+    # convert symmetries to (4, 4) qprod matrices
+    nsym = qsym.shape[1]
+    rsym = np.zeros((nsym, 4, 4))
+    for i in range(nsym):
+        rsym[i, :, :] = quat_product_matrix(qsym[:, i], mult='right')
+        
+    # inverse of q1 in matrix form
+    q1i = quat_product_matrix( np.r_[ 1, -1, -1, -1] * np.atleast_1d(q1).flatten(), mult='right' )
+    
+    # Do R * Gc, store as vstacked equivalent quaternions (nsym, 4)
+    q2s = np.dot(rsym, q2)
+    
+    # Calculate the class of misorientations for full symmetrically equivalent
+    # q1 and q2: (4, ) * (4, nsym)  
+    eqv_mis = np.dot(q1i, q2s.T)
+
+    # find the largest scalar component
+    q0_max = np.argmax(abs(eqv_mis[0, :]))
+
+    # compute the distance
+    qmin  = eqv_mis[:, q0_max]
+    
+    return 2 * arccosSafe( qmin[0] * np.sign(qmin[0]) )
+

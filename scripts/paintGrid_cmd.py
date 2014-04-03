@@ -24,6 +24,7 @@ from hexrd     import matrixutil as mutil
 from hexrd.xrd import experiment as expt
 from hexrd.xrd import indexer    as idx
 from hexrd.xrd import rotations  as rot
+from hexrd.xrd import transforms as xf
 
 from hexrd.xrd          import xrdutil
 from hexrd.xrd.xrdbase  import multiprocessing
@@ -192,7 +193,7 @@ def run_cluster(complPG, qfib, qsym,
     """
     start = time.clock()                      # time this
     
-    quatDistance = lambda x, y: rot.misorientation(x.reshape(4, 1), y.reshape(4, 1), (qsym, ))[0]
+    quatDistance = lambda x, y: xf.quat_distance(x, y, qsym)
     
     qfib_r = qfib[:, np.r_[complPG] > min_compl]
     
@@ -272,7 +273,7 @@ if __name__ == "__main__":
     # 
     # fig = plt.figure()
     # ax = fig.add_subplot(111, projection='3d')
-    # phis, ns = rot.angleAxisOfRotMat(rot.rotMatOfQuat(qfib))
+    # phis, ns = rot.angleAxisOfRotMat(rot.rotMatOfQuat(qfib[:, np.r_[compl] > min_compl]))
     # rod = np.tile(np.tan(0.5*phis), (3, 1)) * ns
     # ax.scatter(rod[0, :], rod[1, :], rod[2, :], c='r', marker='o')
     # 
