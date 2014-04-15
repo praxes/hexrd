@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import optimize as opt
 
-from hexrd     import matrixutil as mutil
+from hexrd import matrixutil as mutil
 
 from hexrd.xrd import transforms      as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
@@ -33,6 +33,7 @@ pScl_ref    = np.array([1, 1, 1,
 bVec_ref    = xf.bVec_ref
 eta_ref     = xf.eta_ref
 vInv_ref    = np.r_[0.9997, 1.001, 0.9997, 0., 0., 0.]
+
 # ######################################################################
 # Funtions
 

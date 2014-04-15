@@ -439,11 +439,10 @@ class imgOpts(wx.Panel):
         p.axes.images = []
         # show new image
         if intensity.shape[0] == 1:
-            import pdb;pdb.set_trace()
             p.axes.plot(intensity.flatten(), 'b-')
             p.axes.set_title('Intensity Profile')
             p.axes.set_ylabel('Intensity [arb. units]')
-            p.axes.autoscale()
+            p.axes.set_aspect('auto')
         else:
             p.axes.imshow(intensity, origin='upper',
                           interpolation='nearest',
