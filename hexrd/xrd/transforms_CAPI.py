@@ -15,7 +15,7 @@ periodDict   = {'degrees': 360.0, 'radians': 2*np.pi}
 angularUnits = 'radians'        # module-level angle units
 
 # basis vectors
-I3 = np.eye(3)                  # (3, 3) identity
+I3 = np.eye(3)                                        # (3, 3) identity
 Xl = np.ascontiguousarray(I3[:, 0].reshape(3, 1))     # X in the lab frame
 Yl = np.ascontiguousarray(I3[:, 1].reshape(3, 1))     # Y in the lab frame
 Zl = np.ascontiguousarray(I3[:, 2].reshape(3, 1))     # Z in the lab frame

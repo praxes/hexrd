@@ -1,3 +1,31 @@
+#! /usr/bin/env python
+# ============================================================
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
+# All rights reserved.
+#
+# This file is part of HEXRD. For details on dowloading the source,
+# see the file COPYING.
+#
+# Please also see the file LICENSE.
+#
+# This program is free software; you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License (as published by the Free Software
+# Foundation) version 2.1 dated February 1999.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this program (see file LICENSE); if not, write to
+# the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
+# Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
+# ============================================================
+
 import os, sys
 import numpy as np
 import scipy.sparse as sparse
@@ -59,6 +87,21 @@ def makeGVector(hkl, bMat):
     assert hkl.shape[0] == 3, 'hkl input must be (3, n)'
     return unitVector(np.dot(bMat, hkl))
 
+def anglesToGVec(angs, bHat_l, eHat_l, rMat_s=None, rMat_c=None):
+    """
+    from 'eta' frame out to lab (with handy kwargs to go to crystal or sample)
+    """ 
+    if rMat_s is None:
+        rMat_s = I3
+    if rMat_c is None:
+        rMat_c = I3
+        
+    rMat_e = makeEtaFrameRotMat(bHat_l, eHat_l)
+    gVec_e = np.vstack([[np.cos(0.5*angs[:, 0]) * np.cos(angs[:, 1])],
+                        [np.cos(0.5*angs[:, 0]) * np.sin(angs[:, 1])],
+                        [np.sin(0.5*angs[:, 0])]])
+    return np.dot(rMat_c.T, np.dot(rMat_s.T, np.dot(rMat_e, gVec_e)))
+
 def gvecToDetectorXY(gVec_c,
                      rMat_d, rMat_s, rMat_c,
                      tVec_d, tVec_s, tVec_c,
@@ -101,15 +144,16 @@ def gvecToDetectorXY(gVec_c,
     canDiffract = np.atleast_1d( np.logical_and( bDot >= ztol, bDot <= 1. - ztol ) )
     npts        = sum(canDiffract)
     retval      = np.nan * np.ones_like(gVec_l)
-    if np.any(canDiffract):  # subset of admissable reciprocal lattice vectors
+    if np.any(canDiffract):
+        # subset of admissable reciprocal lattice vectors
         adm_gVec_l = gVec_l[:, canDiffract].reshape(3, npts)
-        dVec_l = np.empty((3, npts)) # initialize diffracted beam vector array
+        
+        # initialize diffracted beam vector array
+        dVec_l = np.empty((3, npts)) 
         for ipt in range(npts):
             dVec_l[:, ipt] = np.dot(makeBinaryRotMat(adm_gVec_l[:, ipt]), -bHat_l).squeeze()
-            # tmp_op = np.dot(adm_gVec_l[:, ipt].reshape(3, 1),
-            #                 adm_gVec_l[:, ipt].reshape(1, 3))
-            # dVec_l[:, ipt] = np.dot(2*tmp_op - I3, -bHat_l).squeeze()
             pass
+        
         # ###############################################################
         # displacement vector calculation
 
