@@ -854,8 +854,8 @@ def paintGridThis(quat):
             etaMax = [ num.pi, ]
             
         angMask = num.logical_and(
-            xf.validateAngleRanges(angList[:, 2], omeMin, omeMax),
-            xf.validateAngleRanges(angList[:, 2], etaMin, etaMax))
+            xf.validateAngleRanges(angList[:, 1], etaMin, etaMax),
+            xf.validateAngleRanges(angList[:, 2], omeMin, omeMax))
         
         allAngs_m = angList[angMask, :]
         

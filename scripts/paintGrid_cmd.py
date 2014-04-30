@@ -31,12 +31,12 @@ from hexrd.xrd.xrdbase  import multiprocessing
 from hexrd.xrd.detector import ReadGE
 
 haveScikit = False
-try:
-    from sklearn.cluster          import dbscan
-    from sklearn.metrics.pairwise import pairwise_distances
-    haveScikit = True
-except:
-    print "System does not have SciKit installed, using scipy fallback"
+# try:
+#     from sklearn.cluster          import dbscan
+#     from sklearn.metrics.pairwise import pairwise_distances
+#     haveScikit = True
+# except:
+#     print "System does not have SciKit installed, using scipy fallback"
 
 """
 ##################### BEGIN COMPUTATION HERE #####################
@@ -105,7 +105,7 @@ def initialize_experiment(cfg_file):
     
     return pd, reader, ws.detector
 
-def make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump):
+def make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=None):
     """
     OME-ETA MAPS
     """
@@ -115,6 +115,15 @@ def make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump):
                                       pd, hkl_ids, detector,
                                       nframesLump=nframesLump, nEtaBins=nEtaBins,
                                       debug=True, threshold=threshold)
+    if output is not None:
+        if isinstance(output, str):
+            fid = open(output, 'w')
+            cPickle.dump(omeEta, fid)
+            fid.close()
+        elif isinstance(output, file):
+            cPickle.dump(omeEta, output)
+        else:
+            raise RuntimeError, "output specifier must be a string or file"
     return omeEta
 
 def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv, 
@@ -141,7 +150,8 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
 
     if useGrid is not None:
         try:
-            quats = np.loadtxt(useGrid)
+            qfib = np.loadtxt(useGrid).T
+            print "loading quaternion grid file: %s" % (useGrid)
         except:
             raise RuntimeError, "unable to load quaternion grid file"
     else:
@@ -225,22 +235,40 @@ if __name__ == "__main__":
     hkl_ids = np.array(sys.argv[3:], dtype=int)
     
     print "Using cfg file '%s'" % (cfg_filename)
-    
+
     parser = SafeConfigParser()
     parser.read(cfg_filename)
+
+    # output for eta-ome maps as pickles
+    working_dir   = parser.get('base', 'working_dir')
+    analysis_name = parser.get('base', 'analysis_name')
+     
+    eta_ome_file = open(
+        os.path.join(working_dir, analysis_name + '-eta_ome.cpl'),
+        'w')
     
     pd, reader, detector = initialize_experiment(cfg_filename)
+
+    if len(hkl_ids) == 0:
+        hkl_ids = range(pd.hkls.shape[1])
+        print "hkl ids not specified; grabbing from materials file..."
+        print hkl_ids
     
-    threshold   = parser.getint('ome_eta', 'threshold')
+    threshold   = parser.getfloat('ome_eta', 'threshold')
     nframesLump = parser.getint('ome_eta', 'nframesLump')
-    ome_eta = make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump)
+    ome_eta = make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=eta_ome_file)
     
     seed_hkl_ids = [0,]
-    threshold_pg = parser.getint('paint_grid', 'threshold')
+    threshold_pg = parser.getfloat('paint_grid', 'threshold')
     fiber_ndiv   = parser.getint('paint_grid', 'fiber_ndiv')
     multiproc    = parser.getboolean('paint_grid', 'multiproc')
     ncpus        = parser.get('paint_grid', 'ncpus')
-
+    use_qgrid    = parser.getboolean('paint_grid', 'use_qgrid')
+    if use_qgrid:
+        qgrid_file = parser.get('paint_grid', 'qgrid_file')
+    else:
+        qgrid_file = None
+    
     # tolerances go in IN DEGREES 
     ome_tol      = parser.getfloat('paint_grid', 'ome_tol') 
     eta_tol      = parser.getfloat('paint_grid', 'eta_tol') 
@@ -252,20 +280,22 @@ if __name__ == "__main__":
     compl, qfib = run_paintGrid(pd, ome_eta, seed_hkl_ids, threshold_pg, fiber_ndiv, 
                                 omeTol=ome_tol, etaTol=eta_tol, qTol=1e-7, 
                                 doMultiProc=multiproc, 
-                                nCPUs=ncpus)
+                                nCPUs=ncpus, 
+                                useGrid=qgrid_file)
 
     cl_radius = parser.getfloat('clustering', 'cl_radius')
     min_compl = parser.getfloat('clustering', 'min_compl')
     num_above = sum(np.r_[compl] > min_compl)
     if num_above == 0:
-        raise RuntimeError, "No orientations above specified threshold of %.1f%%" % (min_compl)
+        import pdb;pdb.set_trace()
+        # raise RuntimeError, "No orientations above specified threshold of %.1f%%" % (100.*min_compl)
     elif num_above == 1:
         qbar = qfib[:, np.r_[compl] > min_compl]
     else:
         qbar, cl = run_cluster(compl, qfib, pd.getQSym(), cl_radius=cl_radius, min_compl=min_compl)
     
     # SAVE OUTPUT
-    np.savetxt(out_filename, qbar.T, fmt="%1.12e", delimiter="\t")
+    np.savetxt(os.path.join(working_dir, out_filename), qbar.T, fmt="%1.12e", delimiter="\t")
     
     # import matplotlib.pyplot as plt
     # from mpl_toolkits.mplot3d import Axes3D

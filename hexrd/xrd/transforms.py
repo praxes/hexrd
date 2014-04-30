@@ -26,7 +26,7 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 
-import os, sys
+import os, sys, warnings
 import numpy as np
 import scipy.sparse as sparse
 
@@ -36,6 +36,8 @@ from numpy import float_ as nFloat
 from numpy import int_ as nInt
 
 from hexrd.xrd import distortion as dFuncs
+
+warnings.simplefilter("error", RuntimeWarning)
 
 # ######################################################################
 # Module Data
@@ -748,31 +750,48 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     A better way to go.  find out if an angle is in the range 
     CCW or CW from start to stop
     """
-    angList = np.atleast_1d(angList).flatten()      # needs to have len
-    startAngs  = np.atleast_1d(startAngs).flatten() # needs to have len
-    stopAngs  = np.atleast_1d(stopAngs).flatten()   # needs to have len
+    angList   = np.atleast_1d(angList).flatten()   # needs to have len
+    startAngs = np.atleast_1d(startAngs).flatten() # needs to have len
+    stopAngs  = np.atleast_1d(stopAngs).flatten()  # needs to have len
     
     assert len(startAngs) == len(stopAngs), "length of min and max angular limits must match!"
+
+    # to avoid warnings in >= later down, mark nans
+    nan_mask = np.isnan(angList)
     
     reflInRange = np.zeros(angList.shape, dtype=bool)
     
     # anonynmous func for zProjection
     zProj = lambda x, y: np.cos(x) * np.sin(y) - np.sin(x) * np.cos(y)
     
+    # bin length for chunking
+    binLen = np.pi / 3.
+    
     for i in range(len(startAngs)):
         # cross-product:  startVector X stopVector
         cprod = np.cos(startAngs[i]) * np.sin(stopAngs[i]) \
             - np.sin(startAngs[i]) * np.cos(stopAngs[i])
         if (cprod <= 0 and ccw) or (cprod >= 0 and not ccw):
+            # calculate arc length
             arclen = 2*np.pi - \
                 np.arccos(np.cos(startAngs[i]) * np.cos(stopAngs[i]) + \
                               np.sin(startAngs[i]) * np.sin(stopAngs[i]))
-            numSubranges = int(np.ceil(arclen/(0.5*np.pi)))
-            binLen       = 0.5*np.pi
-            finalBinLen  = arclen % (0.5*np.pi)
+            
+            # number or subranges using 'binLen'
+            numSubranges = int(np.ceil(arclen/binLen))
+            
+            # check remaider
+            binrem = np.remainder(arclen, binLen)
+            if binrem == 0:
+                finalBinLen = binLen
+            else:
+                finalBinLen = binrem
+            
+            # if clockwise, negate bin length
             if not ccw:
                  binLen      = -binLen
                  finalBinLen = -finalBinLen
+            
             # Create sub ranges on the fly to avoid ambiguity in dot product
             # for wedges >= 180 degrees
             subRanges = np.array(\
@@ -782,15 +801,23 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
                 zStart = zProj(angList, subRanges[k])
                 zStop  = zProj(angList, subRanges[k + 1])
                 if ccw:
+                    zStart[nan_mask] =  999.
+                    zStop[nan_mask]  = -999.
                     reflInRange = reflInRange | np.logical_and(zStart <= 0, zStop >= 0)
                 else:
+                    zStart[nan_mask] = -999.
+                    zStop[nan_mask]  =  999.
                     reflInRange = reflInRange | np.logical_and(zStart >= 0, zStop <= 0)
         else:
             zStart = zProj(angList, startAngs[i])
             zStop  = zProj(angList, stopAngs[i])
             if ccw:
+                zStart[nan_mask] =  999.
+                zStop[nan_mask]  = -999.
                 reflInRange = reflInRange | np.logical_and(zStart <= 0, zStop >= 0)
             else:
+                zStart[nan_mask] = -999.
+                zStop[nan_mask]  =  999.
                 reflInRange = reflInRange | np.logical_and(zStart >= 0, zStop <= 0)
     return reflInRange
 
