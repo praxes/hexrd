@@ -114,7 +114,7 @@ def make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=None
     omeEta   = xrdutil.CollapseOmeEta(reader,
                                       pd, hkl_ids, detector,
                                       nframesLump=nframesLump, nEtaBins=nEtaBins,
-                                      debug=True, threshold=threshold)
+                                      debug=False, threshold=threshold)
     if output is not None:
         if isinstance(output, str):
             fid = open(output, 'w')
@@ -215,6 +215,7 @@ def run_cluster(complPG, qfib, qsym,
         core_samples, labels = dbscan(pdist, eps=d2r*cl_radius, min_samples=2, metric='precomputed')
         cl = np.array(labels, dtype=int) + 1
     else:
+        print "Using fclusterdata with a tolerance of %f degrees..." % (cl_radius)
         cl = cluster.hierarchy.fclusterdata(qfib_r.T, d2r*cl_radius, criterion='distance', metric=quatDistance)
         
     nblobs = len(np.unique(cl))

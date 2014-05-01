@@ -66,6 +66,12 @@ try:
 except:
     havePfigPkg = False
 
+try:
+    from progressbar import ProgressBar, Bar, ETA, ReverseBar
+    have_progBar = True
+except:
+    have_progBar = False
+
 'quadr1d of 8 is probably overkill, but we are in 1d so it is inexpensive'
 quadr1dDflt = 8
 #
@@ -1473,7 +1479,12 @@ class CollapseOmeEta(object):
             sumImg = nframesLump > 1
             nFrames = reader.getNFrames()
             #
+            if have_progBar:
+                widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
+                pbar = ProgressBar(widgets=widgets, maxval=reader.getNFrames() / nframesLump).start()
             for iFrame in range(reader.getNFrames() / nframesLump): # for iFrame, omega in enumerate(omegas):
+                if have_progBar:
+                    pbar.update(iFrame+1)
                 if debug:
                     print location+' : working on frame %d' % (iFrame)
                     tic = time.time()
@@ -1547,7 +1558,8 @@ class CollapseOmeEta(object):
                     print location+' : frame %d took %g seconds' % (iFrameTot, elapsed)
                 iFrameTot += 1
             'done with frames'
-
+            if have_progBar:
+                pbar.finish()
         'done with readerList'
         self.omeEdges[nFramesTot] = omega+delta_omega*0.5
 
