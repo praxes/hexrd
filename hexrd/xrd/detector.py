@@ -1343,7 +1343,7 @@ class ReadGE(Framer2DRC):
     getReadDtype function replaced by dtypeRead property
     """
     @classmethod
-    def maxVal(cls):
+    def maxVal(cls, dummy):
         'maximum value that can be stored in the image pixel data type'
         # dtype = reader._ReadGE__frame_dtype
         # maxInt = num.iinfo(cls.__frame_dtype_read).max # bigger than it really is

@@ -64,6 +64,12 @@ from hexrd.xrd.xrdbase import getGaussNDParams
 from hexrd.xrd import rotations
 from hexrd.xrd.rotations import mapAngle
 
+try:
+    from progressbar import ProgressBar, Bar, ETA, ReverseBar
+    have_progBar = True
+except:
+    have_progBar = False
+
 # from hexrd import uncertainty_analysis
 
 debugDflt = False
@@ -4508,7 +4514,12 @@ class Spots(object):
         prevbin   = None
         prevomega = None
         darkframe = reader.getDark()
+        if have_progBar:
+            widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
+            pbar = ProgressBar(widgets=widgets, maxval=reader.getNFrames() / nframesLump).start()
         for iFrame in range(nFrames / nframesLump): # for iFrame, omega in enumerate(omegas):
+            if have_progBar:
+                pbar.update(iFrame+1)
             if debug > 1:
                 log_l('working on frame %d' % (iFrame))
                 ticFrame = time.time()
@@ -4734,6 +4745,8 @@ class Spots(object):
                 log_l('references to thisframe : %d (end of loop)' % (sys.getrefcount(thisframe)))
             del thisframe
         'done with iFrame loop'
+        if have_progBar:
+            pbar.finish()
 
         'take care of remaining active spots'
         for key, activeSpotData in spotDictA.iteritems():
