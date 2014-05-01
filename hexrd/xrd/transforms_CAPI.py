@@ -408,11 +408,14 @@ def makeBinaryRotMat(axis):
 def makeEtaFrameRotMat(bHat_l, eHat_l):
     return _transforms_CAPI.makeEtaFrameRotMat(bHat_l.flatten(),eHat_l.flatten())
 
-def validateAngleRanges(angList, angMin, angMax):
-    return _transforms_CAPI.validateAngleRanges(angList,angMin,angMax)
+def validateAngleRanges(angList, angMin, angMax, ccw=True):
+    return _transforms_CAPI.validateAngleRanges(angList,angMin,angMax,ccw)
 
 def rotate_vecs_about_axis(angle, axis, vecs):
     return _transforms_CAPI.rotate_vecs_about_axis(angle, axis, vecs)
+
+def quat_distance(q1, q2, qsym):
+    return _transforms_CAPI.quat_distance(q1, q2, qsym)
 
 #def rotateVecsAboutAxis(angle, axis, vecs):
 #    return _transforms_CAPI.rotateVecsAboutAxis(angle, axis, vecs)

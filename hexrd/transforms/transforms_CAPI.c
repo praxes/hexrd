@@ -29,11 +29,12 @@ static PyMethodDef _transform_methods[] = {
   {"makeEtaFrameRotMat",makeEtaFrameRotMat,METH_VARARGS,"Make eta basis COB matrix"},
   {"validateAngleRanges",validateAngleRanges,METH_VARARGS,""},
   {"rotate_vecs_about_axis",rotate_vecs_about_axis,METH_VARARGS,"Rotate vectors about an axis"},
+  {"quat_distance",quat_distance,METH_VARARGS,""},
   //{"rotateVecsAboutAxis",rotateVecsAboutAxis,METH_VARARGS,"Rotate vectors about an axis"},
   {NULL,NULL}
 };
 
-static double epsf = 2.2e-16;
+/* static double epsf = 2.2e-16; */
 
 void init_transforms_CAPI(void)
 {
@@ -45,7 +46,9 @@ void init_transforms_CAPI(void)
 /* Funtions */
 
 static PyObject * makeGVector(PyObject * self, PyObject * args)
-{}
+{
+  return(NULL);
+}
 
 /*
     Takes a list of unit reciprocal lattice vectors in crystal frame to the
@@ -76,13 +79,13 @@ static PyObject * gvecToDetectorXY(PyObject * self, PyObject * args)
   PyArrayObject *result;
 
   int dgc, drd, drs, drc, dtd, dts, dtc, dbv;
-  npy_intp npts, nadm, dims[2];
+  npy_intp npts, dims[2];
 
   double *gVec_c_Ptr,
          *rMat_d_Ptr, *rMat_s_Ptr, *rMat_c_Ptr,
          *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
          *beamVec_Ptr;
-  double *result_Ptr, *new_result_Ptr;
+  double *result_Ptr;
 
   /* Parse arguments */
   if ( !PyArg_ParseTuple(args,"OOOOOOOO",
@@ -355,27 +358,36 @@ np.ascontiguousarray(hkls),chi,rMat_c,bMat,wavelength,
 /* Utility Funtions */
 
 static PyObject * arccosSafe(PyObject * self, PyObject * args)
-{}
+{
+  return(NULL);
+}
 
 static PyObject * angularDifference(PyObject * self, PyObject * args)
-{}
+{
+  return(NULL);
+}
 
 static PyObject * mapAngle(PyObject * self, PyObject * args)
-{}
+{
+  return(NULL);
+}
 
 static PyObject * columnNorm(PyObject * self, PyObject * args)
-{}
+{
+  return(NULL);
+}
 
 static PyObject * rowNorm(PyObject * self, PyObject * args)
-{}
+{
+  return(NULL);
+}
 
 static PyObject * unitRowVector(PyObject * self, PyObject * args)
 {
   PyArrayObject *vecIn, *vecOut;
   double *cIn, *cOut;
-  double nrm,val;
   int d;
-  npy_intp j,n;
+  npy_intp n;
  
   if ( !PyArg_ParseTuple(args,"O", &vecIn)) return(NULL);
   if ( vecIn  == NULL ) return(NULL);
@@ -432,7 +444,7 @@ static PyObject * unitRowVectors(PyObject *self, PyObject *args)
 static PyObject * makeDetectorRotMat(PyObject * self, PyObject * args)
 {
   PyArrayObject *tiltAngles, *rMat;
-  int dt, i;
+  int dt;
   npy_intp nt, dims[2];
   double *tPtr, *rPtr;
 
@@ -465,7 +477,7 @@ static PyObject * makeDetectorRotMat(PyObject * self, PyObject * args)
 static PyObject * makeOscillRotMat(PyObject * self, PyObject * args)
 {
   PyArrayObject *oscillAngles, *rMat;
-  int doa, i;
+  int doa;
   npy_intp no, dims[2];
   double *oPtr, *rPtr;
 
@@ -498,7 +510,7 @@ static PyObject * makeOscillRotMat(PyObject * self, PyObject * args)
 static PyObject * makeRotMatOfExpMap(PyObject * self, PyObject * args)
 {
   PyArrayObject *expMap, *rMat;
-  int de, i;
+  int de;
   npy_intp ne, dims[2];
   double *ePtr, *rPtr;
 
@@ -531,7 +543,7 @@ static PyObject * makeRotMatOfExpMap(PyObject * self, PyObject * args)
 static PyObject * makeBinaryRotMat(PyObject * self, PyObject * args)
 {
   PyArrayObject *axis, *rMat;
-  int da, i;
+  int da;
   npy_intp na, dims[2];
   double *aPtr, *rPtr;
 
@@ -564,9 +576,9 @@ static PyObject * makeBinaryRotMat(PyObject * self, PyObject * args)
 static PyObject * makeEtaFrameRotMat(PyObject * self, PyObject * args)
 {
   PyArrayObject *bHat, *eHat, *rMat;
-  int db, de, i;
+  int db, de;
   npy_intp nb, ne, dims[2];
-  double *bPtr, *ePtr, *rPtr, dotZe, nrmZ, nrmX;
+  double *bPtr, *ePtr, *rPtr;
 
   /* Parse arguments */
   if ( !PyArg_ParseTuple(args,"OO", &bHat,&eHat)) return(NULL);
@@ -600,13 +612,15 @@ static PyObject * makeEtaFrameRotMat(PyObject * self, PyObject * args)
 static PyObject * validateAngleRanges(PyObject * self, PyObject * args)
 {
   PyArrayObject *angList, *angMin, *angMax, *reflInRange;
+  PyObject *ccw;
+  int ccwVal = 1; /* ccwVal set to True by default */
   int da, dmin, dmax;
   npy_intp na, nmin, nmax;
   double *aPtr, *minPtr, *maxPtr;
   bool *rPtr;
 
   /* Parse arguments */
-  if ( !PyArg_ParseTuple(args,"OOO", &angList,&angMin,&angMax)) return(NULL);
+  if ( !PyArg_ParseTuple(args,"OOOO", &angList,&angMin,&angMax,&ccw)) return(NULL);
   if ( angList == NULL || angMin == NULL || angMax == NULL ) return(NULL);
 
   /* Verify shape of input arrays */
@@ -621,6 +635,12 @@ static PyObject * validateAngleRanges(PyObject * self, PyObject * args)
   nmax = PyArray_DIMS(angMax)[0];
   assert( nmin == nmax );
 
+  /* Check the value of ccw */
+  if ( ccw == Py_True )
+    ccwVal = 1;
+  else
+    ccwVal = 0;
+
   /* Allocate the result matrix with appropriate dimensions and type */
   reflInRange = (PyArrayObject*)PyArray_EMPTY(1,PyArray_DIMS(angList),NPY_BOOL,false);
   assert( reflInRange != NULL );
@@ -632,7 +652,7 @@ static PyObject * validateAngleRanges(PyObject * self, PyObject * args)
   rPtr   = (bool*)PyArray_DATA(reflInRange);
 
   /* Call the actual function */
-  validateAngleRanges_cfunc(na,aPtr,nmin,minPtr,maxPtr,rPtr);
+  validateAngleRanges_cfunc(na,aPtr,nmin,minPtr,maxPtr,rPtr,ccwVal);
 
   return((PyObject*)reflInRange);
 }
@@ -680,4 +700,40 @@ static PyObject * rotate_vecs_about_axis(PyObject * self, PyObject * args)
   rotate_vecs_about_axis_cfunc(na,aPtr,nax0,axesPtr,nv0,vecsPtr,rPtr);
 
   return((PyObject*)rVecs);
+}
+
+static PyObject * quat_distance(PyObject * self, PyObject * args)
+{
+  PyArrayObject *q1, *q2, *qsym;
+  double *q1Ptr, *q2Ptr, *qsymPtr;
+  int dq1, dq2,dqsym;
+  int nq1, nq2,nqsym,nsym;
+  double dist = 0.0;
+
+  /* Parse arguments */
+  if ( !PyArg_ParseTuple(args,"OOO", &q1,&q2,&qsym)) return(NULL);
+  if ( q1 == NULL || q2 == NULL || qsym == NULL ) return(NULL);
+
+  /* Verify shape of input arrays */
+  dq1   = PyArray_NDIM(q1);
+  dq2   = PyArray_NDIM(q2);
+  dqsym = PyArray_NDIM(qsym);
+  assert( dq1 == 1 && dq2 == 1 && dqsym == 2 );
+
+  /* Verify dimensions of input arrays */
+  nq1   = PyArray_DIMS(q1)[0];
+  nq2   = PyArray_DIMS(q2)[0];
+  nqsym = PyArray_DIMS(qsym)[0];
+  nsym  = PyArray_DIMS(qsym)[1];
+  assert( nq1 == 4 && nq2 == 4 && nqsym == 4 );
+
+  /* Grab pointers to the various data arrays */
+  q1Ptr   = (double*)PyArray_DATA(q1);
+  q2Ptr   = (double*)PyArray_DATA(q2);
+  qsymPtr = (double*)PyArray_DATA(qsym);
+
+  /* Call the actual function */
+  dist = quat_distance_cfunc(nsym,q1Ptr,q2Ptr,qsymPtr);
+
+  return(PyFloat_FromDouble(dist));
 }

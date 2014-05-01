@@ -5,11 +5,11 @@
 #include "transforms_CFUNC.h"
 
 static double epsf      = 2.2e-16;
-static double ten_epsf  = 2.2e-15;
+/* static double ten_epsf  = 2.2e-15; */
 static double sqrt_epsf = 1.5e-8;
 
-static double X1[3] = {1.0,0.0,0.0};
-static double Y1[3] = {0.0,1.0,0.0};
+/* static double X1[3] = {1.0,0.0,0.0}; */
+/* static double Y1[3] = {0.0,1.0,0.0}; */
 static double Z1[3] = {0.0,0.0,1.0};
 
 /******************************************************************************/
@@ -20,7 +20,7 @@ void gvecToDetectorXY_cfunc(long int npts, double * gVec_c,
 			    double * tVec_d, double * tVec_s, double * tVec_c,
 			    double * beamVec, double * result)
 {
-  long int i, n_adm;
+  long int i;
   int j, k, l;
 
   double ztol, bDot, denom, u, num;
@@ -120,7 +120,7 @@ void detectorXYToGvec_cfunc(long int npts, double * xy,
 {
   long int i;
   int j, k;
-  double nrm, phi, s, c, bVec[3], tVec1[3], tVec2[3], dHat_l[3], n_g[3];
+  double nrm, phi, bVec[3], tVec1[3], tVec2[3], dHat_l[3], n_g[3];
   double rMat_e[9];
 
   /* Fill rMat_e */
@@ -208,12 +208,11 @@ void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
   bool crc = false;
 
   double gVec_e[3], gHat_c[3], gHat_s[3], bHat_l[3], eHat_l[3], oVec[2];
-  double tVec0[3], tVec1[3];
+  double tVec0[3];
   double rMat_e[9], rMat_s[9];
   double a, b, c, sintht, cchi, schi;
   double abMag, phaseAng, rhs, rhsAng;
-  double ome0, ome1, eta0, eta1, tTh0;
-  double nrm0, nrm1, tmp_eta0, tmp_eta1;
+  double nrm0, nrm1;
 
   /* Normalize the beam vector */
   nrm0 = 0.0;
@@ -534,7 +533,7 @@ void makeEtaFrameRotMat_cfunc(double * bPtr, double * ePtr, double * rPtr)
                   rPtr[3*((i+2)%3)+2]*rPtr[3*((i+1)%3)+0];
 }
 
-void validateAngleRanges_cfunc(int na, double * aPtr, int nr, double * minPtr, double * maxPtr, bool * rPtr)
+void validateAngleRanges_old_cfunc(int na, double * aPtr, int nr, double * minPtr, double * maxPtr, bool * rPtr)
 {
   int i, j;
   double thetaMax, theta;
@@ -567,6 +566,79 @@ void validateAngleRanges_cfunc(int na, double * aPtr, int nr, double * minPtr, d
 	theta -= 2.0*M_PI;
 
       if ( theta > -sqrt_epsf && theta < thetaMax + sqrt_epsf ) {
+	rPtr[i] = true;
+
+	/* No need to check other ranges */
+	break;
+      }
+    }
+  }
+}
+
+void validateAngleRanges_cfunc(int na, double * aPtr, int nr,
+			       double * minPtr, double * maxPtr,
+			       bool * rPtr, int ccw)
+{
+  int i, j;
+  double thetaMax, theta;
+  double *startPtr, *stopPtr;
+
+  if ( ccw ) {
+    startPtr = minPtr;
+    stopPtr  = maxPtr;
+  } else {
+    startPtr = maxPtr;
+    stopPtr  = minPtr;
+  }
+
+  /* Each angle should only be examined once. Any more is a waste of time.  */
+  for (i=0; i<na; i++) {
+
+    /* Ensure there's no match to begin with */
+    rPtr[i] = false;
+
+    for (j=0; j<nr; j++) {
+
+      /* Since the angle values themselves are unimportant we will
+	 redefine them so that the start of the range is zero.  The
+	 end of the range will then be between zero and two pi.  It
+	 will then be quite easy to determine if the angle of interest
+	 is in the range or not. */
+
+      thetaMax = stopPtr[j] - startPtr[j];
+      theta    = aPtr[i] - startPtr[j];
+
+      while ( thetaMax < 0.0 )
+	thetaMax += 2.0*M_PI;
+      while ( thetaMax > 2.0*M_PI )
+	thetaMax -= 2.0*M_PI;
+
+      /* Check for an empty range */
+      if ( fabs(thetaMax) < sqrt_epsf ) {
+	rPtr[i] = true;
+
+	/* No need to check other ranges */
+	break;
+      }
+
+      /* Check for a range which spans a full circle */
+      if ( fabs(thetaMax-2.0*M_PI) < sqrt_epsf ) {
+
+	/* Double check the initial range */
+	if ( (ccw && maxPtr[j] > minPtr[j]) || ((!ccw) && maxPtr[j] < minPtr[j]) ) {
+	  rPtr[i] = true;
+
+	  /* No need to check other ranges */
+	  break;
+	}
+      }
+
+      while ( theta < 0.0 )
+	theta += 2.0*M_PI;
+      while ( theta > 2.0*M_PI )
+	theta -= 2.0*M_PI;
+
+      if ( theta >= -sqrt_epsf && theta <= thetaMax+sqrt_epsf ) {
 	rPtr[i] = true;
 
 	/* No need to check other ranges */
@@ -655,4 +727,29 @@ void rotate_vecs_about_axis_cfunc(long int na, double * angles,
       rVecs[3*i+j] = c*vecs[3*i+j]+(s/nrm)*aCrossV[j]+(1.0-c)*proj*axes[sax*i+j]/(nrm*nrm);
     }
   }
+}
+
+double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
+{
+  double q0, q0_max = 0.0, dist = 0.0;
+  double q12[4];
+
+  /* Compute a product of q1 and q2 */
+  q12[0] = q1[0]*q2[0] + q1[1]*q2[1] + q1[2]*q2[2] + q1[3]*q2[3];
+  q12[1] = q1[1]*q2[0] - q1[0]*q2[1] - q1[3]*q2[2] + q1[2]*q2[3];
+  q12[2] = q1[2]*q2[0] + q1[3]*q2[1] - q1[0]*q2[2] - q1[1]*q2[3];
+  q12[3] = q1[3]*q2[0] - q1[2]*q2[1] + q1[1]*q2[2] - q1[0]*q2[3];
+
+  /* For each symmetry in qsym compute its inner product with q12 */
+  for (int i=0; i<nsym; i++) {
+    q0 = q12[0]*qsym[4*i+0] + q12[1]*qsym[4*i+1] + q12[2]*qsym[4*i+2] + q12[3]*qsym[4*i+3];
+    if ( q0 > q0_max ) q0_max = q0;
+  }
+
+  if ( fabs(q0_max) < 1.0 )
+    dist = 2.0*acos(fabs(q0_max));
+  else
+    dist = 0.0;
+
+  return(dist);
 }

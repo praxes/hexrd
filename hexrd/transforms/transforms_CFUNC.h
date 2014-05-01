@@ -48,7 +48,7 @@ void makeBinaryRotMat_cfunc(double * aPtr, double * rPtr);
 
 void makeEtaFrameRotMat_cfunc(double * bPtr, double * ePtr, double * rPtr);
 
-void validateAngleRanges_cfunc(int na, double * aPtr, int nr, double * minPtr, double * maxPtr, bool * rPtr);
+void validateAngleRanges_cfunc(int na, double * aPtr, int nr, double * minPtr, double * maxPtr, bool * rPtr, int ccw);
 
 //void rotateVectorAboutAxis_cfunc(double tTh, double * n_g, double * dHat_l, double * gVec_l);
 
@@ -56,3 +56,5 @@ void rotate_vecs_about_axis_cfunc(long int na, double * angles,
 				  long int nax, double * axes,
 				  long int nv, double * vecs,
 				  double * rVecs);
+
+double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym);
