@@ -756,7 +756,8 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     
     assert len(startAngs) == len(stopAngs), "length of min and max angular limits must match!"
 
-    # to avoid warnings in >= later down, mark nans
+    # to avoid warnings in >=, <= later down, mark nans;
+    # need these to trick output to False in the case of nan input
     nan_mask = np.isnan(angList)
     
     reflInRange = np.zeros(angList.shape, dtype=bool)

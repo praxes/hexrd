@@ -731,25 +731,30 @@ void rotate_vecs_about_axis_cfunc(long int na, double * angles,
 
 double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
 {
+  int i;
   double q0, q0_max = 0.0, dist = 0.0;
-  double q12[4];
-
-  /* Compute a product of q1 and q2 */
-  q12[0] = q1[0]*q2[0] + q1[1]*q2[1] + q1[2]*q2[2] + q1[3]*q2[3];
-  q12[1] = q1[1]*q2[0] - q1[0]*q2[1] - q1[3]*q2[2] + q1[2]*q2[3];
-  q12[2] = q1[2]*q2[0] + q1[3]*q2[1] - q1[0]*q2[2] - q1[1]*q2[3];
-  q12[3] = q1[3]*q2[0] - q1[2]*q2[1] + q1[1]*q2[2] - q1[0]*q2[3];
-
-  /* For each symmetry in qsym compute its inner product with q12 */
-  for (int i=0; i<nsym; i++) {
-    q0 = q12[0]*qsym[4*i+0] + q12[1]*qsym[4*i+1] + q12[2]*qsym[4*i+2] + q12[3]*qsym[4*i+3];
-    if ( q0 > q0_max ) q0_max = q0;
+  double q2s[4*nsym];
+    
+  /* For each symmetry in qsym compute its inner product with q2 */
+  for (i=0; i<nsym; i++) {
+    q2s[4*i+0] = q2[0]*qsym[4*i+0] - q2[1]*qsym[4*i+1] - q2[2]*qsym[4*i+2] - q2[3]*qsym[4*i+3];
+    q2s[4*i+1] = q2[1]*qsym[4*i+0] + q2[0]*qsym[4*i+1] - q2[3]*qsym[4*i+2] + q2[2]*qsym[4*i+3];
+    q2s[4*i+2] = q2[2]*qsym[4*i+0] + q2[3]*qsym[4*i+1] + q2[0]*qsym[4*i+2] - q2[1]*qsym[4*i+3];
+    q2s[4*i+3] = q2[3]*qsym[4*i+0] - q2[2]*qsym[4*i+1] + q2[1]*qsym[4*i+2] + q2[0]*qsym[4*i+3];
+  }
+  
+  /* For each symmetric equivalent q2 compute its inner product with inv(q1) */
+  for (i=0; i<nsym; i++) {
+    q0 = q1[0]*q2s[4*i+0] + q1[1]*q2s[4*i+1] + q1[2]*q2s[4*i+2] + q1[3]*q2s[4*i+3];
+    if ( fabs(q0) > q0_max ) {
+      q0_max = fabs(q0);
+    }
   }
 
-  if ( fabs(q0_max) < 1.0 )
-    dist = 2.0*acos(fabs(q0_max));
+  if ( q0_max < 1.0 )
+    dist = 2.0*acos(q0_max);
   else
-    dist = 0.0;
+    dist = NAN;
 
   return(dist);
 }
