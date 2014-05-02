@@ -1,9 +1,43 @@
-import os, sys
+#! /usr/bin/env python
+# ============================================================
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
+# All rights reserved.
+#
+# This file is part of HEXRD. For details on dowloading the source,
+# see the file COPYING.
+#
+# Please also see the file LICENSE.
+#
+# This program is free software; you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License (as published by the Free Software
+# Foundation) version 2.1 dated February 1999.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this program (see file LICENSE); if not, write to
+# the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
+# Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
+# ============================================================
+
+import os, sys, warnings
 import numpy as np
 import scipy.sparse as sparse
 
+from hexrd import matrixutil as mutil
+
 from numpy import float_ as nFloat
 from numpy import int_ as nInt
+
+from hexrd.xrd import distortion as dFuncs
+
+warnings.simplefilter("error", RuntimeWarning)
 
 # ######################################################################
 # Module Data
@@ -25,6 +59,10 @@ zeroVec = np.array([0.0,0.0,0.0])
 # reference beam direction and eta=0 ref in LAB FRAME for standard geometry
 bVec_ref = -Zl
 eta_ref  =  Xl
+
+# distortion for warping detector coords
+dFunc_ref   = dFuncs.GE_41RT
+dParams_ref = [0., 0., 0., 2., 2., 2]
 
 # ######################################################################
 # Funtions
@@ -50,6 +88,21 @@ def makeGVector(hkl, bMat):
     """
     assert hkl.shape[0] == 3, 'hkl input must be (3, n)'
     return unitVector(np.dot(bMat, hkl))
+
+def anglesToGVec(angs, bHat_l, eHat_l, rMat_s=None, rMat_c=None):
+    """
+    from 'eta' frame out to lab (with handy kwargs to go to crystal or sample)
+    """ 
+    if rMat_s is None:
+        rMat_s = I3
+    if rMat_c is None:
+        rMat_c = I3
+        
+    rMat_e = makeEtaFrameRotMat(bHat_l, eHat_l)
+    gVec_e = np.vstack([[np.cos(0.5*angs[:, 0]) * np.cos(angs[:, 1])],
+                        [np.cos(0.5*angs[:, 0]) * np.sin(angs[:, 1])],
+                        [np.sin(0.5*angs[:, 0])]])
+    return np.dot(rMat_c.T, np.dot(rMat_s.T, np.dot(rMat_e, gVec_e)))
 
 def gvecToDetectorXY(gVec_c,
                      rMat_d, rMat_s, rMat_c,
@@ -93,15 +146,16 @@ def gvecToDetectorXY(gVec_c,
     canDiffract = np.atleast_1d( np.logical_and( bDot >= ztol, bDot <= 1. - ztol ) )
     npts        = sum(canDiffract)
     retval      = np.nan * np.ones_like(gVec_l)
-    if np.any(canDiffract):  # subset of admissable reciprocal lattice vectors
+    if np.any(canDiffract):
+        # subset of admissable reciprocal lattice vectors
         adm_gVec_l = gVec_l[:, canDiffract].reshape(3, npts)
-        dVec_l = np.empty((3, npts)) # initialize diffracted beam vector array
+        
+        # initialize diffracted beam vector array
+        dVec_l = np.empty((3, npts)) 
         for ipt in range(npts):
             dVec_l[:, ipt] = np.dot(makeBinaryRotMat(adm_gVec_l[:, ipt]), -bHat_l).squeeze()
-            # tmp_op = np.dot(adm_gVec_l[:, ipt].reshape(3, 1),
-            #                 adm_gVec_l[:, ipt].reshape(1, 3))
-            # dVec_l[:, ipt] = np.dot(2*tmp_op - I3, -bHat_l).squeeze()
             pass
+        
         # ###############################################################
         # displacement vector calculation
 
@@ -129,6 +183,7 @@ def gvecToDetectorXY(gVec_c,
 def detectorXYToGvec(xy_det,
                      rMat_d, rMat_s,
                      tVec_d, tVec_s, tVec_c,
+                     distortion=(dFunc_ref, dParams_ref), 
                      beamVec=bVec_ref, etaVec=eta_ref):
     """
     Takes a list cartesian (x, y) pairs in the detector coordinates and calculates
@@ -156,6 +211,8 @@ def detectorXYToGvec(xy_det,
     bHat_l = unitVector(beamVec.reshape(3, 1)) # make sure beam direction is a unit vector
     eHat_l = unitVector(etaVec.reshape(3, 1))  # make sure eta=0 direction is a unit vector
 
+    xy_det = distortion[0](xy_det, distortion[1])
+    
     # form in-plane vectors for detector points list in DETECTOR FRAME
     P2_d = np.hstack([np.atleast_2d(xy_det), np.zeros((npts, 1))]).T
 
@@ -186,7 +243,7 @@ def detectorXYToGvec(xy_det,
     return (tTh, eta), gVec_l
 
 def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
-                       beamVec=bVec_ref, etaVec=eta_ref):
+                       vInv=None, beamVec=bVec_ref, etaVec=eta_ref):
     """
     Takes a list of unit reciprocal lattice vectors in crystal frame to the
     specified detector-relative frame, subject to the conditions:
@@ -202,9 +259,10 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     wavelength -- float representing the x-ray wavelength in Angstroms
 
     Optional Keyword Arguments:
-    beamVec -- (3, 1) mdarray containing the incident beam direction components in the LAB FRAME
-    etaVec  -- (3, 1) mdarray containing the reference azimuth direction components in the LAB FRAME
-
+    beamVec -- (3, 1) ndarray containing the incident beam direction components in the LAB FRAME
+    etaVec  -- (3, 1) ndarray containing the reference azimuth direction components in the LAB FRAME
+    vInv    -- (6, 1) ndarray containing the indep. components of the inverse left stretch tensor
+                      in the SAMPLE FRAME in the Mandel-Voigt notation
     Outputs:
     ome0 -- (3, n) ndarray containing the feasible (tTh, eta, ome) triplets for each input hkl (first solution)
     ome1 -- (3, n) ndarray containing the feasible (tTh, eta, ome) triplets for each input hkl (second solution)
@@ -250,13 +308,20 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     Laue condition cannot be satisfied (filled with NaNs in the results
     array here)
     """
-    gVec_c = np.dot(bMat, hkls)                    # reciprocal lattice vectors in CRYSTAL frame
-    gHat_c = unitVector(gVec_c)                    # unit reciprocal lattice vectors in CRYSTAL frame
-    gHat_s = unitVector(np.dot(rMat_c, gVec_c))    # unit reciprocal lattice vectors in SAMPLE frame
-    bHat_l = unitVector(beamVec.reshape(3, 1))     # make sure beam direction is a unit vector
-    eHat_l = unitVector(etaVec.reshape(3, 1))      # make sure eta=0 direction is a unit vector
-    sintht = 0.5 * wavelength * columnNorm(gVec_c) # sin of the Bragg angle assoc. with wavelength
-    cchi = np.cos(chi); schi = np.sin(chi)         # sin and cos of the oscillation axis tilt
+    if vInv is None:
+        vVec_s = np.c_[1., 1., 1., 0., 0., 0.].T
+    else:
+        vVec_s = vInv
+    
+    gVec_c = np.dot(bMat, hkls)                     # reciprocal lattice vectors in CRYSTAL frame
+    vMat_s = mutil.vecMVToSymm(vVec_s)              # stretch tensor in SAMPLE frame
+    gVec_s = np.dot(vMat_s, np.dot(rMat_c, gVec_c)) # reciprocal lattice vectors in SAMPLE frame
+    gHat_s = unitVector(gVec_s)                     # unit reciprocal lattice vectors in SAMPLE frame
+    gHat_c = np.dot(rMat_c.T, gHat_s)               # unit reciprocal lattice vectors in CRYSTAL frame
+    bHat_l = unitVector(beamVec.reshape(3, 1))      # make sure beam direction is a unit vector
+    eHat_l = unitVector(etaVec.reshape(3, 1))       # make sure eta=0 direction is a unit vector
+    sintht = 0.5 * wavelength * columnNorm(gVec_s)  # sin of the Bragg angle assoc. with wavelength
+    cchi = np.cos(chi); schi = np.sin(chi)          # sin and cos of the oscillation axis tilt
 
     # coefficients for harmonic equation
     a = gHat_s[2, :]*bHat_l[0] + schi*gHat_s[0, :]*bHat_l[1] - cchi*gHat_s[0, :]*bHat_l[2]
@@ -496,29 +561,19 @@ def arccosSafe(temp):
     """
     Protect against numbers slightly larger than 1 in magnitude due to round-off
     """
-
-    # Oh, the tricks we must play to make this overloaded and robust...
-    if type(temp) is list:
-        temp = nd.asarray(temp)
-    elif type(temp) is ndarray:
-        if len(temp.shape) == 0:
-            temp = temp.reshape(1)
-
-    if (temp > 1.00001).any():
+    temp = np.atleast_1d(temp)
+    if np.any(abs(temp) > 1.00001):
         print >> sys.stderr, "attempt to take arccos of %s" % temp
         raise RuntimeError, "unrecoverable error"
-    elif (temp < -1.00001).any():
-        print >> sys.stderr, "attempt to take arccos of %s" % temp
-        raise RuntimeError, "unrecoverable error"
-
+    
     gte1 = temp >=  1.
     lte1 = temp <= -1.
 
     temp[gte1] =  1
     temp[lte1] = -1
-
-    ang = arccos(temp)
-
+    
+    ang = np.arccos(temp)
+    
     return ang
 
 def angularDifference(angList0, angList1, units=angularUnits):
@@ -690,75 +745,54 @@ def makeEtaFrameRotMat(bHat_l, eHat_l):
     Ye = np.cross(Ze.flatten(), Xe.flatten()).reshape(3, 1)
     return np.hstack([Xe, Ye, Ze])
 
-def validateAngleRanges_old(angList, angMin, angMax):
-    angList = np.atleast_1d(angList)   # needs to have 'shape'
-
-    angMin = np.atleast_1d(angMin)    # need to have len
-    angMax = np.atleast_1d(angMax)    # need to have len
-
-    assert len(angMin) == len(angMax), "length of min and max angular limits must match!"
-
-    reflInRange = np.zeros(angList.shape, dtype=bool)
-
-    """
-    the algorithm won't work if the range is >= pi; therefore we have to pre-process
-    split up the ranges, and split them into chunks of, say, 90 degrees as necessary
-    """
-    angRange_l = []
-    for i in range(len(angMin)):
-        if abs(angMax[i] - angMin[i]) >= np.pi:
-            tmpRange = np.r_[np.arange(angMin[i], angMax[i], 0.5*np.pi), angMax[i]]
-            tmpRange = np.c_[tmpRange[:-1], tmpRange[1:]].tolist()
-            for j in range(len(tmpRange)):
-                angRange_l.append(tmpRange[j])
-        else:
-            angRange_l.append([angMin[i], angMax[i]])
-            pass
-        pass
-    for i in range(len(angRange_l)):
-        #
-        limVecMin = np.r_[np.cos(angRange_l[i][0]), np.sin(angRange_l[i][0])]
-        limVecMax = np.r_[np.cos(angRange_l[i][1]), np.sin(angRange_l[i][1])]
-        #
-        wedgeAngle = np.arccos( np.dot( limVecMin, limVecMax ) )
-        #
-        tVec = np.c_[ np.cos(angList), np.sin(angList) ]
-        #
-        dp = np.arccos( np.dot(tVec, limVecMin) ) + np.arccos( np.dot(tVec, limVecMax) )
-        #
-        reflInRange = reflInRange | ( abs(dp - wedgeAngle) <= sqrt_epsf )
-    return reflInRange
-
 def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     """
-    a better way to go.  find out if an angle is in the range 
+    A better way to go.  find out if an angle is in the range 
     CCW or CW from start to stop
     """
-    angList = np.atleast_1d(angList).flatten()      # needs to have len
-    startAngs  = np.atleast_1d(startAngs).flatten() # needs to have len
-    stopAngs  = np.atleast_1d(stopAngs).flatten()   # needs to have len
+    angList   = np.atleast_1d(angList).flatten()   # needs to have len
+    startAngs = np.atleast_1d(startAngs).flatten() # needs to have len
+    stopAngs  = np.atleast_1d(stopAngs).flatten()  # needs to have len
     
     assert len(startAngs) == len(stopAngs), "length of min and max angular limits must match!"
+
+    # to avoid warnings in >=, <= later down, mark nans;
+    # need these to trick output to False in the case of nan input
+    nan_mask = np.isnan(angList)
     
     reflInRange = np.zeros(angList.shape, dtype=bool)
     
     # anonynmous func for zProjection
     zProj = lambda x, y: np.cos(x) * np.sin(y) - np.sin(x) * np.cos(y)
     
+    # bin length for chunking
+    binLen = np.pi / 3.
+    
     for i in range(len(startAngs)):
         # cross-product:  startVector X stopVector
         cprod = np.cos(startAngs[i]) * np.sin(stopAngs[i]) \
             - np.sin(startAngs[i]) * np.cos(stopAngs[i])
         if (cprod <= 0 and ccw) or (cprod >= 0 and not ccw):
+            # calculate arc length
             arclen = 2*np.pi - \
                 np.arccos(np.cos(startAngs[i]) * np.cos(stopAngs[i]) + \
                               np.sin(startAngs[i]) * np.sin(stopAngs[i]))
-            numSubranges = int(np.ceil(arclen/(0.5*np.pi)))
-            binLen       = 0.5*np.pi
-            finalBinLen  = arclen % (0.5*np.pi)
+            
+            # number or subranges using 'binLen'
+            numSubranges = int(np.ceil(arclen/binLen))
+            
+            # check remaider
+            binrem = np.remainder(arclen, binLen)
+            if binrem == 0:
+                finalBinLen = binLen
+            else:
+                finalBinLen = binrem
+            
+            # if clockwise, negate bin length
             if not ccw:
                  binLen      = -binLen
                  finalBinLen = -finalBinLen
+            
             # Create sub ranges on the fly to avoid ambiguity in dot product
             # for wedges >= 180 degrees
             subRanges = np.array(\
@@ -768,20 +802,29 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
                 zStart = zProj(angList, subRanges[k])
                 zStop  = zProj(angList, subRanges[k + 1])
                 if ccw:
+                    zStart[nan_mask] =  999.
+                    zStop[nan_mask]  = -999.
                     reflInRange = reflInRange | np.logical_and(zStart <= 0, zStop >= 0)
                 else:
+                    zStart[nan_mask] = -999.
+                    zStop[nan_mask]  =  999.
                     reflInRange = reflInRange | np.logical_and(zStart >= 0, zStop <= 0)
         else:
             zStart = zProj(angList, startAngs[i])
             zStop  = zProj(angList, stopAngs[i])
             if ccw:
+                zStart[nan_mask] =  999.
+                zStop[nan_mask]  = -999.
                 reflInRange = reflInRange | np.logical_and(zStart <= 0, zStop >= 0)
             else:
+                zStart[nan_mask] = -999.
+                zStop[nan_mask]  =  999.
                 reflInRange = reflInRange | np.logical_and(zStart >= 0, zStop <= 0)
     return reflInRange
 
 def rotate_vecs_about_axis(angle, axis, vecs):
-    """rotate vectors about an axis
+    """
+    Rotate vectors about an axis
 
     INPUTS
     *angle* - array of angles (len == 1 or n)
@@ -825,3 +868,73 @@ def rotate_vecs_about_axis(angle, axis, vecs):
       + 2. * np.tile(qdota, (3, 1)) * qv \
       + 2. * np.tile(q0, (3, 1)) * qcrossn
     return v_rot
+
+def quat_product_matrix(q, mult='right'):
+    """
+    Form 4 x 4 array to perform the quaternion product
+
+    USAGE
+        qmat = quatProductMatrix(q, mult='right')
+
+    INPUTS
+        1) quats is (4,), an iterable representing a unit quaternion
+           horizontally concatenated
+        2) mult is a keyword arg, either 'left' or 'right', denoting
+           the sense of the multiplication:
+
+                       / quatProductMatrix(h, mult='right') * q
+           q * h  --> <
+                       \ quatProductMatrix(q, mult='left') * h
+
+    OUTPUTS
+        1) qmat is (4, 4), the left or right quaternion product
+           operator
+
+    NOTES
+       *) This function is intended to replace a cross-product based
+          routine for products of quaternions with large arrays of
+          quaternions (e.g. applying symmetries to a large set of
+          orientations).
+    """
+    if mult == 'right':
+        qmat = np.array([[ q[0], -q[1], -q[2], -q[3]],
+                         [ q[1],  q[0],  q[3], -q[2]],
+                         [ q[2], -q[3],  q[0],  q[1]],
+                         [ q[3],  q[2], -q[1],  q[0]],
+                         ])
+    elif mult == 'left':
+        qmat = np.array([[ q[0], -q[1], -q[2], -q[3]],
+                         [ q[1],  q[0], -q[3],  q[2]],
+                         [ q[2],  q[3],  q[0], -q[1]],
+                         [ q[3], -q[2],  q[1],  q[0]],
+                         ])
+    return qmat
+
+def quat_distance(q1, q2, qsym):
+    """
+    """
+    # qsym from PlaneData objects are (4, nsym)
+    # convert symmetries to (4, 4) qprod matrices
+    nsym = qsym.shape[1]
+    rsym = np.zeros((nsym, 4, 4))
+    for i in range(nsym):
+        rsym[i, :, :] = quat_product_matrix(qsym[:, i], mult='right')
+        
+    # inverse of q1 in matrix form
+    q1i = quat_product_matrix( np.r_[ 1, -1, -1, -1] * np.atleast_1d(q1).flatten(), mult='right' )
+    
+    # Do R * Gc, store as vstacked equivalent quaternions (nsym, 4)
+    q2s = np.dot(rsym, q2)
+    
+    # Calculate the class of misorientations for full symmetrically equivalent
+    # q1 and q2: (4, ) * (4, nsym)  
+    eqv_mis = np.dot(q1i, q2s.T)
+
+    # find the largest scalar component
+    q0_max = np.argmax(abs(eqv_mis[0, :]))
+
+    # compute the distance
+    qmin  = eqv_mis[:, q0_max]
+    
+    return 2 * arccosSafe( qmin[0] * np.sign(qmin[0]) )
+

@@ -270,7 +270,7 @@ class cakingPanel(wx.Panel):
             nframesLump=nlump,
             nEtaBins=nbins,
             threshold=thresh,
-            debug=True)
+            debug=False)
 
         self.omeEta = CollapseOmeEta(reader, pdata, hklIDs, det, **kwargs)
 

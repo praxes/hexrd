@@ -1,6 +1,35 @@
-import _transforms_CAPI
+#! /usr/bin/env python
+# ============================================================
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
+# All rights reserved.
+#
+# This file is part of HEXRD. For details on dowloading the source,
+# see the file COPYING.
+#
+# Please also see the file LICENSE.
+#
+# This program is free software; you can redistribute it and/or modify it under the
+# terms of the GNU Lesser General Public License (as published by the Free Software
+# Foundation) version 2.1 dated February 1999.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the terms and conditions of the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this program (see file LICENSE); if not, write to
+# the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
+# Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
+# ============================================================
+
 import numpy as np
 import sys
+
+from hexrd.xrd import _transforms_CAPI
 
 from numpy import float_ as nFloat
 from numpy import int_ as nInt
@@ -15,7 +44,7 @@ periodDict   = {'degrees': 360.0, 'radians': 2*np.pi}
 angularUnits = 'radians'        # module-level angle units
 
 # basis vectors
-I3 = np.eye(3)                  # (3, 3) identity
+I3 = np.eye(3)                                        # (3, 3) identity
 Xl = np.ascontiguousarray(I3[:, 0].reshape(3, 1))     # X in the lab frame
 Yl = np.ascontiguousarray(I3[:, 1].reshape(3, 1))     # Y in the lab frame
 Zl = np.ascontiguousarray(I3[:, 2].reshape(3, 1))     # Z in the lab frame
@@ -379,11 +408,14 @@ def makeBinaryRotMat(axis):
 def makeEtaFrameRotMat(bHat_l, eHat_l):
     return _transforms_CAPI.makeEtaFrameRotMat(bHat_l.flatten(),eHat_l.flatten())
 
-def validateAngleRanges(angList, angMin, angMax):
-    return _transforms_CAPI.validateAngleRanges(angList,angMin,angMax)
+def validateAngleRanges(angList, angMin, angMax, ccw=True):
+    return _transforms_CAPI.validateAngleRanges(angList,angMin,angMax,ccw)
 
 def rotate_vecs_about_axis(angle, axis, vecs):
     return _transforms_CAPI.rotate_vecs_about_axis(angle, axis, vecs)
+
+def quat_distance(q1, q2, qsym):
+    return _transforms_CAPI.quat_distance(q1, q2, qsym)
 
 #def rotateVecsAboutAxis(angle, axis, vecs):
 #    return _transforms_CAPI.rotateVecsAboutAxis(angle, axis, vecs)
