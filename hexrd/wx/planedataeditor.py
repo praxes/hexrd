@@ -55,7 +55,7 @@ class PlaneDataPanel(wx.Panel):
 """
         #
         wx.Panel.__init__(self, parent, id)
-	#
+        #
         #  Data
         #
         self.mat   = mat
@@ -66,24 +66,24 @@ class PlaneDataPanel(wx.Panel):
         self.exclude[5:] = True
         self.pData.set_exclusions(self.exclude)
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
         self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.Show(True)
 
-	return
+        return
 
     pass # class
     #
@@ -93,14 +93,14 @@ class PlaneDataPanel(wx.Panel):
         """Add interactors"""
 
         self.__makeTitleBar('Plane Data Panel')
-	#
+        #
         #  Text control for name
         #
         self.name_lab = wx.StaticText(self, wx.NewId(), 'Name', style=wx.ALIGN_CENTER)
         self.name_txt = wx.TextCtrl(self, wx.NewId(), value='',
                                     style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
         self.name_txt.ChangeValue(self.mat.name)
-	#
+        #
         #  Two-Theta and wavelength selectors, with units.
         #
         self.tthmin_lab = wx.StaticText(self, wx.NewId(), 'Two Theta Min',
@@ -108,7 +108,7 @@ class PlaneDataPanel(wx.Panel):
         self.tthmin_txt = wx.TextCtrl(self, wx.NewId(), value='0.0',
                                           style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
         self.tthmin_uni = wx.Choice(self, wx.NewId(), choices=AngleUnits)
-	#self.Bind(wx.EVT_CHOICE, self.OnChoice, self.choice)
+        #self.Bind(wx.EVT_CHOICE, self.OnChoice, self.choice)
 
 
         self.tthmax_lab = wx.StaticText(self, wx.NewId(), 'Two Theta Max',
@@ -166,9 +166,9 @@ class PlaneDataPanel(wx.Panel):
 
     def __makeTitleBar(self, t):
         """Add titlebar"""
-	self.titlebar = wx.StaticText(self, -1, t,
-					 style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
-	self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_FRAME)
+        self.titlebar = wx.StaticText(self, -1, t,
+                                         style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR_FRAME)
         myToolTip = r"""
 FRAME FOR editing the list of calibrants
 """
@@ -183,12 +183,12 @@ FRAME FOR editing the list of calibrants
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         # for text label and control
         nrow = 2; ncol = 3; padx = pady = 5;
-	self.paramSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
-	self.paramSizer.AddGrowableCol(1, 1)
-	self.paramSizer.AddGrowableCol(2, 1)
+        self.paramSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.paramSizer.AddGrowableCol(1, 1)
+        self.paramSizer.AddGrowableCol(2, 1)
         self.paramSizer.Add(self.name_lab, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.paramSizer.Add(self.name_txt, 1, wx.EXPAND|wx.ALIGN_CENTER)
         self.paramSizer.Add(wx.Window(self, -1), 1, wx.EXPAND|wx.ALIGN_CENTER)
@@ -208,8 +208,8 @@ FRAME FOR editing the list of calibrants
         #  Group sizer
         #
         nrow = 2; ncol = 2; padx = pady = 5;
-	self.gSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
-	self.gSizer.AddGrowableCol(1, 1)
+        self.gSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.gSizer.AddGrowableCol(1, 1)
         self.gSizer.Add(self.laue_lab, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.gSizer.Add(self.laue_cho, 1, wx.EXPAND|wx.ALIGN_CENTER)
         self.gSizer.Add(self.space_lab, 0, wx.EXPAND|wx.ALIGN_CENTER)
@@ -218,8 +218,8 @@ FRAME FOR editing the list of calibrants
         #  Lattice Parameter sizer
         #
         nrow = 2; ncol = 2; padx = pady = 5;
-	self.lpSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
-	self.lpSizer.AddGrowableCol(1, 1)
+        self.lpSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.lpSizer.AddGrowableCol(1, 1)
         self.lpSizer.Add(self.lp_a_lab, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.lpSizer.Add(self.lp_a_txt, 1, wx.EXPAND|wx.ALIGN_CENTER)
         self.lpSizer.Add(self.lp_b_lab, 0, wx.EXPAND|wx.ALIGN_CENTER)
@@ -236,20 +236,20 @@ FRAME FOR editing the list of calibrants
         #  Main fg sizer
         #
         nrow = 2; ncol = 2; padx = pady = 5;
-	self.fgSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
-	self.fgSizer.AddGrowableRow(1, 1)
-	self.fgSizer.Add(self.paramSizer,   1, wx.EXPAND|wx.ALIGN_CENTER)
-	self.fgSizer.Add(self.gSizer,    1, wx.EXPAND|wx.ALIGN_CENTER)
-	self.fgSizer.Add(self.hkls_clb,  1, wx.EXPAND | wx.ALIGN_CENTER | wx.TOP, 5)
-	self.fgSizer.Add(self.lpSizer,  1, wx.EXPAND | wx.ALIGN_CENTER | wx.TOP, 5)
+        self.fgSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.fgSizer.AddGrowableRow(1, 1)
+        self.fgSizer.Add(self.paramSizer,   1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.fgSizer.Add(self.gSizer,    1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.fgSizer.Add(self.hkls_clb,  1, wx.EXPAND | wx.ALIGN_CENTER | wx.TOP, 5)
+        self.fgSizer.Add(self.lpSizer,  1, wx.EXPAND | wx.ALIGN_CENTER | wx.TOP, 5)
         #
         #  Main Sizer
         #
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.titlebar,  0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.fgSizer,   1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.titlebar,  0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.fgSizer,   1, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
 
     def __getHKLs(self):
         """Return HKLs as a string list"""
@@ -277,53 +277,53 @@ FRAME FOR editing the list of calibrants
 class PlaneDataDialog(wx.Dialog):
     """PlaneDataDialog """
     def __init__(self, parent, id, mat, **kwargs):
-	"""Constructor for PlaneDataDialog"""
-	#
-	wx.Dialog.__init__(self, parent, id,
+        """Constructor for PlaneDataDialog"""
+        #
+        wx.Dialog.__init__(self, parent, id,
                            style=wx.RESIZE_BORDER|wx.CLOSE_BOX, **kwargs)
-	#
-	#  Data Objects.
-	#
-	self.mat = mat
-	#
-	#  Windows.
-	#
-	self.titlebar = wx.StaticText(self, -1, 'PlaneDataDialog',
-				      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+        #
+        #  Data Objects.
+        #
+        self.mat = mat
+        #
+        #  Windows.
+        #
+        self.titlebar = wx.StaticText(self, -1, 'PlaneDataDialog',
+                                      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
         self.pdPanel = PlaneDataPanel(self, wx.NewId(), self.mat)
         self.quitBut  = wx.Button(self, wx.NewId(), 'QUIT')
-	#
-	#  Bindings.
-	#
-	self.makeBindings()
-	#
-	#  Sizing.
-	#
-	self.makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.makeBindings()
+        #
+        #  Sizing.
+        #
+        self.makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	#  Events.
-	#
+        #
+        #  Events.
+        #
 
-	#
-	return
+        #
+        return
 
     def makeBindings(self):
-	"""Bind interactors to functions"""
+        """Bind interactors to functions"""
         self.Bind(wx.EVT_BUTTON, self.quit, self.quitBut)
 
-	return
+        return
 
     def makeSizers(self):
-	"""Lay out windows"""
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.quitBut, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.pdPanel,  1, wx.EXPAND|wx.ALIGN_CENTER)
+        """Lay out windows"""
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.quitBut, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.pdPanel,  1, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
 
     def quit(self,e):
         """Quit the dialogue"""

@@ -34,7 +34,7 @@ import wx
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
 from hexrd.wx.guiutil      import makeTitleBar, EmptyWindow
-from hexrd.wx.selecthkls   import selectHKLsDialog as HklsDlg 
+from hexrd.wx.selecthkls   import selectHKLsDialog as HklsDlg
 
 import hexrd.xrd.xrdbase as xrdbase
 
@@ -48,35 +48,35 @@ else:
 #
 class indexPanel(wx.Panel):
     """indexPanel """
-    
+
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for indexPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
+        """Constructor for indexPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
         self.SetBackgroundColour(WP.BG_COLOR_PANEL)
-	#
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
         #
         self.ChooseMethod(None)
-	#
-	self.SetAutoLayout(True)
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -84,7 +84,7 @@ class indexPanel(wx.Panel):
         """Add interactors"""
         exp = wx.GetApp().ws
         ind_opts = exp.index_opts
-        
+
         self.sz_titlebar = makeTitleBar(self, 'Indexing')
         self.method_cho = wx.Choice(self, wx.NewId(),
                                     choices=ind_opts.INDEX_CHOICES)
@@ -98,25 +98,25 @@ class indexPanel(wx.Panel):
 
     def __makeBindings(self):
         """Bind interactors"""
-	self.Bind(wx.EVT_CHOICE, self.ChooseMethod, self.method_cho)
+        self.Bind(wx.EVT_CHOICE, self.ChooseMethod, self.method_cho)
         self.Bind(wx.EVT_BUTTON, self.OnRunIndex, self.run_but)
 
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         # Top sizer for method and run
-	self.topsizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.topsizer = wx.BoxSizer(wx.HORIZONTAL)
         self.topsizer.Add(self.method_cho, 0)
         self.topsizer.Add(self.run_but,  0, wx.LEFT, 5)
-    
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.sz_titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
+
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.sz_titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.topsizer, 0)
         self.sizer.Add(self.fiber_pan, 1, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.gspot_pan, 1, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -140,23 +140,23 @@ class indexPanel(wx.Panel):
 
         print 'index results: ', exp.fitRMats
         return
-    
+
     def ChooseMethod(self, e):
         """Choose method button has been pressed"""
         exp = wx.GetApp().ws
         ind_opts = exp.index_opts
 
         ind_opts.index_method = self.method_cho.GetSelection()
-        
+
         if self.method_cho.GetSelection() == ind_opts.IND_FIBER:
             self.fiber_pan.Enable()
             self.gspot_pan.Disable()
         else:
             self.fiber_pan.Disable()
             self.gspot_pan.Enable()
-            
+
         return
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  indexPanel
@@ -165,30 +165,30 @@ class indexPanel(wx.Panel):
 class FiberSearchPanel(wx.Panel):
     """Handles fiber search options """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for FiberSearchPanel"""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for FiberSearchPanel"""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -196,12 +196,12 @@ class FiberSearchPanel(wx.Panel):
         """Add interactors"""
         exp = wx.GetApp().ws
         iopts = exp.index_opts
-        
-        self.tbarSizer = makeTitleBar(self, 'Fiber Search Options', 
+
+        self.tbarSizer = makeTitleBar(self, 'Fiber Search Options',
                                       color=WP.BG_COLOR_PANEL1_TITLEBAR)
 
         # checkboxes
-        
+
         self.friedel_cbox = wx.CheckBox(self, wx.NewId(), 'Friedel Only')
         self.friedel_cbox.SetValue(iopts.friedelOnly)
         self.claims_cbox = wx.CheckBox(self, wx.NewId(), 'Preserve Claiims')
@@ -210,19 +210,19 @@ class FiberSearchPanel(wx.Panel):
         self.refine_cbox.SetValue(iopts.doRefinement)
         self.multi_cbox  = wx.CheckBox(self, wx.NewId(), 'Use Multiprocessing')
         self.multi_cbox.SetValue(iopts.doMultiProc)
-        
+
         # value boxes
-        
+
         self.etol_lab = wx.StaticText(self, wx.NewId(), 'Eta Tolerance',
                                       style=wx.ALIGN_RIGHT)
         self.etol_txt = wx.TextCtrl(self, wx.NewId(), value=str(iopts.etaTol),
                                     style=wx.RAISED_BORDER)
-        
+
         self.otol_lab = wx.StaticText(self, wx.NewId(), 'Omega Tolerance',
                                       style=wx.ALIGN_RIGHT)
         self.otol_txt = wx.TextCtrl(self, wx.NewId(), value=str(iopts.omeTol),
                                     style=wx.RAISED_BORDER)
-        
+
         self.steps_lab = wx.StaticText(self, wx.NewId(), 'Number of Steps',
                                       style=wx.ALIGN_RIGHT)
         self.steps_spn = wx.SpinCtrl(self, wx.NewId(),
@@ -252,7 +252,7 @@ class FiberSearchPanel(wx.Panel):
         self.qafter_lab = wx.StaticText(self, wx.NewId(), label,
                                       style=wx.ALIGN_RIGHT)
         self.qafter_spn = wx.SpinCtrl(self, wx.NewId(),
-                                     min=0, initial=0)
+                                     min=0, max=100000, initial=0)
 
         self.hkls_but = wx.Button(self, wx.NewId(), 'HKLs')
 
@@ -264,47 +264,47 @@ class FiberSearchPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         # checkbox sizer
-        
-	self.cbsizer = wx.BoxSizer(wx.VERTICAL) # checkboxes
+
+        self.cbsizer = wx.BoxSizer(wx.VERTICAL) # checkboxes
         self.cbsizer.Add(self.friedel_cbox, 0, wx.ALIGN_LEFT)
         self.cbsizer.Add(self.claims_cbox, 0, wx.ALIGN_LEFT)
         self.cbsizer.Add(self.refine_cbox, 0, wx.ALIGN_LEFT)
         self.cbsizer.Add(self.multi_cbox, 0, wx.ALIGN_LEFT)
 
         # value controls
-        
+
         nrow = 0; ncol = 2; padx = pady = 5
-	self.valsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) 
-	self.valsizer.AddGrowableCol(1, 1)
-	#self.valsizer.AddGrowableRow(num, proportion)
-	self.valsizer.Add(self.etol_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
-	self.valsizer.Add(self.etol_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
-	self.valsizer.Add(self.otol_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
-	self.valsizer.Add(self.otol_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
-	self.valsizer.Add(self.steps_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
-	self.valsizer.Add(self.steps_spn, 0, wx.EXPAND|wx.ALIGN_LEFT)
-	self.valsizer.Add(self.comp_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
-	self.valsizer.Add(self.comp_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
-	self.valsizer.Add(self.claim_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
-	self.valsizer.Add(self.claim_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
-	self.valsizer.Add(self.ncpus_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
-	self.valsizer.Add(self.ncpus_spn, 0, wx.EXPAND|wx.ALIGN_LEFT)
-	self.valsizer.Add(self.qafter_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
-	self.valsizer.Add(self.qafter_spn, 0, wx.EXPAND|wx.ALIGN_LEFT)
+        self.valsizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.valsizer.AddGrowableCol(1, 1)
+        #self.valsizer.AddGrowableRow(num, proportion)
+        self.valsizer.Add(self.etol_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.valsizer.Add(self.etol_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
+        self.valsizer.Add(self.otol_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.valsizer.Add(self.otol_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
+        self.valsizer.Add(self.steps_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.valsizer.Add(self.steps_spn, 0, wx.EXPAND|wx.ALIGN_LEFT)
+        self.valsizer.Add(self.comp_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.valsizer.Add(self.comp_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
+        self.valsizer.Add(self.claim_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.valsizer.Add(self.claim_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
+        self.valsizer.Add(self.ncpus_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.valsizer.Add(self.ncpus_spn, 0, wx.EXPAND|wx.ALIGN_LEFT)
+        self.valsizer.Add(self.qafter_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.valsizer.Add(self.qafter_spn, 0, wx.EXPAND|wx.ALIGN_LEFT)
         self.valsizer.Add(EmptyWindow(self), 0)
-	self.valsizer.Add(self.hkls_but, 0, wx.EXPAND|wx.ALIGN_LEFT)
-        
+        self.valsizer.Add(self.hkls_but, 0, wx.EXPAND|wx.ALIGN_LEFT)
+
 
         # Main Sizer
-        
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.cbsizer, 0, wx.TOP, 10)
         self.sizer.Add(self.valsizer, 0, wx.TOP, 10)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -325,13 +325,13 @@ class FiberSearchPanel(wx.Panel):
         iopts.minCompleteness=float(self.comp_txt.GetValue())
         iopts.minPctClaimed=float(self.claim_txt.GetValue())
         iopts.nsteps = self.steps_spn.GetValue()
-        
+
         ncpusVal = self.ncpus_spn.GetValue()
         iopts.nCPUs = ncpusVal if ncpusVal else None
 
         qafterVal = self.qafter_spn.GetValue()
         iopts.quitAfter = qafterVal if qafterVal else None
-        
+
         iopts.dspTol=None # no interactor yet
 
         return
@@ -343,16 +343,16 @@ class FiberSearchPanel(wx.Panel):
         exp = wx.GetApp().ws
         iopts = exp.index_opts
         pd = exp.activeMaterial.planeData
-        
+
         hkls_dlg = HklsDlg(self, wx.NewId(), exp.activeMaterial)
 
         if hkls_dlg.ShowModal() == wx.ID_OK:
             # pd.exclusions = hkls_dlg.getExclusions()
             iopts.fsHKLs = hkls_dlg.getTuples()
             print 'hkls: ', iopts.fsHKLs
-            
+
         return
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  FiberSearchPanel
@@ -361,41 +361,41 @@ class FiberSearchPanel(wx.Panel):
 class GrainSpotterPanel(wx.Panel):
     """Handles grain spotter options """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for GrainSpotterPanel"""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for GrainSpotterPanel"""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
     def __makeObjects(self):
         """Add interactors"""
 
-        self.tbarSizer = makeTitleBar(self, 'Grain Spotter Options', 
+        self.tbarSizer = makeTitleBar(self, 'Grain Spotter Options',
                                       color=WP.BG_COLOR_PANEL1_TITLEBAR)
 
         self.pfit_cbox = wx.CheckBox(self, wx.NewId(), 'Position Fit')
-        
+
         label = 'Minimum Completeness'
         self.comp_lab = wx.StaticText(self, wx.NewId(), label,
                                       style=wx.ALIGN_CENTER)
@@ -427,28 +427,28 @@ class GrainSpotterPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         # value controls
-        
+
         nrow = 0; ncol = 2; padx = pady = 5
-	self.valsizer = wx.FlexGridSizer(nrow, ncol, padx, pady) 
-	self.valsizer.AddGrowableCol(1, 1)
-	#self.valsizer.AddGrowableRow(num, proportion)
-	self.valsizer.Add(self.comp_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
-	self.valsizer.Add(self.comp_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
-	self.valsizer.Add(self.fracG_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
-	self.valsizer.Add(self.fracG_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
-	self.valsizer.Add(self.sigmas_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
-	self.valsizer.Add(self.sigmas_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
-	self.valsizer.Add(self.trials_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
-	self.valsizer.Add(self.trials_spn, 0, wx.EXPAND|wx.ALIGN_LEFT)
-	
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.pfit_cbox, 0, wx.TOP, 10)
+        self.valsizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.valsizer.AddGrowableCol(1, 1)
+        #self.valsizer.AddGrowableRow(num, proportion)
+        self.valsizer.Add(self.comp_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.valsizer.Add(self.comp_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
+        self.valsizer.Add(self.fracG_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.valsizer.Add(self.fracG_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
+        self.valsizer.Add(self.sigmas_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.valsizer.Add(self.sigmas_txt, 0, wx.EXPAND|wx.ALIGN_LEFT)
+        self.valsizer.Add(self.trials_lab, 0, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.valsizer.Add(self.trials_spn, 0, wx.EXPAND|wx.ALIGN_LEFT)
+
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.pfit_cbox, 0, wx.TOP, 10)
         self.sizer.Add(self.valsizer, 0, wx.TOP, 10)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -458,7 +458,7 @@ class GrainSpotterPanel(wx.Panel):
     #
     #                     ========== *** Event Callbacks
     #
-    
+
     pass # end class
 #
 # -----------------------------------------------END CLASS:  GrainSpotterPanel

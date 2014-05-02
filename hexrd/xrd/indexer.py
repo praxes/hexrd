@@ -32,6 +32,7 @@ import ctypes
 import tempfile
 import glob
 import time
+import pdb
 
 import numpy as num
 
@@ -44,6 +45,9 @@ from hexrd.xrd.rotations import \
      rotMatOfExpMap, rotMatOfQuat
 from hexrd.xrd.symmetry  import toFundamentalRegion
 from hexrd.xrd           import xrdbase
+
+from hexrd.xrd import transforms      as xf
+from hexrd.xrd import transforms_CAPI as xfcapi
 
 if xrdbase.haveMultiProc:
     multiprocessing = xrdbase.multiprocessing # formerly import
@@ -89,15 +93,15 @@ class GrainSpotter:
     def __call__(self, spotsArray, **kwargs):
         """
         writes gve and ini files to system, calls grainspotter, parses results.
-        
+
         A word on spacegroup numbers: it appears that grainspotter is using the 'VolA' tag for calls to SgInfo
         """
         location = self.__class__.__name__
         tic = time.time()
-        
+
         phaseID   = None
         gVecFName = 'tmp'
-        
+
         kwarglen = len(kwargs)
         if kwarglen > 0:
             argkeys = kwargs.keys()
@@ -109,13 +113,13 @@ class GrainSpotter:
                     pass
                 pass
             pass
-        
+
         planeData = spotsArray.getPlaneData(phaseID=phaseID)
         U0        = planeData.latVecOps['U0']
         symTag    = planeData.getLaueGroup()
-        
+
         writeGVE(spotsArray, gVecFName, **kwargs)
-            
+
         toc = time.time()
         print 'in %s, setup took %g' % (location, toc-tic)
         tic = time.time()
@@ -132,7 +136,7 @@ class GrainSpotter:
 
         # add output files to cleanup list
         # self.__tempFNameList += glob.glob(gVecFName+'.*')
-                
+
         # collect data from gff file'
         gffFile = gVecFName+'.gff'
         gffData = num.loadtxt(gffFile)
@@ -168,10 +172,10 @@ def convertUToRotMat(Urows, U0, symTag='Oh', display=False):
     Urows comes from grainspotter's gff output
     U0 comes from xrd.crystallography.latticeVectors.U0
     """
-    
+
     numU, testDim = Urows.shape
     assert testDim == 9, "Your input must have 9 columns; yours has %d" % (testDim)
-    
+
     qin  = quatOfRotMat(Urows.reshape(numU, 3, 3))
     qout = num.dot( quatProductMatrix( quatOfRotMat(fableSampCOB), mult='left' ), \
                     num.dot( quatProductMatrix( quatOfRotMat(U0.T), mult='right'),  \
@@ -199,9 +203,9 @@ def convertRotMatToFableU(rMats, U0=num.eye(3), symTag='Oh', display=False):
 
     Urows comes from grainspotter's gff output
     U0 comes from xrd.crystallography.latticeVectors.U0
-    """    
+    """
     numU = num.shape(num.atleast_3d(rMats))[0]
-    
+
     qin  = quatOfRotMat(num.atleast_3d(rMats))
     qout = num.dot( quatProductMatrix( quatOfRotMat(fableSampCOB.T), mult='left' ), \
                     num.dot( quatProductMatrix( quatOfRotMat(U0), mult='right'),  \
@@ -226,7 +230,7 @@ things for doing fiberSearch with multiprocessing;
 multiprocessing has a hard time pickling a function defined in the local scope of another function,
 so stuck putting the function out here;
 """
-debugMultiproc = 1
+debugMultiproc = 0
 if xrdbase.haveMultiProc:
     foundFlagShared = multiprocessing.Value(ctypes.c_bool)
     foundFlagShared.value = False
@@ -244,7 +248,7 @@ def testThisQ(thisQ):
         up happening on a remote process and then different processes
         would have different data, unless spotsArray were made to be
         fancier
-    
+
     (*) kludge stuff so that this function is outside of fiberSearch
     """
     global multiProcMode_MP
@@ -400,7 +404,7 @@ def fiberSearch(spotsArray, hklList,
 
     the output is a concatenated list of orientation matrices ((n, 3, 3) numpy.ndarray).
     """
-    
+
     assert hasattr(hklList, '__len__'), "the HKL list must have length, and len(hklList) > 0."
 
     nHKLs = len(hklList)
@@ -444,10 +448,22 @@ def fiberSearch(spotsArray, hklList,
     """
     HKL ITERATOR
     """
+    if isinstance(quitAfter, dict):
+        n_hkls_to_search = quitAfter['nHKLs']
+    else:
+        n_hkls_to_search = nHKLs
+
+    if isinstance(quitAfter, int):
+        quit_after_ngrains = quitAfter
+    else:
+        quit_after_ngrains = 0
+
     numTotal = len(spotsArray)
     pctClaimed = 0.
+    time_to_quit = False
     tic = time.time()
-    for iHKL in range(nHKLs):
+
+    for iHKL in range(n_hkls_to_search):
         print "\n#####################\nProcessing hkl %d of %d\n" % (iHKL+1, nHKLs)
         thisHKLID = planeData.getHKLID(hklList[iHKL])
         thisRingSpots0   = spotsArray.getHKLSpots(thisHKLID)
@@ -532,7 +548,7 @@ def fiberSearch(spotsArray, hklList,
             'end of if multiProcMode'
 
             if len(trialGrains) == 0:
-                print "No grain found containing reflection %d\n" % (iSpot)
+                print "No grain found containing spot %d\n" % (iSpot)
                 # import pdb;pdb.set_trace()
             else:
                 asMaster = multiProcMode
@@ -557,27 +573,26 @@ def fiberSearch(spotsArray, hklList,
                 numClaimed = numTotal - numUnClaimed
                 pctClaimed = num.float(numClaimed) / numTotal
                 print "Found %d grains so far, %f%% claimed" % (nGrains,100*pctClaimed)
-                if pctClaimed > minPctClaimed:
+
+                time_to_quit = (pctClaimed > minPctClaimed) or\
+                  ((quit_after_ngrains > 0) and (nGrains >= quit_after_ngrains))
+                if time_to_quit:
                     break
-                if quitAfter is not None:
-                    if nGrains >= quitAfter:
-                        break
         'end of iRefl loop'
-        if pctClaimed > minPctClaimed:
+
+        if time_to_quit:
             break
-        if quitAfter is not None:
-            if nGrains >= quitAfter:
-                break
+
     'end of iHKL loop'
     rMats = num.empty((len(grainList), 3, 3))
     for i in range(len(grainList)):
         rMats[i, :, :] = grainList[i].rMat
-    
+
     if outputGrainList:
         retval = (rMats, grainList)
     else:
         retval = rMats
-    
+
     if not preserveClaims:
         spotsArray.resetClaims()
     toc = time.time()
@@ -600,7 +615,7 @@ def fiberSearch(spotsArray, hklList,
     dspTol_MP = None
     minCompleteness_MP = None
     doRefinement_MP = None
-    
+
     return retval
 
 def pgRefine(x, etaOmeMaps, omegaRange, threshold):
@@ -620,6 +635,7 @@ def pgRefine(x, etaOmeMaps, omegaRange, threshold):
 def paintGrid(quats, etaOmeMaps,
               threshold=None, bMat=None,
               omegaRange=None, etaRange=None,
+              omeTol=d2r, etaTol=d2r, 
               progressBar=False, doMultiProc=False,
               nCPUs=None, debug=False):
     """
@@ -639,20 +655,20 @@ def paintGrid(quats, etaOmeMaps,
 
     ...make a new function that gets called by grain to do the g-vec angle computation?
     """
-    
+
     quats = num.atleast_2d(quats)
     if quats.size == 4:
         quats = quats.reshape(4, 1)
-    
+
     planeData = etaOmeMaps.planeData
-    
+
     hklIDs    = num.r_[etaOmeMaps.iHKLList]
     hklList   = num.atleast_2d(planeData.hkls[:, hklIDs].T).tolist()
     nHKLS     = len(hklIDs)
-    
+
     numEtas   = len(etaOmeMaps.etaEdges) - 1
     numOmes   = len(etaOmeMaps.omeEdges) - 1
-    
+
     if threshold is None:
         threshold = num.zeros(nHKLS)
         for i in range(nHKLS):
@@ -669,14 +685,24 @@ def paintGrid(quats, etaOmeMaps,
         raise RuntimeError, "unknown threshold option.  should be a list of numbers or None"
     if bMat is None:
         bMat = planeData.latVecOps['B']
-    
-    'index munging here -- look away'
+
+    """
+    index munging here -- look away
+
+    order of ome-eta map arrays is (i, j) --> (ome, eta)
+    i.e. eta varies fastest.
+    """
     # mapIndices = num.indices([numEtas, numOmes])
     # etaIndices = mapIndices[0].flatten()
     # omeIndices = mapIndices[1].T.flatten()
-    etaIndices = num.tile(range(numEtas), (numOmes))
-    omeIndices = num.tile(range(numOmes), (numEtas))
-
+    # etaIndices = num.tile(range(numEtas), (numOmes))
+    # omeIndices = num.tile(range(numOmes), (numEtas))
+    # j_eta, i_ome = np.meshgrid(range(numEtas), range(numOmes))
+    # etaIndices = j_eta.flatten()
+    # omeIndices = i_ome.flatten()
+    etaIndices = num.r_[range(numEtas)]
+    omeIndices = num.r_[range(numOmes)]
+    
     omeMin = None
     omeMax = None
     if omegaRange is None:              # this NEEDS TO BE FIXED!
@@ -694,20 +720,20 @@ def paintGrid(quats, etaOmeMaps,
 
     # obselete # # make list of rMats from input quats
     # obselete # rMatsList = [rotMatOfQuat(quats[:, i]) for i in range(quats.shape[1])]
-    
+
     multiProcMode = xrdbase.haveMultiProc and doMultiProc
-    
+
     if multiProcMode:
         nCPUs = nCPUs or xrdbase.dfltNCPU
         print "INFO: using multiprocessing with %d processes\n" % (nCPUs)
     else:
         print "INFO: running in serial mode\n"
         nCPUs = 1
-    
+
     # assign the globals for paintGridThis
     global planeData_MP
-    global omeMin_MP, omeMax_MP
-    global etaMin_MP, etaMax_MP
+    global omeMin_MP, omeMax_MP, omeTol_MP
+    global etaMin_MP, etaMax_MP, etaTol_MP
     global omeIndices_MP, etaIndices_MP
     global hklList_MP, hklIDs_MP
     global etaOmeMaps_MP
@@ -718,9 +744,11 @@ def paintGrid(quats, etaOmeMaps,
     hklList_MP    = hklList
     omeMin_MP     = omeMin
     omeMax_MP     = omeMax
+    omeTol_MP     = omeTol
     omeIndices_MP = omeIndices
     etaMin_MP     = etaMin
     etaMax_MP     = etaMax
+    etaTol_MP     = etaTol
     etaIndices_MP = etaIndices
     etaOmeMaps_MP = etaOmeMaps
     bMat_MP       = bMat
@@ -757,8 +785,8 @@ def paintGridThis(quat):
     """
     # pull local vars from globals set in paintGrid
     global planeData_MP
-    global omeMin_MP, omeMax_MP
-    global etaMin_MP, etaMax_MP
+    global omeMin_MP, omeMax_MP, omeTol_MP
+    global etaMin_MP, etaMax_MP, etaTol_MP
     global omeIndices_MP, etaIndices_MP
     global hklList_MP, hklIDs_MP
     global etaOmeMaps_MP
@@ -769,90 +797,76 @@ def paintGridThis(quat):
     hklList    = hklList_MP
     omeMin     = omeMin_MP
     omeMax     = omeMax_MP
+    omeTol     = omeTol_MP
     omeIndices = omeIndices_MP
     etaMin     = etaMin_MP
     etaMax     = etaMax_MP
+    etaTol     = etaTol_MP
     etaIndices = etaIndices_MP
     etaOmeMaps = etaOmeMaps_MP
     bMat       = bMat_MP
     threshold  = threshold_MP
-    
+
     # need this for proper index generation
     delOmeSign = num.sign(etaOmeMaps.omegas[1] - etaOmeMaps.omegas[0])
     
+    del_ome = abs(etaOmeMaps.omegas[1] - etaOmeMaps.omegas[0])
+    del_eta = abs(etaOmeMaps.etas[1] - etaOmeMaps.etas[0])
+    
+    dpix_ome = round(omeTol / del_ome)
+    dpix_eta = round(etaTol / del_eta)
+    
     debug = False
+    if debug:
+        print "using ome, eta dilitations of (%d, %d) pixels" % (dpix_ome, dpix_eta)
     
-    nHKLS     = len(hklIDs)
-    
+    nHKLs = len(hklIDs)
+
     rMat = rotMatOfQuat(quat.reshape(4, 1))
-    
+
     nPredRefl = 0
     nMeasRefl = 0
     reflInfoList = []
     dummySpotInfo = num.nan * num.ones(3)
-    
+
     hklCounterP = 0                 # running count of excpected (predicted) HKLs
     hklCounterM = 0                 # running count of "hit" HKLs
-    for iHKL in range(nHKLS):
+    for iHKL in range(nHKLs):
         # for control of tolerancing
-        symHKLs   = planeData.getSymHKLs()[hklIDs[iHKL]]
+        symHKLs   = num.array(planeData.getSymHKLs()[hklIDs[iHKL]], dtype=float).T
         tThRanges = planeData.getTThRanges()[hklIDs[iHKL]]
 
-        # make all theoretical scattering vectors
-        predQvec, predQAng0, predQAng1 = \
-                  planeData.makeTheseScatteringVectors([hklList[iHKL]], rMat, bMat=bMat)
+        # oscillation angle arrays
+        oangs0, oangs1 = xfcapi.oscillAnglesOfHKLs(symHKLs, 0., rMat, bMat,
+                                                   planeData.wavelength, 
+                                                   beamVec=num.r_[ 0.,  0., -1.].T,
+                                                   etaVec=num.r_[ 1.,  0.,  0.].T)
+        
+        angList       = num.vstack([oangs0, oangs1])
+        angList[:, 1] = xf.mapAngle(angList[:, 1])
+        angList[:, 2] = xf.mapAngle(angList[:, 2])
+        
+        if omeMin is None:
+            omeMin = [-num.pi, ]
+            omeMax = [ num.pi, ]
+        if etaMin is None:
+            etaMin = [-num.pi, ]
+            etaMax = [ num.pi, ]
+            
+        angMask = num.logical_and(
+            xf.validateAngleRanges(angList[:, 1], etaMin, etaMax),
+            xf.validateAngleRanges(angList[:, 2], omeMin, omeMax))
+        
+        allAngs_m = angList[angMask, :]
+        
+        # duplicate HKLs
+        allHKLs_m = num.vstack([symHKLs, symHKLs])[angMask, :]
 
-        # work with generated spots for iHKL
-        # allPredAng = zip(predQAng0[iHKL], predQAng1[iHKL])
-        allPredAng = zip(predQAng0, predQAng1)
-
-        # filter using omega range
-        if omeMin is not None:
-            reflInRangeOme0 = num.zeros(allPredAng[2][0].shape, dtype=bool)
-            reflInRangeOme1 = num.zeros(allPredAng[2][1].shape, dtype=bool)
-            for iOme in range(len(omeMin)):
-                reflInRangeOme0 = reflInRangeOme0 | (
-                    (allPredAng[2][0] >= omeMin[iOme]) &
-                    (allPredAng[2][0] <= omeMax[iOme]) )
-                reflInRangeOme1 = reflInRangeOme1 | (
-                    (allPredAng[2][1] >= omeMin[iOme]) &
-                    (allPredAng[2][1] <= omeMax[iOme]) )
-                pass
-        else:
-            reflInRangeOme0 = num.ones(allPredAng[2][0].shape, dtype=bool)
-            reflInRangeOme1 = num.ones(allPredAng[2][1].shape, dtype=bool)
-            pass
-
-        if etaMin is not None:
-            reflInRangeEta0 = num.zeros(allPredAng[2][0].shape, dtype=bool)
-            reflInRangeEta1 = num.zeros(allPredAng[2][1].shape, dtype=bool)
-            for iEta in range(len(etaMin)):
-                reflInRangeEta0 = reflInRangeEta0 | (
-                    (allPredAng[1][0] >= etaMin[iEta]) &
-                    (allPredAng[1][0] <= etaMax[iEta]) )
-                reflInRangeEta1 = reflInRangeEta1 | (
-                    (allPredAng[1][1] >= etaMin[iEta]) &
-                    (allPredAng[1][1] <= etaMax[iEta]) )
-                pass
-        else:
-            reflInRangeEta0 = num.ones(allPredAng[2][0].shape, dtype=bool)
-            reflInRangeEta1 = num.ones(allPredAng[2][1].shape, dtype=bool)
-            pass
-
-        reflInRange0 = reflInRangeOme0 & reflInRangeEta0
-        reflInRange1 = reflInRangeOme1 & reflInRangeEta1
-
-        # get culled angle and hkl lists for predicted spots
-        culledTTh = num.r_[ allPredAng[0][0][reflInRange0], allPredAng[0][1][reflInRange1] ]
-        culledEta = num.r_[ allPredAng[1][0][reflInRange0], allPredAng[1][1][reflInRange1] ]
-        culledOme = num.r_[ allPredAng[2][0][reflInRange0], allPredAng[2][1][reflInRange1] ]
-
-        culledHKLs = num.hstack( [
-            symHKLs[:, reflInRange0],
-            symHKLs[:, reflInRange1] ] )
-
-        culledQvec = num.c_[ predQvec[:, reflInRange0], predQvec[:, reflInRange1] ]
-
+        culledTTh  = allAngs_m[:, 0]
+        culledEta  = allAngs_m[:, 1]
+        culledOme  = allAngs_m[:, 2]
+        culledHKLs = allHKLs_m.T
+        
         nThisPredRefl = len(culledTTh)
         hklCounterP += nThisPredRefl
         for iTTh in range(nThisPredRefl):
@@ -873,10 +887,21 @@ def paintGridThis(quat):
                     culledOmeIdx = None
             else:
                 culledOmeIdx = None
-
+            
             if culledEtaIdx is not None and culledOmeIdx is not None:
-                pixelVal = etaOmeMaps.dataStore[iHKL][omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ]
-                isHit = pixelVal >= threshold[iHKL]
+                if dpix_ome > 0 or dpix_eta > 0:
+                    i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
+                                                num.arange(-dpix_eta, dpix_eta + 1))
+                    i_sup = omeIndices[culledOmeIdx] + num.array([i_dil.flatten()], dtype=int)
+                    j_sup = etaIndices[culledEtaIdx] + num.array([j_dil.flatten()], dtype=int)
+                    # catch shit that falls off detector... maybe make this fancy enough to wrap at 2pi?
+                    i_max, j_max = etaOmeMaps.dataStore[iHKL].shape
+                    idx_mask = num.logical_and(num.logical_and(i_sup >= 0, i_sup < i_max),
+                                               num.logical_and(j_sup >= 0, j_sup < j_max))                    
+                    pixelVal = etaOmeMaps.dataStore[iHKL][i_sup[idx_mask], j_sup[idx_mask]]
+                else:
+                    pixelVal = etaOmeMaps.dataStore[iHKL][omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ]
+                isHit = num.any(pixelVal >= threshold[iHKL])
                 if isHit:
                     hklCounterM += 1
                     pass
@@ -889,7 +914,10 @@ def paintGridThis(quat):
                 pass
             pass # close loop on signed reflections
         pass # close loop on HKL
-    retval = float(hklCounterM) / float(hklCounterP)
+    if hklCounterP == 0:
+        retval = 0.
+    else:
+        retval = float(hklCounterM) / float(hklCounterP)
     return retval
 
 def progress_bar(progress):
@@ -919,14 +947,14 @@ def writeGVE(spotsArray, fileroot, **kwargs):
     Outputs:
 
     No return value, but writes the following files:
-    
-    <fileroot>.gve              
+
+    <fileroot>.gve
     <fileroot>_grainSpotter.ini (points to --> <fileroot>_grainSpotter.log)
 
     Keyword arguments:
 
     Mainly for GrainSpotter .ini file, but some are needed for gve files
-    
+
     keyword        default              definitions
     -----------------------------------------------------------------------------------------
     'sgNum':       <225>
@@ -943,19 +971,19 @@ def writeGVE(spotsArray, fileroot, **kwargs):
     'minFracG':    <0.90>
     'nTrials':     <100000>
     'positionfit': <True>
-    
+
     Notes:
 
     *) The omeRange is currently pulled from the spotsArray input; the kwarg has no effect
        as of now.  Will change this to 'override' the spots info if the user, say, wants to
        pare down the range.
-       
+
     *) There is no etaRange argument yet, but presumably GrainSpotter knows how to deal
        with this.  Pending feature...
     """
     # check on fileroot
     assert isinstance(fileroot, str)
-    
+
     # keyword argument processing
     phaseID     = None
     sgNum       = 225
@@ -971,7 +999,7 @@ def writeGVE(spotsArray, fileroot, **kwargs):
     minFracG    = 0.90
     numTrials   = 100000
     positionFit = True
-    
+
     kwarglen = len(kwargs)
     if kwarglen > 0:
         argkeys = kwargs.keys()
@@ -1006,21 +1034,21 @@ def writeGVE(spotsArray, fileroot, **kwargs):
                 positionFit = kwargs[argkeys[i]]
             else:
                 raise RuntimeError, "Unrecognized keyword argument '%s'" % (argkeys[i])
-    
+
     # grab some detector geometry parameters for gve file header
     mmPerPixel = float(spotsArray.detectorGeom.pixelPitch) # ...these are still hard-coded to be square
     nrows_p = spotsArray.detectorGeom.nrows - 1
     ncols_p = spotsArray.detectorGeom.ncols - 1
-    
+
     row_p, col_p = spotsArray.detectorGeom.pixelIndicesOfCartesianCoords(spotsArray.detectorGeom.xc,
                                                                          spotsArray.detectorGeom.yc)
     yc_p = ncols_p - col_p
     zc_p = nrows_p - row_p
-    
+
     wd_mu = spotsArray.detectorGeom.workDist * 1e3 # in microns (Soeren)
 
     osc_axis = num.dot(fableSampCOB.T, Yl).flatten()
-    
+
     # start grabbing stuff from planeData
     planeData = spotsArray.getPlaneData(phaseID=phaseID)
     cellp   = planeData.latVecOps['dparms']
@@ -1030,29 +1058,29 @@ def writeGVE(spotsArray, fileroot, **kwargs):
     fHKLs   = planeData.getSymHKLs()
     tThRng  = planeData.getTThRanges()
     symTag  = planeData.getLaueGroup()
-    
+
     tThMin, tThMax = (r2d*tThRng.min(), r2d*tThRng.max()) # single range should be ok since entering hkls
     etaMin, etaMax = (0, 360)   # not sure when this will ever *NOT* be the case, so setting it
-    
+
     omeMin = spotsArray.getOmegaMins()
     omeMax = spotsArray.getOmegaMaxs()
-    
+
     omeRangeString = ''
     for iOme in range(len(omeMin)):
         if hasattr(omeMin[iOme], 'getVal'):
             omeRangeString += 'omegarange %g %g\n' % (omeMin[iOme].getVal('degrees'), omeMax[iOme].getVal('degrees'))
         else:
             omeRangeString += 'omegarange %g %g\n' % (omeMin[iOme] * r2d, omeMax[iOme] * r2d)
-    
+
     # convert angles
     cellp[3:] = r2d*cellp[3:]
-    
+
     # make the theoretical hkls string
     gvecHKLString = ''
     for i in range(len(dsp)):
         for j in range(fHKLs[i].shape[1]):
             gvecHKLString += '%1.8f %d %d %d\n' % (1/dsp[i], fHKLs[i][0, j], fHKLs[i][1, j], fHKLs[i][2, j])
-    
+
     # now for the measured data section
     # xr yr zr xc yc ds eta omega
     gvecString = ''
@@ -1061,23 +1089,23 @@ def writeGVE(spotsArray, fileroot, **kwargs):
         sR, sC, sOme     = xyoCOM                          # detector coords
         sTTh, sEta, sOme = angCOM                          # angular coords (radians)
         sDsp = wlen / 2. / num.sin(0.5*sTTh)               # dspacing
-        
+
         # get raw y, z (Fable frame)
         yraw = ncols_p - sC
         zraw = nrows_p - sR
-        
+
         # convert eta to fable frame
         rEta = mapAngle(90. - r2d*sEta, [0, 360], units='degrees')
-        
+
         # make mesaured G vector components in fable frame
         mGvec = makeMeasuredScatteringVectors(sTTh, sEta, sOme, convention='fable', frame='sample')
-        
+
         # full Gvec components in fable lab frame (for grainspotter position fit)
         gveXYZ = spotsArray.detectorGeom.angToXYO(sTTh, sEta, sOme, outputGve=True)
-        
+
         # no 4*pi
         mGvec = mGvec / sDsp
-                    
+
         # make contribution
         gvecString += '%1.8f %1.8f %1.8f %1.8f %1.8f %1.8f %1.8f %1.8f %d %1.8f %1.8f %1.8f\n' \
                       % (mGvec[0], mGvec[1], mGvec[2], \
@@ -1086,7 +1114,7 @@ def writeGVE(spotsArray, fileroot, **kwargs):
                          iSpot, \
                          gveXYZ[0, :], gveXYZ[1, :], gveXYZ[2, :])
         pass
-        
+
     # write gve file for grainspotter
     fid = open(fileroot+'.gve', 'w')
     print >> fid, '%1.8f %1.8f %1.8f %1.8f %1.8f %1.8f ' % tuple(cellp)        + \
@@ -1124,7 +1152,7 @@ def writeGVE(spotsArray, fileroot, **kwargs):
           '# xr yr zr xc yc ds eta omega\n'                                    + \
           gvecString
     fid.close()
-    
+
     ###############################################################
     # GrainSpotter ini parameters
     #
@@ -1133,12 +1161,12 @@ def writeGVE(spotsArray, fileroot, **kwargs):
         positionString = 'positionfit'
     else:
         positionString = '!positionfit'
-    
+
     if numTrials == 0:
         randomString = '!random\n'
     else:
         randomString = 'random %g\n' % (numTrials)
-        
+
     fid = open(fileroot+'_grainSpotter.ini', 'w')
     # self.__tempFNameList.append(fileroot)
     print >> fid, \
@@ -1157,5 +1185,3 @@ def writeGVE(spotsArray, fileroot, **kwargs):
           positionString + '\n'
     fid.close()
     return
-
-        

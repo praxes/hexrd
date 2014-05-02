@@ -64,10 +64,10 @@ class FloatControl(wx.Panel):
         'initial':None,
         'delta':1.0}
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for FloatControl."""
-	#
-	wx.Panel.__init__(self, parent, id) # , **kwargs)
-	#
+        """Constructor for FloatControl."""
+        #
+        wx.Panel.__init__(self, parent, id) # , **kwargs)
+        #
         #  Data
         #
         for parm, val in self.__inParmDict.iteritems():
@@ -79,18 +79,18 @@ class FloatControl(wx.Panel):
         else:
             self.value = 0.0
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
         myToolTip = r"""FLOAT DATA ENTRY CONTROL
 
 You can enter the number directly in the text
@@ -100,10 +100,10 @@ box to the right of the spinner.
 """
         self.SetToolTipString(myToolTip)
 
-	self.SetAutoLayout(True)
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -130,14 +130,14 @@ box to the right of the spinner.
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.HORIZONTAL)
-	self.sizer.Add(self.value_txt, 1, wx.EXPAND|wx.ALIGN_RIGHT)
-	self.sizer.Add(self.spin_but,  0, wx.LEFT|wx.RIGHT, 5)
-	self.sizer.Add(self.delta_txt, 1, wx.EXPAND|wx.ALIGN_LEFT)
+        self.sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.sizer.Add(self.value_txt, 1, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.sizer.Add(self.spin_but,  0, wx.LEFT|wx.RIGHT, 5)
+        self.sizer.Add(self.delta_txt, 1, wx.EXPAND|wx.ALIGN_LEFT)
 
-	return
+        return
 
     def __showValues(self):
         """Show current values in the controls"""

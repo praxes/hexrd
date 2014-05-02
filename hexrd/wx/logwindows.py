@@ -46,34 +46,34 @@ class logWindow(wx.Dialog):
         print 'new position:  ', newPos
         newPos[0] += 50; newPos[1] += 50;
         #
-	wx.Dialog.__init__(self, parent, id, title,
+        wx.Dialog.__init__(self, parent, id, title,
                            pos=newPos,
                            style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
-	#
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         # self.Show(True)
 
         self.__run(actionD)
 
-	return
+        return
 
     pass # class
     #
@@ -85,7 +85,7 @@ class logWindow(wx.Dialog):
         self.tbarSizer = makeTitleBar(self, 'Log')
         #
         self.log_pan = logPanel(self, wx.NewId())
-	#
+        #
         return
 
     def __makeBindings(self):
@@ -93,13 +93,13 @@ class logWindow(wx.Dialog):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
-	self.sizer.Add(self.log_pan,   1, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.log_pan,   1, wx.EXPAND|wx.ALIGN_RIGHT)
 
-	return
+        return
 
     def __run(self, actionD):
         """run the action in a thread"""
@@ -134,30 +134,30 @@ class logPanel(wx.Panel):
     #
     def __init__(self, parent, id):
         #
-	wx.Panel.__init__(self, parent, id)
-	#
+        wx.Panel.__init__(self, parent, id)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.Show(True)
 
-	return
+        return
 
     pass # class
     #
@@ -168,7 +168,7 @@ class logPanel(wx.Panel):
 
         self.log_txt = wx.TextCtrl(self, wx.NewId(), value='', size=(500,700),
                                    style=wx.RAISED_BORDER|wx.TE_MULTILINE|wx.TE_READONLY)
-	#
+        #
         return
 
     def __makeBindings(self):
@@ -176,12 +176,12 @@ class logPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.log_txt,   1, wx.EXPAND|wx.ALIGN_RIGHT)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.log_txt,   1, wx.EXPAND|wx.ALIGN_RIGHT)
 
-	return
+        return
     #
     # ============================== API
     #

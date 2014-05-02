@@ -54,31 +54,22 @@ periodDict = {'degrees': 360.0, 'radians': 2*numpy.pi}
 #  ================================================== Functions
 #
 def arccosSafe(temp):
-    """ Protect against numbers slightly larger than 1 in magnitude due to round-off
     """
-
-    # Oh, the tricks we must play to make this overloaded and robust...
-    if type(temp) is list:
-        temp = asarray(temp)
-    elif type(temp) is ndarray:
-        if len(temp.shape) == 0:
-            temp = temp.reshape(1)
-
-    if (temp > 1.00001).any():
+    Protect against numbers slightly larger than 1 in magnitude due to round-off
+    """
+    temp = atleast_1d(temp)
+    if (abs(temp) > 1.00001).any():
         print >> sys.stderr, "attempt to take arccos of %s" % temp
         raise RuntimeError, "unrecoverable error"
-    elif (temp < -1.00001).any():
-        print >> sys.stderr, "attempt to take arccos of %s" % temp
-        raise RuntimeError, "unrecoverable error"
-
+    
     gte1 = temp >=  1.
     lte1 = temp <= -1.
 
     temp[gte1] =  1
     temp[lte1] = -1
-
+    
     ang = arccos(temp)
-
+    
     return ang
 #
 #  ==================== Quaternions
@@ -307,7 +298,7 @@ def quatOfAngleAxis(angle, rotaxis):
             "must be a list, int, float, or ndarray."
 
     if rotaxis.shape[1] == 1:
-	rotaxis = tile(rotaxis, (1, n))
+        rotaxis = tile(rotaxis, (1, n))
     else:
         if rotaxis.shape[1] != n:
             raise RuntimeError, "rotation axes argument has incompatible shape"
@@ -681,7 +672,8 @@ def discreteFiber(c, s, B=I3, ndiv=120, invert=False, csym=None, ssym=None):
         q0 = vstack( [ zeros(npts), ax ] )
 
         # find rotations
-        phi = arange(0, 2*pi, 2*pi/ndiv)
+        # note: the following line fixes bug with use of arange with float increments
+        phi = arange(0, ndiv) * (2*pi/float(ndiv))
         qh  = quatOfAngleAxis(phi, tile(c[:, i_c], (ndiv, 1)).T)
 
         # the fibers, arraged as (npts, 4, ndiv)

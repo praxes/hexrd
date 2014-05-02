@@ -34,7 +34,8 @@ import numpy as num
 from scipy import constants as C
 from scipy.linalg import inv
 
-from hexrd.matrixutil import *
+from hexrd.matrixutil import sort, num, array, unique, sqrt, math, unitVector,\
+     ndarray, columnNorm, sum
 from hexrd.xrd.rotations import angleAxisOfRotMat, rotMatOfExpMap, arccosSafe, mapAngle
 from hexrd.xrd import symmetry
 from hexrd import valunits
@@ -170,7 +171,7 @@ def latticePlanes(hkls, lparms, ltype='cubic', wavelength=1.54059292, strainMag=
           'orthorhombic'   a, b, c
           'monoclinic'     a, b, c, beta (in degrees)
           'triclinic'      a, b, c, alpha, beta, gamma (in degrees)
-       
+
        *) wavelength=<float> is a value represented the wavelength in
           Angstroms to calculate bragg angles for.  The default value
           is for Cu K-alpha radiation (1.54059292 Angstrom)
@@ -209,7 +210,7 @@ def latticePlanes(hkls, lparms, ltype='cubic', wavelength=1.54059292, strainMag=
 
     """
     location = 'latticePlanes'
-    
+
     assert hkls.shape[0] == 3, "hkls aren't column vectors in call to '%s'!" % (location)
 
     tag = ltype
@@ -289,13 +290,13 @@ def latticeVectors(lparms, tag='cubic', radians=False, debug=False):
        BR        (3, 3) double array    transformation matrix taking
                                         componenents in the reciprocal
                                         lattice to the Fable reference
-                                        frame (see notes)  
-                                        
+                                        frame (see notes)
+
        U0        (3, 3) double array    transformation matrix
                                         (orthogonal) taking
                                         componenents in the
-                                        Fable reference frame to X 
-                                        
+                                        Fable reference frame to X
+
        vol       double                 the unit cell volume
 
 
@@ -310,11 +311,11 @@ def latticeVectors(lparms, tag='cubic', radians=False, debug=False):
 
     *) The conventions used for assigning a RHON basis,
        X -> {x1, x2, x3}, to each point group are consistent with
-       those published in Appendix B of [1]. Namely: a || x1 and 
-       c* || x3.  This differs from the convention chosen by the Fable 
-       group, where a* || x1 and c || x3 [2]. 
-       
-    *) The unit cell angles are defined as follows: 
+       those published in Appendix B of [1]. Namely: a || x1 and
+       c* || x3.  This differs from the convention chosen by the Fable
+       group, where a* || x1 and c || x3 [2].
+
+    *) The unit cell angles are defined as follows:
        alpha=acos(b'*c/|b||c|), beta=acos(c'*a/|c||a|), and
        gamma=acos(a'*b/|a||b|).
 
@@ -420,11 +421,11 @@ def latticeVectors(lparms, tag='cubic', radians=False, debug=False):
     B = num.c_[astar, bstar, cstar]
 
     cosalfar2, sinalfar2 = cosineXform(alfar, betar, gamar)
-    
+
     afable = ar*num.r_[1, 0, 0]
     bfable = br*num.r_[num.cos(gamar), num.sin(gamar), 0]
     cfable = cr*num.r_[num.cos(betar), -cosalfar2*num.sin(betar), sinalfar2*num.sin(betar)]
-    
+
     BR = num.c_[afable, bfable, cfable]
     U0 = num.dot(B, num.linalg.inv(BR))
     if outputDegrees:
@@ -490,7 +491,7 @@ class PlaneData(object):
     ordering (in self.__hkls), but exclusions are stored in the
     original ordering in case the hkl ordering does change with
     lattice parameters
-    
+
     if not None, tThWidth takes priority over strainMag in setting
     two-theta ranges; changing strainMag automatically turns off
     tThWidth
@@ -500,7 +501,7 @@ class PlaneData(object):
                  hkls,
                  *args,
                  **kwargs):
-        
+
         self.phaseID = None
         self.__doTThSort = True
         self.__exclusions = None
@@ -692,13 +693,13 @@ class PlaneData(object):
         wavelength : wavelength
         strainMag  : swag of strian magnitudes
         """
-        
+
         tempSetOutputDegrees(False)
         latPlaneData = latticePlanes(hkls, lparms,
-                                     ltype=symmGroup, 
-                                     strainMag=strainMag, 
+                                     ltype=symmGroup,
+                                     strainMag=strainMag,
                                      wavelength=wavelength)
-        
+
         latVecOps = latticeVectors(lparms, symmGroup)
 
         hklDataList = []
@@ -709,17 +710,17 @@ class PlaneData(object):
             # JVB # latPlnNrmlList = symmetry.applySym(num.c_[latVec], qsym, csFlag=True, cullPM=False)
 
             # returns UN-NORMALIZED lattice plane normals
-            latPlnNrmls = symmetry.applySym( 
-                num.dot(latVecOps['B'], hkls[:,iHKL].reshape(3, 1)), 
-                qsym, 
-                csFlag=True, 
+            latPlnNrmls = symmetry.applySym(
+                num.dot(latVecOps['B'], hkls[:,iHKL].reshape(3, 1)),
+                qsym,
+                csFlag=True,
                 cullPM=False)
 
             # check for +/- in symmetry group
-            latPlnNrmlsM = symmetry.applySym( 
-                num.dot(latVecOps['B'], hkls[:,iHKL].reshape(3, 1)), 
-                qsym, 
-                csFlag=False, 
+            latPlnNrmlsM = symmetry.applySym(
+                num.dot(latVecOps['B'], hkls[:,iHKL].reshape(3, 1)),
+                qsym,
+                csFlag=False,
                 cullPM=False)
 
             csRefl = latPlnNrmls.shape[1] == latPlnNrmlsM.shape[1]
@@ -738,7 +739,7 @@ class PlaneData(object):
                 'symHKLs'     : symHKLs,
                 'centrosym'   : csRefl
                 })
-        
+
         revertOutputDegrees()
         return latPlaneData, latVecOps, hklDataList
     def getLatticeType(self):
@@ -941,8 +942,8 @@ class PlaneData(object):
         retval = []
         for iHKLr, hklData in enumerate(self.hklDataList):
             if not self.__thisHKL(iHKLr): continue
-            retval.append( hklData['centrosym'] ) 
-        return retval    
+            retval.append( hklData['centrosym'] )
+        return retval
     def makeTheseScatteringVectors(self, hklList, rMat, bMat=None, wavelength=None, chiTilt=None):
         iHKLList = num.atleast_1d(self.getHKLID(hklList))
         fHKLs = num.hstack(self.getSymHKLs(indices=iHKLList))
@@ -965,7 +966,7 @@ class PlaneData(object):
         """
         modeled after QFromU.m
         """
-        
+
         # basis vectors
         Xl = num.vstack([1, 0, 0])          # X in the lab frame
         Yl = num.vstack([0, 1, 0])          # Y in the lab frame
@@ -1138,7 +1139,7 @@ class PlaneData(object):
         """
         modeled after QFromU.m
         """
-                
+
         if bMat is None:
             bMat = self.__latVecOps['B']
 
@@ -1173,7 +1174,7 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
                                 display=False,
                                 units='degrees',
                                 convention='hexrd')
-    
+
     INPUTS:
 
     1) tth0 is a list (or ndarray) of 1 or n the bragg angles (2theta) for
@@ -1193,7 +1194,7 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     'display'           True|{False}            toggles display info to cmd line
     'units'             'radians'|{'degrees'}   sets units for input angles
     'convention'        'fable'|{'hexrd'}         sets conventions defining
-                                                the angles (see below) 
+                                                the angles (see below)
     'chiTilt'           None                    the inclination (about Xlab) of
                                                 the oscillation axis
 
@@ -1211,11 +1212,11 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
 
     JVB) The ouputs ome1, eta1 are written using the selected convention, but the
          units are alway degrees.  May change this to work with Nathan's global...
-    
+
     JVB) In the 'fable' convention [1], {XYZ} form a RHON basis where X is
          downstream, Z is vertical, and eta is CCW with +Z defining eta = 0.
-    
-    JVB) In the 'hexrd' convention [2], {XYZ} form a RHON basis where Z is upstream, 
+
+    JVB) In the 'hexrd' convention [2], {XYZ} form a RHON basis where Z is upstream,
          Y is vertical, and eta is CCW with +X defining eta = 0.
 
     REFERENCES:
@@ -1229,7 +1230,7 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
         to Deformed In Situ'', J. Eng. Mater. Technol. (2008). 130.
         DOI:10.1115/1.2870234
     """
-        
+
     dispFlag  = False
     fableFlag = False
     chiTilt   = None
@@ -1375,7 +1376,7 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
               cTht0*cEta0*sOme1*sChi + cTht0*sEta0*(cChi2 + cOme1*sChi2) + sTht0*(1 - cOme1)*sChi*cChi ] ) )
 
         eta1 = qxy[1, :] / abs(qxy[1, :]) * arccosSafe(qxy[0, :]) * r2d
-        
+
         if fableFlag:
             eta1  =  90 - eta1
             pass

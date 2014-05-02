@@ -35,6 +35,7 @@ import exceptions
 import StringIO
 import ctypes
 import multiprocessing
+import logging
 
 import numpy as num
 from matplotlib import cm
@@ -63,6 +64,12 @@ from hexrd.xrd.xrdbase import getGaussNDParams
 from hexrd.xrd import rotations
 from hexrd.xrd.rotations import mapAngle
 
+try:
+    from progressbar import ProgressBar, Bar, ETA, ReverseBar
+    have_progBar = True
+except:
+    have_progBar = False
+
 # from hexrd import uncertainty_analysis
 
 debugDflt = False
@@ -70,7 +77,6 @@ debugMulti = True
 debugFit = False
 debugMasked = False
 debugFrameRefs = False
-debugFinalize = False
 
 structureNDI_label = num.array([
     [0,1,0],
@@ -151,7 +157,7 @@ def getSpot(inpt, labels, objs, index, keepWithinBBox, padSpot, darkframe=None):
 
     spot = {}
 
-    iSpot = index - 1
+    iSpot = int(index) - 1
     obj = objs[iSpot]
     objDilated = dilateObj(obj, labels.shape)
 
@@ -189,8 +195,64 @@ def getSpot(inpt, labels, objs, index, keepWithinBBox, padSpot, darkframe=None):
     x = xl + useObj[0].start
     y = yl + useObj[1].start
 
-    iSpot = index - 1
-    obj = objs[iSpot]
+    spot['index'] = index
+    spot['obj']   = useObj
+    spot['xl']    = xl
+    spot['yl']    = yl
+    spot['vbox']  = vbox
+    spot['x']     = x
+    spot['y']     = y
+    spot['atBoundary'] = atBoundary
+    spot['darkbox']=darkbox
+    #spot['v']    = v # careful if put this back in -- look for where 'vbox' is used everywhere
+    return spot
+
+def getSpotFromPixels(inpt, xThese, yThese, index, keepWithinBBox, padSpot, darkframe=None):
+    """
+    this is a bit of an oddball function, mostly for data uniformity of data structures;
+    """
+    spot = {}
+    
+    assert index > 0, 'need index to be > 0'
+
+    obj = ( slice(xThese.min(), xThese.max()+1), slice(yThese.min(), yThese.max()+1) )
+    objDilated = dilateObj(obj, inpt.shape)
+
+    'use objDilated instead of obj for atBoundary in case of masked pixels or odd boundary effects'
+    atBoundary = (objDilated[0].start == 0) or (objDilated[1].start == 0) or (objDilated[0].stop == inpt.shape[0]) or (objDilated[1].stop == inpt.shape[1])
+
+    if padSpot:
+        useObj = objDilated
+    else:
+        useObj = obj
+    
+    useLabels = num.zeros_like(inpt[useObj], dtype=int)
+    uesLabels[ xThese - useObj[0].start, yThese - useObj[1].start ] = index
+
+    if padSpot:
+        dilatedBool = ndimage.morphology.binary_dilation(useLabels, structure=structureNDI_dilate)
+        useLabels[dilatedBool] = index
+
+    if hasattr(inpt, 'mask'):
+        'make sure mask is respected'
+        if debugMasked:
+            print 'number of masked pixels : %d' % (num.sum(inpt.mask[useObj]))
+        useLabels[inpt.mask[useObj]] = -1
+
+    'spot-local x and y values:'
+    if keepWithinBBox:
+        xl, yl = num.where(useLabels >= 0) # should give all unmasked pixels in bbox
+    else:
+        xl, yl = num.where(useLabels == index) # labels[useObj] > 0
+    vbox = copyBox(inpt, useObj)
+    if darkframe is None:
+        raise RuntimeError, 'darkframe is None'
+    else:
+        darkbox = copyBox(darkframe, useObj)
+    # v = vbox[xl,yl] # = inpt[x,y]
+    x = xl + useObj[0].start
+    y = yl + useObj[1].start
+    
     spot['index'] = index
     spot['obj']   = useObj
     spot['xl']    = xl
@@ -231,7 +293,7 @@ def getValuesOnly(inpt, labels, objs, index):
     labels is from ndimage.label;
     objs is from ndimage.find_objects
     """
-    iSpot = index - 1
+    iSpot = int(index) - 1
     obj = objs[iSpot]
 
     xl, yl = num.where(labels[obj] == index)
@@ -279,7 +341,7 @@ def getImCOM(inpt, labels, objs, index, floor=None, getVSum=False):
     return sum of intensity as well if getVSum is True
     """
 
-    iSpot = index - 1
+    iSpot = int(index) - 1
     obj = objs[iSpot]
 
     indices = getIndices(inpt, labels, objs[index-1], index)
@@ -315,11 +377,13 @@ def getObjSize(labels, objs, index):
     labels is from ndimage.label;
     objs is from ndimage.find_objects
     """
-    iSpot = index - 1
-    obj = objs[iSpot]
-
-    objSize = num.sum(labels[obj] == index)
-
+    if len(objs) == 0:
+        objSize = 0
+    else:
+        iSpot = int(index) - 1
+        obj = objs[iSpot]
+        
+        objSize = num.sum(labels[obj] == index)
     return objSize
 
 def spotFinderSingle(
@@ -349,7 +413,7 @@ def spotFinderSingle(
         com = num.empty([numSpots,2])
     nPx = num.empty([numSpots],dtype=int)
     for iSpot in range(numSpots):
-        index = iSpot+1
+        index = int(iSpot) + 1
         if debug:
             print 'ojbect %d : %s' % (iSpot, str(thisframe[objs[iSpot]]))
 
@@ -384,7 +448,7 @@ def spotFinderSingle(
     spotDataList = []
     for iSpot in range(numSpots):
         if not keepers[iSpot]: continue
-        index = iSpot+1
+        index = int(iSpot) + 1
         spot = getSpot(thisframe, labels, objs, index, keepWithinBBox, False, darkframe=darkframe) # padSpot
         spotDataList.append(spot)
     return labels, objs, spotDataList, bin
@@ -422,7 +486,7 @@ class IntensityFunc3D(object):
 class IntensityFuncGauss3D(IntensityFunc3D):
     """
     8 parameters:
-    	centers (3)
+        centers (3)
         FWHMs   (3)
         scaling  (1)
         background (1)
@@ -465,9 +529,9 @@ class IntensityFuncGauss3D(IntensityFunc3D):
         instance = IntensityFuncGauss2D()
         return instance
     def eval(self, xVec, x, y, z, w=None, vSub=None, vScale=None, diff=False, noBkg=False, minWidth=None):
-        
+
         unscaledNorm = None
-        
+
         if w is not None:
              assert x.shape == w.shape,\
                  'w not the same shape as other arguments; %s != %s' % (str(x.shape), str(w.shape))
@@ -566,8 +630,8 @@ class IntensityFuncGauss3D(IntensityFunc3D):
                 'only happens when diff is True?'
                 realw = num.tile(vScale.reshape(len(vScale),1),retval.shape[1])
             retval = retval * realw
-    
-        if self.debug and vSub is not None: 
+
+        if self.debug and vSub is not None:
             if diff:
                 print '%s : did diff eval' % (self.__class__.__name__)
             else:
@@ -579,7 +643,7 @@ class IntensityFuncGauss3DGenEll(IntensityFunc3D):
     """
     generalization of IntensityFuncGauss3D to have principal axes generally aligned
     11 parameters:
-    	centers (3)
+        centers (3)
         diagonal "fwhm" (3)
         scaling  (1)
         off-diagonal (3)
@@ -627,7 +691,7 @@ class IntensityFuncGauss3DGenEll(IntensityFunc3D):
         instance = IntensityFuncGauss2D()
         return instance
     def eval(self, xVec, x, y, z, w=None, vSub=None, vScale=None, diff=False, noBkg=False):
-        
+
         if w is not None:
              assert x.shape == w.shape,\
                  'w not the same shape as other arguments; %s != %s' % (str(x.shape), str(w.shape))
@@ -709,7 +773,7 @@ class IntensityFuncGauss3DGenEll(IntensityFunc3D):
             if vScale is not None:
                 for xInd in range(dg_dx.shape[-1]):
                     retval[:,xInd] = retval[:,xInd] * vScale[:]
-        
+
         else:
 
             inputShape = num.shape(xDist)
@@ -742,7 +806,7 @@ class IntensityFuncGauss3DGenEll(IntensityFunc3D):
                     print 'norm of retval : %g' % (num.linalg.norm(retval))
             if vScale is not None:
                 retval = retval * vScale
-            
+
         return retval
 
 def getWtrShd(inp, threshold, gaussFilterSigma=None, footPrint=None, fpi=5, numPeaks=None):
@@ -1044,7 +1108,7 @@ class IntensityFuncMulti3D(IntensityFunc3D):
             retval += 1 # B # background
         return retval
     def eval(self, xVecAll, x, y, z, w=None, vSub=None, vScale=None, diff=False, noBkg=False, iFunc=None):
-        
+
         nX = self.getNParams(noBkg=noBkg)
 
         # minWidth = None
@@ -1100,7 +1164,7 @@ class IntensityFuncMulti3D(IntensityFunc3D):
                     print 'norm in eval is '+str(num.linalg.norm(retval))
             if vScale is not None:
                 retval = retval * vScale
-            
+
         return retval
 
 class IntensityFunc2D(object):
@@ -1138,7 +1202,7 @@ class IntensityFunc2D(object):
 class IntensityFuncGauss2D(IntensityFunc2D):
     """
     6 parameters:
-    	centers (2)
+        centers (2)
         FWHMs   (2)
         scaling  (1)
         background (1)
@@ -1169,7 +1233,7 @@ class IntensityFuncGauss2D(IntensityFunc2D):
             retval -= 1
         return retval
     def eval(self, xVec, x, y, w=None, vSub=None, vScale=None, diff=False, noBkg=False):
-        
+
         if w is not None:
              assert x.shape == w.shape,\
                  'w not the same shape as other arguments; %s != %s' % (str(x.shape), str(w.shape))
@@ -1247,7 +1311,7 @@ class IntensityFuncGauss2D(IntensityFunc2D):
                         'shape of w has length %d' % (len(shape(w)))
             if vSub is not None:
                 retval = retval - vSub
-            
+
         if vScale is not None:
             if len(retval.shape)==1:
                 realw = vScale
@@ -1255,7 +1319,7 @@ class IntensityFuncGauss2D(IntensityFunc2D):
                 'only happens when diff is True?'
                 realw = num.tile(vSscale.reshape(len(vScale),1),retval.shape[1])
             retval = retval * realw
-    
+
         return retval
 
 class IntensityFuncMulti2D(IntensityFunc2D):
@@ -1386,7 +1450,7 @@ class IntensityFuncMulti2D(IntensityFunc2D):
             retval += 1 # B # background
         return retval
     def eval(self, xVecAll, x, y, w=None, vSub=None, vScale=None, diff=False, noBkg=False, iFunc=None): # no z 2d/3d
-        
+
         nX = self.getNParams(noBkg=noBkg)
 
         if diff:
@@ -1434,7 +1498,7 @@ class IntensityFuncMulti2D(IntensityFunc2D):
                 retval = retval - vSub
             if vScale is not None:
                 retval = retval * vScale
-            
+
         return retval
 
 class UnfitableError(exceptions.Exception):
@@ -1580,8 +1644,8 @@ class Spot(object):
             self.mark(self.markAtBoundary)
         xl   = dataDict['xl']
         yl   = dataDict['yl']
-        vbox = dataDict['vbox'] 
-        v    = vbox[xl,yl] 
+        vbox = dataDict['vbox']
+        v    = vbox[xl,yl]
         if dataDict.has_key('darkbox'):
             darkbox = dataDict['darkbox']
             darkval = darkbox[xl,yl]
@@ -1605,6 +1669,23 @@ class Spot(object):
         self.data = num.vstack((self.data, other.data))
         other.data = None
         return
+    @staticmethod
+    def spotFromDataList(key, delta_omega, dataList):
+        """
+        useful for merging data from spots that have already been finalized
+        """
+        spot = Spot(key, delta_omega)
+        xAllList = []; yAllList = []; oAllList = []; vAllList = []; darkAllList = []; 
+        for keyThis, delta_omega_abs, (xAll, yAll, oAll, vAll, darkAll) in dataList:
+            assert delta_omega_abs == spot.delta_omega_abs, 'delta_omega mismatch: %g %g' % (delta_omega_abs, spot.delta_omega_abs)
+            xAllList.append(xAll); yAllList.append(yAll); oAllList.append(oAll); vAllList.append(vAll); darkAllList.append(darkAll); 
+        spot.xAll    = num.hstack( xAllList )
+        spot.yAll    = num.hstack( yAllList )
+        spot.oAll    = num.hstack( oAllList )
+        spot.vAll    = num.hstack( vAllList )
+        spot.darkAll = num.hstack( darkAllList )
+        spot.finalize()
+        return spot
     def isFinalized(self):
         return self.finalized
     def finalize(self, flatten=False, modifyDeltaOmega=False, cullDupl=True):
@@ -1651,7 +1732,7 @@ class Spot(object):
                     avgDark[key]=num.mean(darkDict[key])
                     pass
                 darkDict = avgDark
-                
+
                 nPxFlat = len(pixelDict)
                 self.xAll    = num.empty(nPxFlat, dtype=self.xAll.dtype)
                 self.yAll    = num.empty(nPxFlat, dtype=self.yAll.dtype)
@@ -1688,35 +1769,39 @@ class Spot(object):
                 self.yAll = self.data['y'][:][0]
                 length    = len(self.vAll)
                 self.oAll = num.tile(self.data['omega'][:][0], length)
+
         if cullDupl:
-            'cull duplicates that could have happened due to merging of spots'
-            xyo = num.empty( len(self.vAll), dtype=[('x',int),('y',int),('o',float)] )
-            xyo['x'], xyo['y'], xyo['o'] = self.xAll[:], self.yAll[:], self.oAll[:]
-            try:
-                xyoUnique, indices = num.unique(xyo, return_index=True)
-            except TypeError:
-                xyoUnique, indices = num.unique1d(xyo, return_index=True)
-            if debugFinalize:
-                nDiscard = len(self.vAll) - len(indices)
-                if nDiscard > 0:
-                    print '   finalize : %d of %d pixels are duplicate, discarding' % (nDiscard, len(self.vAll))
-            self.xAll, self.yAll, self.oAll = xyoUnique['x'], xyoUnique['y'], xyoUnique['o']
-            self.vAll = self.vAll[indices]
-            self.darkAll = self.darkAll[indices]
+            # cull duplicates that could have happened due to merging of spots
+            dtp = num.dtype([('x', int), ('y', int), ('v', float), ('o', float), ('d', float)])
+            len_vall = len(self.vAll)
+            temp_a = num.array([(self.xAll[j], self.yAll[j], self.vAll[j], self.oAll[j],
+                                 self.darkAll[j]) for j in range(len_vall)], dtype=dtp)
+            temp_u = num.unique(temp_a)
+            self.xAll = temp_u['x']
+            self.yAll = temp_u['y']
+            self.oAll = temp_u['o']
+            self.vAll = temp_u['v']
+            self.darkAll = temp_u['d']
+
+            nDiscard = len_vall - len(self.vAll)
+            debug_msg = 'finalize: %d of %d pixels are duplicate, discarding' % \
+              (nDiscard, len_vall)
+            logging.debug(debug_msg)
+
         self.shape = num.array([
                 self.xAll.max()-self.xAll.min()+1,
                 self.yAll.max()-self.yAll.min()+1,
                 len(num.unique(self.oAll)) # len(self.data)
                 ])
         assert num.all(self.shape > 0), 'internal error in shape calculation'
-        
+
         self.xMM = (self.xAll.min(), self.xAll.max())
         self.yMM = (self.yAll.min(), self.yAll.max())
         self.oMM = (self.oAll.min(), self.oAll.max())
-        
+
         self.finalized = True
         return
-    
+
     def setDetectorGeom(self, detectorGeom, clobber=False):
         if self.__detectorGeom is not None:
             if detectorGeom != self.detectorGeom and not clobber:
@@ -1730,7 +1815,7 @@ class Spot(object):
     def getDetectorGeom(self):
         return self.__detectorGeom
     detectorGeom = property(getDetectorGeom, setDetectorGeom, None)
-    
+
     def getDoMap(self):
         '''
         centralize this decision so that it does not change with the use of quadrature and the like
@@ -1744,7 +1829,7 @@ class Spot(object):
         retval = self.__doMap
         return retval
     doMap = property(getDoMap, None, None)
-    
+
     def __checkDG(self):
         assert self.__detectorGeom is not None, \
             'need self.__detectorGeom to have been set'
@@ -1819,7 +1904,7 @@ class Spot(object):
                 'not necessarily okay to have such a nasty spot'
                 raise
         '''
-        # used to catch other stuff here, but then that results in errors getting masked and 
+        # used to catch other stuff here, but then that results in errors getting masked and
         # looking like failures to fit when they are really errors that need to be fixed
         except:
             (etype, eobj, etb) = sys.exc_info()
@@ -1965,7 +2050,7 @@ class Spot(object):
         xyoToAng  = self.__detectorGeom.xyoToAngMap
         angToXYO  = self.__detectorGeom.angToXYO
         angPixelSize = self.angPixelSize
-        
+
         xAng, yAng, zAng, w = xyoToAng(self.xAll, self.yAll, self.oAll, outputDV=True, doMap=self.doMap)
 
         nSubFuncs = len(self.__xyoCOMList)
@@ -2380,8 +2465,8 @@ class Spot(object):
             args = (xAng, yAng, zAng, wQP, self.vAll, vScale)
         else:
             args = (xAng, yAng,       wQP, self.vAll, vScale)
-        
-        # 'do not use existing fit in case it is bad' 
+
+        # 'do not use existing fit in case it is bad'
         xVec0 = intensityFunc.guessXVec(*args[0:-1]) # guessXVec does not take vScale
         fwhm = intensityFunc.getFWHM(xVec0)
         if num.any( fwhm <= 0. ):
@@ -2441,12 +2526,12 @@ class Spot(object):
     def __getQP(self):
         """
         see __fitSpot
-        
-        do not store results because in other places we do crazy things 
+
+        do not store results because in other places we do crazy things
         like change the oAll and do not want to have to worry about keeping these
-        quadrature quantities consistent 
+        quadrature quantities consistent
         """
-        
+
         xyoToAng = self.__detectorGeom.xyoToAngMap
 
         nQP = len(self.__q_w)
@@ -2466,10 +2551,10 @@ class Spot(object):
         wQP = num.array(num.matrix(dvQP) * wD.tocsr())
 
         return xAng, yAng, zAng, wQP
-    
+
     def getAngPixelSize(self):
         retval = self.__detectorGeom.getAngPixelSize(
-            self.xyoCOM(useFit=False), 
+            self.xyoCOM(useFit=False),
             self.delta_omega_abs,
             )
         return retval
@@ -2488,19 +2573,19 @@ class Spot(object):
 
         if self.__fitFunc is not None:
             raise RuntimeError, 'do not want to clobber existing quadrature setup'
-        
+
         withOmega = True
-        
+
         angPixelSize = self.getAngPixelSize()
         nPx_FWHM = fwhm/angPixelSize
-        q1D_invAll = nPx_FWHM / self.nQP_FWHM 
+        q1D_invAll = nPx_FWHM / self.nQP_FWHM
         q1D_tooSmall = q1D_invAll < self.minQ1DInv
         numTooSmall = num.sum(q1D_tooSmall)
         if numTooSmall:
             mesg = 'q1D_invAll : '+str(q1D_invAll)
             print >> fout,  mesg
             raise UnfitableError(1, mesg)
-        
+
         q1D_all = 1.0 / q1D_invAll
         if self.uniformQP:
             q1D = max(3, int(num.round(num.max(q1D_all))) )
@@ -2510,13 +2595,13 @@ class Spot(object):
             qRule = '%db%db%d' % tuple(q1D.tolist())
         if self.debug >1 : print >> fout,  'from %s requested quad points : %s' % (str(q1D_all), str(qRule))
         xi, w = q3db.qLoc(qRule)
-        
+
         xi[:,:] = xi[:,:] - 0.5
         if withOmega:
             xi[:,2] = xi[:,2] * self.delta_omega_abs
-        
+
         self.__setQ(w, xi, withOmega)
-        
+
         return
 
     def getVCalc(self, intensityFunc, x, noBkg=False, iSubSpot=None):
@@ -2534,12 +2619,12 @@ class Spot(object):
     def getIntegratedIntensity(self, useFit=True, iSubSpot=None, getResid=True):
         if self.haveFit() and useFit:
             # assert self.__fitFunc is not None, 'have not done fit, set useFit to False'
-            
+
             x = self.__fitX
             intensityFunc = self.__fitFunc
             vCalcNBG = self.getVCalc(intensityFunc, x, noBkg=True, iSubSpot=iSubSpot)
             integIntens = num.sum(vCalcNBG)
-            
+
             if getResid:
                 'also compute the residual for the fit'
                 resid = self.__fitV - self.vAll
@@ -2691,6 +2776,17 @@ class Spot(object):
                 retval = (retval, unc)
 
         return retval
+    def getPixelsOnFrame(self, iFrame, reader):
+        if not self.finalized:
+            raise RuntimeError, 'needs to be finalized'
+        omega = reader.frameToOmega(iFrame)
+        """
+        # in case of wrapped omega, do not do:
+        these = num.where(self.oAll == omega)[0]
+        """
+        angDist = rotations.angularDifference_orig(self.oAll, omega, units='radians')
+        these = num.where( num.abs(angDist) < (0.1*self.delta_omega_abs) )[0]
+        return these
     def getFrames(self, reader=None):
         """
         if have self.data, do not need reader
@@ -2926,7 +3022,7 @@ class Spot(object):
 
         spots is a list of Spot instances;
         tests is a list of tests to be applied;
-        	For convenience, some tests have been defined as static methods off of the
+                For convenience, some tests have been defined as static methods off of the
                 Spot class.
                 If a test is tests has a length, then the non-first entries are
                 used as arguments.
@@ -3143,7 +3239,7 @@ class Spots(object):
         """
         planeData : an instance or list (for multiple phases) of the PlaneData class
         data : can any of:
-        	spots : list of Spot instances, all of which must have been finalized
+                spots : list of Spot instances, all of which must have been finalized
                 spotAngCoords : spot positions in angular coordinates
                 None
         detectorGeom : an instance of DetectorGeomGE or the like
@@ -4351,6 +4447,10 @@ class Spots(object):
                             fout=None,
                             sumImg=None):
         """
+        ... if merge at bounds, would need to do that before culling based on size
+        (*) spots from beginning would have already been finalized -- can merge with them without trouble? 
+        (*) add comments here about what happens when reader.wrapsAround
+
         This method does not necessarily need to hang off of the Spots class,
         but Spots is a convenient place to put it.
 
@@ -4362,15 +4462,20 @@ class Spots(object):
         probably most useful when omega steps are large
 
         reader has been created by doing something like:
-        	fileInfo = [('RUBY_4537.raw', 2), ('RUBY_4538.raw', 2)]
+                fileInfo = [('RUBY_4537.raw', 2), ('RUBY_4538.raw', 2)]
                 reader = detector.ReadGE(fileInfo, subtractDark=True)
 
         if go to parallel processing, perhaps return first and last lables for doing merges
         """
+        
         location = '  findSpotsOmegaStack'
         fout = fout or sys.stdout
         def log_l(message):
             print >> fout, location+' : '+message
+        logger = None
+        if debug:
+            logger = log_l
+        
         if overlapPixelDistance:
             assert isinstance(overlapPixelDistance,float), \
                 'if specified, overlapPixelDistance should be a float'
@@ -4409,21 +4514,25 @@ class Spots(object):
         prevbin   = None
         prevomega = None
         darkframe = reader.getDark()
+        if have_progBar:
+            widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
+            pbar = ProgressBar(widgets=widgets, maxval=reader.getNFrames() / nframesLump).start()
         for iFrame in range(nFrames / nframesLump): # for iFrame, omega in enumerate(omegas):
+            if have_progBar:
+                pbar.update(iFrame+1)
             if debug > 1:
                 log_l('working on frame %d' % (iFrame))
                 ticFrame = time.time()
             thisframe = reader.read(nframes=nframesLump, sumImg=sumImg)
             omega = reader.getFrameOmega()
-            
+
             if debug > 1:
                 tic = time.time()
-            'call spotFinderSingle with minPx == 1 so it does not discard any spots'
             if pw is not None:
                 reader.display(thisframe, pw=pw)
             if debugFrameRefs:
                 log_l('references to thisframe : %d' % (sys.getrefcount(thisframe)))
-            labels, objs, spotDataList, bin = spotFinderSingle(thisframe, threshold, 1, 
+            labels, objs, spotDataList, bin = spotFinderSingle(thisframe, threshold, 1,
                                                                keepWithinBBox, padSpot,
                                                                debug=debug>3, pw=pw, darkframe=darkframe)
             if debug > 1:
@@ -4431,7 +4540,7 @@ class Spots(object):
                 log_l('    spotFinderSingle took %g seconds' % ((toc - tic)))
             if debug > 1:
                 log_l('len(spotDataList) : %d' % (len(spotDataList)))
-                
+
             if debugFrameRefs:
                 log_l('references to thisframe : %d (after spotFinderSingle)' % (sys.getrefcount(thisframe)))
             if overlapPixelDistance:
@@ -4445,7 +4554,7 @@ class Spots(object):
             if labelsPrev is None:
                 """starting with all new spots
                 mark for deletion as touch the lower omega limit
-                """ 
+                """
                 if debug > 1:
                     log_l('starting all new spots')
                 for spotData in spotDataList:
@@ -4459,7 +4568,7 @@ class Spots(object):
                     indexPrev = spotData['index']
                     spotDictA[key] = Spots.newActiveSpotData(spot, [indexPrev])
             else:
-                
+
                 if debug > 2:
                     ticClaim = time.time()
                 keysToPop = [] # spotsToPop = []
@@ -4471,7 +4580,7 @@ class Spots(object):
                     ttNotO = 0.
                 if debug > 1:
                     log_l('working on %d active spots' % (len(spotDictA)))
-                for key, activeSpotData in spotDictA.iteritems(): 
+                for key, activeSpotData in spotDictA.iteritems():
                     activeSpot = activeSpotData['spot']
 
                     foundOverlap = False
@@ -4513,7 +4622,7 @@ class Spots(object):
                                 spotIndexsUnique = spotIndexsUnique[1:]
                             for index in spotIndexsUnique:
 
-                                iSpot = index-1
+                                iSpot = int(index) - 1
                                 spotData = spotDataList[iSpot]
                                 assert spotData['index'] == index, 'index mismatch'
                                 activeSpot.append(spotData, omega, iFrame)
@@ -4533,21 +4642,21 @@ class Spots(object):
                         if padOmega:
                             for indexPrev in activeSpotData['indexsPrev']:
                                 'previous frame onto this one'
-                                spotDataPad = getSpot(thisframe, labelsPrev, objsPrev, indexPrev, 
+                                spotDataPad = getSpot(thisframe, labelsPrev, objsPrev, indexPrev,
                                                       keepWithinBBox, False, darkframe) # padSpot
-                                cullSpotUsingBin(spotDataPad, bin)
+                                cullSpotUsingBin(spotDataPad, bin) # want to do this regardless of cullPadOmega
                                 activeSpot.append(spotDataPad, omega, iFrame)
                             for index in activeSpotData['indexsNew']:
                                 'this frame onto previous one'
-                                spotDataPad = getSpot(prevframe, labels, objs, index, 
+                                spotDataPad = getSpot(prevframe, labels, objs, index,
                                                       keepWithinBBox, False, darkframe) # padSpot
-                                cullSpotUsingBin(spotDataPad, prevbin)
+                                cullSpotUsingBin(spotDataPad, prevbin) # want to do this regardless of cullPadOmega
                                 activeSpot.append(spotDataPad, prevomega, iFrame-1)
                     else:
                         'finalize this spot -- no overlap with newly found spots'
                         if padOmega:
                             for indexPrev in activeSpotData['indexsPrev']:
-                                spotDataPad = getSpot(thisframe, labelsPrev, objsPrev, indexPrev, 
+                                spotDataPad = getSpot(thisframe, labelsPrev, objsPrev, indexPrev,
                                                       keepWithinBBox, False, darkframe) # padSpot
                                 if cullPadOmega:
                                     cullSpotUsingBin(spotDataPad, bin)
@@ -4575,7 +4684,7 @@ class Spots(object):
                 nMerge = len(keysToPop) - nFinalize
                 if debug:
                     log_l('finalizing %d and merging %d spots' % (nFinalize, nMerge))
-                
+
                 'now pop'
                 for key in keysToPop: # for spot in spotsToPop:
                     'already put in spotListF as appropriate, just need to pop it out of spotDictA'
@@ -4607,7 +4716,7 @@ class Spots(object):
                         spot = Spot(key, delta_omega, spotData, omega, iFrame)
                     indexPrev = spotData['index']
                     spotDictA[key] = Spots.newActiveSpotData(spot, [indexPrev])
-                
+
                 if debug > 2:
                     tocMunge = time.time()
                     log_l('    munging spots took %g seconds' % ((tocMunge - ticMunge)))
@@ -4615,7 +4724,7 @@ class Spots(object):
 
             if debug > 1:
                 log_l('now have %d active spots' % (len(spotDictA)))
-            for key, activeSpotData in spotDictA.iteritems(): 
+            for key, activeSpotData in spotDictA.iteritems():
                 Spots.ageSpotData(activeSpotData)
 
             if padOmega:
@@ -4627,15 +4736,17 @@ class Spots(object):
             objsPrev   = objs
             if overlapPixelDistance:
                 comsPrev   = coms
-            
+
             if debug > 1:
                 tocFrame = time.time()
                 log_l('in total, frame %d took %g seconds' % (iFrame, (tocFrame - ticFrame)))
-            
+
             if debugFrameRefs:
                 log_l('references to thisframe : %d (end of loop)' % (sys.getrefcount(thisframe)))
             del thisframe
         'done with iFrame loop'
+        if have_progBar:
+            pbar.finish()
 
         'take care of remaining active spots'
         for key, activeSpotData in spotDictA.iteritems():
@@ -4651,6 +4762,16 @@ class Spots(object):
             activeSpot.finalize()
             spotListF.append(activeSpot)
 
+        if reader.wrapsAround and nFrames == reader.getNFrames():
+            'need to do merge to that first and last frames act as being adjacent'
+            if debug: 
+                log_l('doing mergeSpotsOmegaStack')
+            mergedSpots = Spots.mergeSpotsOmegaStack(spotListF, None, reader, None,
+                                                     keepWithinBBox=keepWithinBBox,
+                                                     overlapPixelDistance=overlapPixelDistance,
+                                                     padOmega=padOmega, logger=logger)
+            spotListF = mergedSpots
+
         keepers = num.array(map(Spot.nPx, spotListF)) >= minPx # dtype=bool
         if debug > 1:
             log_l('%d of %d spots have more than %d pixels' % (num.sum(keepers), len(spotListF), minPx))
@@ -4660,15 +4781,14 @@ class Spots(object):
             else:
                 toDiscard = Spot.atBoundMarks
             nDiscard = 0
-            for iSpot in range(len(spotListF)): # spot in spotListF:
+            for iSpot, spot in enumerate(spotListF): # spot in spotListF:
                 if not keepers[iSpot] : continue
-                spot = spotListF[iSpot]
                 if spot.isMarked(toDiscard):
                     keepers[iSpot] = False
                     nDiscard += 1
             if debug > 1:
                 log_l('discarded %d spots at omega bounds' % (nDiscard))
-        
+
         keptSpots = []
         for iSpot in range(len(spotListF)): # spot in spotListF:
             if not keepers[iSpot] : continue
@@ -4676,6 +4796,315 @@ class Spots(object):
             keptSpots.append(spot)
 
         return keptSpots
+    @staticmethod
+    def mergeSpotsOmegaStack(spotsA, spotsB, readerA, readerB, 
+                             keepWithinBBox=True,
+                             overlapPixelDistance=None,
+                             padOmega=True,
+                             logger=None):
+        """
+        see findSpotsOmegaStack (documentation in header and in the body) for comments about padOmega and overlapPixelDistance
+
+        spotsB and readerB can be None if this is for wrap-around
+
+        A and B can be the same -- as would be the case for omega wrapping all the way around
+        """
+        
+        if padOmega:
+            darkframeA = readerA.getDark()
+        
+        wrap = False
+        if spotsB is None:
+            assert readerB is None, 'readerB should be None if spotsB is None'
+            readerB = readerA
+            assert readerA.wrapsAround, 'readerA should wrap around if spotsB is None'
+            spotsB = spotsA
+            darkframeB = darkframeA
+            wrap = True
+        else:
+            'not sure when dark frames would be different, but grab a distinct one for B just in case'
+            darkframeB = readerB.getDark()
+
+        iFrameA = readerA.getNFrames()-1
+        iFrameB = 0
+        
+        if overlapPixelDistance:
+            assert isinstance(overlapPixelDistance,float), \
+                'if specified, overlapPixelDistance should be a float'
+        
+        delta_omega = readerA.getDeltaOmega()
+        assert readerB.getDeltaOmega() == delta_omega, 'delta omega mismatch; this case not handled'
+        
+        omegaA = readerA.frameToOmega(iFrameA)
+        omegaB = readerB.frameToOmega(iFrameB)
+        if wrap:
+            'shift omegaB by 2pi so that spots have contiguous omega values'
+            omegaB = omegaB + 2.0*num.pi
+        
+        'sort out spots'
+        returnSpots = []
+        spotsAtHiA = []
+        spotsAtLoB = []
+        #
+        if wrap:
+            for spot in spotsA:
+                atHi = spot.isMarked(Spot.markAtOmegaHi)
+                atLo = spot.isMarked(Spot.markAtOmegaLo)
+                if atHi and atLo :
+                    'skip because do not deal with spots that are themselves wrapped around' 
+                    pass
+                elif atHi:
+                    spotsAtHiA.append(spot)
+                elif atLo:
+                    spotsAtLoB.append(spot)
+                else:
+                    returnSpots.append(spot)
+        else:
+            for spot in spotsA:
+                if spot.isMarked(Spot.markAtOmegaHi):
+                    spotsAtHiA.append(spot)
+                else:
+                    returnSpots.append(spot)
+            #
+            for spot in spotsB:
+                if spot.isMarked(Spot.markAtOmegaLo):
+                    spotsAtLoB.append(spot)
+                else:
+                    returnSpots.append(spot)
+        
+        if logger is not None:
+            logger( '%d spots not at bounds' % (len(returnSpots)) )
+            logger( '%d spots at "high" bound' % (len(spotsAtHiA)) )
+            logger( '%d spots at "low" bound' % (len(spotsAtLoB)) )
+        
+        def makeBin_l(spots, iFrame, reader):
+            """
+            do not use spotfinder.getBin because assume that incoming spots 
+            have been padded in the frame as desired
+            """
+            bin = reader.getEmptyMask()
+            theseList = []
+            for spot in spots:
+                these = spot.getPixelsOnFrame(iFrame, reader)
+                if these.size == 0:
+                    'spot shout not be in spots if it does not have pixels on the frame'
+                    print str(these)
+                    print str(spot.oAll)
+                    print reader.frameToOmega(iFrame)
+                    raise RuntimeError, 'internal error with spot on omega bound'
+                bin[ spot.xAll[these], spot.yAll[these] ] = True
+                theseList.append(these)
+            return bin, theseList
+        def getCOM_l(spots, theseList):
+            coms = []
+            for spot, these in zip(spots, theseList):
+                vSum = float(num.sum(spot.vAll[these]))
+                if vSum <= 0:
+                    print 'vSum is %g, from v array %s' % (vSum, str(v))
+                    raise RuntimeError, 'vSum <= 0'
+                com = num.array( [
+                    num.dot( spot.xAll[these], spot.vAll[these] ) / vSum,
+                    num.dot( spot.yAll[these], spot.vAll[these] ) / vSum,
+                    ])
+                coms.append( com )
+            return coms
+        
+        if padOmega:
+            localReaderA = readerA.makeNew()
+            thisframeA = localReaderA(nskip=iFrameA, nframes=1)
+            localReaderB = readerB.makeNew()
+            thisframeB = localReaderB(nskip=iFrameB, nframes=1)
+        if padOmega or (not overlapPixelDistance):
+            binA, theseListA = makeBin_l(spotsAtHiA, iFrameA, readerA)
+            binB, theseListB = makeBin_l(spotsAtLoB, iFrameB, readerB)
+                
+        'sort out overlaps'
+        if overlapPixelDistance:
+            """
+            to keep things simple, only overlap closest pairs of spots from A and B
+            """
+
+            'will need centers of mass'
+            'do not bother with munging data so that can use getImCOM'
+            #
+            comsA = getCOM_l(spotsAtHiA, theseListA)
+            comsB = getCOM_l(spotsAtLoB, theseListB)
+            
+            usedB = [False for spotB in spotsAtLoB]
+            
+            newSpotsContrib = []
+            
+            for comA, spotA, theseA in zip(comsA, spotsAtHiA, theseListA):
+                
+                iMinB = -1
+                distMin = overlapPixelDistance * 1e8
+                for iSpotB in range(len(spotsAtLoB)):
+                    if usedB[iSpotB]: continue
+                    comB  = comsB[iSpotB]
+                    spotB = spotsAtLoB[iSpotB]
+                    distp = comA - comB
+                    dist  = num.linalg.norm(distp)
+                    if dist < distMin:
+                        dist  = distMin
+                        iMinB = iSpotB
+                
+                if distMin <= overlapPixelDistance:
+                    'spots from A and B overlap'
+                    
+                    dataList = []
+                    dataList.append( spotA.getDataMinimal() )
+
+                    #comsB.pop(iMinB)
+                    #spotB = spotsAtLoB.pop(iMinB)
+                    spotB = spotsAtLoB[iMinB]
+                    usedB[iMinB] = True
+
+                    if wrap:
+                        'shift omegaB by 2pi so that spots have contiguous omega values'
+                        spotShifted = copy.deepcopy(spotB)
+                        spotShifted.oAll = spotShifted.oAll + 2.0*num.pi
+                        data = spotShifted.getDataMinimal()
+                    else:
+                        data = spotB.getDataMinimal()
+                    dataList.append( data )
+
+                    if padOmega:
+                        'do not bother with padding in this case -- hopefully it is not necessary'
+                        pass
+                    
+                    newSpotsContrib.append( dataList )
+
+                else:
+                    'spot from A does not overlap any of the spots in B'
+                    
+                    dataList = []
+                    dataList.append( spotA.getDataMinimal() )
+                    if padOmega:
+                        index = 1 # made up, value should not matter
+                        spotDataPad = getSpotFromPixels(thisFrameB, spotA.xAll[theseA], spotA.yAll[theseA], index,
+                                                        keepWithinBBox, False, darkframeB)
+                        cullSpotUsingBin(spotDataPad, binB)
+                        key = (iFrameB, index, 'B')
+                        tempSpot = Spot(key, delta_omega, spotDataPad, omegaB, iFrameB)
+                        tempSpot.finalize()
+                        dataList.append( tempSpot.getDataMinimal() )
+                    newSpotsContrib.append( dataList )
+            
+            'take care of all spots that did not overlap'
+            for spotB, theseB in zip(spotsAtLoB, theseListB):
+                if usedB[iSpotB]: continue
+
+                dataList = []
+                if wrap:
+                    'shift omegaB by 2pi so that spots have contiguous omega values'
+                    'may not be necessary if not padOmega, but do it anyway'
+                    spotShifted = copy.deepcopy(spotB)
+                    spotShifted.oAll = spotShifted.oAll + 2.0*num.pi
+                    data = spotShifted.getDataMinimal()
+                else:
+                    data = spotB.getDataMinimal()
+                dataList.append( data )
+                
+                if padOmega:
+                    index = 1 # made up, value should not matter
+                    spotDataPad = getSpotFromPixels(thisFrameA, spotB.xAll[theseB], spotB.yAll[theseB], index,
+                                                    keepWithinBBox, False, darkframeA)
+                    cullSpotUsingBin(spotDataPad, binA)
+                    key = (iFrameB, index, 'A')
+                    tempSpot = Spot(key, delta_omega, spotDataPad, omegaA, iFrameA)
+                    tempSpot.finalize()
+                    dataList.append( tempSpot.getDataMinimal() )
+                    
+                newSpotsContrib.append( dataList )
+
+        else:
+            'use combined bin frame, binAB, to label spots and thereby find overlaps'
+
+            if overlapPixelDistance is None:
+                binAB = binA + binB
+            #
+            labels, numSpots = ndimage.label(binAB, structureNDI_label)
+            if logger is not None:
+                logger( 'labelling found %d spots in A+B frame' % (numSpots) )
+            if padOmega:
+                objs = ndimage.find_objects(labels)
+            
+            """
+            loop over spotsAtHiA and spotsAtLoB to see which new spots they belong to;
+            go ahead and remake all spots because we will be adding to them if padOmega
+            is True anyway
+            """
+            
+            newSpotsContrib = [ [] for iNewSpot in range(numSpots) ]
+            
+            for spot, these in zip(spotsAtHiA, theseListA):
+                index = num.unique( labels[ spot.xAll[these], spot.yAll[these] ] )
+                assert index.size == 1, 'internal error in labeling'
+                iNewSpot = index[0]-1 # new spots number from 0, labels number from 1
+                data = spot.getDataMinimal()
+                newSpotsContrib[iNewSpot].append( data )
+            
+            for spot, these in zip(spotsAtLoB, theseListB):
+                index = num.unique( labels[ spot.xAll[these], spot.yAll[these] ] )
+                assert index.size == 1, 'internal error in labeling'
+                iNewSpot = index[0]-1 # new spots number from 0, labels number from 1
+                if wrap:
+                    'shift omegaB by 2pi so that spots have contiguous omega values'
+                    spotShifted = copy.deepcopy(spot)
+                    spotShifted.oAll = spotShifted.oAll + 2.0*num.pi
+                    data = spotShifted.getDataMinimal()
+                else:
+                    data = spot.getDataMinimal()
+                newSpotsContrib[iNewSpot].append( data )
+
+                
+            'done sorting out overlaps'
+
+            if padOmega:
+                
+                labelsPadA = copy.deepcopy(labels)
+                labelsPadA[binA] = 0 
+                #
+                labelsPadB = copy.deepcopy(labels)
+                labelsPadB[binB] = 0
+                
+                for iNewSpot in range(numSpots):
+                    index = iNewSpot+1 # new spots number from 0, labels number from 1
+                    
+                    'pixels from frame A'
+                    spotDataPad = getSpot(thisframeA, labelsPadA, objs, index, 
+                                          keepWithinBBox, False, darkframeA) # padSpot
+                    'assume do not need to do cullSpotUsingBin given that are using labelsPadA'
+                    key = (iFrameA, index, 'A')
+                    tempSpot = Spot(key, delta_omega, spotDataPad, omegaA, iFrameA)
+                    tempSpot.finalize()
+                    newSpotsContrib[iNewSpot].append( tempSpot.getDataMinimal() )
+    
+                    'pixels from frame B'
+                    spotDataPad = getSpot(thisframeB, labelsPadB, objs, index, 
+                                          keepWithinBBox, False, darkframeB) # padSpot
+                    'assume do not need to do cullSpotUsingBin given that are using labelsPadB'
+                    key = (iFrameB, index, 'B')
+                    tempSpot = Spot(key, delta_omega, spotDataPad, omegaB, iFrameB)
+                    tempSpot.finalize()
+                    newSpotsContrib[iNewSpot].append( tempSpot.getDataMinimal() )
+                    
+        'if overlapPixelDistance'
+        
+        for iNewSpot, newSpotContrib in enumerate(newSpotsContrib):
+            assert len(newSpotContrib) > 0, 'internal error -- no contributing data for new spot'
+            index = iNewSpot-1
+            key = ( (iFrameA,iFrameB), index)
+            newSpot = Spot.spotFromDataList(key, delta_omega, newSpotContrib)
+            returnSpots.append(newSpot)
+
+        if logger is not None:
+            logger( 'returning %d spots from merge' % (len(returnSpots)) )
+        for iSpot, spot in enumerate(returnSpots):
+            if spot.isMarked(Spot.atBoundMarks):
+                raise RuntimeError, 'internal error: spot %d is at bounds %s' % ( iSpot, str(spot.marks) )
+
+        return returnSpots
     def getOmegaMins(self):
         mins = zip(*self.omegaMM)[0]
         'toFloat already done'
@@ -4735,7 +5164,7 @@ class SpotsIterator:
                 if self.spots.friedelPair[self.__iter_pnt] > self.__iter_pnt:
                     """ checking > self.__iter_pnt will only be True for the
                     master spot if have done:
-                    	friedelPair[iSpot] = jSpot
+                        friedelPair[iSpot] = jSpot
                         friedelPair[jSpot] = iSpot
                     to set up the data
                     """

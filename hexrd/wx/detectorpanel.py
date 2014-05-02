@@ -45,7 +45,6 @@ import numpy
 #  XRD Modules
 #
 from hexrd.xrd            import detector
-from hexrd.xrd.material   import *
 from hexrd.xrd.experiment import FitModes
 
 from hexrd.xrd.crystallography import dUnit as WAVELENGTH_UNIT
@@ -55,7 +54,7 @@ from hexrd.xrd.crystallography import processWavelength
 #
 from hexrd.wx.guiconfig import WindowParameters as WP
 from hexrd.wx.guiutil import ResetChoice, AddSpacer, EmptyWindow, makeTitleBar
-from hexrd.wx.floatcontrol import *
+from hexrd.wx.floatcontrol import FloatControl, EVT_FLOAT_CTRL
 from hexrd.wx.logwindows   import logWindow
 from hexrd.wx.ringsubpanel import ringPanel
 from hexrd.wx.selecthkls   import selectHKLsDialog as hklsDlg #TBR
@@ -68,31 +67,31 @@ AngstromTimesKev = processWavelength(1.0)
 class detectorPanel(wx.Panel):
     """plotPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for plotPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
+        """Constructor for plotPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
         self.SetBackgroundColour(WP.BG_COLOR_PANEL)
-	#
+        #
         #  Data
         #
         #  *** NONE YET ***
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -121,7 +120,7 @@ class detectorPanel(wx.Panel):
         #  Will have a checkbox and a spin control for each parameter.
         #
         self.detLabSizer = makeTitleBar(self, 'Detector Parameters',
-                                          color=WP.TITLEBAR_BG_COLOR_PANEL1)
+                                        color=WP.TITLEBAR_BG_COLOR_PANEL1)
         deltaBoxTip = "Use this box to set the increment for the spinner to the left"
         app = wx.GetApp()
         det = app.ws.detector
@@ -157,7 +156,13 @@ class detectorPanel(wx.Panel):
         name = 'z Tilt'
         self.cbox_zt  = wx.CheckBox(self, wx.NewId(), name)
         self.float_zt = FloatControl(self, wx.NewId())
-        self.float_zt.SetValue(det.yTilt)
+        self.float_zt.SetValue(det.zTilt)
+
+        name = 'chi Tilt'
+        self.cbox_ct  = wx.CheckBox(self, wx.NewId(), name)
+        self.float_ct = FloatControl(self, wx.NewId())
+        self.float_ct.SetValue(det.chiTilt)
+        
         #
         #  Distortion parameters
         #
@@ -235,6 +240,7 @@ class detectorPanel(wx.Panel):
         self.Bind(EVT_FLOAT_CTRL, self.OnFloatXT, self.float_xt)
         self.Bind(EVT_FLOAT_CTRL, self.OnFloatYT, self.float_yt)
         self.Bind(EVT_FLOAT_CTRL, self.OnFloatZT, self.float_zt)
+        self.Bind(EVT_FLOAT_CTRL, self.OnFloatCT, self.float_ct)
 
         self.Bind(EVT_FLOAT_CTRL, self.OnFloatd1, self.float_d1)
         self.Bind(EVT_FLOAT_CTRL, self.OnFloatd2, self.float_d2)
@@ -250,6 +256,7 @@ class detectorPanel(wx.Panel):
         self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_xt, self.cbox_xt)
         self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_yt, self.cbox_yt)
         self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_zt, self.cbox_zt)
+        self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_ct, self.cbox_ct)
 
         self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_d1, self.cbox_d1)
         self.Bind(wx.EVT_CHECKBOX,   self.OnCheck_d2, self.cbox_d2)
@@ -267,17 +274,17 @@ class detectorPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         #
         #  Material sizer
         #
-	matSizer = wx.BoxSizer(wx.HORIZONTAL)
+        matSizer = wx.BoxSizer(wx.HORIZONTAL)
         matSizer.Add(self.mats_lab, 0, wx.ALIGN_RIGHT)
         matSizer.Add(self.mats_cho, 0, wx.ALIGN_LEFT|wx.LEFT, 5)
         #
         #  Geometry sizer
         #
-        nrow = 10; ncol = 2; padx = 5; pady = 5
+        nrow = 13; ncol = 2; padx = 5; pady = 5
         self.geoSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
         self.geoSizer.AddGrowableCol(0, 1)
         self.geoSizer.AddGrowableCol(1, 1)
@@ -299,6 +306,9 @@ class detectorPanel(wx.Panel):
         #  * z-tilt
         self.geoSizer.Add(self.cbox_zt,  1, wx.EXPAND)
         self.geoSizer.Add(self.float_zt, 1, wx.EXPAND)
+        #  * chi-tilt
+        self.geoSizer.Add(self.cbox_ct,  1, wx.EXPAND)
+        self.geoSizer.Add(self.float_ct, 1, wx.EXPAND)
 
         #  *** distortion parameters ***
         self.geoSizer.Add( self.cbox_d1,  1, wx.EXPAND)
@@ -328,9 +338,9 @@ class detectorPanel(wx.Panel):
         #  Caking sizer
         #
         nrow = 0; ncol = 2; padx = pady = 5
-	self.cakeSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.cakeSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
         #
-	self.cakeSizer.AddGrowableCol(0, 1)
+        self.cakeSizer.AddGrowableCol(0, 1)
         self.cakeSizer.Add(self.numEta_lab, 1, wx.ALIGN_RIGHT)
         self.cakeSizer.Add(self.numEta_spn, 0, wx.ALIGN_LEFT)
         self.cakeSizer.Add(self.numRho_lab, 1, wx.ALIGN_RIGHT)
@@ -355,7 +365,7 @@ class detectorPanel(wx.Panel):
         AddSpacer(self, self.sizer, WP.BG_COLOR_TITLEBAR_PANEL1)
         self.sizer.Add(self.runFit_but, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
 
-	return
+        return
 
     def __initExclusions(self):
         """Nothing yet"""
@@ -378,6 +388,7 @@ class detectorPanel(wx.Panel):
         self.float_xt.SetValue(det.xTilt)
         self.float_yt.SetValue(det.yTilt)
         self.float_zt.SetValue(det.zTilt)
+        self.float_ct.SetValue(det.chiTilt)
 
         self.float_d1.SetValue(det.dparms[0])
         self.float_d2.SetValue(det.dparms[1])
@@ -392,6 +403,8 @@ class detectorPanel(wx.Panel):
         self.__showCbox(self.cbox_xt, self.float_xt, det.refineFlags[3])
         self.__showCbox(self.cbox_yt, self.float_yt, det.refineFlags[4])
         self.__showCbox(self.cbox_zt, self.float_zt, det.refineFlags[5])
+        self.__showCbox(self.cbox_ct, self.float_ct, False)
+        
         self.__showCbox(self.cbox_d1, self.float_d1, det.refineFlags[6])
         self.__showCbox(self.cbox_d2, self.float_d2, det.refineFlags[7])
         self.__showCbox(self.cbox_d3, self.float_d3, det.refineFlags[8])
@@ -584,6 +597,20 @@ class detectorPanel(wx.Panel):
 
         return
 
+    def OnFloatCT(self, evt):
+        """Callback for float_yt choice"""
+        try:
+            a = wx.GetApp()
+            a.ws.detector.chiTilt = evt.floatValue
+            a.getCanvas().update()
+
+        except Exception as e:
+            msg = 'Failed to set chi-tilt value: \n%s' % str(e)
+            wx.MessageBox(msg)
+            pass
+
+        return
+
     def OnFloatd1(self, evt):
         """Callback for float_d1 choice"""
         try:
@@ -703,7 +730,7 @@ class detectorPanel(wx.Panel):
         return
 
     def OnCheck_yc(self, e):
-        """xc box is checked"""
+        """yc box is checked"""
         fc   = self.float_yc
         ind  = 1
 
@@ -716,7 +743,7 @@ class detectorPanel(wx.Panel):
         return
 
     def OnCheck_D(self, e):
-        """xc box is checked"""
+        """D box is checked"""
         fc   = self.float_D
         ind  = 2
 
@@ -729,7 +756,7 @@ class detectorPanel(wx.Panel):
         return
 
     def OnCheck_xt(self, e):
-        """xc box is checked"""
+        """xt box is checked"""
         ind  = 3
         fc   = self.float_xt
 
@@ -742,7 +769,7 @@ class detectorPanel(wx.Panel):
         return
 
     def OnCheck_yt(self, e):
-        """xc box is checked"""
+        """yt box is checked"""
         ind  = 4
         fc   = self.float_yt
 
@@ -755,7 +782,7 @@ class detectorPanel(wx.Panel):
         return
 
     def OnCheck_zt(self, e):
-        """xc box is checked"""
+        """zt box is checked"""
         ind  = 5
         fc   = self.float_zt
 
@@ -765,6 +792,16 @@ class detectorPanel(wx.Panel):
         exp.refineFlags[ind] = stat
         fc.Enable(stat)
 
+        return
+
+    def OnCheck_ct(self, e):
+        """xc box is checked"""
+        print "checking chiTilt has effect yet"
+        fc   = self.float_ct
+
+        stat = e.IsChecked()
+
+        fc.Enable(stat)
         return
 
     def OnCheck_d1(self, e):

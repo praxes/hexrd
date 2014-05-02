@@ -44,7 +44,6 @@ import matplotlib
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wxagg import NavigationToolbar2WxAgg
 from matplotlib.figure                 import Figure
-from matplotlib                        import pyplot
 from matplotlib                        import cm
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
@@ -54,7 +53,6 @@ __all__ = ['matplotlib',
            'FigureCanvas',
            'NavigationToolbar2WxAgg',
            'Figure',
-           'pyplot',
            'cmapPanel']
 #
 # ---------------------------------------------------CLASS:  cmapPanel
@@ -62,30 +60,30 @@ __all__ = ['matplotlib',
 class cmapPanel(wx.Panel):
     """cmapPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for cmapPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
+        """Constructor for cmapPanel."""
         #
-	#  Window Objects.
-	#
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
         #  Data
         #
         self.cmap = copy.deepcopy(getattr(cm, self.cmap_name))
-	#
-	self.SetAutoLayout(True)
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -145,12 +143,12 @@ class cmapPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         #
         #  colormap sizer
         #
-        nrow = 1; ncol = 3; padx = 5; pady = 5
-	self.cmSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        nrow = 3; ncol = 3; padx = 5; pady = 5
+        self.cmSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
 
         self.cmSizer.Add(self.cmap_lab, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.Add(self.cmap_cho, 0, wx.EXPAND | wx.ALIGN_RIGHT)
@@ -164,11 +162,11 @@ class cmapPanel(wx.Panel):
         self.cmSizer.Add(self.cmax_txt, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.Add(self.cmOver_box, 0, wx.EXPAND | wx.ALIGN_RIGHT)
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Add(self.cmSizer,   0, wx.EXPAND|wx.ALIGN_RIGHT)
 
-	return
+        return
     #
     # ============================== API
     #
@@ -185,17 +183,17 @@ class cmapPanel(wx.Panel):
     def OnChooseCmap(self, e):
         self.cmap_name = self.cmap_cho.GetStringSelection()
         self.cmap = copy.deepcopy(getattr(cm, self.cmap_name))
-        self.update(newImage=True)
+        self.update(updateImage=True)
         return
 
     def OnSetCmin(self, e):
         self.cmin_val = float(self.cmin_txt.GetValue())
-        self.update(newImage=True)
+        self.update(updateImage=True)
         return
 
     def OnSetCmax(self, e):
         self.cmax_val = float(self.cmax_txt.GetValue())
-        self.update(newImage=True)
+        self.update(updateImage=True)
         return
 
     def OnSetUnder(self, e):
@@ -205,7 +203,7 @@ class cmapPanel(wx.Panel):
             self.cmap.set_under('b')
             pass
 
-        self.update(newImage=True)
+        self.update(updateImage=True)
 
         return
 
@@ -217,7 +215,7 @@ class cmapPanel(wx.Panel):
             self.cmap.set_over('r')
             pass
 
-        self.update(newImage=True)
+        self.update(updateImage=True)
 
         return
 

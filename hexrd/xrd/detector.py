@@ -1,9 +1,9 @@
 #! /usr/bin/env python
 # ============================================================
-# Copyright (c) 2012, Lawrence Livermore National Security, LLC. 
-# Produced at the Lawrence Livermore National Laboratory. 
-# Written by Joel Bernier <bernier2@llnl.gov> and others. 
-# LLNL-CODE-529294. 
+# Copyright (c) 2012, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+# Written by Joel Bernier <bernier2@llnl.gov> and others.
+# LLNL-CODE-529294.
 # All rights reserved.
 #
 # This file is part of HEXRD. For details on dowloading the source,
@@ -77,7 +77,7 @@ bsize = 25000
 ztol  = 1e-10
 
 DFLT_XTOL = 1e-6
-        
+
 def angToXYIdeal(tTh, eta, workDist):
     rho = num.tan(tTh) * workDist
     x   = rho * num.cos(eta)
@@ -193,7 +193,7 @@ class Framer2DRC(object):
     """
     Base class for readers.
 
-    You can make an instance of this class and use it for most of the 
+    You can make an instance of this class and use it for most of the
     things a reader would do, other than actually reading frames
     """
     def __init__(self,
@@ -204,11 +204,11 @@ class Framer2DRC(object):
         self.__frame_dtype_dflt  = dtypeDefault
         self.__frame_dtype_read  = dtypeRead
         self.__frame_dtype_float = dtypeFloat
-        
+
         self.__nbytes_frame  = num.nbytes[dtypeRead]*nrows*ncols
-        
+
         return
-    
+
     def get_ncols(self):
         return self.__ncols
     ncols = property(get_ncols, None, None)
@@ -220,7 +220,7 @@ class Framer2DRC(object):
     def get_nrows(self):
         return self.__nrows
     nrows = property(get_nrows, None, None)
-    
+
     def get_dtypeDefault(self):
         return self.__frame_dtype_dflt
     dtypeDefault = property(get_dtypeDefault, None, None)
@@ -228,9 +228,9 @@ class Framer2DRC(object):
         return self.__frame_dtype_read
     dtypeRead = property(get_dtypeRead, None, None)
     def get_dtypeFloat(self):
-        return self.__frame_dtype_float 
+        return self.__frame_dtype_float
     dtypeFloat = property(get_dtypeFloat, None, None)
-    
+
     def getOmegaMinMax(self):
         raise NotImplementedError
     def getDeltaOmega(self):
@@ -263,7 +263,9 @@ class Framer2DRC(object):
         return maxInt
 
     def getEmptyMask(self):
-        """convenience method for getting an emtpy mask"""
+        """
+        convenience method for getting an emtpy mask or bin frame
+        """
         # this used to be a class method
         mask = num.zeros([self.nrows, self.ncols], dtype=bool)
         return mask
@@ -283,7 +285,7 @@ class Framer2DRC(object):
         else:
             assert mask is None,\
                 'not coded: multiframe with mask'
-            shape = (nframes, self.rows, self.ncols)
+            shape = (nframes, self.nrows, self.ncols)
         if buffer is None:
             retval = num.zeros(shape, dtype=dtype)
         else:
@@ -300,7 +302,7 @@ class Framer2DRC(object):
                 **kwargs
                 ):
         # ... interpolation method that looks like max() so that do not miss peak pixels?
-        
+
         if roi is not None:
             dROI   = thisframe[ roi[0][0]:roi[0][1], roi[1][0]:roi[1][1] ]
         else:
@@ -324,13 +326,13 @@ class Framer2DRC(object):
 
         retval = p
         return retval
-    
+
     @classmethod
     def getDisplayArgs(cls, dROI, kwargs):
         range     = kwargs.pop('range',None)
         cmap      = kwargs.pop('cmap',None)
         dtypeRead = kwargs.pop('dtypeRead','uint16')
-            
+
         roiMin = dROI.min()
         roiMax = dROI.max()
         #
@@ -352,7 +354,7 @@ class Framer2DRC(object):
         #
         if cmap is None:
             cmap = getCMap(centered)
-        
+
         return vmin, vmax, cmap
 
     @classmethod
@@ -365,18 +367,60 @@ class Framer2DRC(object):
             vmax = range[1]
         else:
             thr    = dROI.mean()
-            vmin = max(0,            thr-range/2) # max(dROI.min(), thr-range/2) 
+            vmin = max(0,            thr-range/2) # max(dROI.min(), thr-range/2)
             vmax = min(cls.maxVal(dtypeRead), thr+range/2)
         return vmin, vmax
 
-def omeToFrameRange(omega, omegas, omegaDelta):
+def omeRangeToFrameRange(omeA, omeB, omegaStart, omegaDelta, nFrames, checkWrap=True, slicePad=1):
     """
-    check omega range for the frames instead of omega center;
-    result can be a pair of frames if the specified omega is
-    exactly on the border
+    assumes omegas are evenly spaced
+    omegaDelta may be negative
     """
-    retval = num.where(num.abs(omegas - omega) <= omegaDelta*0.5)[0]
+    retval = None
+    
+    wrapsAround = abs( ( nFrames * abs(omegaDelta) ) - ( 2.0 * num.pi ) ) < 1.0e-6
+    iFA = int((omeA - omegaStart) / omegaDelta)
+    iFB = int((omeB - omegaStart) / omegaDelta)
+    
+    if checkWrap and wrapsAround:
+        iFAW = iFA % nFrames
+        shift = iFAW - iFA
+        iFBW = iFB + shift
+        if iFBW < 0:
+            retval = [ (iFBW+nFrames, nFrames-1 + slicePad), (0, iFAW + slicePad) ]
+            # print '...*** making split range ...*** %g %g %g %g ' % (iFA, iFB, iFAW, iFBW) +str(retval)
+        elif iFBW >= nFrames:
+            retval = [ (iFA, nFrames-1 + slicePad), (0, iFBW-nFrames + slicePad) ]
+            # print '...*** making split range ...*** %g %g %g %g ' % (iFA, iFB, iFAW, iFBW) +str(retval)
+        else:
+            iFA = iFAW
+            iFB = iFBW
+            retval = None
+
+    if retval is None:
+        rawFrameRange = num.sort(num.hstack( (iFA, iFB) ))
+        retval = ( 
+            num.hstack( (rawFrameRange, 0) )[0],
+            num.hstack( (nFrames-1, rawFrameRange ) )[-1] + slicePad,
+            )
     return retval
+#
+def frameInRange(iFrame, frameRange):
+    """
+    for use with output from omeRangeToFrameRange;
+    trust that slicePad=1 was used in omeRangeToFrameRange
+    """
+    retval = False
+    if hasattr(frameRange[0],'index'):
+        for frameRangeThis in frameRange:
+            if iFrame >= frameRangeThis[0] and iFrame < frameRangeThis[1]:
+                retval = True
+                # print '...*** found in range for split range ...***'
+                break
+    else:
+        if iFrame >= frameRange[0] and iFrame < frameRange[1]:
+            retval = True
+    return retval 
 
 def getNFramesFromBytes(fileBytes, nbytesHeader, nbytesFrame):
     assert (fileBytes - nbytesHeader) % nbytesFrame == 0,\
@@ -394,31 +438,31 @@ class FrameWriter(Framer2DRC):
         self.__nempty        = kwargs.pop('nempty', 0)
 
         Framer2DRC.__init__(self, *args, **kwargs)
-        
+
         self.nFrame = 0
         self.img = open(self.filename, mode='wb')
-        
+
         # skip header for now
         self.img.seek(self.__nbytes_header, 0)
         if self.__nempty > 0:
             self.img.seek(self.nbytesFrame*self.__nempty, 1)
-        
+
         return
     def write(self, data, doAllChecks=True):
-        
+
         # if nskip > 0:
         #     self.img.seek(self.__nbytes_frame*nskip, 1)
-        
+
         assert len(data.shape) == 2, 'data is not 2D'
         assert data.shape[0] == self.nrows, 'number of rows is wrong'
         assert data.shape[1] == self.ncols, 'number of rows is wrong'
-        
+
         intType = False
-        
+
         if   num.result_type(self.dtypeRead).kind == 'u':
             intType = True
             if data.dtype.kind == 'u':
-                'all set' 
+                'all set'
             else:
                 if num.any(data < 0):
                     raise RuntimeError, 'trying to write negative data to unsigned type'
@@ -428,15 +472,15 @@ class FrameWriter(Framer2DRC):
             data = data.astype(self.dtypeRead)
         else:
             data = data.astype(self.dtypeRead)
-        
+
         if doAllChecks and intType:
             dataMax = data.max()
             readMax = num.iinfo(self.dtypeRead).max
-            if dataMax > readMax : 
+            if dataMax > readMax :
                 raise RuntimeError, 'max of %g greater than supported value of %g' % (dataMax, readMax)
-        
+
         data.tofile(self.img)
-        
+
         return
     def __call__(self, *args, **kwargs):
         return self.write(*args, **kwargs)
@@ -456,6 +500,10 @@ class ReadGeneric(Framer2DRC):
         doFlip               = kwargs.pop('doFlip', False)
         self.subtractDark    = kwargs.pop('subtractDark', False)
         
+        'keep things for makeNew convenience'
+        self.__args   = args
+        self.__kwargs = kwargs
+        
         if doFlip is not False:
             raise NotImplementedError, 'doFlip not False'
         if self.subtractDark is not False:
@@ -466,6 +514,8 @@ class ReadGeneric(Framer2DRC):
         self.dark = None
         self.dead = None
         self.mask = None
+
+        self.__wrapsAround       = False # default
 
         self.omegaStart = None
         self.omegaDelta = None
@@ -493,12 +543,13 @@ class ReadGeneric(Framer2DRC):
             self.omegaMax = max(omegaStart, omegaEnd)
             self.omegaDelta = omegaDelta
             self.omegaStart = omegaStart
+            self.__wrapsAround = abs( ( nFramesTot * abs(omegaDelta) ) / ( 2.0 * num.pi ) - 1.0 ) < 1.0e-6
 
         if len(kwargs) > 0:
             raise RuntimeError, 'unparsed kwargs : %s' + str(kwargs.keys())
-        
+
         self.iFrame = -1 # counter for last global frame that was read
-        
+
         self.img = None
         if self.filename is not None:
             self.img = open(self.filename, mode='rb')
@@ -506,8 +557,17 @@ class ReadGeneric(Framer2DRC):
             self.img.seek(self.__nbytes_header, 0)
             if self.__nempty > 0:
                 self.img.seek(self.nbytesFrame*self.__nempty, 1)
-        
+
         return
+
+    def makeNew(self):
+        """return a clean instance for the same data files
+        useful if want to start reading from the beginning"""
+        newSelf = self.__class__(self.filename, self.ncols, self.nrows, *self.__args, **self.__kwargs)
+        return newSelf
+    def get_wrapsAround(self):
+        return self.__wrapsAround
+    wrapsAround = property(get_wrapsAround, None, None)
 
     def getFrameUseMask(self):
         return False
@@ -516,23 +576,25 @@ class ReadGeneric(Framer2DRC):
 
     '''
     def read(self, nskip=0, nframes=1, sumImg=False):
-        
+
         if not nframes == 1:
             raise NotImplementedError, 'nframes != 1'
         if not sumImg == False:
             raise NotImplementedError, 'sumImg != False'
-        
+
         data = self.__readNext(nskip=nskip)
 
         self.iFrame += nskip + 1
-        
+
         return data
     '''
+    def __call__(self, *args, **kwargs):
+        return self.read(*args, **kwargs)
     def read(self, nskip=0, nframes=1, sumImg=False):
         """
         sumImg can be set to True or to something like numpy.maximum
         """
-        
+
         if self.img is None:
             raise RuntimeError, 'no image file open'
 
@@ -620,6 +682,16 @@ class ReadGeneric(Framer2DRC):
     def getDark(self):
         'no dark yet supported'
         return 0
+    def frameToOmega(self, frame):
+        scalar = num.isscalar(frame)
+        frames = num.asarray(frame)
+        if frames.dtype == int:
+            retval = self.omegas[frames]
+        else:
+            retval = (frames + 0.5) * self.omegaDelta + self.omegaStart
+        if scalar:
+            retval = num.asscalar(retval)
+        return retval
     def getFrameOmega(self, iFrame=None):
         """if iFrame is none, use internal counter"""
         assert self.omegas is not None,\
@@ -636,10 +708,10 @@ class ReadGeneric(Framer2DRC):
     def __readNext(self, nskip=0):
         if self.img is None:
             raise RuntimeError, 'no image file open'
-        
+
         if nskip > 0:
             self.img.seek(self.nbytesFrame*nskip, 1)
-        data = num.fromfile(self.img, 
+        data = num.fromfile(self.img,
                             dtype=self.dtypeRead,
                             count=self.nrows*self.ncols)
         return data
@@ -678,14 +750,14 @@ class ReadGeneric(Framer2DRC):
     def getWriter(self, filename):
         # if not self.doFlip is False:
         #     raise NotImplementedError, 'doFlip true not coded'
-        new = FrameWriter(self.ncols, self.nrows, 
+        new = FrameWriter(self.ncols, self.nrows,
                           filename=filename,
-                          dtypeDefault=self.dtypeDefault, 
-                          dtypeRead=self.dtypeRead, 
-                          dtypeFloat=self.dtypeFloat, 
-                          nbytesHeader=self.__nbytes_header) 
+                          dtypeDefault=self.dtypeDefault,
+                          dtypeRead=self.dtypeRead,
+                          dtypeFloat=self.dtypeFloat,
+                          nbytesHeader=self.__nbytes_header)
         return new
-    
+
 class ReadGE(Framer2DRC):
     """
     Read in raw GE files; this is the class version of the foregoing functions
@@ -706,7 +778,7 @@ class ReadGE(Framer2DRC):
 
     *) In multiframe images where background subtraction is requested but no
        dark is specified, attempts to use the
-       empty frame(s).	An error is returned if there are not any specified.
+       empty frame(s).  An error is returned if there are not any specified.
        If there are multiple empty frames, the average is used.
 
     """
@@ -725,7 +797,7 @@ class ReadGE(Framer2DRC):
     __useThreading = True and haveThreading
     __location = '  ReadGE'
     __readArgs = {
-        'dtype' : __frame_dtype_read, 
+        'dtype' : __frame_dtype_read,
         'count' : __nrows*__ncols
         }
     __castArgs = {
@@ -760,13 +832,13 @@ class ReadGE(Framer2DRC):
         frames in the first file
         """
 
-        Framer2DRC.__init__(self, 
+        Framer2DRC.__init__(self,
                             self.__nrows, self.__ncols,
-                            dtypeDefault = self.__frame_dtype_dflt, 
+                            dtypeDefault = self.__frame_dtype_dflt,
                             dtypeRead    = self.__frame_dtype_read,
                             dtypeFloat   = self.__frame_dtype_float,
                             )
-        
+
         # defaults
         self.__kwPassed = {}
         for parm, val in self.__inParmDict.iteritems():
@@ -792,6 +864,7 @@ class ReadGE(Framer2DRC):
         self.fileInfoR     = None
         self.nFramesRemain = None # remaining in current file
         self.iFrame = -1 # counter for last global frame that was read
+        self.__wrapsAround = False # default
 
         if self.dark is not None:
             if not self.__kwPassed['subtractDark']:
@@ -811,7 +884,7 @@ class ReadGE(Framer2DRC):
                 self.__log('got dark from ndarray input')
             else:
                 raise RuntimeError, 'do not know what to do with dark of type : '+str(type(self.dark))
-        
+
         if fileInfo is not None:
             self.__setupRead(fileInfo, self.subtractDark, self.mask, self.omegaStart, self.omegaDelta)
 
@@ -823,7 +896,7 @@ class ReadGE(Framer2DRC):
     def useThreading(self):
         """turn threading on or off"""
         return self.__useThreading
-    
+
     @useThreading.setter
     def useThreading(self, v):
         """Set method for useThreading"""
@@ -831,7 +904,7 @@ class ReadGE(Framer2DRC):
         return
 
     @classmethod
-    def display(cls, 
+    def display(cls,
                 thisframe,
                 roi = None,
                 pw  = None,
@@ -840,7 +913,7 @@ class ReadGE(Framer2DRC):
         'this is a bit ugly in that it sidesteps the dtypeRead property'
         retval = Framer2DRC.display(thisframe, roi=roi, pw=pw, dtypeRead=cls.__frame_dtype_read)
         return retval
-    
+
     @classmethod
     def readRaw(cls, fname, mode='raw', headerlen=0):
         '''
@@ -895,14 +968,14 @@ class ReadGE(Framer2DRC):
     def getWriter(self, filename):
         if not self.doFlip is False:
             raise NotImplementedError, 'doFlip true not coded'
-        new = FrameWriter(self.ncols, self.nrows, 
+        new = FrameWriter(self.ncols, self.nrows,
                           filename=filename,
-                          dtypeDefault=self.dtypeDefault, 
-                          dtypeRead=self.dtypeRead, 
-                          dtypeFloat=self.dtypeFloat, 
-                          nbytesHeader=self.nbytesHeader) 
+                          dtypeDefault=self.dtypeDefault,
+                          dtypeRead=self.dtypeRead,
+                          dtypeFloat=self.dtypeFloat,
+                          nbytesHeader=self.nbytesHeader)
         return new
-    
+
     def __setupRead(self, fileInfo, subtractDark, mask, omegaStart, omegaDelta):
 
         self.fileInfo = fileInfo
@@ -931,10 +1004,16 @@ class ReadGE(Framer2DRC):
             self.omegaMax = max(omegaStart, omegaEnd)
             self.omegaDelta = omegaDelta
             self.omegaStart = omegaStart
+            self.__wrapsAround = abs( ( nFramesTot * abs(omegaDelta) ) / ( 2.0 * num.pi ) - 1.0 ) < 1.0e-6
 
         self.__nextFile()
 
         return
+
+    def get_wrapsAround(self):
+        return self.__wrapsAround
+    wrapsAround = property(get_wrapsAround, None, None)
+
     def getNFrames(self):
         """number of total frames with real data, not number remaining"""
         nFramesTot = self.getNFramesFromFileInfo(self.fileInfo)
@@ -969,22 +1048,19 @@ class ReadGE(Framer2DRC):
         else:
             retval = self.omegas[iFrame]
         return retval
-    def omegaToFrameRange(self, omega):
-        assert self.omegas is not None,\
-            'instance does not have omega information'
-        assert self.omegaDelta is not None,\
-            'instance does not have omega information'
-        retval = omeToFrameRange(omega, self.omegas, self.omegaDelta)
-        return retval
     def omegaToFrame(self, omega, float=False):
         assert self.omegas is not None,\
             'instance does not have omega information'
+        if self.__wrapsAround:
+            'need to map omegas into range in case omega spans the branch cut'
+            omega = self.omegaMin + omega % (2.0*num.pi)
         if float:
             assert omega >= self.omegaMin and omega <= self.omegaMax,\
                 'omega %g is outside of the range [%g,%g] for the reader' % (omega, self.omegaMin, self.omegaMax)
             retval = (omega - self.omegaStart)/self.omegaDelta - 0.5*self.omegaDelta
         else:
-            temp = num.where(self.omegas == omega)[0]
+            # temp = num.where(self.omegas == omega)[0]
+            temp = num.where( num.abs(self.omegas - omega) < 0.1*abs(self.omegaDelta) )[0]
             assert len(temp) == 1, 'omega not found, or found more than once'
             retval = temp[0]
         return retval
@@ -1267,7 +1343,7 @@ class ReadGE(Framer2DRC):
     getReadDtype function replaced by dtypeRead property
     """
     @classmethod
-    def maxVal(cls):
+    def maxVal(cls, dummy):
         'maximum value that can be stored in the image pixel data type'
         # dtype = reader._ReadGE__frame_dtype
         # maxInt = num.iinfo(cls.__frame_dtype_read).max # bigger than it really is
@@ -1903,8 +1979,8 @@ class MultiRingBinned:
     __print = True
     __location = '  MultiRingBinned'
     def __init__(self, detectorGeom, planeData,
-                 dataFrame, 
-                 funcType = funcTypeDflt, 
+                 dataFrame,
+                 funcType = funcTypeDflt,
                  refineParamsDG = True,
                  refineParamsL = False,
                  targetNRho = None,
@@ -1921,7 +1997,7 @@ class MultiRingBinned:
             self.logfile = log
         else:
             log = sys.stdout
-        
+
         ticMethod = time.time()
 
         # if copyFrame:
@@ -2079,7 +2155,7 @@ class MultiRingBinned:
                 polImg = self.refDG.polarRebin(dataFrame, **prbkwThis)
                 if num.any(num.isnan(polImg['intensity'])):
                     raise RuntimeError, 'got NaNs in rebinned image'
-                toc = time.time(); dt = toc - tic; dtPRTot += dt; 
+                toc = time.time(); dt = toc - tic; dtPRTot += dt;
                 if self.__print:
                     self.__log(' polar rebin call took %g seconds' % (dt))
 
@@ -2397,10 +2473,10 @@ class MultiRingBinned:
         """
         # beam energy (jay s. wants this
         beamEnergy = processWavelength(1.) / self.planeData.wavelength
-        
+
         # baseline ("ideal") tTh values
         tThs = self.planeData.getTTh()[self.iRingToHKL]
-        
+
         # need these to reconstruct azimuths
         #   - Are in mm (self.detectorGeom.pixelPitchUnit)
         xFl, yFl = self.detectorGeom.cartesianCoordsOfPixelIndices(
@@ -2455,8 +2531,8 @@ class MultiRingBinned:
                 pwTThE(num.arange(self.numEta), errs[:,iTTh], noShow=True)
             pwTThE.show()
         else:
-            retval = errs    
-        
+            retval = errs
+
         if outputFile is not None:
             lp = self.planeData.latVecOps['dparms'].reshape(6, 1)
             lp = num.dot( num.diag( num.hstack([num.ones(3,), 180*num.ones(3,)/num.pi]) ), lp )
@@ -2465,7 +2541,7 @@ class MultiRingBinned:
             rhoMax = 204.8
             hklIDs = self.planeData.getHKLID(self.planeData.getHKLs().T)
             hklStr = self.planeData.getHKLs(asStr=True)
-            
+
             rho = num.sqrt((xFl - self.detectorGeom.xc)**2 +
                            (yFl - self.detectorGeom.yc)**2)
             x0, y0 = self.detectorGeom.angToXYO(num.tile(tThs, (self.numEta, 1)),
@@ -2473,17 +2549,17 @@ class MultiRingBinned:
                                                 units=self.detectorGeom.pixelPitchUnit)
             rho0 = num.sqrt((x0 - self.detectorGeom.xc)**2 +
                             (y0 - self.detectorGeom.yc)**2)
-            
+
             # make output for nutonian
             idsOut  = num.tile(hklIDs, (2*self.numEta, 1)).T.flatten()
             etaOut  = num.vstack([etaFloating, 2*num.pi + etaFloating]).T.flatten()
             rho0Out = num.vstack([rho0, rho0]).T.flatten()/rhoMax
             rhoOut  = num.vstack([rho, rho]).T.flatten()/rhoMax
-                        
+
             dataList = ["%d, %1.6e, %1.6e, %1.6e, %1.6e"
                         % (idsOut[i], etaOut[i], rho0Out[i], rhoOut[i], beamEnergy)
                         for i in range(len(idsOut))]
-            
+
             if isinstance(outputFile, file):
                 fid = outputFile
             else:
@@ -3097,7 +3173,7 @@ class DetectorBase(object):
         self.__reader = reader
         self.refineFlags = self.getRefineFlagsDflt()
         return
-    
+
     def get_reader(self):
         return self.__reader
     reader = property(get_reader, None, None)
@@ -3144,30 +3220,30 @@ class Detector2DRC(DetectorBase):
     tilt = num.zeros(3)   # must initialize tilt to ndarray
 
     chiTilt = None
-    
-    def __init__(self, 
-                 ncols, nrows, pixelPitch, 
-                 vFactorUnc, vDark, 
+
+    def __init__(self,
+                 ncols, nrows, pixelPitch,
+                 vFactorUnc, vDark,
                  reader, *args, **kwargs):
-        
+
         if reader is None:
             readerKWArgs = kwargs.pop('readerKWArgs', {})
             reader = newGenericReader(ncols, nrows, **readerKWArgs)
-        
+
         """
         The following is meant to facilitate creation of generic detector types
         """
-        optionalFuncs = ('getDParamDflt', 
-                         'setDParamZero', 
-                         'getDParamScalings', 
-                         'getDParamRefineDflt', 
-                         'radialDistortion') 
+        optionalFuncs = ('getDParamDflt',
+                         'setDParamZero',
+                         'getDParamScalings',
+                         'getDParamRefineDflt',
+                         'radialDistortion')
         for optFunc in optionalFuncs:
             if kwargs.has_key(optFunc):
                 self.__setattr__(optFunc, kwargs.pop(optFunc))
-        
+
         DetectorBase.__init__(self, reader)
-        
+
         self.__ncols = ncols
         self.__nrows = nrows
         self.__vFactorUnc = vFactorUnc
@@ -3346,11 +3422,11 @@ class Detector2DRC(DetectorBase):
     def getPVecScaling(self):
         return 0.01
     def __initBase(self):
-        
+
         ' no precession or chiTilt by default init'
         self.pVec    = None
         self.chiTilt = None
-        
+
         self.refineFlags = self.getRefineFlagsDflt()
 
         'stuff for drawing and fitting rings'
@@ -3370,7 +3446,7 @@ class Detector2DRC(DetectorBase):
 
         self.__updateFromPList(self.getParamDflt())
         self.__initBase()
-        
+
         return
     def __initFromDG(self, detectorGeomOther, pVec=None, chiTilt=None):
         """...not sure we'll keep chiTilt here as is"""
@@ -3436,7 +3512,7 @@ class Detector2DRC(DetectorBase):
 
     def getVDark(self):
         return self.__vDark
-    
+
     def getVScale(self, vThese):
         """
         get scale factors for use in uncertainty quantification
@@ -3672,7 +3748,7 @@ class Detector2DRC(DetectorBase):
         kwargs.setdefault('getDParamScalings', self.getDParamScalings)
         kwargs.setdefault('getDParamRefineDflt', self.getDParamRefineDflt)
         kwargs.setdefault('radialDistortion', self.radialDistortion)
-        newDG = self.__class__(self.__ncols, self.__nrows, self.__pixelPitch, 
+        newDG = self.__class__(self.__ncols, self.__nrows, self.__pixelPitch,
                                self.__vFactorUnc, self.__vDark, self.reader,
                                self,
                                *args, **kwargs)
@@ -4042,7 +4118,7 @@ class Detector2DRC(DetectorBase):
         """
         return a list of indices for sets of overlaping two-theta ranges;
         to plot, can do something like:
-        	mask = self.reader.getEmptyMask()
+                mask = self.reader.getEmptyMask()
           mask[indices] = True
 
         With cullDupl set true, eliminate HKLs with duplicate 2-thetas
@@ -4177,28 +4253,24 @@ class Detector2DRC(DetectorBase):
     def angToXYOBBox(self, *args, **kwargs):
         """
         given either angBBox or angCOM (angular center) and angPM (+-values), compute the bounding box on the image frame
-        
+
         if forSlice=True, then returned bbox is appropriate for use in array slicing
-        """
         
+        if reader or omegas is passed, then convert from omegas to frames;
+        and if doWrap=True, then frames may be a list for an omega range that spans the branch cut
+        """
+
         units    = kwargs.setdefault('units', 'pixels')
         #
-        # reader = kwargs.get('reader', None)
-        reader = None
-        if kwargs.has_key('reader'):
-            reader = kwargs.pop('reader')
+        reader   = kwargs.pop('reader', None)
+        omegas   = kwargs.pop('omegas', None)
+        doWrap   = kwargs.pop('doWrap', False)
+        forSlice = kwargs.pop('forSlice', True)
         #
-        omegas = None
-        if kwargs.has_key('omegas'):
-            omegas = kwargs.pop('omegas')
-        #
-        forSlice = True
-        if kwargs.has_key('forSlice'):
-            forSlice = kwargs.pop('forSlice')
         slicePad = 0
         if forSlice:
             slicePad = 1
-        
+
         if len(args) == 1:
             angBBox = args[0]
         elif len(args) == 2:
@@ -4225,26 +4297,28 @@ class Detector2DRC(DetectorBase):
             ]
         if units == 'pixels':
             'make into integers'
-            xyoBBox[0] = ( max( int(math.floor(xyoBBox[0][0])), 0), 
+            xyoBBox[0] = ( max( int(math.floor(xyoBBox[0][0])), 0),
                            min( int(math.floor(xyoBBox[0][1])), self.nrows-1)+slicePad,
                            )
-            xyoBBox[1] = ( max( int(math.floor(xyoBBox[1][0])), 0), 
+            xyoBBox[1] = ( max( int(math.floor(xyoBBox[1][0])), 0),
                            min( int(math.floor(xyoBBox[1][1])), self.ncols-1)+slicePad,
                            )
-        if reader is not None:
-            'convert bounding box from omegas to frames'
-            xyoBBox[2] = ( num.hstack( (reader.omegaToFrameRange(xyoBBox[2][0]), 0) )[0],
-                           num.hstack( (reader.getNFrames()-1, reader.omegaToFrameRange(xyoBBox[2][1]) ) )[-1] + slicePad,
-                           )
-        elif omegas is not None:
-            'convert bounding box from omegas to frames'
-            omegaDelta = num.mean(omegas[1:]-omegas[:-1])
-            nFrames = len(omegas)
-            xyoBBox[2] = ( 
-                num.hstack( (omeToFrameRange(xyoBBox[2][0], omegas, omegaDelta), 0) )[0],
-                num.hstack( (nFrames-1, omeToFrameRange(xyoBBox[2][1], omegas, omegaDelta) ) )[-1] + slicePad,
-                )
-
+        if (reader is not None) or (omegas is not None):
+            if reader is not None:
+                omegaDelta = reader.omegaDelta
+                omegaStart = reader.omegaStart
+                nFrames    = reader.getNFrames()
+            else:
+                'omegas is not None'
+                omegaDelta = num.mean(omegas[1:]-omegas[:-1]) # assumes uniform omegas
+                omegaStart = omegas[0]-omegaDelta*0.5
+                nFrames    = len(omegas)
+            frameRange = omeRangeToFrameRange(xyoBBox[2][0], xyoBBox[2][1], 
+                                              omegaStart, omegaDelta, nFrames, 
+                                              checkWrap=doWrap, slicePad=slicePad)
+            xyoBBox[2] = frameRange 
+            'try using frameInRange(iFrame, xyoBBox[2])'
+        
         return xyoBBox
 
     def drawRings(self, drawOn, planeData, withRanges=False, legendLoc=(0.05,0.5), legendMaxLen=10,
@@ -4387,7 +4461,7 @@ class Detector2DRC(DetectorBase):
             pwKWArgs = plotwrap.PlotWrap.popKeyArgs(kwargs)
             pw = plotwrap.PlotWrap(**pwKWArgs)
         retval = pw
-        
+
         vmin, vmax, cmap = self.reader.getDisplayArgs(h, kwargs)
         pw.a.set_axis_bgcolor('white')
         cmap.set_under(color='white', alpha=0.0)
@@ -4637,9 +4711,9 @@ class Detector2DRC(DetectorBase):
           else:
               xVec0 = func.guessXVec()
       self.xFitRings = None
-      
+
       x = func.doFit(xtol=DFLT_XTOL)
-      
+
       self.xFitRings = x
       # self.fitRingsFunc = func
       'call func one more time to make sure that parameters are set to values from x solution'
@@ -4868,7 +4942,7 @@ class Detector2DRC(DetectorBase):
                 import string
                 raise RuntimeError, 'got binId sum of '+string.join(num.array(binIdSum).flatten().astype(str), ',')
             polImg['intensity'][i, :] = (tmpI.sum(1) / binIdSum).T
-            
+
         return polImg
 
 
@@ -4891,21 +4965,21 @@ class DetectorGeomMar165(Detector2DRC):
         nrows = ncols = idim
         pixelPitch = 165.0 / idim # mm
         reader = readerClass()
-        
+
         self.mode = mode
-        
-        Detector2DRC.__init__(self, 
-                              nrows, ncols, pixelPitch, 
+
+        Detector2DRC.__init__(self,
+                              nrows, ncols, pixelPitch,
                               self.__vfu, self.__vdk,
                               reader,
                               *args, **kwargs)
         return
 
-    def getDParamDflt(self):    
+    def getDParamDflt(self):
         return []
-    def setDParamZero(self):    
+    def setDParamZero(self):
         return
-    def getDParamScalings(self):    
+    def getDParamScalings(self):
         return []
     def getDParamRefineDflt(self):
         return []
@@ -4920,7 +4994,7 @@ class DetectorGeomGE(Detector2DRC):
     x and y are in pixels, as is rho;
     pixels are numbered from (0,0);
     """
-    
+
     __vfu            = 0.2 # made up
     __vdk            = 1800 # made up
     # 200 x 200 micron pixels
@@ -4932,16 +5006,16 @@ class DetectorGeomGE(Detector2DRC):
     __dParamZero     = [   0.0,       0.0,       0.0,      2.0,      2.0,      2.0]
     __dParamScalings = [   1.0,       1.0,       1.0,      1.0,      1.0,      1.0]
     __dParamRefineDflt = (True,      True,      True,    False,    False,    False)
-    
+
     def __init__(self, *args, **kwargs):
 
         reader = kwargs.pop('reader', None)
         if reader is None:
             readerKWArgs = kwargs.pop('readerKWArgs', {})
             reader = ReadGE(None, **readerKWArgs)
-        
-        Detector2DRC.__init__(self, 
-                              self.__nrows, self.__ncols, self.__pixelPitch, 
+
+        Detector2DRC.__init__(self,
+                              self.__nrows, self.__ncols, self.__pixelPitch,
                               self.__vfu, self.__vdk,
                               reader,
                               *args, **kwargs)
@@ -4983,16 +5057,16 @@ class DetectorGeomGE(Detector2DRC):
             # canonical max radius based on perfectly centered beam
             #   - 204.8 in mm or 1024 in pixel indices
             rhoMax = self.__idim * self.__pixelPitch / 2
-            
+
             # make points relative to detector center
             x0 = (xin + self.xc) - rhoMax
             y0 = (yin + self.yc) - rhoMax
-            
+
             # detector relative polar coordinates
             #   - this is the radius that gets rescaled
             rho0 = num.sqrt( x0*x0 + y0*y0 )
             eta0 = num.arctan2( y0, x0 )
-                    
+
             if invert:
                 # in here must do nonlinear solve for distortion
                 # must loop to call fsolve individually for each point
@@ -5000,26 +5074,26 @@ class DetectorGeomGE(Detector2DRC):
                 rShape = rho0.shape
                 rho0   = num.atleast_1d(rho0).flatten()
                 rhoOut = num.zeros(len(rho0), dtype=float)
-                
+
                 eta0   = num.atleast_1d(eta0).flatten()
-                
+
                 rhoSclFuncInv = lambda ri, ni, ro, rx, p: \
                     (p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
                      p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
-                     p[2]*(ri/rx)**p[5] + 1)*ri - ro 
-                
+                     p[2]*(ri/rx)**p[5] + 1)*ri - ro
+
                 rhoSclFIprime = lambda ri, ni, ro, rx, p: \
                     p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) * (p[3] + 1) + \
                     p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) * (p[4] + 1) + \
                     p[2]*(ri/rx)**p[5] * (p[5] + 1) + 1
-                
+
                 for iRho in range(len(rho0)):
-                    rhoOut[iRho] = fsolve(rhoSclFuncInv, rho0[iRho], 
-                                          fprime=rhoSclFIprime, 
+                    rhoOut[iRho] = fsolve(rhoSclFuncInv, rho0[iRho],
+                                          fprime=rhoSclFIprime,
                                           args=(eta0[iRho], rho0[iRho], rhoMax, self.dparms) )
                     pass
-                
-                rhoOut = rhoOut.reshape(rShape)            
+
+                rhoOut = rhoOut.reshape(rShape)
             else:
                 # usual case: calculate scaling to take you from image to detector plane
                 # 1 + p[0]*(ri/rx)**p[2] * num.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
@@ -5027,13 +5101,13 @@ class DetectorGeomGE(Detector2DRC):
                              p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
                              p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
                              p[2]*(ri/rx)**p[5] + 1
-                
+
                 rhoOut = num.squeeze( rho0 * rhoSclFunc(rho0) )
                 pass
-            
+
             xout = rhoOut * num.cos(eta0) + rhoMax - self.xc
             yout = rhoOut * num.sin(eta0) + rhoMax - self.yc
-        
+
         return xout, yout
 
 class DetectorGeomFrelon(Detector2DRC):
@@ -5042,7 +5116,7 @@ class DetectorGeomFrelon(Detector2DRC):
     x and y are in pixels, as is rho;
     pixels are numbered from (0,0);
     """
-    
+
     # 50 X 50 micron pixels
     __pixelPitch     = 0.05      # in mm
     __idim           = ReadGE._ReadGE__idim
@@ -5052,41 +5126,41 @@ class DetectorGeomFrelon(Detector2DRC):
     __dParamZero     = [   0.0,      0.0,     0.0,      2.0,      2.0,      2.0]
     __dParamScalings = [   1.0,      1.0,     1.0,      1.0,      1.0,      1.0]
     __dParamRefineDflt = (True,     True,    True,    False,    False,    False)
-    
+
     def __init__(self, *args, **kwargs):
-        
-        Detector2DRC.__init__(self, 
+
+        Detector2DRC.__init__(self,
                               self.__nrows, self.__ncols, self.__pixelPitch,
                               ReadGE,
                               *args, **kwargs)
         return
-    
+
     def getDParamDflt(self):
         return self.__dParamDflt
     def setDParamZero(self):
         self.dparm = self.__dParamZero
-        return 
-    def getDParamScalings(self):    
+        return
+    def getDParamScalings(self):
         return self.__dParamScalings
     def getDParamRefineDflt(self):
         return self.__dParamRefineDflt
     def radialDistortion(self, xin, yin, invert=False):
-        """    
+        """
         Apply radial distortion to polar coordinates on GE detector
-        
+
         xin, yin are 1D arrays or scalars, assumed to be relative to self.xc, self.yc
         Units are [mm, radians].  This is the power-law based function of Bernier.
-        
+
         (p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
          p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
          p[2]*(ri/rx)**p[5] + 1)*ri
-         
+
          1 + \
          p[0]*(ri/rx)**p[2] * num.cos(p[4] * ni) + \
          p[1]*(ri/rx)**p[3]
-         
+
         Available Keyword Arguments :
-        
+
         invert = True or >False< :: apply inverse warping
         """
         if self.dparms[0] == 0 and self.dparms[1] == 0 and self.dparms[2] == 0:
@@ -5096,16 +5170,16 @@ class DetectorGeomFrelon(Detector2DRC):
             # canonical max radius based on perfectly centered beam
             #   - 204.8 in mm or 1024 in pixel indices
             rhoMax = self.__idim * self.__pixelPitch / 2
-            
+
             # make points relative to detector center
             x0 = (xin + self.xc) - rhoMax
             y0 = (yin + self.yc) - rhoMax
-            
+
             # detector relative polar coordinates
             #   - this is the radius that gets rescaled
             rho0 = num.sqrt( x0*x0 + y0*y0 )
             eta0 = num.arctan2( y0, x0 )
-                    
+
             if invert:
                 # --> in here must do nonlinear solve for distortion
                 # must loop to call fsolve individually for each point
@@ -5113,18 +5187,18 @@ class DetectorGeomFrelon(Detector2DRC):
                 rShape = rho0.shape
                 rho0   = num.atleast_1d(rho0).flatten()
                 rhoOut = num.zeros(len(rho0), dtype=float)
-                
+
                 eta0   = num.atleast_1d(eta0).flatten()
-                
+
                 rhoSclFunc = lambda ri, ni, ro, p=self.dparms, rx=rhoMax: \
                     (p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
                      p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
-                     p[2]*(ri/rx)**p[5] + 1)*ri - ro 
-                
+                     p[2]*(ri/rx)**p[5] + 1)*ri - ro
+
                 for iRho in range(len(rho0)):
                     rhoOut[iRho] = fsolve(rhoSclFunc, rho0[iRho], args=(eta0[iRho], rho0[iRho]))
                     pass
-                rhoOut = rhoOut.reshape(rShape)            
+                rhoOut = rhoOut.reshape(rShape)
             else:
                 # usual case: calculate scaling to take you from image to detector plane
                 # 1 + p[0]*(ri/rx)**p[2] * num.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
@@ -5132,9 +5206,9 @@ class DetectorGeomFrelon(Detector2DRC):
                              p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
                              p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
                              p[2]*(ri/rx)**p[5] + 1
-                
+
                 rhoOut = num.squeeze( rho0 * rhoSclFunc(rho0) )
-                
+
             xout = rhoOut * num.cos(eta0) + rhoMax - self.xc
             yout = rhoOut * num.sin(eta0) + rhoMax - self.yc
         return xout, yout
@@ -5161,12 +5235,12 @@ class DetectorGeomQuadGE(DetectorBase):
     __quadHydraIYShift  = [ 0,  1,  0,  1 ]
 
     def __init__(self, *args, **kwargs):
-        
+
         'pass ReadGE instance as the reader for now; perhaps make a ReadQuadGE class later if it turns out to be needed'
         reader = ReadGE(None)
         DetectorBase.__init__(self, reader)
-        
-        # defaults and kwargs parsing        
+
+        # defaults and kwargs parsing
         for parm, val in self.__inParmDict.iteritems():
             if kwargs.has_key(parm):
                 val = kwargs.pop(parm)
@@ -5359,9 +5433,9 @@ class DetectorGeomQuadGE(DetectorBase):
         pw.a.set_autoscale_on(False)
         pw.show()
         return retval
-    
-    def fitProcedureA(self, planeData, framesQuad, iRefQuad=0, 
-                      funcType=funcTypeDflt, funcXVecList = None, quadr=1, 
+
+    def fitProcedureA(self, planeData, framesQuad, iRefQuad=0,
+                      funcType=funcTypeDflt, funcXVecList = None, quadr=1,
                       doGUI=0, doMRingPlot=False):
         """
         A procedure for fitting the set of detectors;
@@ -5372,7 +5446,7 @@ class DetectorGeomQuadGE(DetectorBase):
         If want to just refine detector geometry and not the functional forms for the rings,
         pass funcXVecList as True or as something like a list of arrays from MultiRingEval.getFuncXVecList()
         """
-        
+
         assert len(framesQuad) == 4,\
             'need len(framesQuad) to be 4'
 
@@ -5478,7 +5552,7 @@ def newDetector(detectorType, *args, **kwargs):
                 pass
             pass
         pass
-    
+
     dt = detectorType.lower()
     if dt == "ge":
         d = DetectorGeomGE(*args, **kwargs)
@@ -5503,11 +5577,11 @@ def newGenericReader(ncols, nrows, *args, **kwargs):
     '''
     currently just returns a Framer2DRC
     '''
-    
+
     # retval = Framer2DRC(ncols, nrows, **kwargs)
     filename = kwargs.pop('filename', None)
     retval = ReadGeneric(filename, ncols, nrows, *args, **kwargs)
-    
+
     return retval
 
 def newGenericDetector(ncols, nrows, pixelPitch, *args, **kwargs):
@@ -5515,44 +5589,44 @@ def newGenericDetector(ncols, nrows, pixelPitch, *args, **kwargs):
     If reader is passed as None, then a generic reader is created
 
     Keyword Arguments:
-	vFactorUnc
-	vDark
-	reader
-	readerKWArgs
-	getDParamDflt
-	setDParamZero
-	getDParamScalings
-	getDParamRefineDflt
-	radialDistortion
-        
+        vFactorUnc
+        vDark
+        reader
+        readerKWArgs
+        getDParamDflt
+        setDParamZero
+        getDParamScalings
+        getDParamRefineDflt
+        radialDistortion
+
     If *args is an existing detector geometry, then
     additional keyword arguments may include:
-	pVec
-    
-    If *args is (xc, yc, workDist, xTilt, yTilt, zTilt) detector parameters, then 
+        pVec
+
+    If *args is (xc, yc, workDist, xTilt, yTilt, zTilt) detector parameters, then
     additional keyword arguments may include:
-	distortionParams
+        distortionParams
 
     """
-    
+
     vFactorUnc   = kwargs.pop('vFactorUnc',0.2)
     vDark        = kwargs.pop('vDark',1800)
     reader       = kwargs.pop('reader',None)
     readerKWArgs = kwargs.pop('readerKWArgs',{})
 
     'default functions corresponding to no distortion'
-    def getDParamDflt_dflt():    
+    def getDParamDflt_dflt():
         return []
-    def setDParamZero_dflt():    
+    def setDParamZero_dflt():
         return
-    def getDParamScalings_dflt():    
+    def getDParamScalings_dflt():
         return []
     def getDParamRefineDflt_dflt():
         return []
     def radialDistortion_dflt(xin, yin, invert=False):
         'no distortion correction'
         return xin, yin
-    
+
     getDParamDflt        = kwargs.setdefault('getDParamDflt', getDParamDflt_dflt)
     setDParamZero        = kwargs.setdefault('setDParamZero', setDParamZero_dflt)
     getDParamScalings    = kwargs.setdefault('getDParamScalings', getDParamScalings_dflt)
@@ -5562,7 +5636,7 @@ def newGenericDetector(ncols, nrows, pixelPitch, *args, **kwargs):
     if reader is None:
         reader = newGenericReader(ncols, nrows, **readerKWArgs)
 
-    detector = Detector2DRC(ncols, nrows, pixelPitch, 
+    detector = Detector2DRC(ncols, nrows, pixelPitch,
                             vFactorUnc, vDark,
                             reader, *args, **kwargs)
 

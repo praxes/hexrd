@@ -59,30 +59,30 @@ value for new materials.  Applies only for the session.
 class ringPanel(wx.Panel):
     """ringPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for ringPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for ringPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -140,7 +140,7 @@ class ringPanel(wx.Panel):
         self.Bind(wx.EVT_TEXT_ENTER, self.OnAngstromsTxt,    self.waveAng_txt)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnKEVTxt,          self.waveKEV_txt)
 
-	self.Bind(wx.EVT_CHOICE,     self.OnWidthChoice,     self.width_cho)
+        self.Bind(wx.EVT_CHOICE,     self.OnWidthChoice,     self.width_cho)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnWidthChoice,     self.width_txt)
 
         self.Bind(wx.EVT_BUTTON,     self.OnEditHKLs,        self.hkl_but)
@@ -153,13 +153,13 @@ class ringPanel(wx.Panel):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
         #
         #  Options sizer
         #
         nrow = 3; ncol = 6; padx = pady = 5
-	optSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
-	optSizer.AddGrowableCol(0, 1)
+        optSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        optSizer.AddGrowableCol(0, 1)
         #  * Row 1:  wavelength
         optSizer.Add(self.dfwv_but,    0, wx.ALIGN_LEFT)
         optSizer.Add(self.wave_lab,    1, wx.ALIGN_RIGHT)
@@ -184,11 +184,11 @@ class ringPanel(wx.Panel):
         #
         #  Main sizer
         #
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 5)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 5)
         self.sizer.Add(optSizer,       0, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
 
     def __showWavelength(self):
         """Set wavelength values in boxes

@@ -38,10 +38,10 @@ import numpy
 #  XRD package
 #
 from hexrd.wx.guiconfig import WindowParameters as WP
-from hexrd.wx.guiutil import ResetChoice,makeTitleBar
-from hexrd.wx.canvasutil import *
-
-from hexrd.wx.floatcontrol import *
+from hexrd.wx.guiutil import ResetChoice, makeTitleBar, EmptyWindow
+from hexrd.wx.listeditor import NamedItem, ListEditDlg
+from hexrd.wx.canvasutil import FigureCanvas, NavigationToolbar2WxAgg,\
+     Figure, cmapPanel
 #
 #  Data
 #
@@ -52,30 +52,30 @@ r2d = 180.0/numpy.pi
 class CanvasPanel(wx.Panel):
     """CanvasPanel """
     def __init__(self, parent, id, **kwargs):
-	"""Constructor for CanvasPanel."""
-	#
-	wx.Panel.__init__(self, parent, id, **kwargs)
-	#
+        """Constructor for CanvasPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+        #
         #  Data
         #
 
         #
-	#  Window Objects.
-	#
+        #  Window Objects.
+        #
         self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
-	#
-	self.SetAutoLayout(True)
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -87,9 +87,9 @@ class CanvasPanel(wx.Panel):
         #  Make options sizer
         #
         nrow = 0; ncol = 2; padx = 5; pady = 5
-	self.optSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
-	#self.optSizer.AddGrowableCol(num, proportion)
-	#self.optSizer.AddGrowableRow(num, proportion)
+        self.optSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        #self.optSizer.AddGrowableCol(num, proportion)
+        #self.optSizer.AddGrowableRow(num, proportion)
         #
         #  ===== OPTIONS
         #
@@ -117,6 +117,15 @@ class CanvasPanel(wx.Panel):
         self.optSizer.Add(self.showCalRanges_box, 0, wx.LEFT | wx.EXPAND)
         self.optSizer.AddSpacer(1)
         #
+        #  Add image list management
+        #
+        self.ail_lab = wx.StaticText(self, wx.NewId(), 'Load Image', style=wx.ALIGN_CENTER)
+        self.ail_cho = wx.Choice(self, wx.NewId(), choices=[])
+        self.nam_lab = wx.StaticText(self, wx.NewId(), 'Name Image', style=wx.ALIGN_CENTER)
+        self.nam_txt = wx.TextCtrl(self, wx.NewId(), value='<none>',
+                                    style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
+        self.eil_but  = wx.Button(self, wx.NewId(), 'Edit List')
+        #
         #  Add colormap panel
         #
         self.cmPanel = cmapPanel(self, wx.NewId())
@@ -134,7 +143,7 @@ class CanvasPanel(wx.Panel):
             exp = wx.GetApp().ws
             det = exp.detector
             pd  = exp.activeMaterial.planeData
-            img = exp.activeImage
+            img = exp.active_img
             if img is None:  return
 
             mainFrame = wx.GetApp().GetTopWindow()
@@ -149,8 +158,10 @@ class CanvasPanel(wx.Panel):
                 dsp = 0.5*pd.wavelength/numpy.sin(0.5*tth)
                 intens = img[yadj, xadj]
                 hkls = str(pd.getHKLs(asStr=True, allHKLs=True, thisTTh=tth))
-                statText = "px=%g, py=%g, x=%g, y=%g, rho=%g, d=%g, tth=%g, eta=%g, int=%g, HKLs=%s" %\
-                           (x, y, cartx, carty, rho, dsp, r2d*tth, r2d*eta, intens, hkls)
+                statText = "px=%g, py=%g, x=%g, y=%g, rho=%g, d=%g, "\
+                           "tth=%g, eta=%g, int=%g, HKLs=%s" %\
+                           (x, y, cartx, carty, rho, dsp,
+                            r2d*tth, r2d*eta, intens, hkls)
 
                 mainFrame.SetStatusText(statText)
                 pass
@@ -176,20 +187,40 @@ class CanvasPanel(wx.Panel):
         self.Bind(wx.EVT_CHECKBOX, self.OnCheckImage,     self.showImage_box)
         self.Bind(wx.EVT_CHECKBOX, self.OnCheckCalRings,  self.showCalRings_box)
         self.Bind(wx.EVT_CHECKBOX, self.OnCheckCalRanges, self.showCalRanges_box)
+
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnNameImg, self.nam_txt)
+        self.Bind(wx.EVT_CHOICE, self.OnLoadImg, self.ail_cho)
+        self.Bind(wx.EVT_BUTTON, self.OnEditImg, self.eil_but)
+
+
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
+        nrow = 0; ncol = 2; padx = pady = 5
+        self.ilsizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
+        self.ilsizer.AddGrowableCol(1, 1)
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	self.sizer.Add(self.tbarSizer, 0,
+        self.ilsizer.Add(self.ail_lab,  0, wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 5)
+        self.ilsizer.Add(self.ail_cho,  1, wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 5)
+        self.ilsizer.Add(self.nam_lab,  0, wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 5)
+        self.ilsizer.Add(self.nam_txt,  1, wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 5)
+        self.ilsizer.Add(EmptyWindow(self),  0, wx.ALIGN_CENTER|wx.TOP, 5)
+        self.ilsizer.Add(self.eil_but,  1, wx.ALIGN_CENTER|wx.TOP, 5)
+
+        self.osizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.osizer.Add(self.optSizer, 0)
+        self.osizer.Add(self.ilsizer, 1)
+
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.tbarSizer, 0,
                        wx.EXPAND| wx.BOTTOM, 10)
-        self.sizer.Add(self.optSizer, 0, wx.LEFT | wx.TOP | wx.GROW)
+        self.sizer.Add(self.osizer,   0, wx.LEFT | wx.TOP | wx.GROW)
         self.sizer.Add(self.cmPanel,  0, wx.LEFT | wx.TOP | wx.GROW)
         self.sizer.Add(self.canvas,   1, wx.LEFT | wx.TOP | wx.GROW)
         self.sizer.Add(self.toolbar,  0, wx.LEFT | wx.EXPAND)
 
-	return
+        return
     #
     #  Helper functions
     #
@@ -246,32 +277,38 @@ class CanvasPanel(wx.Panel):
         """Update the image according to the options in the option panel
 
         KEYWORD ARGS
-        newImage -- if True then display image for first time on these axes
+        newImage -- if True then display image afresh (False by default)
+        loadImage -- if True, then image was loaded from saved list (False by default)
 """
+        kwargs.setdefault('newImage', False)
+        kwargs.setdefault('loadImage', False)
+        kwargs.setdefault('updateImage', False)
+        kwargs.setdefault('onInit', False)
+
+        ni = kwargs['newImage']
+        li = kwargs['loadImage']
+        ui = kwargs['updateImage']
+        oninit = kwargs['onInit']
         #
         #  Show image if box is checked.
         #
         app = wx.GetApp()
         exp = app.ws
-        img = exp.activeImage
+        img = exp.active_img
 
         if img is None:
-            #wx.MessageBox('no image'); return
-            pass
+            # no active image, but possibly one on the axes
+            images = self.axes.get_images()
+            if images:
+                img0 = images[0]
+                img0.set_visible(False)
         else:
-            if 'newImage' in kwargs:
-                ni = kwargs['newImage']
-            else:
-                ni = False
-                pass
-
             si = self.showImage_box.IsChecked()
 
-            if ni:
-                # delete old image first
-                # print 'deleting old images'
+            if ni or ui:
+                # not using axes image list
                 self.axes.images = []
-                # show new image
+
                 self.axes.imshow(img,
                                  origin='upper',
                                  interpolation='nearest',
@@ -281,7 +318,7 @@ class CanvasPanel(wx.Panel):
                                  visible=si)
                 self.axes.set_autoscale_on(False)
                 self.axes.format_coord =  lambda x, y: str(x) + str(y)
-                # print 'number of images in current axes:  %d' % len(self.axes.get_images())
+                #
             else:
                 # set visibility of axes image
                 images = self.axes.get_images()
@@ -304,6 +341,21 @@ class CanvasPanel(wx.Panel):
         #ResetChoice(rcho, exp.matNames, rcho.GetStringSelection)
         #
         self.draw()
+        #
+        # Update image list
+        #
+        acho = self.ail_cho
+        if li:
+            # set text box to name of interactors
+            name = acho.GetStringSelection()
+            ResetChoice(acho, exp.img_names, name)
+            self.nam_txt.ChangeValue(name)
+        else:
+            if ni or oninit:
+                if exp.img_names: # to handle init case on load exp
+                    ResetChoice(acho, exp.img_names, exp.img_names[0])
+                    acho.SetSelection(wx.NOT_FOUND)
+                    self.nam_txt.ChangeValue('<unnamed image>')
 
         return
 
@@ -353,6 +405,77 @@ class CanvasPanel(wx.Panel):
 
         return
     #                     ========== *** Event Callbacks
+    def OnEditImg(self, evt):
+        """Edit image list"""
+        exp = wx.GetApp().ws
+
+        #
+        # Since images do not have a name attribute, use NamedItem class
+        # to make list with names
+        #
+        ilist = exp.img_list
+        iname = exp.img_names
+        nilist = [NamedItem(iname[i], ilist[i]) for i in range(len(iname))]
+
+        ssel = self.ail_cho.GetStringSelection()
+
+        dlg = ListEditDlg(self, wx.NewId(), nilist)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+        exp.img_list[:] = [item.data for item in nilist]
+        exp.img_names[:] = [item.name for item in nilist]
+
+        #
+        # Now reset choice by hand in case current image was dropped
+        #
+        if (not ssel):
+            # new names, but no selection
+            ResetChoice(self.ail_cho, exp.img_names, ssel)
+            self.ail_cho.SetSelection(wx.NOT_FOUND)
+            li = False
+        elif (ssel in exp.img_names):
+            # new names, keep old selection
+            exp.active_img = ssel
+            ResetChoice(self.ail_cho, exp.img_names, ssel)
+            li = True
+        else:
+            # new names, old selection gone
+            exp.active_img = None
+            ResetChoice(self.ail_cho, exp.img_names, '')
+            self.ail_cho.SetSelection(wx.NOT_FOUND)
+            li = False
+
+        ni = not li
+        self.update(newImage=ni, loadImage=li)
+
+        return
+
+    def OnLoadImg(self, evt):
+        """Load image from list"""
+        exp = wx.GetApp().ws
+        exp.active_img = evt.GetSelection()
+
+        self.update(loadImage=True, newImage=True)
+
+        return
+
+    def OnNameImg(self, evt):
+        """Name the curent Image"""
+        exp = wx.GetApp().ws
+
+        name = evt.GetString()
+        acho = self.ail_cho
+        achosel = acho.GetSelection()
+        if achosel == wx.NOT_FOUND:
+            exp.add_to_img_list(name)
+            ResetChoice(acho, exp.img_names, name)
+            self.update(loadImage=True, newImage=True)
+        else:
+            exp.img_names[achosel] = name
+            ResetChoice(acho, exp.img_names, name)
+
+        return
 
     def OnCheckCalRings(self, evt):
         """Callback for calRings_box"""

@@ -36,6 +36,7 @@ import numpy as num
 from scipy import sparse
 from scipy.linalg import svd
 from scipy import ndimage
+import scipy.optimize as opt
 
 import matplotlib
 from matplotlib.widgets import Slider, Button, RadioButtons
@@ -64,6 +65,12 @@ try:
     havePfigPkg = True
 except:
     havePfigPkg = False
+
+try:
+    from progressbar import ProgressBar, Bar, ETA, ReverseBar
+    have_progBar = True
+except:
+    have_progBar = False
 
 'quadr1d of 8 is probably overkill, but we are in 1d so it is inexpensive'
 quadr1dDflt = 8
@@ -1472,7 +1479,12 @@ class CollapseOmeEta(object):
             sumImg = nframesLump > 1
             nFrames = reader.getNFrames()
             #
+            if have_progBar:
+                widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
+                pbar = ProgressBar(widgets=widgets, maxval=reader.getNFrames() / nframesLump).start()
             for iFrame in range(reader.getNFrames() / nframesLump): # for iFrame, omega in enumerate(omegas):
+                if have_progBar:
+                    pbar.update(iFrame+1)
                 if debug:
                     print location+' : working on frame %d' % (iFrame)
                     tic = time.time()
@@ -1546,7 +1558,8 @@ class CollapseOmeEta(object):
                     print location+' : frame %d took %g seconds' % (iFrameTot, elapsed)
                 iFrameTot += 1
             'done with frames'
-
+            if have_progBar:
+                pbar.finish()
         'done with readerList'
         self.omeEdges[nFramesTot] = omega+delta_omega*0.5
 
@@ -2062,6 +2075,8 @@ def pullFromStack(reader, detectorGeom, tThMM, angWidth, angCen,
                   ):
     """
     angWidth is distance from angCen, so actually half-width
+    
+    do not yet deal with wrap-around (eg, reader that spans 2*pi)
     """
     omeStep = reader.getDeltaOmega()
     etaStep = getEtaResolution(detectorGeom, angCen[0])
@@ -2078,7 +2093,7 @@ def pullFromStack(reader, detectorGeom, tThMM, angWidth, angCen,
     xyfCen  = num.array(detectorGeom.angToXYO(*angCen, units='pixels')) # omega is in angles
     xyfCen[2] = reader.omegaToFrame(xyfCen[2], float=True)
 
-    xyfBBox = detectorGeom.angToXYOBBox(angCen, angPM, units='pixels', reader=reader) # omega is in frame -- passed the reader
+    xyfBBox = detectorGeom.angToXYOBBox(angCen, angPM, units='pixels', reader=reader, forSlice=True, doWrap=False) # omega is in frame -- passed the reader
     xyfBBox_0 = num.array([sl[0] for sl in xyfBBox])
 
     pixelData = reader.readBBox(xyfBBox, raw=False)
@@ -2638,6 +2653,15 @@ def pfigFromSpots(spots, iHKL, phaseID=None,
 
         return retval
 
+
+def mapAngCen(ang, angCen):
+    """
+    map angle ang into equivalent value that is closest to angCen
+    """
+    shift = num.pi-angCen
+    retval = num.mod(ang + shift, 2.0*num.pi) - shift
+    return retval
+
 def makeSynthFrames(spotParamsList, detectorGeom, omegas, 
                     intensityFunc=spotfinder.IntensityFuncGauss3D(), 
                     asSparse=None, 
@@ -2686,7 +2710,7 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
         angCen = intensityFunc.getCenter(xVec)
         fwhm   = intensityFunc.getFWHM(xVec)
         angPM  = fwhm * cutoffMult
-        xyfBBox = detectorGeom.angToXYOBBox(angCen, angPM, units='pixels', omegas=omegas)
+        xyfBBox = detectorGeom.angToXYOBBox(angCen, angPM, units='pixels', omegas=omegas, forSlice=True, doWrap=True)
         # xyfBBox_0 = num.array([sl[0] for sl in xyfBBox])
         # stack[slice(*xyfBBox[0]), slice(*xyfBBox[1]), slice(*xyfBBox[2])]
         
@@ -2735,13 +2759,16 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
         
         for spot, xyfBBox, xVec in spotList:
             
-            if iFrame < xyfBBox[2][0] or iFrame >= xyfBBox[2][1]:
-                '>= for upper end because is meant to be used as a slice'
+            if not detector.frameInRange(iFrame, xyfBBox[2]):
                 if debug>2: print 'spot %s not on frame %d' % (spot.key, iFrame)
                 continue
-            
-            'calculate intensities at the omega for this frame'
-            spot.oAll[:] = omega
+
+            """
+            calculate intensities at the omega for this frame
+            shift omega in case spot is near branch cut
+            """
+            angCen = intensityFunc.getCenter(xVec)
+            spot.oAll[:] = mapAngCen(omega, angCen[2])
             vCalc = spot.getVCalc(intensityFunc, xVec, noBkg=True) 
             if debug>1:print 'frame %d spot %s max %g' % ( iFrame, spot.key, vCalc.max() )
             
@@ -2825,3 +2852,50 @@ def validateQVecAngles(angList, angMin, angMax):
         #
         reflInRange = reflInRange | ( abs(dp - wedgeAngle) <= num.sqrt(rot.tinyRotAng) )
     return reflInRange
+
+def tVec_d_from_old_parfile(old_par, detOrigin):
+    beamXYD = ge[:3, 0]
+    rMat_d  = xf.makeDetectorRotMat(old_par[3:6, 0])
+    bVec_ref = num.c_[0., 0., -1.].T
+    args=(rMat_d, beamXYD, detOrigin, bVec_ref)
+    tvd_xy = opt.leastsq(objFun_tVec_d, -beamXYD[:2], args=args)[0]
+    return num.hstack([tvd_xy, -beamXYD[2]]).reshape(3, 1)
+
+def objFun_tVec_d(tvd_xy, rMat_d, beamXYD, detOrigin, bHat_l):
+    """
+    """
+    xformed_xy = beamXYD[:2] - detOrigin
+    tVec_d = num.hstack([tvd_xy, -beamXYD[2]]).T
+    n_d    = rMat_d[:, 2]
+    
+    bVec_l = (num.dot(n_d, tVec_d) / num.dot(n_d, bHat_l)) * bHat_l
+    bVec_d = num.hstack([xformed_xy, 0.]).T 
+
+    return num.dot(rMat_d, bVec_d).flatten() + tVec_d.flatten() - bVec_l.flatten()
+
+def beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, detOrigin):
+    # calculate beam position
+    Zd_l = num.dot(rMat_d, num.c_[0, 0, 1].T)
+    bScl = num.dot(Zd_l.T, tVec_d) / num.dot(Zd_l.T, bVec_ref)
+    beamPos_l = bScl*bVec_ref 
+    return num.dot(rMat_d.T, beamPos_l - tVec_d_ref) + num.hstack([detOrigin, -tVec_d[2]]).reshape(3, 1)
+
+def write_old_parfile(filename, results):
+    if isinstance(filename, file):
+        fid = filename
+    elif isinstance(filename, str) or isinstance(filename, unicode):
+        fid = open(filename, 'w')
+        pass
+    rMat_d = xf.makeDetectorRotMat(results['tiltAngles'])
+    tVec_d = results['tVec_d'] - results['tVec_s']
+    beamXYD = beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, detOrigin)
+    det_plist = num.zeros(12)
+    det_plist[:3]  = beamXYD.flatten()
+    det_plist[3:6] = results['tiltAngles']
+    det_plist[6:]  = results['dParams']
+    print >> fid, "# DETECTOR PARAMETERS (from new geometry model fit)"
+    print >> fid, "# \n# <class 'hexrd.xrd.detector.DetectorGeomGE'>\n#"
+    for i in range(len(det_plist)):
+        print >> fid, "%1.8e\t%d" % (det_plist[i], 0)
+    fid.close()
+    return

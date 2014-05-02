@@ -38,51 +38,50 @@ import wx
 from wx.lib.wordwrap import wordwrap
 
 from hexrd import copyright
-from hexrd.xrd.experiment import *
+from hexrd.xrd.experiment import saveExp, loadExp
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
 from hexrd.wx.guiutil import makeTitleBar
 from hexrd.wx.xrdnotebook  import xrdNoteBook
 from hexrd.wx.canvaspanel  import CanvasPanel
 from hexrd.wx.listeditor      import ListEditDlg
-from hexrd.wx.hydrainterface  import HydraControlFrame
 from hexrd.wx.caking          import cakingDialog
 #
 # ---------------------------------------------------CLASS:  xrdMainFrame
 #
 class MainFrame(wx.Frame):
     #
-    def __init__(self, parent, id, title='LLNL XRD Analysis Tool'):
+    def __init__(self, parent, id, title='HEXRD Diffraction Analysis Tool'):
         #
         #  Pass option dictionary or string.
         #
         wx.Frame.__init__(self, parent, id, title)
         self.SetBackgroundColour(WP.BG_COLOR_FRAME)
-	#
+        #
         #  Data
         #
 
         #
-	#  Window Objects, menu bar and status bar.
-	#
-        self.__makeObjects()
-	#
-	#  Bindings.
-	#
-	self.__makeBindings()
-	#
-	#  Sizing.
-	#
-	self.__makeSizers()
+        #  Window Objects, menu bar and status bar.
         #
-	self.SetAutoLayout(True)
+        self.__makeObjects()
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
         #
         self.updateFromExp()
         #
         self.Show(False)
 
-	return
+        return
 
     pass # class
     #
@@ -102,7 +101,7 @@ class MainFrame(wx.Frame):
         # Notebook
         #
         self.nBook = xrdNoteBook(self, wx.NewId())
-	#
+        #
         # A Statusbar in the bottom of the window
         #
         self.CreateStatusBar()
@@ -121,13 +120,13 @@ class MainFrame(wx.Frame):
         menuBar.Append(self.readerMenu,  "Reader")
 
         self.__makeDetectorMenu()
-        menuBar.Append(self.detectorMenu,  "Detector") 
-        
+        menuBar.Append(self.detectorMenu,  "Detector")
+
         self.__makeSpotsMenu()
-        menuBar.Append(self.spotsMenu,  "Spots") 
+        menuBar.Append(self.spotsMenu,  "Spots")
 
         self.__makeIndexerMenu()
-        menuBar.Append(self.indexerMenu,  "Indexer") 
+        menuBar.Append(self.indexerMenu,  "Indexer")
 
         self.__makeHelpMenu()
         menuBar.Append(self.helpMenu,  "Help")
@@ -176,7 +175,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnMaterialsEdit, id=self.materialMenu.IDedit)
         #  ===== Save List
         self.materialMenu.IDsave = wx.NewId()
-	self.materialMenu.Append(self.materialMenu.IDsave,
+        self.materialMenu.Append(self.materialMenu.IDsave,
                            "Save material list",
                            "Save the material list to a file.")
         self.Bind(wx.EVT_MENU, self.OnMaterialsSave, id=self.materialMenu.IDsave)
@@ -189,7 +188,7 @@ class MainFrame(wx.Frame):
 
         # ===== Load List
         self.readerMenu.IDloadl = wx.NewId()
-	self.readerMenu.Append(self.readerMenu.IDloadl,
+        self.readerMenu.Append(self.readerMenu.IDloadl,
                            "Load reader list",
                            "Load the reader list to from a file")
         self.Bind(wx.EVT_MENU, self.OnReadersLoad, id=self.readerMenu.IDloadl)
@@ -201,7 +200,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnReadersEdit, id=self.readerMenu.IDedit)
         # ===== Save List
         self.readerMenu.IDsave = wx.NewId()
-	self.readerMenu.Append(self.readerMenu.IDsave,
+        self.readerMenu.Append(self.readerMenu.IDsave,
                            "Save reader list",
                            "Save the reader list to a file")
         self.Bind(wx.EVT_MENU, self.OnReadersSave, id=self.readerMenu.IDsave)
@@ -211,7 +210,7 @@ class MainFrame(wx.Frame):
         # ===== Hydra
         #
         self.readerMenu.IDhydra = wx.NewId()
-	self.readerMenu.Append(self.readerMenu.IDhydra,
+        self.readerMenu.Append(self.readerMenu.IDhydra,
                            "Hydra interface",
                            "Open the hydra interface")
         self.Bind(wx.EVT_MENU, self.OnHydra, id=self.readerMenu.IDhydra)
@@ -225,13 +224,13 @@ class MainFrame(wx.Frame):
 
         # ===== Load
         self.detectorMenu.IDload = wx.NewId()
-	self.detectorMenu.Append(self.detectorMenu.IDload,
+        self.detectorMenu.Append(self.detectorMenu.IDload,
                            "Load detector",
                            "Load a saved detector from a file")
         self.Bind(wx.EVT_MENU, self.OnDetectorLoad, id=self.detectorMenu.IDload)
         # ===== Save
         self.detectorMenu.IDsave = wx.NewId()
-	self.detectorMenu.Append(self.detectorMenu.IDsave,
+        self.detectorMenu.Append(self.detectorMenu.IDsave,
                            "Save detector",
                            "Save the detector to a file")
         self.Bind(wx.EVT_MENU, self.OnDetectorSave, id=self.detectorMenu.IDsave)
@@ -242,7 +241,7 @@ class MainFrame(wx.Frame):
         #
         # ===== Save
         self.detectorMenu.IDcake = wx.NewId()
-	self.detectorMenu.Append(self.detectorMenu.IDcake,
+        self.detectorMenu.Append(self.detectorMenu.IDcake,
                            "Polar Rebinning",
                            "Bring up a window for polar rebinning (caking)")
         self.Bind(wx.EVT_MENU, self.OnCaking, id=self.detectorMenu.IDcake)
@@ -253,32 +252,32 @@ class MainFrame(wx.Frame):
         self.spotsMenu = wx.Menu('Spots')
         #
         self.spotsMenu.IDloadRaw = wx.NewId()
-        self.spotsMenu.Append(self.spotsMenu.IDloadRaw, 
-                              "Load raw spots", 
+        self.spotsMenu.Append(self.spotsMenu.IDloadRaw,
+                              "Load raw spots",
                               "Load the raw spots to a file")
         self.Bind(wx.EVT_MENU, self.OnSpotsLoadRaw, id=self.spotsMenu.IDloadRaw)
         #
         self.spotsMenu.IDsaveRaw = wx.NewId()
-        self.spotsMenu.Append(self.spotsMenu.IDsaveRaw, 
-                              "Save raw spots", 
+        self.spotsMenu.Append(self.spotsMenu.IDsaveRaw,
+                              "Save raw spots",
                               "Save the raw spots to a file")
         self.Bind(wx.EVT_MENU, self.OnSpotsSaveRaw, id=self.spotsMenu.IDsaveRaw)
         #
         ## self.spotsMenu.IDsave = wx.NewId()
-        ## self.spotsMenu.Append(self.spotsMenu.IDsave, 
-        ##                       "Save post-processed spots", 
+        ## self.spotsMenu.Append(self.spotsMenu.IDsave,
+        ##                       "Save post-processed spots",
         ##                       "Save the post-processed Spots class")
         ## self.Bind(wx.EVT_MENU, self.OnSpotsSave, id=self.spotsMenu.IDsave)
         ## #
         ## self.spotsMenu.IDexportFLT = wx.NewId()
-        ## self.spotsMenu.Append(self.spotsMenu.IDexportFLT, 
-        ##                       "Export flt", 
+        ## self.spotsMenu.Append(self.spotsMenu.IDexportFLT,
+        ##                       "Export flt",
         ##                       "Export a fable flt file")
         ## self.Bind(wx.EVT_MENU, self.OnSpotsExportFLT, id=self.spotsMenu.IDexportFLT)
         ## #
         ## self.spotsMenu.IDexportGVE = wx.NewId()
-        ## self.spotsMenu.Append(self.spotsMenu.IDexportGVE, 
-        ##                       "Export gve", 
+        ## self.spotsMenu.Append(self.spotsMenu.IDexportGVE,
+        ##                       "Export gve",
         ##                       "Export a fable gve file")
         ## self.Bind(wx.EVT_MENU, self.OnSpotsExportGVE, id=self.spotsMenu.IDexportGVE)
         return
@@ -287,30 +286,30 @@ class MainFrame(wx.Frame):
         self.indexerMenu = wx.Menu('Indexing')
         #
         ## self.indexerMenu.IDloadRaw = wx.NewId()
-        ## self.indexerMenu.Append(self.indexerMenu.IDloadRMats, 
-        ##                       "Load rMats", 
+        ## self.indexerMenu.Append(self.indexerMenu.IDloadRMats,
+        ##                       "Load rMats",
         ##                       "Load an array of rotation matrices")
         ## self.Bind(wx.EVT_MENU, self.OnLoadRMats, id=self.indexerMenu.IDloadRMats)
         #
         self.indexerMenu.IDsaveRMats = wx.NewId()
-        self.indexerMenu.Append(self.indexerMenu.IDsaveRMats, 
-                              "Save rMats array", 
+        self.indexerMenu.Append(self.indexerMenu.IDsaveRMats,
+                              "Save rMats array",
                               "Save the indexed rotations matrices to binary (.npy)")
         self.Bind(wx.EVT_MENU, self.OnSaveRMats, id=self.indexerMenu.IDsaveRMats)
-        
+
         self.indexerMenu.IDexportGrainLog = wx.NewId()
-        self.indexerMenu.Append(self.indexerMenu.IDexportGrainLog, 
-                              "Export grains log file", 
+        self.indexerMenu.Append(self.indexerMenu.IDexportGrainLog,
+                              "Export grains log file",
                               "Export the log file for all indexed rotations to ASCII")
         self.Bind(wx.EVT_MENU, self.OnExportGrainLog, id=self.indexerMenu.IDexportGrainLog)
-        
+
         self.indexerMenu.IDdumpGrainList = wx.NewId()
-        self.indexerMenu.Append(self.indexerMenu.IDdumpGrainList, 
-                              "Dump grain list", 
+        self.indexerMenu.Append(self.indexerMenu.IDdumpGrainList,
+                              "Dump grain list",
                               "Export the grainList to a cPickle")
         self.Bind(wx.EVT_MENU, self.OnDumpGrainList, id=self.indexerMenu.IDdumpGrainList)
         return
-    
+
     def __makeHelpMenu(self):
         """Construct file menu"""
         self.helpMenu = wx.Menu('Help')
@@ -331,20 +330,20 @@ class MainFrame(wx.Frame):
         return
 
     def __makeSizers(self):
-	"""Lay out the interactors"""
+        """Lay out the interactors"""
 
         self.hSizer = wx.BoxSizer(wx.HORIZONTAL)
-	self.hSizer.Add(self.nBook,       1,
+        self.hSizer.Add(self.nBook,       1,
                         wx.EXPAND|wx.ALIGN_CENTER|wx.RIGHT, 10)
-	self.hSizer.Add(self.canvasPanel, 1,
+        self.hSizer.Add(self.canvasPanel, 1,
                         wx.EXPAND|wx.ALIGN_CENTER|wx.TOP, 8)
 
-	self.sizer = wx.BoxSizer(wx.VERTICAL)
-	#self.sizer.Add(self.tbarSizer, 0,
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        #self.sizer.Add(self.tbarSizer, 0,
         #     wx.EXPAND|wx.ALIGN_CENTER|wx.BOTTOM, 10)
-	self.sizer.Add(self.hSizer, 1, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.hSizer, 1, wx.EXPAND|wx.ALIGN_CENTER)
 
-	return
+        return
 
     def __updateDetectorPage(self):
         """Update the detector page"""
@@ -426,6 +425,8 @@ class MainFrame(wx.Frame):
     def updateFromExp(self):
         """Update all subwindows"""
         self.nBook.updateFromExp()
+        self.canvasPanel.update(onInit=True)
+
         return
     #
     #                     ========== *** Event Callbacks
@@ -481,7 +482,7 @@ class MainFrame(wx.Frame):
         dlg.Destroy()
 
         self.updateFromExp()
-        return    
+        return
 
     def OnCaking(self, e):
         """Raise the caking window"""
@@ -498,7 +499,7 @@ class MainFrame(wx.Frame):
         app.getCanvas().update()
 
         return
-    
+
     #
     # ========== Spots Menu
     #
@@ -507,8 +508,8 @@ class MainFrame(wx.Frame):
         app = wx.GetApp()
         exp = app.ws
 
-        dlg = wx.FileDialog(self, 'Load Raw Spots', 
-                            style=wx.FD_OPEN | 
+        dlg = wx.FileDialog(self, 'Load Raw Spots',
+                            style=wx.FD_OPEN |
                                   wx.FD_FILE_MUST_EXIST)
         if dlg.ShowModal() == wx.ID_OK:
             f = dlg.GetPath()
@@ -522,7 +523,7 @@ class MainFrame(wx.Frame):
         dlg.Destroy()
 
         self.updateFromExp()
-        
+
         return
 
     def OnSpotsSaveRaw(self, e):
@@ -544,7 +545,7 @@ class MainFrame(wx.Frame):
 
         self.updateFromExp()
         return
-    
+
     #
     # ========== Indexer Menu
     #
@@ -562,20 +563,20 @@ class MainFrame(wx.Frame):
                 wx.MessageBox('failed to write file:  %s' % f)
                 pass
             pass
-        
+
         dlg.Destroy()
-        
+
         self.updateFromExp()
-        
+
         return
-    
+
     def OnExportGrainLog(self, e):
         """Export grain log file"""
         app = wx.GetApp()
         exp = app.ws
 
         dlg = wx.FileDialog(self, 'Export grain log', style=wx.FD_SAVE)
-        
+
         if dlg.ShowModal() == wx.ID_OK:
             f = dlg.GetPath()
             exp.export_grainList(f)
@@ -589,16 +590,16 @@ class MainFrame(wx.Frame):
         dlg.Destroy()
 
         self.updateFromExp()
-        
+
         return
-    
+
     def OnDumpGrainList(self, e):
          """Load raw spots"""
          app = wx.GetApp()
          exp = app.ws
-         
-         dlg = wx.FileDialog(self, 'Dump grain list', style=wx.FD_SAVE) 
-         
+
+         dlg = wx.FileDialog(self, 'Dump grain list', style=wx.FD_SAVE)
+
          if dlg.ShowModal() == wx.ID_OK:
              f = dlg.GetPath()
              try:
@@ -607,13 +608,13 @@ class MainFrame(wx.Frame):
                  wx.MessageBox('failed to write file:  %s' % f)
                  pass
              pass
-         
+
          dlg.Destroy()
-         
+
          self.updateFromExp()
-         
+
          return
-    
+
     #
     # ========== Readers MENU
     #
@@ -720,6 +721,7 @@ class MainFrame(wx.Frame):
             self.SetStatusText('Loading Experiment File')
             app.ws = loadExp(f)
             self.SetStatusText('Done Loading Experiment File')
+            self.updateFromExp()
         except Exception as e:
             wx.MessageBox('failed to load experiment:\n%s' % str(e))
             pass

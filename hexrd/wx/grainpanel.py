@@ -38,15 +38,22 @@ from hexrd.wx.guiutil   import makeTitleBar
 class GrainPanel(wx.Panel):
     """GrainPanel """
     def __init__(self, parent, id, **kwargs):
+<<<<<<< HEAD
 	"""Constructor for GrainPanel."""
 	#
 	wx.Panel.__init__(self, parent, id, **kwargs)
+=======
+        """Constructor for grainPanel."""
+        #
+        wx.Panel.__init__(self, parent, id, **kwargs)
+>>>>>>> refactor
         self.SetBackgroundColour(WP.BG_COLOR_PANEL)
-	#
+        #
         #  Data
         #
 
         #
+<<<<<<< HEAD
 	#  Window Objects.
 	#
         self.__make_objects()
@@ -60,9 +67,24 @@ class GrainPanel(wx.Panel):
 	self.__make_sizers()
 	#
 	self.SetAutoLayout(True)
+=======
+        #  Window Objects.
+        #
+        self.__makeObjects()
+        #
+        #  Bindings.
+        #
+        self.__makeBindings()
+        #
+        #  Sizing.
+        #
+        self.__makeSizers()
+        #
+        self.SetAutoLayout(True)
+>>>>>>> refactor
         self.SetSizerAndFit(self.sizer)
-	#
-	return
+        #
+        return
     #
     # ============================== Internal Methods
     #
@@ -79,6 +101,7 @@ class GrainPanel(wx.Panel):
         """Bind interactors"""
         return
 
+<<<<<<< HEAD
     def __make_sizers(self):
 	"""Lay out the interactors"""
 	
@@ -86,8 +109,16 @@ class GrainPanel(wx.Panel):
 	self.sizer.Add(self.sz_titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
 	self.sizer.Add(self.glist_pan,   1, wx.EXPAND|wx.ALIGN_CENTER)
 	self.sizer.Add(self.refine_pan,  1, wx.EXPAND|wx.ALIGN_CENTER)
+=======
+    def __makeSizers(self):
+        """Lay out the interactors"""
 
-	return
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.sz_titlebar, 0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.hpage,    1, wx.EXPAND|wx.ALIGN_CENTER)
+>>>>>>> refactor
+
+        return
     #
     # ============================== API
     #
