@@ -139,9 +139,12 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
     
     # tolerances in degrees...  I know, pathological
     if omeTol is None:
-        omeTol = 360 / float(fiber_ndiv)
+        omeTol = 360. / float(fiber_ndiv)
     if etaTol is None:
-        etaTol = 360 / float(fiber_ndiv)
+        etaTol = 360. / float(fiber_ndiv)
+    
+    # must be consistent
+    pd_hkl_ids = omeEta.iHKLList[seed_hkl_ids]
     
     tTh  = pd.getTTh()
     bMat = pd.latVecOps['B']
@@ -163,18 +166,32 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
         qfib = [] 
         ii = 0
         jj = fiber_ndiv
+        print "labeling maps..."
+        labels   = []
+        numSpots = []
+        coms     = []
         for i in seed_hkl_ids:
-            labels, numSpots = ndimage.label(omeEta.dataStore[i] > threshold, structureNDI_label)
-            coms     = ndimage.measurements.center_of_mass(omeEta.dataStore[i], labels, range(np.amax(labels) + 1))                
-            qfib_tmp = np.empty((4, fiber_ndiv*numSpots))
-            for ispot in range(numSpots):
-                if not np.isnan(coms[ispot][0]):
-                    ome_c = omeEta.omeEdges[0] + coms[ispot][0]*del_ome
-                    eta_c = omeEta.etaEdges[0] + coms[ispot][1]*del_eta
+            labels_t, numSpots_t = ndimage.label(omeEta.dataStore[i] > threshold, structureNDI_label)
+            coms_t               = ndimage.measurements.center_of_mass(omeEta.dataStore[i], labels_t, range(np.amax(labels_t) + 1))
+            labels.append(labels_t)
+            numSpots.append(numSpots_t)
+            coms.append(coms_t)
+            pass
+
+        # second pass for generation
+        print "generating quaternions..."
+        qfib_tmp = np.empty((4, fiber_ndiv*sum(numSpots)))           
+        for i in range(len(pd_hkl_ids)):
+            for ispot in range(numSpots[i]):
+                if not np.isnan(coms[i][ispot][0]):
+                    ome_c = omeEta.omeEdges[0] + coms[i][ispot][0]*del_ome
+                    eta_c = omeEta.etaEdges[0] + coms[i][ispot][1]*del_eta
                     
-                    gVec_s = xrdutil.makeMeasuredScatteringVectors(tTh[i],eta_c, ome_c)
+                    gVec_s = xrdutil.makeMeasuredScatteringVectors(tTh[pd_hkl_ids[i]], eta_c, ome_c)
                     
-                    qfib_tmp[:, ii:jj] = rot.discreteFiber(pd.hkls[:, i].reshape(3, 1), gVec_s, B=bMat, ndiv=fiber_ndiv, invert=False, csym=csym)[0]
+                    qfib_tmp[:, ii:jj] = rot.discreteFiber(pd.hkls[:, pd_hkl_ids[i]].reshape(3, 1), 
+                                                           gVec_s, B=bMat, ndiv=fiber_ndiv, 
+                                                           invert=False, csym=csym)[0]
                     ii  = jj
                     jj += fiber_ndiv
                     pass
@@ -269,6 +286,10 @@ if __name__ == "__main__":
         qgrid_file = parser.get('paint_grid', 'qgrid_file')
     else:
         qgrid_file = None
+        seed_hkl_str = parser.get('paint_grid', 'hkl_seeds')
+        seed_hkl_ids = np.array(seed_hkl_str.split(','), dtype=int)
+        print "using the following for seed hkls:"
+        print hkl_ids
     
     # tolerances go in IN DEGREES 
     ome_tol      = parser.getfloat('paint_grid', 'ome_tol') 

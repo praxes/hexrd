@@ -41,7 +41,7 @@ if __name__ == "__main__":
     zpad_str = "_%"+"0%dd" % (int(zpad))
     
     for i in range(numImages):
-        if len(fileSuffix) == 0:
+        if fileSuffix.strip() == '':
             fname = fileRoot+zpad_str
         else:
             fname = fileRoot+zpad_str+"."+fileSuffix 
