@@ -26,6 +26,7 @@
 # ============================================================
 from distutils.core import setup, Extension
 import os
+import sys
 import numpy
 
 np_include_dir = os.path.join(numpy.get_include(), 'numpy')
@@ -63,9 +64,16 @@ with open('hexrd/__init__.py') as f:
             exec(line)
             break
 
-scripts = [
-    'scripts/hexrd'
-    ]
+scripts = []
+if sys.platform.startswith('win'):
+    # scripts calling multiprocessing must be importable
+    import shutil
+    shutil.copy('scripts/hexrd', 'scripts/hexrd_app.py')
+    scripts.append('scripts/hexrd_app.py')
+else:
+    scripts.append('scripts/hexrd')
+if ('bdist_wininst' in sys.argv) or ('bdist_msi' in sys.argv):
+    scripts.append('scripts/hexrd_win_post_install.py')
 
 setup(
     name = 'hexrd',
