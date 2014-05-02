@@ -294,8 +294,8 @@ class Experiment(object):
 
     def export_grainList(self, f,
                          dspTol=5.0e-3,
-                         etaTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees'),
-                         omeTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees'),
+                         etaTol=None,
+                         omeTol=None,
                          doFit=False,
                          sort=True):
         """
@@ -307,6 +307,11 @@ class Experiment(object):
             fid = open(f, 'w')
             pass
 
+        if etaTol is None:
+            etaTol = self.index_opts.etaTol * d2r
+        if omeTol is None:
+            omeTol = self.index_opts.omeTol * d2r
+            
         if sort:
             loop_idx = numpy.argsort([self.grainList[i].completeness
                                       for i in range(len(self.grainList))])[::-1]

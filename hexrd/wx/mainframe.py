@@ -51,7 +51,7 @@ from hexrd.wx.caking          import cakingDialog
 #
 class MainFrame(wx.Frame):
     #
-    def __init__(self, parent, id, title='LLNL XRD Analysis Tool'):
+    def __init__(self, parent, id, title='HEXRD Diffraction Analysis Tool'):
         #
         #  Pass option dictionary or string.
         #
