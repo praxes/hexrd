@@ -289,7 +289,7 @@ if __name__ == "__main__":
         seed_hkl_str = parser.get('paint_grid', 'hkl_seeds')
         seed_hkl_ids = np.array(seed_hkl_str.split(','), dtype=int)
         print "using the following for seed hkls:"
-        print hkl_ids
+        print hkl_ids[hkl_ids]
     
     # tolerances go in IN DEGREES 
     ome_tol      = parser.getfloat('paint_grid', 'ome_tol') 
