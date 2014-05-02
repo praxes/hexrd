@@ -24,7 +24,8 @@ from hexrd     import matrixutil as mutil
 from hexrd.xrd import experiment as expt
 from hexrd.xrd import indexer    as idx
 from hexrd.xrd import rotations  as rot
-from hexrd.xrd import transforms as xf
+from hexrd.xrd import transforms      as xf
+from hexrd.xrd import transforms_CAPI as xfcapi
 
 from hexrd.xrd          import xrdutil
 from hexrd.xrd.xrdbase  import multiprocessing
@@ -219,8 +220,15 @@ def run_cluster(complPG, qfib, qsym,
     """
     """
     start = time.clock()                      # time this
-    
-    quatDistance = lambda x, y: xf.quat_distance(x, y, qsym)
+
+    # # use transforms module for distance
+    # quatDistance = lambda x, y: xfcapi.quat_distance(x, y, qsym)
+
+    # use compiled module for distance
+    qsym  = np.array(qsym.T, order='C').T
+    quatDistance = lambda x, y: xfcapi.quat_distance(np.array(x, order='C'), \
+                                                     np.array(y, order='C'), \
+                                                     qsym)
     
     qfib_r = qfib[:, np.r_[complPG] > min_compl]
     
