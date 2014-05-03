@@ -275,21 +275,59 @@ if __name__ == "__main__":
                                     analysis_name + '-eta_ome.cpl')
     
     pd, reader, detector = initialize_experiment(cfg_filename)
-
+    
     if len(hkl_ids) == 0:
         hkl_ids = range(pd.hkls.shape[1])
         print "hkl ids not specified; grabbing from materials file..."
         print hkl_ids
-    
+        
+    # some ome-eta parameters
     threshold   = parser.getfloat('ome_eta', 'threshold')
     nframesLump = parser.getint('ome_eta', 'nframesLump')
-    if parser.getboolean('ome_eta', 'load_maps'):
-        eta_ome_file = open(eta_ome_filename ,'r')
-        ome_eta = cPickle.load(eta_ome_file)
-    else:
-        eta_ome_file = open(eta_ome_filename ,'w')
-        ome_eta = make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=eta_ome_file)
     
+    # load stored maps ("if possible")
+    load_maps_str = parser.get('ome_eta', 'load_maps')
+    save_maps_str = parser.get('ome_eta', 'save_maps')
+    if load_maps_str.strip() == '1' or load_maps_str.strip().lower() == 'true':
+        load_maps = True
+    elif load_maps_str.strip() == '' or load_maps_str.strip() == '0' or load_maps_str.strip().lower() == 'false':
+        load_maps = False
+    else:
+        eta_ome_filename = os.path.join(working_dir, load_maps_str.strip())
+        load_maps = True
+    if load_maps:
+        print "attempting to load stored maps from '%s'" %(eta_ome_filename)
+        try:
+            eta_ome_file = open(eta_ome_filename ,'r')
+        except:
+            load_maps = False
+            raise RuntimeWarning, "load of eta ome maps failed...  making them instead"
+
+    if load_maps:
+        ome_eta = cPickle.load(eta_ome_file)
+        pd = ome_eta.planeData
+        hkl_ids = range(pd.hkls.shape[1])
+        print "loaded stored maps, forcing overwrite of planeData and hkl_ids; overriding save preferences"
+        save_maps_str = '0'
+    else:
+        if save_maps_str.strip() == '1' or save_maps_str.strip().lower() == 'true':
+            eta_ome_outputname = eta_ome_filename
+            save_maps = True
+        elif save_maps_str.strip() == '' or save_maps_str.strip() == '0' or save_maps_str.strip().lower() == 'false':
+            save_maps = False
+        else:
+            eta_ome_outputname = os.path.join(working_dir, save_maps_str.strip())
+            save_maps = True
+        if save_maps:
+            try:
+                eta_ome_out = open(eta_ome_outputname ,'w')
+            except:
+                eta_ome_out = None
+                raise RuntimeWarning, "can't open output file; skipping save"
+        # if you got here, make the maps
+        ome_eta = make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=eta_ome_out)
+    
+    # more parameters
     seed_hkl_ids = [0,]
     threshold_pg = parser.getfloat('paint_grid', 'threshold')
     fiber_ndiv   = parser.getint('paint_grid', 'fiber_ndiv')
@@ -335,8 +373,7 @@ if __name__ == "__main__":
     min_compl = parser.getfloat('clustering', 'min_compl')
     num_above = sum(np.r_[compl] > min_compl)
     if num_above == 0:
-        import pdb;pdb.set_trace()
-        # raise RuntimeError, "No orientations above specified threshold of %.1f%%" % (100.*min_compl)
+        raise RuntimeError, "No orientations above specified threshold of %.1f%%" % (100.*min_compl)
     elif num_above == 1:
         qbar = qfib[:, np.r_[compl] > min_compl]
     else:
