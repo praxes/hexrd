@@ -128,15 +128,16 @@ def make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=None
     return omeEta
 
 def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv, 
-                  omeTol=None, etaTol=None, qTol=1e-7, 
+                  omeTol=None, etaTol=None, 
+                  omeRange=None, etaRange=None,
+                  qTol=1e-7, 
                   doMultiProc=True, nCPUs=multiprocessing.cpu_count(), 
                   useGrid=None):
     """
+    wrapper for indexer.paintGrid
     """
     del_ome = omeEta.omegas[1] - omeEta.omegas[0]
     del_eta = omeEta.etas[1] - omeEta.etas[0]
-    
-    omegaRange = [ ( np.amin(omeEta.omeEdges), np.amax(omeEta.omeEdges) ), ]
     
     # tolerances in degrees...  I know, pathological
     if omeTol is None:
@@ -208,7 +209,7 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
     print "Running paintGrid on %d orientations" % (qfib.shape[1])
     complPG = idx.paintGrid(qfib,
                             omeEta,
-                            omegaRange=omegaRange,
+                            omegaRange=omeRange, etaRange=etaRange,
                             omeTol=d2r*omeTol, etaTol=d2r*etaTol,
                             threshold=threshold,
                             doMultiProc=doMultiProc,
@@ -270,24 +271,63 @@ if __name__ == "__main__":
     working_dir   = parser.get('base', 'working_dir')
     analysis_name = parser.get('base', 'analysis_name')
      
-    eta_ome_file = open(
-        os.path.join(working_dir, analysis_name + '-eta_ome.cpl'),
-        'w')
+    eta_ome_filename = os.path.join(working_dir, 
+                                    analysis_name + '-eta_ome.cpl')
     
     pd, reader, detector = initialize_experiment(cfg_filename)
-
+    
     if len(hkl_ids) == 0:
         hkl_ids = range(pd.hkls.shape[1])
         print "hkl ids not specified; grabbing from materials file..."
         print hkl_ids
-    
+        
+    # some ome-eta parameters
     threshold   = parser.getfloat('ome_eta', 'threshold')
     nframesLump = parser.getint('ome_eta', 'nframesLump')
-    if parser.getboolean('ome_eta', 'load_maps'):
-        ome_eta = cPickle.load(open(eta_ome))
-    else:
-        ome_eta = make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=eta_ome_file)
     
+    # load stored maps ("if possible")
+    load_maps_str = parser.get('ome_eta', 'load_maps')
+    save_maps_str = parser.get('ome_eta', 'save_maps')
+    if load_maps_str.strip() == '1' or load_maps_str.strip().lower() == 'true':
+        load_maps = True
+    elif load_maps_str.strip() == '' or load_maps_str.strip() == '0' or load_maps_str.strip().lower() == 'false':
+        load_maps = False
+    else:
+        eta_ome_filename = os.path.join(working_dir, load_maps_str.strip())
+        load_maps = True
+    if load_maps:
+        print "attempting to load stored maps from '%s'" %(eta_ome_filename)
+        try:
+            eta_ome_file = open(eta_ome_filename ,'r')
+        except:
+            load_maps = False
+            raise RuntimeWarning, "load of eta ome maps failed...  making them instead"
+
+    if load_maps:
+        ome_eta = cPickle.load(eta_ome_file)
+        pd = ome_eta.planeData
+        hkl_ids = range(pd.hkls.shape[1])
+        print "loaded stored maps, forcing overwrite of planeData and hkl_ids; overriding save preferences"
+        save_maps_str = '0'
+    else:
+        if save_maps_str.strip() == '1' or save_maps_str.strip().lower() == 'true':
+            eta_ome_outputname = eta_ome_filename
+            save_maps = True
+        elif save_maps_str.strip() == '' or save_maps_str.strip() == '0' or save_maps_str.strip().lower() == 'false':
+            save_maps = False
+        else:
+            eta_ome_outputname = os.path.join(working_dir, save_maps_str.strip())
+            save_maps = True
+        if save_maps:
+            try:
+                eta_ome_out = open(eta_ome_outputname ,'w')
+            except:
+                eta_ome_out = None
+                raise RuntimeWarning, "can't open output file; skipping save"
+        # if you got here, make the maps
+        ome_eta = make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=eta_ome_out)
+    
+    # more parameters
     seed_hkl_ids = [0,]
     threshold_pg = parser.getfloat('paint_grid', 'threshold')
     fiber_ndiv   = parser.getint('paint_grid', 'fiber_ndiv')
@@ -306,13 +346,25 @@ if __name__ == "__main__":
     # tolerances go in IN DEGREES 
     ome_tol      = parser.getfloat('paint_grid', 'ome_tol') 
     eta_tol      = parser.getfloat('paint_grid', 'eta_tol') 
+    restrict_eta = parser.getfloat('paint_grid', 'restrict_eta')
 
+    etaRange = None
+    if restrict_eta > 0:
+        eta_del = d2r*abs(restrict_eta)
+        etaRange = [[-0.5*np.pi + eta_del, 0.5*np.pi - eta_del], 
+                    [ 0.5*np.pi + eta_del, 1.5*np.pi - eta_del]]
+        print "eta ranges restricted to:"
+        print r2d*np.array(etaRange)
+    else:
+        print "using full eta range"
+    
     if ncpus.strip() == '':
         ncpus = multiprocessing.cpu_count()
     else:
         ncpus = int(ncpus)
     compl, qfib = run_paintGrid(pd, ome_eta, seed_hkl_ids, threshold_pg, fiber_ndiv, 
-                                omeTol=ome_tol, etaTol=eta_tol, qTol=1e-7, 
+                                omeTol=ome_tol, etaTol=eta_tol, etaRange=etaRange,
+                                qTol=1e-7, 
                                 doMultiProc=multiproc, 
                                 nCPUs=ncpus, 
                                 useGrid=qgrid_file)
@@ -321,8 +373,7 @@ if __name__ == "__main__":
     min_compl = parser.getfloat('clustering', 'min_compl')
     num_above = sum(np.r_[compl] > min_compl)
     if num_above == 0:
-        import pdb;pdb.set_trace()
-        # raise RuntimeError, "No orientations above specified threshold of %.1f%%" % (100.*min_compl)
+        raise RuntimeError, "No orientations above specified threshold of %.1f%%" % (100.*min_compl)
     elif num_above == 1:
         qbar = qfib[:, np.r_[compl] > min_compl]
     else:

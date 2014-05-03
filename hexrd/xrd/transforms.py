@@ -341,7 +341,7 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     # form solution
     abMag    = np.sqrt(a*a + b*b); assert np.all(abMag > 0), "Beam vector specification is infealible!"
     phaseAng = np.arctan2(b, a)
-    rhs      = c / abMag
+    rhs      = c / abMag; rhs[abs(rhs) > 1.] = np.nan
     rhsAng   = np.arcsin(rhs) # verified will give NaN for abs(rhs) >  1. + 0.5*epsf
 
     # write ome angle output arrays (NaNs persist here)
