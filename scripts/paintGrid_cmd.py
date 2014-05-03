@@ -128,15 +128,15 @@ def make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=None
     return omeEta
 
 def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv, 
-                  omeTol=None, etaTol=None, qTol=1e-7, 
+                  omeTol=None, etaTol=None, 
+                  omeRange=None, etaRange=None,
+                  qTol=1e-7, 
                   doMultiProc=True, nCPUs=multiprocessing.cpu_count(), 
                   useGrid=None):
     """
     """
     del_ome = omeEta.omegas[1] - omeEta.omegas[0]
     del_eta = omeEta.etas[1] - omeEta.etas[0]
-    
-    omegaRange = [ ( np.amin(omeEta.omeEdges), np.amax(omeEta.omeEdges) ), ]
     
     # tolerances in degrees...  I know, pathological
     if omeTol is None:
@@ -208,7 +208,7 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
     print "Running paintGrid on %d orientations" % (qfib.shape[1])
     complPG = idx.paintGrid(qfib,
                             omeEta,
-                            omegaRange=omegaRange,
+                            etaRange=etaRange,
                             omeTol=d2r*omeTol, etaTol=d2r*etaTol,
                             threshold=threshold,
                             doMultiProc=doMultiProc,
@@ -270,9 +270,8 @@ if __name__ == "__main__":
     working_dir   = parser.get('base', 'working_dir')
     analysis_name = parser.get('base', 'analysis_name')
      
-    eta_ome_file = open(
-        os.path.join(working_dir, analysis_name + '-eta_ome.cpl'),
-        'w')
+    eta_ome_filename = os.path.join(working_dir, 
+                                    analysis_name + '-eta_ome.cpl')
     
     pd, reader, detector = initialize_experiment(cfg_filename)
 
@@ -284,8 +283,10 @@ if __name__ == "__main__":
     threshold   = parser.getfloat('ome_eta', 'threshold')
     nframesLump = parser.getint('ome_eta', 'nframesLump')
     if parser.getboolean('ome_eta', 'load_maps'):
-        ome_eta = cPickle.load(open(eta_ome))
+        eta_ome_file = open(eta_ome_filename ,'r')
+        ome_eta = cPickle.load(eta_ome_file)
     else:
+        eta_ome_file = open(eta_ome_filename ,'w')
         ome_eta = make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=eta_ome_file)
     
     seed_hkl_ids = [0,]
@@ -306,13 +307,18 @@ if __name__ == "__main__":
     # tolerances go in IN DEGREES 
     ome_tol      = parser.getfloat('paint_grid', 'ome_tol') 
     eta_tol      = parser.getfloat('paint_grid', 'eta_tol') 
-
+    restrict_eta = parser.getfloat('paint_grid', 'restrict_eta')
+    if restrict_eta > 0:
+        eta_del = d2r*abs(restrict_eta)
+        etaRange = [[-0.5*np.pi + eta_del, 0.5*np.pi - eta_del], 
+                    [ 0.5*np.pi + eta_del, 1.5*np.pi - eta_del]]
     if ncpus.strip() == '':
         ncpus = multiprocessing.cpu_count()
     else:
         ncpus = int(ncpus)
     compl, qfib = run_paintGrid(pd, ome_eta, seed_hkl_ids, threshold_pg, fiber_ndiv, 
-                                omeTol=ome_tol, etaTol=eta_tol, qTol=1e-7, 
+                                omeTol=ome_tol, etaTol=eta_tol, etaRange=etaRange,
+                                qTol=1e-7, 
                                 doMultiProc=multiproc, 
                                 nCPUs=ncpus, 
                                 useGrid=qgrid_file)

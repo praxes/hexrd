@@ -706,17 +706,16 @@ def paintGrid(quats, etaOmeMaps,
     omeMin = None
     omeMax = None
     if omegaRange is None:              # this NEEDS TO BE FIXED!
-        delOmeByTwo = 0.5*abs(etaOmeMaps.omegas[0] - etaOmeMaps.omegas[1])
-        omeMin = [num.min(etaOmeMaps.omegas) - delOmeByTwo]
-        omeMax = [num.max(etaOmeMaps.omegas) + delOmeByTwo]
+        omeMin = [num.min(etaOmeMaps.omeEdges),]
+        omeMax = [num.max(etaOmeMaps.omeEdges),]
     else:
         omeMin = [omegaRange[i][0] for i in range(len(omegaRange))]
         omeMax = [omegaRange[i][1] for i in range(len(omegaRange))]
     etaMin = None
     etaMax = None
     if etaRange is not None:
-        etaMin = [etagaRange[i][0] for i in range(len(etagaRange))]
-        etaMax = [etagaRange[i][1] for i in range(len(etagaRange))]
+        etaMin = [etaRange[i][0] for i in range(len(etaRange))]
+        etaMax = [etaRange[i][1] for i in range(len(etaRange))]
 
     # obselete # # make list of rMats from input quats
     # obselete # rMatsList = [rotMatOfQuat(quats[:, i]) for i in range(quats.shape[1])]
