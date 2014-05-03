@@ -41,6 +41,7 @@ warnings.simplefilter("error", RuntimeWarning)
 
 # ######################################################################
 # Module Data
+
 epsf      = np.finfo(float).eps      # ~2.2e-16
 ten_epsf  = 10 * epsf                # ~2.2e-15
 sqrt_epsf = np.sqrt(epsf)            # ~1.5e-8
@@ -50,19 +51,26 @@ angularUnits = 'radians'        # module-level angle units
 d2r          = np.pi/180.0
 
 # basis vectors
-I3 = np.eye(3)                  # (3, 3) identity
-Xl = I3[:, 0].reshape(3, 1)     # X in the lab frame
-Yl = I3[:, 1].reshape(3, 1)     # Y in the lab frame
-Zl = I3[:, 2].reshape(3, 1)     # Z in the lab frame
-zeroVec = np.array([0.0,0.0,0.0])
+I3 = np.eye(3)                                 # (3, 3) identity
+Xl = np.array([[1., 0., 0.]], order='C').T     # X in the lab frame
+Yl = np.array([[0., 1., 0.]], order='C').T     # Y in the lab frame
+Zl = np.array([[0., 0., 1.]], order='C').T     # Z in the lab frame
+
+zeroVec = np.zeros(3, order='C')
 
 # reference beam direction and eta=0 ref in LAB FRAME for standard geometry
 bVec_ref = -Zl
 eta_ref  =  Xl
 
+# reference stretch
+vInv_ref = np.array([[1., 1., 1., 0., 0., 0.]], order='C').T
+
 # distortion for warping detector coords
 dFunc_ref   = dFuncs.GE_41RT
 dParams_ref = [0., 0., 0., 2., 2., 2]
+
+# 
+# ######################################################################
 
 # ######################################################################
 # Funtions
@@ -293,7 +301,7 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
 
     where:
 
-        alpha = atan2(b, a)
+        alpha = arctan2(b, a)
 
      The solutions are:
 
@@ -749,12 +757,16 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     """
     A better way to go.  find out if an angle is in the range 
     CCW or CW from start to stop
+
+    There is, of course an ambigutiy if the start and stop angle are
+    the same; we treat them as implying 2*pi
     """
     angList   = np.atleast_1d(angList).flatten()   # needs to have len
     startAngs = np.atleast_1d(startAngs).flatten() # needs to have len
     stopAngs  = np.atleast_1d(stopAngs).flatten()  # needs to have len
     
-    assert len(startAngs) == len(stopAngs), "length of min and max angular limits must match!"
+    n_ranges = len(startAngs)
+    assert len(stopAngs) == n_ranges, "length of min and max angular limits must match!"
 
     # to avoid warnings in >=, <= later down, mark nans;
     # need these to trick output to False in the case of nan input
@@ -766,23 +778,44 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     zProj = lambda x, y: np.cos(x) * np.sin(y) - np.sin(x) * np.cos(y)
     
     # bin length for chunking
-    binLen = np.pi / 3.
+    binLen = np.pi / 2.
+
+    # in plane vectors defining wedges
+    x0 = np.vstack([np.cos(startAngs), np.sin(startAngs)])
+    x1 = np.vstack([np.cos(stopAngs), np.sin(stopAngs)])
     
-    for i in range(len(startAngs)):
-        # cross-product:  startVector X stopVector
-        cprod = np.cos(startAngs[i]) * np.sin(stopAngs[i]) \
-            - np.sin(startAngs[i]) * np.cos(stopAngs[i])
-        if (cprod <= 0 and ccw) or (cprod >= 0 and not ccw):
-            # calculate arc length
-            arclen = 2*np.pi - \
-                np.arccos(np.cos(startAngs[i]) * np.cos(stopAngs[i]) + \
-                              np.sin(startAngs[i]) * np.sin(stopAngs[i]))
-            
+    # dot products
+    dp = np.sum(x0 * x1, axis=0)
+    if np.any(dp >= 1. - sqrt_epsf) and n_ranges > 1: 
+        # ambiguous case
+        raise RuntimeError, "Improper usage; at least one of your ranges is alread 360 degrees!"
+    elif dp[0] >= 1. - sqrt_epsf and n_ranges == 1:
+        # trivial case!
+        reflInRange = np.ones(angList.shape, dtype=bool)
+        reflInRange[nan_mask] = False
+    else:
+        # solve for arc lengths
+        # ...note: no zeros should have made it here
+        a   = x0[0, :]*x1[1, :] - x0[1, :]*x1[0, :]
+        b   = x0[0, :]*x1[0, :] + x0[1, :]*x1[1, :]
+        phi = np.arctan2(b, a)
+    
+        arclen = 0.5*np.pi - phi          # these are clockwise
+        cw_phis = arclen < 0
+        arclen[cw_phis] = 2*np.pi + arclen[cw_phis]   # all positive (CW) now
+        if not ccw:
+            arclen= 2*np.pi - arclen
+
+        if sum(arclen) > 2*np.pi:
+            raise RuntimeWarning, "Specified angle ranges sum to > 360 degrees, which is suspect..."
+        
+        # check that there are no more thandp = np.zeros(n_ranges)
+        for i in range(n_ranges):
             # number or subranges using 'binLen'
-            numSubranges = int(np.ceil(arclen/binLen))
-            
+            numSubranges = int(np.ceil(arclen[i]/binLen))
+
             # check remaider
-            binrem = np.remainder(arclen, binLen)
+            binrem = np.remainder(arclen[i], binLen)
             if binrem == 0:
                 finalBinLen = binLen
             else:
@@ -792,13 +825,14 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
             if not ccw:
                  binLen      = -binLen
                  finalBinLen = -finalBinLen
-            
+
             # Create sub ranges on the fly to avoid ambiguity in dot product
             # for wedges >= 180 degrees
             subRanges = np.array(\
                 [startAngs[i] + binLen*j for j in range(numSubranges)] + \
                     [startAngs[i] + binLen*(numSubranges - 1) + finalBinLen])
-            for k in range(numSubranges - 1):
+
+            for k in range(numSubranges):
                 zStart = zProj(angList, subRanges[k])
                 zStop  = zProj(angList, subRanges[k + 1])
                 if ccw:
@@ -808,18 +842,7 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
                 else:
                     zStart[nan_mask] = -999.
                     zStop[nan_mask]  =  999.
-                    reflInRange = reflInRange | np.logical_and(zStart >= 0, zStop <= 0)
-        else:
-            zStart = zProj(angList, startAngs[i])
-            zStop  = zProj(angList, stopAngs[i])
-            if ccw:
-                zStart[nan_mask] =  999.
-                zStop[nan_mask]  = -999.
-                reflInRange = reflInRange | np.logical_and(zStart <= 0, zStop >= 0)
-            else:
-                zStart[nan_mask] = -999.
-                zStop[nan_mask]  =  999.
-                reflInRange = reflInRange | np.logical_and(zStart >= 0, zStop <= 0)
+                    reflInRange = reflInRange | np.logical_and(zStart >= 0, zStop <= 0)            
     return reflInRange
 
 def rotate_vecs_about_axis(angle, axis, vecs):
