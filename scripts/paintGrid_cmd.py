@@ -134,6 +134,7 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
                   doMultiProc=True, nCPUs=multiprocessing.cpu_count(), 
                   useGrid=None):
     """
+    wrapper for indexer.paintGrid
     """
     del_ome = omeEta.omegas[1] - omeEta.omegas[0]
     del_eta = omeEta.etas[1] - omeEta.etas[0]
@@ -208,7 +209,7 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
     print "Running paintGrid on %d orientations" % (qfib.shape[1])
     complPG = idx.paintGrid(qfib,
                             omeEta,
-                            etaRange=etaRange,
+                            omegaRange=omeRange, etaRange=etaRange,
                             omeTol=d2r*omeTol, etaTol=d2r*etaTol,
                             threshold=threshold,
                             doMultiProc=doMultiProc,
@@ -308,10 +309,17 @@ if __name__ == "__main__":
     ome_tol      = parser.getfloat('paint_grid', 'ome_tol') 
     eta_tol      = parser.getfloat('paint_grid', 'eta_tol') 
     restrict_eta = parser.getfloat('paint_grid', 'restrict_eta')
+
+    etaRange = None
     if restrict_eta > 0:
         eta_del = d2r*abs(restrict_eta)
         etaRange = [[-0.5*np.pi + eta_del, 0.5*np.pi - eta_del], 
                     [ 0.5*np.pi + eta_del, 1.5*np.pi - eta_del]]
+        print "eta ranges restricted to:"
+        print r2d*np.array(etaRange)
+    else:
+        print "using full eta range"
+    
     if ncpus.strip() == '':
         ncpus = multiprocessing.cpu_count()
     else:
