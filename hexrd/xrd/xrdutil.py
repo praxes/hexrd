@@ -47,19 +47,30 @@ from hexrd import plotwrap
 from hexrd import tens
 from hexrd import matrixutil
 from hexrd import pfigutil
+
 from hexrd.valunits import toFloat
+
 import hexrd.orientations as ors
-from hexrd.xrd import crystallography
+
+from hexrd.xrd                 import crystallography
 from hexrd.xrd.crystallography import latticeParameters, latticeVectors
-from hexrd.xrd import detector
+
+from hexrd.xrd          import detector
 from hexrd.xrd.detector import Framer2DRC
 from hexrd.xrd.detector import getCMap
-from hexrd.xrd import xrdbase
+
+from hexrd.xrd         import xrdbase
 from hexrd.xrd.xrdbase import dataToFrame
 from hexrd.xrd.xrdbase import multiprocessing
-from hexrd.xrd import rotations as rot
+
+from hexrd.xrd           import rotations as rot
 from hexrd.xrd.rotations import mapAngle
+
 from hexrd.xrd import spotfinder
+
+from hexrd.xrd import transforms      as xf
+from hexrd.xrd import transforms_CAPI as xfcapi
+
 try:
     from femODFUtil import pfig as pfigPkg
     havePfigPkg = True
@@ -2899,3 +2910,145 @@ def write_old_parfile(filename, results):
         print >> fid, "%1.8e\t%d" % (det_plist[i], 0)
     fid.close()
     return
+
+def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
+                       chi=0.,
+                       etaTol=None, omeTol=None, 
+                       etaRanges=None, omeRanges=None, 
+                       bVec=xf.bVec_ref, eVec=xf.eta_ref, vInv=xf.vInv_ref):
+    """
+    all angular info is entered in degrees
+
+    quats are (4, n)
+    
+    ...might want to creat module-level angluar unit flag
+    ...might want to allow resvers delta omega
+
+    """
+    # convert to radians
+    etaEdges = d2r*num.sort(etaEdges)
+    omeEdges = d2r*num.sort(omeEdges)
+
+    omeIndices = range(len(omeEdges))
+    etaIndices = range(len(etaEdges))
+
+    i_max = omeIndices[-1]
+    j_max = etaIndices[-1]
+
+    etaMin = etaEdges[0]; etaMax = etaEdges[-1]
+    omeMin = omeEdges[0]; omeMax = omeEdges[-1]
+    if omeRanges is None:
+        omeRanges = [[omeMin, omeMax], ]
+        
+    if etaRanges is None:
+        etaRanges = [[etaMin, etaMax], ]
+
+    # signed deltas IN RADIANS
+    del_ome = omeEdges[1] - omeEdges[0]
+    del_eta = etaEdges[1] - etaEdges[0]
+
+    delOmeSign = num.sign(del_eta)
+        
+    # tolerances are in degrees (easier)
+    if omeTol is None:
+        omeTol = abs(del_ome)
+    else:
+        omeTol = d2r*omeTol
+    if etaTol is None:
+        etaTol = abs(del_eta)
+    else:
+        etaTol = d2r*etaTol
+    
+    # pixel dialtions
+    dpix_ome = round( omeTol / abs(del_ome) )
+    dpix_eta = round( etaTol / abs(del_eta) )
+
+    # get symmetrically expanded hkls from planeData
+    sym_hkls = planeData.getSymHKLs()
+    nhkls = len(sym_hkls)
+    
+    # make things C-contiguous for use in xfcapi functions
+    expMaps = num.array(expMaps.T, order='C')
+    nOrs    = len(expMaps)
+
+    bMat = num.array(planeData.latVecOps['B'], order='C')
+    wlen = planeData.wavelength
+
+    bVec = num.array(bVec.flatten(), order='C')
+    eVec = num.array(eVec.flatten(), order='C')
+    vInv = num.array(eVec.flatten(), order='C')
+        
+    eta_ome = num.zeros((nhkls, max(omeIndices), max(etaIndices)), order='C')
+    for iHKL in range(nhkls):
+        these_hkls = num.array(sym_hkls[iHKL].T, order='C')
+        for iOr in range(nOrs):
+            # rMat_c = xfcapi.makeRotMatOfExpMap(expMaps[iOr, :])
+            # oangs  = xfcapi.oscillAnglesOfHKLs(these_hkls, chi, rMat_c, bMat, wlen, 
+            #                                    beamVec=bVec, etaVec=eVec)
+            # import pdb;pdb.set_trace()
+            # angList = num.vstack(oangs)                # stack two solutions (row vecs)
+            # angList[:, 1] = xf.mapAngle(angList[:, 1]) # map etas
+            # angList[:, 2] = xf.mapAngle(angList[:, 2]) # map omes
+            rMat_c = xf.makeRotMatOfExpMap(expMaps[iOr, :])
+            oangs  = xf.oscillAnglesOfHKLs(these_hkls.T, chi, rMat_c, bMat, wlen, 
+                                           beamVec=bVec, etaVec=eVec)
+
+            angList = num.hstack(oangs)                # stack two solutions (col vecs)
+            angList[1, :] = xf.mapAngle(angList[1, :]) # map etas
+            angList[2, :] = xf.mapAngle(angList[2, :]) # map omes
+            angList = angList.T
+            
+            # mask eta angles
+            angMask_eta = num.zeros(len(angList), dtype=bool)
+            for j in range(len(etaRanges)):
+                angMask_eta = num.logical_or(
+                    angMask_eta, xf.validateAngleRanges(angList[:, 1], etaRanges[j][0], etaRanges[j][1]))
+
+            # mask ome angles
+            angMask_ome = num.zeros(len(angList), dtype=bool)
+            for j in range(len(omeRanges)):
+                angMask_ome = num.logical_or(
+                    angMask_ome, xf.validateAngleRanges(angList[:, 2], omeRanges[j][0], omeRanges[j][1]))
+            
+            # import pdb;pdb.set_trace()
+            # join them
+            angMask = num.logical_and(angMask_eta, angMask_ome)
+            
+            culledTTh  = angList[angMask, 0]
+            culledEta  = angList[angMask, 1]
+            culledOme  = angList[angMask, 2]
+            
+            for iTTh in range(len(culledTTh)):
+                culledEtaIdx = num.where(etaEdges - culledEta[iTTh] > 0)[0]
+                if len(culledEtaIdx) > 0:
+                    culledEtaIdx = culledEtaIdx[0] - 1
+                    if culledEtaIdx < 0:
+                        culledEtaIdx = None
+                else:
+                    culledEtaIdx = None
+                culledOmeIdx = num.where(omeEdges - culledOme[iTTh] > 0)[0]
+                if len(culledOmeIdx) > 0:
+                    if delOmeSign > 0:
+                        culledOmeIdx = culledOmeIdx[0] - 1
+                    else:
+                        culledOmeIdx = culledOmeIdx[-1]
+                    if culledOmeIdx < 0:
+                        culledOmeIdx = None
+                else:
+                    culledOmeIdx = None
+                
+                if culledEtaIdx is not None and culledOmeIdx is not None:
+                    if dpix_ome > 0 or dpix_eta > 0:
+                        i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
+                                                    num.arange(-dpix_eta, dpix_eta + 1))
+                        i_sup = omeIndices[culledOmeIdx] + num.array([i_dil.flatten()], dtype=int)
+                        j_sup = etaIndices[culledEtaIdx] + num.array([j_dil.flatten()], dtype=int)
+
+                        # catch shit that falls off detector... maybe make this fancy enough to wrap at 2pi?
+                        idx_mask = num.logical_and(num.logical_and(i_sup >= 0, i_sup < i_max),
+                                                   num.logical_and(j_sup >= 0, j_sup < j_max))                    
+                        eta_ome[ iHKL, i_sup[idx_mask], j_sup[idx_mask] ] = 1.
+                    else:
+                        eta_ome[ iHKL, omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ] = 1.
+            
+    return eta_ome

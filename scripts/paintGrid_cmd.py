@@ -222,9 +222,10 @@ def run_cluster(complPG, qfib, qsym,
     start = time.clock()                      # time this
 
     # # use transforms module for distance
-    # quatDistance = lambda x, y: xfcapi.quat_distance(x, y, qsym)
+    # quatDistance = lambda x, y: xf.quat_distance(x, y, qsym)
 
     # use compiled module for distance
+    # just to be safe, must order qsym as C-contiguous
     qsym  = np.array(qsym.T, order='C').T
     quatDistance = lambda x, y: xfcapi.quat_distance(np.array(x, order='C'), \
                                                      np.array(y, order='C'), \
@@ -282,7 +283,10 @@ if __name__ == "__main__":
     
     threshold   = parser.getfloat('ome_eta', 'threshold')
     nframesLump = parser.getint('ome_eta', 'nframesLump')
-    ome_eta = make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=eta_ome_file)
+    if parser.getboolean('ome_eta', 'load_maps'):
+        ome_eta = cPickle.load(open(eta_ome))
+    else:
+        ome_eta = make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=eta_ome_file)
     
     seed_hkl_ids = [0,]
     threshold_pg = parser.getfloat('paint_grid', 'threshold')
@@ -297,7 +301,7 @@ if __name__ == "__main__":
         seed_hkl_str = parser.get('paint_grid', 'hkl_seeds')
         seed_hkl_ids = np.array(seed_hkl_str.split(','), dtype=int)
         print "using the following for seed hkls:"
-        print np.r_[hkl_ids][hkl_ids]
+        print np.r_[hkl_ids][seed_hkl_ids]
     
     # tolerances go in IN DEGREES 
     ome_tol      = parser.getfloat('paint_grid', 'ome_tol') 
