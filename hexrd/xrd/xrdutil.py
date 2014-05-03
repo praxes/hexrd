@@ -2970,14 +2970,14 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
     # make things C-contiguous for use in xfcapi functions
     expMaps = num.array(expMaps.T, order='C')
     nOrs    = len(expMaps)
-
+    
     bMat = num.array(planeData.latVecOps['B'], order='C')
     wlen = planeData.wavelength
-
+    
     bVec = num.array(bVec.flatten(), order='C')
     eVec = num.array(eVec.flatten(), order='C')
     vInv = num.array(eVec.flatten(), order='C')
-        
+    
     eta_ome = num.zeros((nhkls, max(omeIndices), max(etaIndices)), order='C')
     for iHKL in range(nhkls):
         these_hkls = num.array(sym_hkls[iHKL].T, order='C')
@@ -2992,7 +2992,7 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
             rMat_c = xf.makeRotMatOfExpMap(expMaps[iOr, :])
             oangs  = xf.oscillAnglesOfHKLs(these_hkls.T, chi, rMat_c, bMat, wlen, 
                                            beamVec=bVec, etaVec=eVec)
-
+            
             angList = num.hstack(oangs)                # stack two solutions (col vecs)
             angList[1, :] = xf.mapAngle(angList[1, :]) # map etas
             angList[2, :] = xf.mapAngle(angList[2, :]) # map omes
