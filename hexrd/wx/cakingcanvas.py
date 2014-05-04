@@ -420,7 +420,7 @@ class imgOpts(wx.Panel):
         self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Show(self.tbarSizer, False)
         self.sizer.Add(self.cmPanel,  0, wx.EXPAND|wx.ALIGN_CENTER)
-        self.sizer.Add(self.exp_but,  0, wx.ALIGN_LEFT|wx.TOP, 5)
+        self.sizer.Add(self.exp_but,  0, wx.ALIGN_RIGHT|wx.TOP, 5)
         return
     #
     # ============================== API
@@ -433,7 +433,11 @@ class imgOpts(wx.Panel):
         # tlp = wx.GetTopLevelParent(self)
 
         intensity = p.data['intensity']
-
+        radius    = p.data['radius']
+        azimuth   = p.data['azimuth'] * 180. / numpy.pi
+        if p.data['corrected']:
+            radius = radius * 180. / numpy.pi
+        
         p.axes = p.figure.gca()
         p.axes.set_aspect('equal')
 
@@ -441,7 +445,7 @@ class imgOpts(wx.Panel):
         p.axes.images = []
         # show new image
         if intensity.shape[0] == 1:
-            p.axes.plot(intensity.flatten(), 'b-')
+            p.axes.plot(radius.flatten(), intensity.flatten(), 'b-')
             p.axes.set_title('Intensity Profile')
             p.axes.set_ylabel('Intensity [arb. units]')
             p.axes.set_aspect('auto')
@@ -453,6 +457,25 @@ class imgOpts(wx.Panel):
                           vmin=self.cmPanel.cmin_val,
                           vmax=self.cmPanel.cmax_val)
             p.axes.set_autoscale_on(False)
+            p.axes.set_title('Intensity Profile')
+            p.axes.set_xlabel('Oscillation Angle (omega)')
+            p.axes.set_ylabel('Azimuth (eta)')
+            
+            # tick labels
+            num_ticks = 6
+            xmin = numpy.amin(radius); xmax = numpy.amax(radius)
+            dx = (xmax - xmin) / (num_ticks - 1.); dx1 = (len(radius) - 1) / (num_ticks - 1.)
+            xtlab = ["%.0f" % (xmin + i*dx) for i in range(num_ticks)]
+            xtloc = numpy.array([i*dx1 for i in range(num_ticks)]) + 0.5
+            ymin = numpy.amin(azimuth); ymax = numpy.amax(azimuth)
+            dy = (ymax - ymin) / (num_ticks - 1.); dy1 = (len(azimuth) - 1) / (num_ticks - 1.)
+            ytlab = ["%.0f" % (ymin + i*dy) for i in range(num_ticks)]
+            ytloc = numpy.array([i*dy1 for i in range(num_ticks)]) + 0.5
+            p.axes.xaxis.set_ticks(xtloc)
+            p.axes.xaxis.set_ticklabels(xtlab)
+            p.axes.yaxis.set_ticks(ytloc)
+            p.axes.yaxis.set_ticklabels(ytlab)
+            # p.axes.axis('tight')
 
         p.canvas.draw()
 
