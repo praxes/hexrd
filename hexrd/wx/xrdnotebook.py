@@ -53,7 +53,7 @@ from hexrd.wx.readerpanel import readerPanel
 from hexrd.wx.detectorpanel import detectorPanel
 from hexrd.wx.spotspanel import spotsPanel
 from hexrd.wx.indexpanel import indexPanel
-from hexrd.wx.grainpanel import GrainPanel
+from hexrd.wx.grainpanel import grainPanel
 #
 # ---------------------------------------------------CLASS:  xrdNoteBook
 #
@@ -93,7 +93,7 @@ class xrdNoteBook(wx.Notebook):
         #
         self.AddPage(indexPanel(self, wx.NewId()),
                      'Indexing')
-        self.AddPage(GrainPanel(self, wx.NewId()),
+        self.AddPage(grainPanel(self, wx.NewId()),
                      'Grains')
         #
         #  Make sure page is updated on page change.
