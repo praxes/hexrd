@@ -405,20 +405,22 @@ class imgOpts(wx.Panel):
         """Add interactors"""
         self.tbarSizer = makeTitleBar(self, 'Full Image Rebinning Results')
         self.cmPanel = cmapPanel(self, wx.NewId())
+        self.exp_but  = wx.Button(self, wx.NewId(), 'Export')
         #
         return
 
     def __makeBindings(self):
         """Bind interactors"""
+        self.Bind(wx.EVT_BUTTON, self.OnExport, self.exp_but)
         return
 
     def __makeSizers(self):
         """Lay out the interactors"""
-        self.sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Show(self.tbarSizer, False)
-        self.sizer.Add(self.cmPanel,   1, wx.EXPAND|wx.ALIGN_CENTER)
-
+        self.sizer.Add(self.cmPanel,  0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.exp_but,  0, wx.ALIGN_LEFT|wx.TOP, 5)
         return
     #
     # ============================== API
@@ -469,12 +471,32 @@ class imgOpts(wx.Panel):
         dlg = wx.FileDialog(self, 'Export Binning Data', style=wx.FD_SAVE)
         if dlg.ShowModal() == wx.ID_OK:
             f = dlg.GetPath()
-            try:
-                wx.MessageBox('would save to file:  %s' % f)
-                #exp.saveDetector(f)
-            except:
-                wx.MessageBox('failed to save file:  %s' % f)
+            # try:
+            p=self.GetParent()
+            intensity = p.data['intensity']
+            radialDat = p.data['radius']
+            azimuDat  = p.data['azimuth']
+            corrected = p.data['corrected']
+            
+            if corrected:
+                rad_str = 'two-theta'
+            else:
+                rad_str = 'radius'
+            
+            if isinstance(f, file):
+                fid = f
+            elif isinstance(f, str) or isinstance(f, unicode):
+                fid = open(f, 'w')
                 pass
+            for i in range(len(intensity)):
+                print >> fid, "# AZIMUTHAL BLOCK %d" % (i)
+                print >> fid, "# eta = %1.12e\n# %s\tintensity" % (azimuDat[i], rad_str)
+                for j in range(len(intensity[i, :])):
+                    print >> fid, "%1.12e\t%1.12e" % (radialDat[j], intensity[i, j])
+            fid.close()
+            #except:
+            #    wx.MessageBox('failed to save file:  %s' % f)
+            #    pass
             pass
 
         dlg.Destroy()

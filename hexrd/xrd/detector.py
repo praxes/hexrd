@@ -4841,22 +4841,26 @@ class Detector2DRC(DetectorBase):
 
         rho, eta, x, y = self.pixelToPolar(rowInd, colInd, corrected=corrected, startEta=startEta)
 
-
         # MAKE POLAR BIN CENTER ARRAY
         deltaEta = (stopEta - startEta) / numEta
         deltaRho = (stopRho - startRho) / numRho
 
         rowEta = startEta + deltaEta * ( num.arange(numEta) + 0.5 )
         colRho = startRho + deltaRho * ( num.arange(numRho) + 0.5 )
-
+        colTTh = num.arctan2(colRho, self.workDist)
+        if corrected:
+            colOut = colTTh
+        else:
+            colOut = colRho
+        
         # initialize output dictionary
         polImg = {}
-        polImg['radius']    = colRho
-        polImg['azimuth']   = rowEta
-        polImg['intensity'] = num.empty( (numEta, numRho) )
-        polImg['deltaRho']  = deltaRho
-
-
+        polImg['corrected']   = corrected
+        polImg['radius']      = colOut
+        polImg['azimuth']     = rowEta
+        polImg['deltaRho']    = deltaRho
+        polImg['intensity']   = num.empty( (numEta, numRho) )
+        
         if verbose:
             msg = "INFO: Masking pixels\n"
             if log:
