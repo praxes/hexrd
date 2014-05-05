@@ -31,10 +31,13 @@
 import wx
 
 import numpy
+
+import cPickle
+
 import matplotlib
-from matplotlib.axes import Axes
-from matplotlib.patches import Rectangle, Circle, Polygon
-from matplotlib.collections import PatchCollection
+from   matplotlib.axes        import Axes
+from   matplotlib.patches     import Rectangle, Circle, Polygon
+from   matplotlib.collections import PatchCollection
 
 from hexrd.matrixutil import columnNorm, unitVector
 
@@ -440,8 +443,7 @@ class imgOpts(wx.Panel):
         
         p.axes = p.figure.gca()
         p.axes.set_aspect('equal')
-
-
+        
         p.axes.images = []
         # show new image
         if intensity.shape[0] == 1:
@@ -475,7 +477,7 @@ class imgOpts(wx.Panel):
             p.axes.xaxis.set_ticklabels(xtlab)
             p.axes.yaxis.set_ticks(ytloc)
             p.axes.yaxis.set_ticklabels(ytlab)
-            # p.axes.axis('tight')
+            p.axes.grid(True)
 
         p.canvas.draw()
 
@@ -582,12 +584,15 @@ class sphOpts(wx.Panel):
         self.idata = 0
         self.dispm = self.DISP_RAW
 
+        self.exp_but  = wx.Button(self, wx.NewId(), 'Export')
+
         return
 
     def __makeBindings(self):
         """Bind interactors"""
         self.Bind(wx.EVT_CHOICE, self.OnHKLChoice, self.hkl_cho)
         self.Bind(wx.EVT_CHOICE, self.OnDispChoice, self.disp_cho)
+        self.Bind(wx.EVT_BUTTON, self.OnExport, self.exp_but)
         return
 
     def __makeSizers(self):
@@ -598,6 +603,7 @@ class sphOpts(wx.Panel):
         self.osizer = wx.BoxSizer(wx.VERTICAL)
         self.osizer.Add(self.hkl_cho,  1, wx.ALIGN_LEFT|wx.TOP, 5)
         self.osizer.Add(self.disp_cho, 1, wx.ALIGN_LEFT|wx.TOP, 5)
+        self.osizer.Add(self.exp_but, 1, wx.ALIGN_LEFT|wx.TOP, 5)
         self.csizer =wx.BoxSizer(wx.HORIZONTAL)
         self.csizer.Add(self.osizer, 1, wx.ALIGN_RIGHT|wx.TOP, 5)
         self.csizer.Add(self.cmPanel, 1, wx.ALIGN_LEFT|wx.TOP, 5)
@@ -613,9 +619,16 @@ class sphOpts(wx.Panel):
         """Update canvas"""
         p = self.GetParent()
         exp = wx.GetApp().ws
-
+        
         ome_eta = p.data
-        hkldata = ome_eta.getData(self.idata)
+
+        exp._ome_eta = ome_eta
+        
+        # hkldata = ome_eta.getData(self.idata)
+        hkldata = ome_eta.dataStore[self.idata]
+
+        omes = ome_eta.omeEdges * 180. / numpy.pi
+        etas = ome_eta.etaEdges * 180. / numpy.pi
 
         if self.dispm == self.DISP_RAW:
 
@@ -623,6 +636,7 @@ class sphOpts(wx.Panel):
             p.axes = p.figure.gca()
             p.axes.set_aspect('equal')
             p.axes.images = []
+            
             # show new image
             p.axes.imshow(hkldata, origin='upper',
                           interpolation='nearest',
@@ -631,7 +645,25 @@ class sphOpts(wx.Panel):
                           vmin=self.cmPanel.cmin_val,
                           vmax=self.cmPanel.cmax_val)
             p.axes.set_autoscale_on(False)
-
+            p.axes.set_title('Intensity Profile')
+            p.axes.set_xlabel('Azimuth (eta)')
+            p.axes.set_ylabel('Oscillation Angle (omega)')
+            
+            # tick labels
+            num_ticks = 7
+            xmin = numpy.amin(etas); xmax = numpy.amax(etas)
+            dx = (xmax - xmin) / (num_ticks - 1.); dx1 = (len(etas) - 1) / (num_ticks - 1.)
+            xtlab = ["%.0f" % (xmin + i*dx) for i in range(num_ticks)]
+            xtloc = numpy.array([i*dx1 for i in range(num_ticks)]) - 0.5
+            ymin = numpy.amin(omes); ymax = numpy.amax(omes)
+            dy = (ymax - ymin) / (num_ticks - 1.); dy1 = (len(omes) - 1) / (num_ticks - 1.)
+            ytlab = ["%.0f" % (ymin + i*dy) for i in range(num_ticks)]
+            ytloc = numpy.array([i*dy1 for i in range(num_ticks)]) - 0.5
+            p.axes.xaxis.set_ticks(xtloc)
+            p.axes.xaxis.set_ticklabels(xtlab)
+            p.axes.yaxis.set_ticks(ytloc)
+            p.axes.yaxis.set_ticklabels(ytlab)
+            p.axes.grid(True)
             p.canvas.draw()
 
         elif self.dispm == self.DISP_QUICK:
@@ -795,6 +827,29 @@ class sphOpts(wx.Panel):
     def OnUpdate(self, e):
         """Update canvas"""
         self.update()
+        return
+
+    def OnExport(self, e):
+        """Export results to a cPickle file"""
+        # export self.errs to a file
+        dlg = wx.FileDialog(self, 'Export Binning Errors', style=wx.FD_SAVE)
+        if dlg.ShowModal() == wx.ID_OK:
+            f = dlg.GetPath()
+            if isinstance(f, file):
+                fid = f
+            elif isinstance(f, str) or isinstance(f, unicode):
+                fid = open(f, 'w')
+                pass
+            try:
+                p = self.GetParent()
+                cPickle.dump(p.data, fid)
+            except:
+                wx.MessageBox('failed to save file:  %s' % f)
+                pass
+            pass
+
+        dlg.Destroy()
+
         return
 
     pass # end class

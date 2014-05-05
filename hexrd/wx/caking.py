@@ -343,7 +343,7 @@ class cakingDialog(wx.Dialog):
         """Constructor for cakingDialog"""
         #
         wx.Dialog.__init__(self, parent, id, title="Polar Rebinning",
-                           style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+                           style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)                          
         #
         #  Data Objects.
         #
