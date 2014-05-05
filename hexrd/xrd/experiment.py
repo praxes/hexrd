@@ -225,7 +225,7 @@ class Experiment(object):
             self._img_names = []
 
         return self._img_names
-#
+    #
     # ==================== Indexing
     #
     # property:  fitRMats
@@ -294,8 +294,8 @@ class Experiment(object):
 
     def export_grainList(self, f,
                          dspTol=5.0e-3,
-                         etaTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees'),
-                         omeTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees'),
+                         etaTol=None,
+                         omeTol=None,
                          doFit=False,
                          sort=True):
         """
@@ -307,6 +307,11 @@ class Experiment(object):
             fid = open(f, 'w')
             pass
 
+        if etaTol is None:
+            etaTol = self.index_opts.etaTol * d2r
+        if omeTol is None:
+            omeTol = self.index_opts.omeTol * d2r
+            
         if sort:
             loop_idx = numpy.argsort([self.grainList[i].completeness
                                       for i in range(len(self.grainList))])[::-1]
@@ -427,7 +432,7 @@ class Experiment(object):
         self.rMats = retval[0]
         self.grainList = retval[1]
         return
-
+    
     def run_indexer(self):
         """Run indexer"""
         iopts = self.index_opts
@@ -674,7 +679,7 @@ class Experiment(object):
     Can be set by number (index in material list) or by name.
 
     On output, it is always a material instance.
-"""
+    """
     activeMaterial = property(_get_activeMaterial, _set_activeMaterial, None,
                               _amdoc)
 
@@ -726,7 +731,7 @@ class Experiment(object):
 
         INPUTS
         fname -- the name of the file to load from
-"""
+        """
         # should check the loaded file here
         f = open(fname, 'r')
         self.matList = cPickle.load(f)
@@ -742,7 +747,7 @@ class Experiment(object):
         """Get method for activeReader
 
         Reader is set by using index in reader list or by name.
-"""
+        """
         return self.__active_rdr
 
     def _set_activeReader(self, v):
@@ -760,12 +765,13 @@ class Experiment(object):
 
         return
 
-    _ardoc = r"""Active Material
+    _ardoc = r"""
+    Active Material
 
     Can be set by number (index in saved readers list) or by name.
 
     On output, it is always a ReaderInput instance.
-"""
+    """
 
     activeReader = property(_get_activeReader, _set_activeReader,
                             _ardoc)
@@ -775,7 +781,7 @@ class Experiment(object):
 
         INPUTS
         fname -- the name of the file to save in
-"""
+        """
         f = open(fname, 'w')
         cPickle.dump(self.__savedReaders, f)
         f.close()
@@ -787,7 +793,7 @@ class Experiment(object):
 
         INPUTS
         fname -- the name of the file to load from
-"""
+        """
         # should check the loaded file here
         f = open(fname, 'r')
         self.__savedReaders = cPickle.load(f)
@@ -800,7 +806,7 @@ class Experiment(object):
         """Add new reader to the list and make it active
 
         Changes name if necessary.
-"""
+        """
         self.__active_rdr   = ReaderInput()
         # find name not already in list
         n  = self.__active_rdr.name
@@ -880,7 +886,7 @@ class Experiment(object):
 
         This reads an image according to the active reader
         specification, saving it in the activeImage attribute.
-"""
+        """
         #
         # Now read the current frame
         #
@@ -934,7 +940,7 @@ class Experiment(object):
         """Calibrate the detector
 
         Currently, uses polar rebin only.
-"""
+        """
         try:
             self._detInfo.calibrate(self.calInput,
                                     self.activeReader,
@@ -958,7 +964,7 @@ class Experiment(object):
             """Rebin the image according to certain parameters
 
             opts -- an instance of PolarRebinOpts
-"""
+            """
 
             img_info = det.polarRebin(self.activeImage, opts.kwArgs)
 

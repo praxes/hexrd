@@ -270,7 +270,7 @@ class cakingPanel(wx.Panel):
             nframesLump=nlump,
             nEtaBins=nbins,
             threshold=thresh,
-            debug=True)
+            debug=False)
 
         self.omeEta = CollapseOmeEta(reader, pdata, hklIDs, det, **kwargs)
 
@@ -343,7 +343,7 @@ class cakingDialog(wx.Dialog):
         """Constructor for cakingDialog"""
         #
         wx.Dialog.__init__(self, parent, id, title="Polar Rebinning",
-                           style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+                           style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)                          
         #
         #  Data Objects.
         #
