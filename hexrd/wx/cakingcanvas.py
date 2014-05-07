@@ -31,6 +31,7 @@
 import wx
 
 import numpy
+from scipy import ndimage
 
 import cPickle
 
@@ -583,9 +584,10 @@ class sphOpts(wx.Panel):
 
         self.idata = 0
         self.dispm = self.DISP_RAW
-
+        self.coms  = None                 # centers of mass from optional labeling
+        
         self.exp_but  = wx.Button(self, wx.NewId(), 'Export')
-
+        self.lab_but  = wx.Button(self, wx.NewId(), 'Label Spots')
         return
 
     def __makeBindings(self):
@@ -593,6 +595,7 @@ class sphOpts(wx.Panel):
         self.Bind(wx.EVT_CHOICE, self.OnHKLChoice, self.hkl_cho)
         self.Bind(wx.EVT_CHOICE, self.OnDispChoice, self.disp_cho)
         self.Bind(wx.EVT_BUTTON, self.OnExport, self.exp_but)
+        self.Bind(wx.EVT_BUTTON, self.OnLabelSpots, self.lab_but)
         return
 
     def __makeSizers(self):
@@ -604,6 +607,7 @@ class sphOpts(wx.Panel):
         self.osizer.Add(self.hkl_cho,  1, wx.ALIGN_LEFT|wx.TOP, 5)
         self.osizer.Add(self.disp_cho, 1, wx.ALIGN_LEFT|wx.TOP, 5)
         self.osizer.Add(self.exp_but, 1, wx.ALIGN_LEFT|wx.TOP, 5)
+        self.osizer.Add(self.lab_but, 1, wx.ALIGN_LEFT|wx.TOP, 5)
         self.csizer =wx.BoxSizer(wx.HORIZONTAL)
         self.csizer.Add(self.osizer, 1, wx.ALIGN_RIGHT|wx.TOP, 5)
         self.csizer.Add(self.cmPanel, 1, wx.ALIGN_LEFT|wx.TOP, 5)
@@ -635,6 +639,7 @@ class sphOpts(wx.Panel):
             p.figure.delaxes(p.axes)
             p.axes = p.figure.gca()
             p.axes.set_aspect('equal')
+            p.axes.hold(True)
             p.axes.images = []
             
             # show new image
@@ -664,6 +669,11 @@ class sphOpts(wx.Panel):
             p.axes.yaxis.set_ticks(ytloc)
             p.axes.yaxis.set_ticklabels(ytlab)
             p.axes.grid(True)
+
+            if self.coms is not None:
+                p.axes.plot(self.coms[:, 1], self.coms[:, 0], 'm+', ms=18)
+                pass
+            
             p.canvas.draw()
 
         elif self.dispm == self.DISP_QUICK:
@@ -814,6 +824,7 @@ class sphOpts(wx.Panel):
     def OnHKLChoice(self, e):
         """HKL selection"""
         self.idata = self.hkl_cho.GetSelection()
+        self.coms  = None
         self.update()
 
         return
@@ -849,6 +860,28 @@ class sphOpts(wx.Panel):
             pass
 
         dlg.Destroy()
+        
+        return
+
+    def OnLabelSpots(self, e):
+        """Run spots labeler"""
+        self.idata = self.hkl_cho.GetSelection()
+        p = self.GetParent()
+        
+        this_map = p.data.getData(self.idata)
+
+        threshold = self.cmPanel.cmin_val
+
+        structureNDI_label = numpy.array([[0,1,0],
+                                          [1,1,1],
+                                          [0,1,0]])
+        
+        labels, numSpots   = ndimage.label(this_map > threshold, structureNDI_label)
+        coms               = ndimage.measurements.center_of_mass(this_map, labels, numpy.arange(numpy.amax(labels)) + 1)
+        
+        self.coms = numpy.array(coms)
+
+        self.update()
 
         return
 
