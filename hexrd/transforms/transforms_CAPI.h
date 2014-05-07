@@ -54,6 +54,8 @@ static PyObject * makeOscillRotMat(PyObject * self, PyObject * args);
 
 static PyObject * makeRotMatOfExpMap(PyObject * self, PyObject * args);
 
+static PyObject * makeRotMatOfQuat(PyObject * self, PyObject * args);
+
 static PyObject * makeBinaryRotMat(PyObject * self, PyObject * args);
 
 static PyObject * makeEtaFrameRotMat(PyObject * self, PyObject * args);

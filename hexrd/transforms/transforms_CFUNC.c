@@ -490,6 +490,43 @@ void makeRotMatOfExpMap_cfunc(double * ePtr, double * rPtr)
   }
 }
 
+void makeRotMatOfQuat_cfunc(int nq, double * qPtr, double * rPtr)
+{
+  int i, j;
+  double c, s, phi, n[3]={0.0,0.0,0.0};
+  
+  for (i=0; i<nq; i++) {
+    phi = 2. * acos(qPtr[4*i+0]);
+    
+    if (phi > epsf) {
+      n[0] = (1. / sin(0.5*phi)) * qPtr[4*i+1];
+      n[1] = (1. / sin(0.5*phi)) * qPtr[4*i+2];
+      n[2] = (1. / sin(0.5*phi)) * qPtr[4*i+3];
+      
+      s = sin(phi);
+      c = cos(phi);
+      
+      rPtr[9*i+0] = c + n[0]*n[0]*(1. - c);
+      rPtr[9*i+1] = n[0]*n[1]*(1. - c) - n[2]*s;
+      rPtr[9*i+2] = n[0]*n[2]*(1. - c) + n[1]*s;
+      rPtr[9*i+3] = n[1]*n[0]*(1. - c) + n[2]*s; 
+      rPtr[9*i+4] = c + n[1]*n[1]*(1. - c);
+      rPtr[9*i+5] = n[1]*n[2]*(1. - c) - n[0]*s;
+      rPtr[9*i+6] = n[2]*n[0]*(1. - c) - n[1]*s;
+      rPtr[9*i+7] = n[2]*n[1]*(1. - c) + n[0]*s; 
+      rPtr[9*i+8] = c + n[2]*n[2]*(1. - c);
+    }
+    else {
+      for (j=0; j<9; i++) {
+	if ( j%4 == 0 )
+	  rPtr[9*i+j] = 1.0;
+	else
+	  rPtr[9*i+j] = 0.0;
+      }
+    }
+  }
+}
+
 void makeBinaryRotMat_cfunc(double * aPtr, double * rPtr)
 {
   int i, j;

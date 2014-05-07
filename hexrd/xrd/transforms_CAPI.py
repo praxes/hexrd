@@ -399,8 +399,17 @@ def makeOscillRotMat(oscillAngles):
 
 def makeRotMatOfExpMap(expMap):
     """
+    make a rotation matrix from an exponential map
     """
     return _transforms_CAPI.makeRotMatOfExpMap(expMap.flatten())
+
+def makeRotMatOfQuat(quat):
+    """
+    make rotation matrix from a unit quaternion
+
+    ...check to set if input is unit magnitude?
+    """
+    return _transforms_CAPI.makeRotMatOfQuat(quat)
 
 def makeBinaryRotMat(axis):
     return _transforms_CAPI.makeBinaryRotMat(axis.flatten())

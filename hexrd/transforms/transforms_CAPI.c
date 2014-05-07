@@ -25,6 +25,7 @@ static PyMethodDef _transform_methods[] = {
   {"makeDetectorRotMat",makeDetectorRotMat,METH_VARARGS,""},
   {"makeOscillRotMat",makeOscillRotMat,METH_VARARGS,""},
   {"makeRotMatOfExpMap",makeRotMatOfExpMap,METH_VARARGS,""},
+  {"makeRotMatOfQuat",makeRotMatOfQuat,METH_VARARGS,""},
   {"makeBinaryRotMat",makeBinaryRotMat,METH_VARARGS,""},
   {"makeEtaFrameRotMat",makeEtaFrameRotMat,METH_VARARGS,"Make eta basis COB matrix"},
   {"validateAngleRanges",validateAngleRanges,METH_VARARGS,""},
@@ -537,6 +538,45 @@ static PyObject * makeRotMatOfExpMap(PyObject * self, PyObject * args)
   /* Call the actual function */
   makeRotMatOfExpMap_cfunc(ePtr,rPtr);
 
+  return((PyObject*)rMat);
+}
+
+static PyObject * makeRotMatOfQuat(PyObject * self, PyObject * args)
+{
+  PyArrayObject *quat, *rMat;
+  int nq, ne, de;
+  npy_intp dims2[2]={3, 3}, dims3[3];
+  double *qPtr, *rPtr;
+
+  /* Parse arguments */
+  if ( !PyArg_ParseTuple(args,"O", &quat)) return(NULL);
+  if ( quat == NULL ) return(NULL);
+
+  /* Verify shape of input arrays */
+  de = PyArray_NDIM(quat);
+  if (de == 1) {
+    ne = PyArray_DIMS(quat)[0];
+    assert( ne == 4 );
+    nq = 1;
+    /* Allocate the result matrix with appropriate dimensions and type */
+    rMat = (PyArrayObject*)PyArray_EMPTY(2,dims2,NPY_DOUBLE,0);
+  } else {
+    assert( de == 2 );
+    nq = PyArray_DIMS(quat)[0];
+    ne = PyArray_DIMS(quat)[1];
+    assert( ne == 4 );
+    dims3[0] = nq; dims3[1] = 3; dims3[2] = 3; 
+    /* Allocate the result matrix with appropriate dimensions and type */
+    rMat = (PyArrayObject*)PyArray_EMPTY(3,dims3,NPY_DOUBLE,0);
+  }
+  
+  /* Grab pointers to the various data arrays */
+  qPtr = (double*)PyArray_DATA(quat);
+  rPtr = (double*)PyArray_DATA(rMat);
+  
+  /* Call the actual function */
+  makeRotMatOfQuat_cfunc(nq, qPtr, rPtr);
+  
   return((PyObject*)rMat);
 }
 

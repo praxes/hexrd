@@ -44,6 +44,8 @@ void makeOscillRotMat_cfunc(double * oPtr, double * rPtr);
 
 void makeRotMatOfExpMap_cfunc(double * ePtr, double * rPtr);
 
+void makeRotMatOfQuat_cfunc(int nq, double * qPtr, double * rPtr);
+
 void makeBinaryRotMat_cfunc(double * aPtr, double * rPtr);
 
 void makeEtaFrameRotMat_cfunc(double * bPtr, double * ePtr, double * rPtr);
