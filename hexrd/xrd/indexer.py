@@ -721,7 +721,7 @@ def paintGrid(quats, etaOmeMaps,
     # obselete # rMatsList = [rotMatOfQuat(quats[:, i]) for i in range(quats.shape[1])]
 
     multiProcMode = xrdbase.haveMultiProc and doMultiProc
-
+    
     if multiProcMode:
         nCPUs = nCPUs or xrdbase.dfltNCPU
         chunksize = min(quats.shape[1] // nCPUs, 10)
@@ -758,14 +758,17 @@ def paintGrid(quats, etaOmeMaps,
     etaOmeMaps_MP = etaOmeMaps.dataStore
     bMat_MP       = bMat
     threshold_MP  = threshold
-
+    
     # do the mapping
+    start = time.time()                      # time this
     retval = None
     if multiProcMode:
         pool = multiprocessing.Pool(nCPUs)
         retval = pool.map(paintGridThis, quats.T, chunksize=chunksize)
     else:
         retval = map(paintGridThis, quats.T)
+    elapsed = (time.time() - start)
+    print "paintGrid took %.3f seconds" % (elapsed)
 
     symHKLs_MP    = None
     wavelength_MP = None
