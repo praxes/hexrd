@@ -2994,61 +2994,67 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
                                            beamVec=bVec, etaVec=eVec)
             
             angList = num.hstack(oangs)                # stack two solutions (col vecs)
-            angList[1, :] = xf.mapAngle(angList[1, :]) # map etas
-            angList[2, :] = xf.mapAngle(angList[2, :]) # map omes
-            angList = angList.T
-            
-            # mask eta angles
-            angMask_eta = num.zeros(len(angList), dtype=bool)
-            for j in range(len(etaRanges)):
-                angMask_eta = num.logical_or(
-                    angMask_eta, xf.validateAngleRanges(angList[:, 1], etaRanges[j][0], etaRanges[j][1]))
-
-            # mask ome angles
-            angMask_ome = num.zeros(len(angList), dtype=bool)
-            for j in range(len(omeRanges)):
-                angMask_ome = num.logical_or(
-                    angMask_ome, xf.validateAngleRanges(angList[:, 2], omeRanges[j][0], omeRanges[j][1]))
-            
-            # import pdb;pdb.set_trace()
-            # join them
-            angMask = num.logical_and(angMask_eta, angMask_ome)
-            
-            culledTTh  = angList[angMask, 0]
-            culledEta  = angList[angMask, 1]
-            culledOme  = angList[angMask, 2]
-            
-            for iTTh in range(len(culledTTh)):
-                culledEtaIdx = num.where(etaEdges - culledEta[iTTh] > 0)[0]
-                if len(culledEtaIdx) > 0:
-                    culledEtaIdx = culledEtaIdx[0] - 1
-                    if culledEtaIdx < 0:
-                        culledEtaIdx = None
-                else:
-                    culledEtaIdx = None
-                culledOmeIdx = num.where(omeEdges - culledOme[iTTh] > 0)[0]
-                if len(culledOmeIdx) > 0:
-                    if delOmeSign > 0:
-                        culledOmeIdx = culledOmeIdx[0] - 1
-                    else:
-                        culledOmeIdx = culledOmeIdx[-1]
-                    if culledOmeIdx < 0:
-                        culledOmeIdx = None
-                else:
-                    culledOmeIdx = None
+            if not num.all(num.isnan(angList)):
+                angList[1, :] = xf.mapAngle(angList[1, :]) # map etas
+                angList[2, :] = xf.mapAngle(angList[2, :]) # map omes
+                angList = angList.T
                 
-                if culledEtaIdx is not None and culledOmeIdx is not None:
-                    if dpix_ome > 0 or dpix_eta > 0:
-                        i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
-                                                    num.arange(-dpix_eta, dpix_eta + 1))
-                        i_sup = omeIndices[culledOmeIdx] + num.array([i_dil.flatten()], dtype=int)
-                        j_sup = etaIndices[culledEtaIdx] + num.array([j_dil.flatten()], dtype=int)
-
-                        # catch shit that falls off detector... maybe make this fancy enough to wrap at 2pi?
-                        idx_mask = num.logical_and(num.logical_and(i_sup >= 0, i_sup < i_max),
-                                                   num.logical_and(j_sup >= 0, j_sup < j_max))                    
-                        eta_ome[ iHKL, i_sup[idx_mask], j_sup[idx_mask] ] = 1.
+                # mask eta angles
+                angMask_eta = num.zeros(len(angList), dtype=bool)
+                for j in range(len(etaRanges)):
+                    angMask_eta = num.logical_or(
+                        angMask_eta, xf.validateAngleRanges(angList[:, 1], etaRanges[j][0], etaRanges[j][1]))
+                
+                # mask ome angles
+                angMask_ome = num.zeros(len(angList), dtype=bool)
+                for j in range(len(omeRanges)):
+                    angMask_ome = num.logical_or(
+                        angMask_ome, xf.validateAngleRanges(angList[:, 2], omeRanges[j][0], omeRanges[j][1]))
+                
+                # import pdb;pdb.set_trace()
+                # join them
+                angMask = num.logical_and(angMask_eta, angMask_ome)
+                
+                culledTTh  = angList[angMask, 0]
+                culledEta  = angList[angMask, 1]
+                culledOme  = angList[angMask, 2]
+                
+                for iTTh in range(len(culledTTh)):
+                    culledEtaIdx = num.where(etaEdges - culledEta[iTTh] > 0)[0]
+                    if len(culledEtaIdx) > 0:
+                        culledEtaIdx = culledEtaIdx[0] - 1
+                        if culledEtaIdx < 0:
+                            culledEtaIdx = None
                     else:
-                        eta_ome[ iHKL, omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ] = 1.
+                        culledEtaIdx = None
+                    culledOmeIdx = num.where(omeEdges - culledOme[iTTh] > 0)[0]
+                    if len(culledOmeIdx) > 0:
+                        if delOmeSign > 0:
+                            culledOmeIdx = culledOmeIdx[0] - 1
+                        else:
+                            culledOmeIdx = culledOmeIdx[-1]
+                        if culledOmeIdx < 0:
+                            culledOmeIdx = None
+                    else:
+                        culledOmeIdx = None
+                    
+                    if culledEtaIdx is not None and culledOmeIdx is not None:
+                        if dpix_ome > 0 or dpix_eta > 0:
+                            i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
+                                                        num.arange(-dpix_eta, dpix_eta + 1))
+                            i_sup = omeIndices[culledOmeIdx] + num.array([i_dil.flatten()], dtype=int)
+                            j_sup = etaIndices[culledEtaIdx] + num.array([j_dil.flatten()], dtype=int)
+                
+                            # catch shit that falls off detector... maybe make this fancy enough to wrap at 2pi?
+                            idx_mask = num.logical_and(num.logical_and(i_sup >= 0, i_sup < i_max),
+                                                       num.logical_and(j_sup >= 0, j_sup < j_max))                    
+                            eta_ome[ iHKL, i_sup[idx_mask], j_sup[idx_mask] ] = 1.
+                        else:
+                            eta_ome[ iHKL, omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ] = 1.
+                            pass # close conditional on pixel dilation
+                        pass # close conditional on ranges
+                    pass # close for loop on valid reflections
+                pass # close conditional for valid angles
+            
             
     return eta_ome

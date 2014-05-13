@@ -851,86 +851,84 @@ def paintGridThis(quat):
     hklCounterP = 0                 # running count of excpected (predicted) HKLs
     hklCounterM = 0                 # running count of "hit" HKLs
     for iHKL in range(nHKLs):
-        # for control of tolerancing
+        # select and C-ify symmetric HKLs
         these_hkls = num.array(symHKLs[hklIDs[iHKL]].T, dtype=float, order='C')
         
         # oscillation angle arrays
-        oangs0, oangs1 = xfcapi.oscillAnglesOfHKLs(these_hkls, 0., rMat, bMat,
-                                                   wavelength, 
-                                                   beamVec=num.r_[ 0.,  0., -1.].T,
-                                                   etaVec=num.r_[ 1.,  0.,  0.].T)
-        
-        angList       = num.vstack([oangs0, oangs1])
-        angList[:, 1] = xf.mapAngle(angList[:, 1])
-        angList[:, 2] = xf.mapAngle(angList[:, 2])
-        
-        if omeMin is None:
-            omeMin = [-num.pi, ]
-            omeMax = [ num.pi, ]
-        if etaMin is None:
-            etaMin = [-num.pi, ]
-            etaMax = [ num.pi, ]
+        oangs   = xfcapi.oscillAnglesOfHKLs(these_hkls, 0., rMat, bMat, wavelength), 
+        angList = num.vstack(oangs)
+        if not num.all(num.isnan(angList)):
+            angList[:, 1] = xf.mapAngle(angList[:, 1])
+            angList[:, 2] = xf.mapAngle(angList[:, 2])
             
-        angMask = num.logical_and(
-            xf.validateAngleRanges(angList[:, 1], etaMin, etaMax),
-            xf.validateAngleRanges(angList[:, 2], omeMin, omeMax))
-        
-        allAngs_m = angList[angMask, :]
-        
-        # not output # # duplicate HKLs
-        # not output # allHKLs_m = num.vstack([these_hkls, these_hkls])[angMask, :]
-        
-        culledTTh  = allAngs_m[:, 0]
-        culledEta  = allAngs_m[:, 1]
-        culledOme  = allAngs_m[:, 2]
-        # not output # culledHKLs = allHKLs_m.T
-        
-        nThisPredRefl = len(culledTTh)
-        hklCounterP += nThisPredRefl
-        for iTTh in range(nThisPredRefl):
-            culledEtaIdx = num.where(etaEdges - culledEta[iTTh] > 0)[0]
-            if len(culledEtaIdx) > 0:
-                culledEtaIdx = culledEtaIdx[0] - 1
-                if culledEtaIdx < 0:
+            if omeMin is None:
+                omeMin = [-num.pi, ]
+                omeMax = [ num.pi, ]
+            if etaMin is None:
+                etaMin = [-num.pi, ]
+                etaMax = [ num.pi, ]
+                
+            angMask = num.logical_and(
+                xf.validateAngleRanges(angList[:, 1], etaMin, etaMax),
+                xf.validateAngleRanges(angList[:, 2], omeMin, omeMax))
+            
+            allAngs_m = angList[angMask, :]
+            
+            # not output # # duplicate HKLs
+            # not output # allHKLs_m = num.vstack([these_hkls, these_hkls])[angMask, :]
+            
+            culledTTh  = allAngs_m[:, 0]
+            culledEta  = allAngs_m[:, 1]
+            culledOme  = allAngs_m[:, 2]
+            # not output # culledHKLs = allHKLs_m.T
+            
+            nThisPredRefl = len(culledTTh)
+            hklCounterP += nThisPredRefl
+            for iTTh in range(nThisPredRefl):
+                culledEtaIdx = num.where(etaEdges - culledEta[iTTh] > 0)[0]
+                if len(culledEtaIdx) > 0:
+                    culledEtaIdx = culledEtaIdx[0] - 1
+                    if culledEtaIdx < 0:
+                        culledEtaIdx = None
+                else:
                     culledEtaIdx = None
-            else:
-                culledEtaIdx = None
-            culledOmeIdx = num.where(omeEdges - culledOme[iTTh] > 0)[0]
-            if len(culledOmeIdx) > 0:
-                if delOmeSign > 0:
-                    culledOmeIdx = culledOmeIdx[0] - 1
+                culledOmeIdx = num.where(omeEdges - culledOme[iTTh] > 0)[0]
+                if len(culledOmeIdx) > 0:
+                    if delOmeSign > 0:
+                        culledOmeIdx = culledOmeIdx[0] - 1
+                    else:
+                        culledOmeIdx = culledOmeIdx[-1]
+                    if culledOmeIdx < 0:
+                        culledOmeIdx = None
                 else:
-                    culledOmeIdx = culledOmeIdx[-1]
-                if culledOmeIdx < 0:
                     culledOmeIdx = None
-            else:
-                culledOmeIdx = None
-            
-            if culledEtaIdx is not None and culledOmeIdx is not None:
-                if dpix_ome > 0 or dpix_eta > 0:
-                    i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
-                                                num.arange(-dpix_eta, dpix_eta + 1))
-                    i_sup = omeIndices[culledOmeIdx] + num.array([i_dil.flatten()], dtype=int)
-                    j_sup = etaIndices[culledEtaIdx] + num.array([j_dil.flatten()], dtype=int)
-                    # catch shit that falls off detector... 
-                    # ...maybe make this fancy enough to wrap at 2pi?
-                    i_max, j_max = etaOmeMaps[iHKL].shape
-                    idx_mask = num.logical_and(num.logical_and(i_sup >= 0, i_sup < i_max),
-                                               num.logical_and(j_sup >= 0, j_sup < j_max))                    
-                    pixelVal = etaOmeMaps[iHKL][i_sup[idx_mask], j_sup[idx_mask]]
-                else:
-                    pixelVal = etaOmeMaps[iHKL][omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ]
-                isHit = num.any(pixelVal >= threshold[iHKL])
-                if isHit:
-                    hklCounterM += 1
+                
+                if culledEtaIdx is not None and culledOmeIdx is not None:
+                    if dpix_ome > 0 or dpix_eta > 0:
+                        i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
+                                                    num.arange(-dpix_eta, dpix_eta + 1))
+                        i_sup = omeIndices[culledOmeIdx] + num.array([i_dil.flatten()], dtype=int)
+                        j_sup = etaIndices[culledEtaIdx] + num.array([j_dil.flatten()], dtype=int)
+                        # catch shit that falls off detector... 
+                        # ...maybe make this fancy enough to wrap at 2pi?
+                        i_max, j_max = etaOmeMaps[iHKL].shape
+                        idx_mask = num.logical_and(num.logical_and(i_sup >= 0, i_sup < i_max),
+                                                   num.logical_and(j_sup >= 0, j_sup < j_max))                    
+                        pixelVal = etaOmeMaps[iHKL][i_sup[idx_mask], j_sup[idx_mask]]
+                    else:
+                        pixelVal = etaOmeMaps[iHKL][omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ]
+                    isHit = num.any(pixelVal >= threshold[iHKL])
+                    if isHit:
+                        hklCounterM += 1
+                        pass
                     pass
-                pass
-            # disabled # if debug:
-            # disabled #     print "hkl %d -->\t%d\t%d\t%d\t" % (iHKL, culledHKLs[0, iTTh], culledHKLs[1, iTTh], culledHKLs[2, iTTh]) + \
-            # disabled #           "isHit=%d\tpixel value: %g\n" % (isHit, pixelVal) + \
-            # disabled #           "eta index: %d,%d\tetaP: %g\n" % (culledEtaIdx, etaIndices[culledEtaIdx], r2d*culledEta[iTTh]) + \
-            # disabled #           "ome index: %d,%d\tomeP: %g\n" % (culledOmeIdx, omeIndices[culledOmeIdx], r2d*culledOme[iTTh])
-            # disabled #     pass
+                # disabled # if debug:
+                # disabled #     print "hkl %d -->\t%d\t%d\t%d\t" % (iHKL, culledHKLs[0, iTTh], culledHKLs[1, iTTh], culledHKLs[2, iTTh]) + \
+                # disabled #           "isHit=%d\tpixel value: %g\n" % (isHit, pixelVal) + \
+                # disabled #           "eta index: %d,%d\tetaP: %g\n" % (culledEtaIdx, etaIndices[culledEtaIdx], r2d*culledEta[iTTh]) + \
+                # disabled #           "ome index: %d,%d\tomeP: %g\n" % (culledOmeIdx, omeIndices[culledOmeIdx], r2d*culledOme[iTTh])
+                # disabled #     pass
+                pass # close conditional on valid reflections
             pass # close loop on signed reflections
         pass # close loop on HKL
     if hklCounterP == 0:

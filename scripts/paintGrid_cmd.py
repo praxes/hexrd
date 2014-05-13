@@ -174,7 +174,8 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
         coms     = []
         for i in seed_hkl_ids:
             labels_t, numSpots_t = ndimage.label(omeEta.dataStore[i] > threshold, structureNDI_label)
-            coms_t               = ndimage.measurements.center_of_mass(omeEta.dataStore[i], labels_t, range(np.amax(labels_t) + 1))
+            labels_list = np.arange(np.amax(labels_t)) + 1
+            coms_t = ndimage.measurements.center_of_mass(omeEta.dataStore[i], labels_t, labels_list)
             labels.append(labels_t)
             numSpots.append(numSpots_t)
             coms.append(coms_t)
@@ -198,14 +199,9 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
                     jj += fiber_ndiv
                     pass
                 pass
-            qfib.append(qfib_tmp)
+            qfib.append(mutil.uniqueVectors(qfib_tmp))
             pass
-        print "condensing quaternions..."
-        try:
-            qfib = mutil.uniqueVectors(np.hstack(qfib), tol=qTol)
-        except:
-            raise RuntimeError, "No seed points found (numSpots = 0)"
-    
+    qfib = np.hstack(qfib)
     print "Running paintGrid on %d orientations" % (qfib.shape[1])
     complPG = idx.paintGrid(qfib,
                             omeEta,
@@ -341,8 +337,8 @@ if __name__ == "__main__":
         seed_hkl_str = parser.get('paint_grid', 'hkl_seeds')
         seed_hkl_ids = np.array(seed_hkl_str.split(','), dtype=int)
         print "using the following for seed hkls:"
-        print np.r_[hkl_ids][seed_hkl_ids]
-    
+        # print np.r_[hkl_ids][seed_hkl_ids]
+        print pd.hkls[:, np.r_[hkl_ids][seed_hkl_ids]]
     # tolerances go in IN DEGREES 
     ome_tol      = parser.getfloat('paint_grid', 'ome_tol') 
     eta_tol      = parser.getfloat('paint_grid', 'eta_tol') 
