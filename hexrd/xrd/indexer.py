@@ -855,7 +855,7 @@ def paintGridThis(quat):
         these_hkls = num.array(symHKLs[hklIDs[iHKL]].T, dtype=float, order='C')
         
         # oscillation angle arrays
-        oangs   = xfcapi.oscillAnglesOfHKLs(these_hkls, 0., rMat, bMat, wavelength), 
+        oangs   = xfcapi.oscillAnglesOfHKLs(these_hkls, 0., rMat, bMat, wavelength)
         angList = num.vstack(oangs)
         if not num.all(num.isnan(angList)):
             angList[:, 1] = xf.mapAngle(angList[:, 1])

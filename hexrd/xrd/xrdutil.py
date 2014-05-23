@@ -91,6 +91,10 @@ debugDflt = False
 d2r = piby180 = num.pi/180.
 r2d = 1.0/d2r
 
+epsf      = num.finfo(float).eps # ~2.2e-16
+ten_epsf  = 10 * epsf            # ~2.2e-15
+sqrt_epsf = num.sqrt(epsf)       # ~1.5e-8
+
 class FormatEtaOme:
     'for plotting data as a matrix, with ijAsXY=True'
     def __init__(self, etas, omes, A, T=False, debug=False):
@@ -383,13 +387,13 @@ def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom,
                 planeData.makeTheseScatteringVectors(hklList, rMats[i, :, :], bMat=bMat, chiTilt=chiTilt)
     
         # filter using ome ranges
-        validAng0 = validateQVecAngles(qAng0[2, :], omeMin, omeMax)
-        validAng1 = validateQVecAngles(qAng1[2, :], omeMin, omeMax)
+        validAng0 = validateAngleRanges(qAng0[2, :], omeMin, omeMax)
+        validAng1 = validateAngleRanges(qAng1[2, :], omeMin, omeMax)
         
         # now eta (if applicable)
         if etaMM is not None:
-            validAng0 = num.logical_and( validAng0, validateQVecAngles(qAng0[1, :], etaMin, etaMax) )
-            validAng1 = num.logical_and( validAng1, validateQVecAngles(qAng1[1, :], etaMin, etaMax) )
+            validAng0 = num.logical_and( validAng0, validateAngleRanges(qAng0[1, :], etaMin, etaMax) )
+            validAng1 = num.logical_and( validAng1, validateAngleRanges(qAng1[1, :], etaMin, etaMax) )
 
         if num.any(qAng0[0, :] > detectorGeom.getTThMax()):
             # now test if it falls on the detector in "corners"
@@ -2825,43 +2829,96 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
         
     return stack # may be None
 
-def validateQVecAngles(angList, angMin, angMax):
-    angList = num.atleast_1d(angList)   # needs to have 'shape'
-    
-    angMin = num.atleast_1d(angMin)    # need to have len
-    angMax = num.atleast_1d(angMax)    # need to have len
-    
-    assert len(angMin) == len(angMax), "length of min and max angular limits must match!"
+def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
+    """
+    A better way to go.  find out if an angle is in the range 
+    CCW or CW from start to stop
 
+    There is, of course an ambigutiy if the start and stop angle are
+    the same; we treat them as implying 2*pi
+    """
+    angList   = num.atleast_1d(angList).flatten()   # needs to have len
+    startAngs = num.atleast_1d(startAngs).flatten() # needs to have len
+    stopAngs  = num.atleast_1d(stopAngs).flatten()  # needs to have len
+    
+    n_ranges = len(startAngs)
+    assert len(stopAngs) == n_ranges, "length of min and max angular limits must match!"
+
+    # to avoid warnings in >=, <= later down, mark nans;
+    # need these to trick output to False in the case of nan input
+    nan_mask = num.isnan(angList)
+    
     reflInRange = num.zeros(angList.shape, dtype=bool)
+    
+    # anonynmous func for zProjection
+    zProj = lambda x, y: num.cos(x) * num.sin(y) - num.sin(x) * num.cos(y)
+    
+    # bin length for chunking
+    binLen = num.pi / 2.
 
-    """
-    the algorithm won't work if the range is >= pi; therefore we have to pre-process
-    split up the ranges, and split them into chunks of, say, 90 degrees as necessary
-    """
-    angRange_l = []
-    for i in range(len(angMin)):
-        if abs(angMax[i] - angMin[i]) >= num.pi:
-            tmpRange = num.r_[num.arange(angMin[i], angMax[i], 0.5*num.pi), angMax[i]]
-            tmpRange = num.c_[tmpRange[:-1], tmpRange[1:]].tolist()
-            for j in range(len(tmpRange)):
-                angRange_l.append(tmpRange[j])
-        else:
-            angRange_l.append([angMin[i], angMax[i]])
-            pass
-        pass
-    for i in range(len(angRange_l)):
-        #
-        limVecMin = num.r_[num.cos(angRange_l[i][0]), num.sin(angRange_l[i][0])]
-        limVecMax = num.r_[num.cos(angRange_l[i][1]), num.sin(angRange_l[i][1])]
-        #
-        wedgeAngle = num.arccos( num.dot( limVecMin, limVecMax ) )
-        #
-        tVec = num.c_[ num.cos(angList), num.sin(angList) ]
-        #
-        dp = num.arccos( num.dot(tVec, limVecMin) ) + num.arccos( num.dot(tVec, limVecMax) )
-        #
-        reflInRange = reflInRange | ( abs(dp - wedgeAngle) <= num.sqrt(rot.tinyRotAng) )
+    # in plane vectors defining wedges
+    x0 = num.vstack([num.cos(startAngs), num.sin(startAngs)])
+    x1 = num.vstack([num.cos(stopAngs), num.sin(stopAngs)])
+    
+    # dot products
+    dp = num.sum(x0 * x1, axis=0)
+    if num.any(dp >= 1. - sqrt_epsf) and n_ranges > 1: 
+        # ambiguous case
+        raise RuntimeError, "Improper usage; at least one of your ranges is alread 360 degrees!"
+    elif dp[0] >= 1. - sqrt_epsf and n_ranges == 1:
+        # trivial case!
+        reflInRange = num.ones(angList.shape, dtype=bool)
+        reflInRange[nan_mask] = False
+    else:
+        # solve for arc lengths
+        # ...note: no zeros should have made it here
+        a   = x0[0, :]*x1[1, :] - x0[1, :]*x1[0, :]
+        b   = x0[0, :]*x1[0, :] + x0[1, :]*x1[1, :]
+        phi = num.arctan2(b, a)
+    
+        arclen = 0.5*num.pi - phi          # these are clockwise
+        cw_phis = arclen < 0
+        arclen[cw_phis] = 2*num.pi + arclen[cw_phis]   # all positive (CW) now
+        if not ccw:
+            arclen= 2*num.pi - arclen
+
+        if sum(arclen) > 2*num.pi:
+            raise RuntimeWarning, "Specified angle ranges sum to > 360 degrees, which is suspect..."
+        
+        # check that there are no more thandp = num.zeros(n_ranges)
+        for i in range(n_ranges):
+            # number or subranges using 'binLen'
+            numSubranges = int(num.ceil(arclen[i]/binLen))
+
+            # check remaider
+            binrem = num.remainder(arclen[i], binLen)
+            if binrem == 0:
+                finalBinLen = binLen
+            else:
+                finalBinLen = binrem
+            
+            # if clockwise, negate bin length
+            if not ccw:
+                 binLen      = -binLen
+                 finalBinLen = -finalBinLen
+
+            # Create sub ranges on the fly to avoid ambiguity in dot product
+            # for wedges >= 180 degrees
+            subRanges = num.array(\
+                [startAngs[i] + binLen*j for j in range(numSubranges)] + \
+                    [startAngs[i] + binLen*(numSubranges - 1) + finalBinLen])
+
+            for k in range(numSubranges):
+                zStart = zProj(angList, subRanges[k])
+                zStop  = zProj(angList, subRanges[k + 1])
+                if ccw:
+                    zStart[nan_mask] =  999.
+                    zStop[nan_mask]  = -999.
+                    reflInRange = reflInRange | num.logical_and(zStart <= 0, zStop >= 0)
+                else:
+                    zStart[nan_mask] = -999.
+                    zStop[nan_mask]  =  999.
+                    reflInRange = reflInRange | num.logical_and(zStart >= 0, zStop <= 0)            
     return reflInRange
 
 def tVec_d_from_old_parfile(old_par, detOrigin):
@@ -3003,13 +3060,13 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
                 angMask_eta = num.zeros(len(angList), dtype=bool)
                 for j in range(len(etaRanges)):
                     angMask_eta = num.logical_or(
-                        angMask_eta, xf.validateAngleRanges(angList[:, 1], etaRanges[j][0], etaRanges[j][1]))
+                        angMask_eta, validateAngleRanges(angList[:, 1], etaRanges[j][0], etaRanges[j][1]))
                 
                 # mask ome angles
                 angMask_ome = num.zeros(len(angList), dtype=bool)
                 for j in range(len(omeRanges)):
                     angMask_ome = num.logical_or(
-                        angMask_ome, xf.validateAngleRanges(angList[:, 2], omeRanges[j][0], omeRanges[j][1]))
+                        angMask_ome, validateAngleRanges(angList[:, 2], omeRanges[j][0], omeRanges[j][1]))
                 
                 # import pdb;pdb.set_trace()
                 # join them

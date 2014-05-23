@@ -92,13 +92,19 @@ def initialize_experiment(cfg_file):
         fileInfo.append( ( os.path.join(image_dir, image_filename), parser.getint('reader', 'nempty') ) )
     ome_start = parser.getfloat('reader', 'ome_start') * d2r
     ome_delta = parser.getfloat('reader', 'ome_delta') * d2r
-    dark      = os.path.join(image_dir, parser.get('reader', 'dark')) 
-    doFlip    = parser.getboolean('reader', 'doFlip')
-    flipArg   = parser.get('reader', 'flipArg')
+    darkName  = parser.get('reader', 'dark')
+    if darkName.strip() == '':
+        dark         = None
+        subtractDark = False
+    else:
+        dark = os.path.join(image_dir, darkName) 
+        subtractDark = True
+    doFlip  = parser.getboolean('reader', 'doFlip')
+    flipArg = parser.get('reader', 'flipArg')
     
     # make frame reader
     reader   = ReadGE(fileInfo, ome_start, ome_delta,
-                      subtractDark=True, dark=dark,
+                      subtractDark=subtractDark, dark=dark,
                       doFlip=doFlip, flipArg=flipArg)
     
     # DETECTOR
@@ -155,8 +161,8 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
 
     if useGrid is not None:
         try:
-            qfib = np.loadtxt(useGrid).T
             print "loading quaternion grid file: %s" % (useGrid)
+            qfib = np.loadtxt(useGrid).T
         except:
             raise RuntimeError, "unable to load quaternion grid file"
     else:
@@ -201,7 +207,7 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
                 pass
             qfib.append(mutil.uniqueVectors(qfib_tmp))
             pass
-    qfib = np.hstack(qfib)
+        qfib = np.hstack(qfib)
     print "Running paintGrid on %d orientations" % (qfib.shape[1])
     complPG = idx.paintGrid(qfib,
                             omeEta,
@@ -332,6 +338,7 @@ if __name__ == "__main__":
     use_qgrid    = parser.getboolean('paint_grid', 'use_qgrid')
     if use_qgrid:
         qgrid_file = parser.get('paint_grid', 'qgrid_file')
+        print "using the file '%s' for quaternion search" % (qgrid_file)
     else:
         qgrid_file = None
         seed_hkl_str = parser.get('paint_grid', 'hkl_seeds')

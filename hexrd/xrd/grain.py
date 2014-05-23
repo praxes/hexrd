@@ -38,8 +38,10 @@ import hexrd.xrd.rotations as rot
 import hexrd.xrd.symmetry as sym
 import hexrd.xrd.crystallography as xtl # latticeParameters, latticeVectors, getFriedelPair
 from hexrd import xrd
-from hexrd.xrd.xrdutil import calculateBiotStrain, makeMeasuredScatteringVectors, validateQVecAngles
+from hexrd.xrd.xrdutil import calculateBiotStrain, makeMeasuredScatteringVectors
 from hexrd.matrixutil import columnNorm
+
+from hexrd.xrd import transforms as xf
 
 # constants
 r2d = 180./num.pi
@@ -591,15 +593,15 @@ class Grain(object):
         for iHKL, tThTol in enumerate(tThTols):
 
             # filter using ome ranges
-            reflInRange0 = validateQVecAngles(predQAng0[iHKL][2, :], omeMin, omeMax)
-            reflInRange1 = validateQVecAngles(predQAng1[iHKL][2, :], omeMin, omeMax)
+            reflInRange0 = xf.validateAngleRanges(predQAng0[iHKL][2, :], omeMin, omeMax)
+            reflInRange1 = xf.validateAngleRanges(predQAng1[iHKL][2, :], omeMin, omeMax)
 
             # DEBUGGING # import pdb;pdb.set_trace()
 
             # now eta (if applicable)
             if etaMin is not None:
-                reflInRange0 = num.logical_and( reflInRange0, validateQVecAngles(predQAng0[iHKL][1, :], etaMin, etaMax) )
-                reflInRange1 = num.logical_and( reflInRange1, validateQVecAngles(predQAng1[iHKL][1, :], etaMin, etaMax) )
+                reflInRange0 = num.logical_and( reflInRange0, xf.validateAngleRanges(predQAng0[iHKL][1, :], etaMin, etaMax) )
+                reflInRange1 = num.logical_and( reflInRange1, xf.validateAngleRanges(predQAng1[iHKL][1, :], etaMin, etaMax) )
 
             if num.any(predQAng0[iHKL][0, :] > self.refTThMax):
                 # now test if it falls on the detector in "corners"
