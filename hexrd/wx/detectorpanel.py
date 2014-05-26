@@ -795,8 +795,8 @@ class detectorPanel(wx.Panel):
         return
 
     def OnCheck_ct(self, e):
-        """xc box is checked"""
-        print "checking chiTilt has effect yet"
+        """chiTilt box is checked"""
+        print "checking chiTilt has no effect yet"
         fc   = self.float_ct
 
         stat = e.IsChecked()

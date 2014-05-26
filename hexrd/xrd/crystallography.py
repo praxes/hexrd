@@ -962,178 +962,102 @@ class PlaneData(object):
         retval = PlaneData.makeScatteringVectors(fHKLs, rMat, bMat, wavelength, chiTilt=chiTilt)
         return retval
     @staticmethod
-    def makeScatteringVectors(hkls, rMat, bMat, wavelength, chiTilt=None):
+    def makeScatteringVectors(hkls, rMat_c, bMat, wavelength, chiTilt=None):
         """
         modeled after QFromU.m
         """
-
+        
         # basis vectors
-        Xl = num.vstack([1, 0, 0])          # X in the lab frame
-        Yl = num.vstack([0, 1, 0])          # Y in the lab frame
-        Zl = num.vstack([0, 0, 1])          # Z in the lab frame
-
-        chiRotMat = num.eye(3)
-        if chiTilt is not None:
-            chiRotMat = rotMatOfExpMap(chiTilt*Xl)
-
-        # projection operators
-        Pxy = num.eye(3) - num.dot(Zl, Zl.T)    # xy-plane
-        Pxz = num.eye(3) - num.dot(Yl, Yl.T)    # xz-plane
-
+        bHat_l = num.c_[ 0.,  0., -1.].T 
+        eHat_l = num.c_[ 1.,  0.,  0.].T
+        
         zTol = 1.0e-7                       # zero tolerance for checking vectors
-
-        Qs_vec  = []
-        Qs_ang0 = []
-        Qs_ang1 = []
-
-        # grab invariants of rMat
-        phi, n = angleAxisOfRotMat(rMat)
-
-        # these are the scattering vectors in the CRYSTAL FRAME
-        Qc = num.dot( bMat, hkls )
-
-        dummy, nRefl = Qc.shape
-        assert dummy == 3, "Looks like something is wrong with your lattice plane normals son!"
-
-        Qc_mag = columnNorm(Qc)
-        Qc_hat = unitVector(Qc)
-
-        # construct bragg angle
-        dSpacing = 1. / Qc_mag
-        tht      = num.arcsin( wavelength / 2. / dSpacing  )
-
-        # move to sample frame
-        Qs_hat = num.dot(chiRotMat, num.dot(rMat.squeeze(), Qc_hat))
-
-        # first find Q's that can satisfy the bragg condition
-        dtplus  = num.dot( Yl.T, Qs_hat)
-        dtminus = num.dot(-Yl.T, Qs_hat)
-
-        keepers = ( (dtplus  <= (num.cos(tht) - zTol)) & (dtplus  >= 0.0) ) | \
-                  ( (dtminus <= (num.cos(tht) - zTol)) & (dtminus >= 0.0) )
-
-        bangOn  = ( (dtplus  > (num.cos(tht) - zTol)) & (dtplus  <= (num.cos(tht) + zTol)) ) | \
-                  ( (dtminus > (num.cos(tht) - zTol)) & (dtminus <= (num.cos(tht) + zTol)) )
-
-        if nRefl == 1:
-            keepers = keepers.reshape(1) # these guys can diffract
-            bangOn  = bangOn.reshape(1)  # these guys are tangent to the cone
-        else:
-            keepers = keepers.squeeze()  # these guys can diffract
-            bangOn  = bangOn.squeeze()   # these guys are tangent to the cone
-            pass
-
-        #############################################################################
-        # MUST CALCULATE CORRESPONDING ANGULAR COORDINATES
-        #
-        # After some algebra, the equation can be reduced to something of the form:
-        #
-        #                       a*sin(x) + b*cos(x) = c
-        #
-        # which has two unique solutions UNLESS Qs happens to be tangent to the cone.
-        # In that case, x is a double root.
-        cphi = num.cos(phi)
-        sphi = num.sin(phi)
+        
+        gVec_s = []
+        oangs0 = []
+        oangs1 = []
+        
+        # these are the reciprocal lattice vectors in the CRYSTAL FRAME
+        # ** NOTE **
+        #   if strained, assumes that you handed it a bMat calculated from
+        #   strained [a, b, c]
+        gVec_c = num.dot( bMat, hkls )
+        gHat_c = unitVector(gVec_c)
+                
+        dim0, nRefl = gVec_c.shape
+        assert dim0 == 3, "Looks like something is wrong with your lattice plane normals son!"
+        
+        # extract 1/dspacing and sin of bragg angle
+        dSpacingi = columnNorm(gVec_c).flatten()
+        sintht    = 0.5 * wavelength * dSpacingi
+        
+        # move reciprocal lattice vectors to sample frame
+        gHat_s = num.dot(rMat_c.squeeze(), gHat_c)
+        
         if chiTilt is None:
             cchi = 1.
             schi = 0.
+            rchi = num.eye(3)
         else:
             cchi = num.cos(chiTilt)
             schi = num.sin(chiTilt)
+            rchi = num.array([[   1.,    0.,    0.],
+                              [   0.,  cchi, -schi],
+                              [   0.,  schi,  cchi]])
             pass
-        nchi = num.c_[0, cchi, schi].T
-        Pchi = num.eye(3) - num.dot(nchi, nchi.T)
+        
+        a =  cchi * gHat_s[0, :]
+        b = -cchi * gHat_s[2, :]
+        c =  schi * gHat_s[1, :] - sintht
+        
+        # form solution
+        abMag    = num.sqrt(a*a + b*b); assert num.all(abMag > 0), "Beam vector specification is infealible!"
+        phaseAng = num.arctan2(b, a)
+        rhs      = c / abMag; rhs[abs(rhs) > 1.] = num.nan
+        rhsAng   = num.arcsin(rhs) 
+        
+        # write ome angle output arrays (NaNs persist here)
+        ome0 =          rhsAng - phaseAng
+        ome1 = num.pi - rhsAng - phaseAng
+        
+        goodOnes_s = -num.isnan(ome0)
+        
+        eta0 = num.nan * num.ones_like(ome0)
+        eta1 = num.nan * num.ones_like(ome1)
+        
+        # mark feasible reflections
+        goodOnes   = num.tile(goodOnes_s, (1, 2)).flatten()
+        
+        numGood_s  = sum(goodOnes_s)
+        numGood    = 2 * numGood_s
+        tmp_eta    = num.empty(numGood)
+        tmp_gvec   = num.tile(gHat_c, (1, 2))[:, goodOnes]
+        allome     = num.hstack([ome0, ome1])
 
-        # a = cchi * ( n[0]**2   * (cphi - 1) - cphi      ) * Qc_hat[0, :] \
-        #          + ( n[0]*n[1] * (cphi - 1) + sphi*n[2] ) * Qc_hat[1, :] \
-        #          + ( n[0]*n[2] * (cphi - 1) - sphi*n[1] ) * Qc_hat[2, :]
-        #
-        # b = cchi * ( n[0]*n[2] * (1 - cphi) - sphi*n[1] ) * Qc_hat[0, :] \
-        #          + ( n[1]*n[2] * (1 - cphi) + sphi*n[0] ) * Qc_hat[1, :] \
-        #          + ( n[2]**2   * (1 - cphi) + cphi      ) * Qc_hat[2, :]
-        #
-        # c = num.sin(tht) \
-        #         - schi * ( ( (1 - cphi)*n[0]*n[1] + sphi*n[2] ) * Qc_hat[0, :] \
-        #                  + ( (1 - cphi)*n[1]**2   + cphi      ) * Qc_hat[1, :] \
-        #                  + ( (1 - cphi)*n[1]*n[2] - sphi*n[0] ) * Qc_hat[2, :] )
+        for i in range(numGood):
+            come = num.cos(allome[goodOnes][i])
+            some = num.sin(allome[goodOnes][i])
+            rome = num.array([[ come,    0.,  some],
+                              [   0.,    1.,    0.],
+                              [-some,    0.,  come]])
+            rMat_s = num.dot(rchi, rome) 
+    	    gVec_l = num.dot(rMat_s,
+                       num.dot(rMat_c, tmp_gvec[:, i].reshape(3, 1)
+                       ) )
+            tmp_eta[i] = num.arctan2(gVec_l[1], gVec_l[0])
+            pass
+        eta0[goodOnes_s] = tmp_eta[:numGood_s]
+        eta1[goodOnes_s] = tmp_eta[numGood_s:]
 
-        a = -cchi * Qs_hat[0, :]
-        b =  cchi * Qs_hat[2, :]
-        c =  num.sin(tht) - schi * Qs_hat[1, :]
+        # make assoc tTh array
+        tTh  = 2.*num.arcsin(sintht).flatten()
+        tTh0 = tTh; tTh0[-goodOnes_s] = num.nan
 
-        onesNRefl = num.ones(nRefl)
+        gVec_s = num.tile(dSpacingi, (3, 1)) * gHat_s
+        oangs0 = num.vstack([tTh0.flatten(), eta0.flatten(), ome0.flatten()])
+        oangs1 = num.vstack([tTh0.flatten(), eta1.flatten(), ome1.flatten()])
 
-        ome0 = num.nan * onesNRefl
-        ome1 = num.nan * onesNRefl
-        eta0 = num.nan * onesNRefl
-        eta1 = num.nan * onesNRefl
-        for iRefl in range(nRefl):
-            if keepers[iRefl]:
-                abDist = num.sqrt(a[iRefl]*a[iRefl] + b[iRefl]*b[iRefl])
-                abAngl = num.arctan2(b[iRefl], a[iRefl])
-                cdAngl = num.arcsin( c[iRefl] / abDist )
-
-                ome0[iRefl] = float( mapAngle( cdAngl - abAngl, units='radians' ) )
-                ome1[iRefl] = float( mapAngle( num.pi - cdAngl - abAngl, units='radians' ) )
-            elif bangOn[iRefl]:
-                # ... needs checking
-                if chiTilt is not None and chiTilt !=0:
-                    qxz_p = unitVector( num.dot(Pchi, Qs_hat[:,iRefl]).reshape(3, 1) )
-                    Zl_p  = unitVector( num.dot(Pchi, Zl).reshape(3, 1) )
-                    if abs(qxz_p[0] > zTol):
-                        tmp = -qxz_p[0] / abs(qxz_p[0]) * arccosSafe(qxz_p[-1])
-                    else:
-                        tmp = arccosSafe(qxz_p[-1])
-                else:
-                    qxz = unitVector( Qs_hat[[0,2],iRefl].reshape(2, 1) )
-                    if abs(qxz[0]) > zTol:
-                        tmp = -qxz[0] / abs(qxz[0]) * arccosSafe(qxz[1])
-                    else:
-                        tmp = arccosSafe(qxz[1])
-                        pass
-                    pass
-
-                tmp = float( mapAngle( tmp, units='radians' ) )
-
-                # trick ome range filter into selecting just one...
-                ome0[iRefl] = tmp
-                ome1[iRefl] = tmp + 2*num.pi
-                pass # close conditional on bangOn reflections
-            if not num.isnan(ome0[iRefl]):
-                # MUST NORMALIZE projected vectors to use arccosSafe!
-                cOme0 = num.cos(ome0[iRefl])
-                sOme0 = num.sin(ome0[iRefl])
-                cOme1 = num.cos(ome1[iRefl])
-                sOme1 = num.sin(ome1[iRefl])
-
-                # get X-Y projections in lab frame
-                qxy0 = unitVector( num.vstack([
-                    cOme0*Qs_hat[0,iRefl] + sOme0*Qs_hat[2,iRefl],
-                    schi*sOme0*Qs_hat[0,iRefl] + cchi*Qs_hat[1,iRefl] - schi*cOme0*Qs_hat[2,iRefl]]
-                                              ) )
-                qxy1 = unitVector( num.vstack([
-                    cOme1*Qs_hat[0,iRefl] + sOme1*Qs_hat[2,iRefl],
-                    schi*sOme1*Qs_hat[0,iRefl] + cchi*Qs_hat[1,iRefl] - schi*cOme1*Qs_hat[2,iRefl]]
-                                              ) )
-                # eta0
-                if abs(qxy0[1]) > zTol:
-                    eta0[iRefl] = qxy0[1] / abs(qxy0[1]) * arccosSafe(qxy0[0])
-                else:
-                    eta0[iRefl] = arccosSafe(qxy0[0])
-                    pass
-                # eta1
-                if abs(qxy1[1]) > zTol:
-                    eta1[iRefl] = qxy1[1] / abs(qxy1[1]) * arccosSafe(qxy1[0])
-                else:
-                    eta1[iRefl] = arccosSafe(qxy1[0])
-                    pass
-                pass # close conditional on ome0
-            pass # close loop on nrefl
-        Qs_vec  = num.tile(1./dSpacing, (3, 1)) * Qs_hat
-        Qs_ang0 = num.vstack([2*tht, eta0, ome0])
-        Qs_ang1 = num.vstack([2*tht, eta1, ome1])
-
-        return Qs_vec, Qs_ang0, Qs_ang1
+        return gVec_s, oangs0, oangs1
 
     def __makeScatteringVectors(self, rMat, bMat=None, chiTilt=None):
         """
@@ -1233,7 +1157,7 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
 
     dispFlag  = False
     fableFlag = False
-    chiTilt   = None
+    chi       = None
     c1        = 1.
     c2        = pi/180.
     zTol      = 1.e-7
@@ -1253,7 +1177,7 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     ome0 = num.asarray(ome0)
 
     if eta0.ndim != 1:
-        raise RuntimeError, 'your azimutal input was not 1-D, so I do not know what you expect me to do'
+        raise RuntimeError, 'your azimuthal input was not 1-D, so I do not know what you expect me to do'
 
     npts = len(eta0)
 
@@ -1278,9 +1202,6 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
             raise RuntimeError('your oscialltion angle input is inconsistent; ' \
                                + 'it has length %d while it should be %d' % (len(ome0), npts) )
 
-    ome1 = num.nan*num.ones(npts)
-    eta1 = num.nan*num.ones(npts)
-
     # keyword args processing
     kwarglen = len(kwargs)
     if kwarglen > 0:
@@ -1297,7 +1218,7 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
                     c2 = 1.
             elif argkeys[i] == 'chiTilt':
                 if kwargs[argkeys[i]] is not None:
-                    chiTilt = kwargs[argkeys[i]]
+                    chi = kwargs[argkeys[i]]
 
     # a little talkback...
     if dispFlag:
@@ -1317,9 +1238,11 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     #   - the others are in whatever was entered, hence c2
     eta0  = d2r*eta0
     tht0  = c2*tth0/2
-    if chiTilt is not None:
-        chiTilt = c2*chiTilt
-
+    if chi is not None:
+        chi = c2*chi
+    else:
+        chi = 0
+    
     # ---------------------
     # SYSTEM SOLVE
     #
@@ -1339,68 +1262,68 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     #
     # must use both branches for sin(x) = n: x = u (+ 2k*pi) | x = pi - u (+ 2k*pi)
     #
-    cEta0 = num.cos(eta0)
-    sEta0 = num.sin(eta0)
-    cTht0 = num.cos(tht0)
-    sTht0 = num.sin(tht0)
-    if chiTilt is None or chiTilt == 0:
-        cChi  = 1.
-        cChi2 = 1.
-        sChi  = 0.
-        sChi2 = 0.
-        s2Chi = 0.
-    else:
-        cChi  = num.cos(chiTilt)
-        cChi2 = cChi**2
-        sChi  = num.sin(chiTilt)
-        sChi2 = sChi**2
-        s2Chi = num.sin(2*chiTilt)
+    cchi = num.cos(chi);     schi = num.sin(chi)
+    ceta = num.cos(eta0);    seta = num.sin(eta0)
+    ctht = num.cos(tht0);    stht = num.sin(tht0)
+
+    rchi = num.array([[   1.,    0.,    0.],
+                      [   0.,  cchi, -schi],
+                      [   0.,  schi,  cchi]])
+
+    gHat0_l = num.vstack([ceta * ctht,
+                          seta * ctht,
+                          stht])
+    
+    a =  cchi * ceta * ctht
+    b = -cchi * stht
+    c =  stht + schi * seta * ctht
+
+    # form solution
+    abMag    = num.sqrt(a*a + b*b); assert num.all(abMag > 0), "Beam vector specification is infealible!"
+    phaseAng = num.arctan2(b, a)
+    rhs      = c / abMag; rhs[abs(rhs) > 1.] = num.nan
+    rhsAng   = num.arcsin(rhs) 
+    
+    # write ome angle output arrays (NaNs persist here)
+    ome1 =          rhsAng - phaseAng
+    ome2 = num.pi - rhsAng - phaseAng
+
+    ome1 = mapAngle(ome1, [-num.pi, num.pi], units='radians')
+    ome2 = mapAngle(ome2, [-num.pi, num.pi], units='radians')
+    
+    ome_stack = num.vstack([ome1, ome2])
+
+    min_idx = num.argmin(abs(ome_stack), axis=0)
+
+    ome_min = ome_stack[min_idx, range(len(ome1))]
+    eta_min = num.nan * num.ones_like(ome_min)
+    
+    # mark feasible reflections
+    goodOnes = -num.isnan(ome_min)
+    
+    numGood  = sum(goodOnes)
+    tmp_eta  = num.empty(numGood)
+    tmp_gvec = gHat0_l[:, goodOnes]
+    for i in range(numGood):
+        come = num.cos(ome_min[goodOnes][i])
+        some = num.sin(ome_min[goodOnes][i])
+        rome = num.array([[ come,    0.,  some],
+                          [   0.,    1.,    0.],
+                          [-some,    0.,  come]])
+        rMat_s = num.dot(rchi, rome) 
+        gHat_l = num.dot(rMat_s, tmp_gvec[:, i].reshape(3, 1))
+        tmp_eta[i] = num.arctan2(gHat_l[1], gHat_l[0])
         pass
-
-    a = cChi*cEta0*cTht0
-    b = (0.5*s2Chi*sEta0*cTht0 - cChi2*sTht0)
-    c = (1 + sChi2)*sTht0 + 0.5*s2Chi*sEta0*cTht0
-
-    agt0 = a >= 0
-    alt0 = a <  0
-
-    ome1[agt0] =      num.arcsin( c[agt0] / num.sqrt(a[agt0]**2 + b[agt0]**2) ) - num.arctan2(b[agt0], a[agt0])
-    ome1[alt0] = pi - num.arcsin( c[alt0] / num.sqrt(a[alt0]**2 + b[alt0]**2) ) - num.arctan2(b[alt0], a[alt0])
-
-    # if chiTilt isn't 0 (None) then the solution for eta1 is not trivial
-    if chiTilt is not None and chiTilt != 0:
-        cOme1 = num.cos(ome1)
-        sOme1 = num.sin(ome1)
-        qxy = unitVector( -num.vstack(
-            [ cTht0*cEta0*cOme1 - cTht0*sEta0*sOme1*sChi + sTht0*sOme1*cChi,
-              cTht0*cEta0*sOme1*sChi + cTht0*sEta0*(cChi2 + cOme1*sChi2) + sTht0*(1 - cOme1)*sChi*cChi ] ) )
-
-        eta1 = qxy[1, :] / abs(qxy[1, :]) * arccosSafe(qxy[0, :]) * r2d
-
-        if fableFlag:
-            eta1  =  90 - eta1
-            pass
-    else:
-        eta1 = r2d*eta0
-        if fableFlag:
-            eta1  = 270 - eta1
-        else:
-            eta1  = 180 + eta1
-            pass
-        pass
+    eta_min[goodOnes] = tmp_eta
 
     # everybody back to DEGREES!
     #     - ome1 is in RADIANS here
     #     - convert and put into [-180, 180]
-    ome1 = mapAngle( mapAngle(r2d*ome1, [-180, 180], units='degrees') + c1*ome0, [-180, 180], units='degrees')
-
-    # DEBUGGING # qfs = num.vstack([num.cos(d2r*eta1)*cTht0, num.sin(d2r*eta1)*cTht0, sTht0])
-    # DEBUGGING # rsd = num.dot(qfs.T, num.c_[0,0,1].T) - sTht0
-    # DEBUGGING # print rsd, num.min(rsd[-num.isnan(rsd)])
-
+    ome1 = mapAngle( mapAngle(r2d*ome_min, [-180, 180], units='degrees') + c1*ome0, [-180, 180], units='degrees')
+    
     # put eta1 in [-180, 180]
-    eta1 = mapAngle(eta1, [-180, 180], units='degrees')
-
+    eta1 = mapAngle(r2d*eta_min, [-180, 180], units='degrees')
+    
     if not outputDegrees:
         ome1 = d2r * ome1
         eta1 = d2r * eta1
