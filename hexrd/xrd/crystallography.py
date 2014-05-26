@@ -966,34 +966,34 @@ class PlaneData(object):
         """
         modeled after QFromU.m
         """
-        
+
         # basis vectors
-        bHat_l = num.c_[ 0.,  0., -1.].T 
+        bHat_l = num.c_[ 0.,  0., -1.].T
         eHat_l = num.c_[ 1.,  0.,  0.].T
-        
+
         zTol = 1.0e-7                       # zero tolerance for checking vectors
-        
+
         gVec_s = []
         oangs0 = []
         oangs1 = []
-        
+
         # these are the reciprocal lattice vectors in the CRYSTAL FRAME
         # ** NOTE **
         #   if strained, assumes that you handed it a bMat calculated from
         #   strained [a, b, c]
         gVec_c = num.dot( bMat, hkls )
         gHat_c = unitVector(gVec_c)
-                
+
         dim0, nRefl = gVec_c.shape
         assert dim0 == 3, "Looks like something is wrong with your lattice plane normals son!"
-        
+
         # extract 1/dspacing and sin of bragg angle
         dSpacingi = columnNorm(gVec_c).flatten()
         sintht    = 0.5 * wavelength * dSpacingi
-        
+
         # move reciprocal lattice vectors to sample frame
         gHat_s = num.dot(rMat_c.squeeze(), gHat_c)
-        
+
         if chiTilt is None:
             cchi = 1.
             schi = 0.
@@ -1005,29 +1005,29 @@ class PlaneData(object):
                               [   0.,  cchi, -schi],
                               [   0.,  schi,  cchi]])
             pass
-        
+
         a =  cchi * gHat_s[0, :]
         b = -cchi * gHat_s[2, :]
         c =  schi * gHat_s[1, :] - sintht
-        
+
         # form solution
         abMag    = num.sqrt(a*a + b*b); assert num.all(abMag > 0), "Beam vector specification is infealible!"
         phaseAng = num.arctan2(b, a)
         rhs      = c / abMag; rhs[abs(rhs) > 1.] = num.nan
-        rhsAng   = num.arcsin(rhs) 
-        
+        rhsAng   = num.arcsin(rhs)
+
         # write ome angle output arrays (NaNs persist here)
         ome0 =          rhsAng - phaseAng
         ome1 = num.pi - rhsAng - phaseAng
-        
+
         goodOnes_s = -num.isnan(ome0)
-        
+
         eta0 = num.nan * num.ones_like(ome0)
         eta1 = num.nan * num.ones_like(ome1)
-        
+
         # mark feasible reflections
         goodOnes   = num.tile(goodOnes_s, (1, 2)).flatten()
-        
+
         numGood_s  = sum(goodOnes_s)
         numGood    = 2 * numGood_s
         tmp_eta    = num.empty(numGood)
@@ -1040,7 +1040,7 @@ class PlaneData(object):
             rome = num.array([[ come,    0.,  some],
                               [   0.,    1.,    0.],
                               [-some,    0.,  come]])
-            rMat_s = num.dot(rchi, rome) 
+            rMat_s = num.dot(rchi, rome)
     	    gVec_l = num.dot(rMat_s,
                        num.dot(rMat_c, tmp_gvec[:, i].reshape(3, 1)
                        ) )
@@ -1241,8 +1241,8 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     if chi is not None:
         chi = c2*chi
     else:
-        chi = 0
-    
+        chi = 0.
+
     # ---------------------
     # SYSTEM SOLVE
     #
@@ -1266,52 +1266,47 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     ceta = num.cos(eta0);    seta = num.sin(eta0)
     ctht = num.cos(tht0);    stht = num.sin(tht0)
 
-    rchi = num.array([[   1.,    0.,    0.],
-                      [   0.,  cchi, -schi],
-                      [   0.,  schi,  cchi]])
+    nchi = num.c_[0., cchi, schi].T
 
     gHat0_l = num.vstack([ceta * ctht,
                           seta * ctht,
                           stht])
-    
+
     a =  cchi * ceta * ctht
-    b = -cchi * stht
-    c =  stht + schi * seta * ctht
+    b = -cchi * schi * seta * ctht + schi * schi * stht - stht
+    c =  stht + cchi * schi * seta * ctht + schi * schi * stht
 
     # form solution
     abMag    = num.sqrt(a*a + b*b); assert num.all(abMag > 0), "Beam vector specification is infealible!"
     phaseAng = num.arctan2(b, a)
     rhs      = c / abMag; rhs[abs(rhs) > 1.] = num.nan
-    rhsAng   = num.arcsin(rhs) 
-    
+    rhsAng   = num.arcsin(rhs)
+
     # write ome angle output arrays (NaNs persist here)
     ome1 =          rhsAng - phaseAng
     ome2 = num.pi - rhsAng - phaseAng
 
     ome1 = mapAngle(ome1, [-num.pi, num.pi], units='radians')
     ome2 = mapAngle(ome2, [-num.pi, num.pi], units='radians')
-    
+
     ome_stack = num.vstack([ome1, ome2])
 
     min_idx = num.argmin(abs(ome_stack), axis=0)
 
     ome_min = ome_stack[min_idx, range(len(ome1))]
     eta_min = num.nan * num.ones_like(ome_min)
-    
+
     # mark feasible reflections
     goodOnes = -num.isnan(ome_min)
-    
+
     numGood  = sum(goodOnes)
     tmp_eta  = num.empty(numGood)
     tmp_gvec = gHat0_l[:, goodOnes]
     for i in range(numGood):
         come = num.cos(ome_min[goodOnes][i])
         some = num.sin(ome_min[goodOnes][i])
-        rome = num.array([[ come,    0.,  some],
-                          [   0.,    1.,    0.],
-                          [-some,    0.,  come]])
-        rMat_s = num.dot(rchi, rome) 
-        gHat_l = num.dot(rMat_s, tmp_gvec[:, i].reshape(3, 1))
+        rchi = rotMatOfExpMap( num.tile(ome_min[goodOnes][i], (3, 1)) * nchi )
+        gHat_l = num.dot(rchi, tmp_gvec[:, i].reshape(3, 1))
         tmp_eta[i] = num.arctan2(gHat_l[1], gHat_l[0])
         pass
     eta_min[goodOnes] = tmp_eta
@@ -1320,10 +1315,10 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     #     - ome1 is in RADIANS here
     #     - convert and put into [-180, 180]
     ome1 = mapAngle( mapAngle(r2d*ome_min, [-180, 180], units='degrees') + c1*ome0, [-180, 180], units='degrees')
-    
+
     # put eta1 in [-180, 180]
     eta1 = mapAngle(r2d*eta_min, [-180, 180], units='degrees')
-    
+
     if not outputDegrees:
         ome1 = d2r * ome1
         eta1 = d2r * eta1
@@ -1336,4 +1331,3 @@ def getDparms(lp, lpTag, radians=True):
     """
     latVecOps = latticeVectors(lp, tag=lpTag, radians=radians)
     return latVecOps['dparms']
-
