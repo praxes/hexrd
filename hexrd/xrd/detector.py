@@ -1187,7 +1187,7 @@ class ReadGE(Framer2DRC):
         else:
             retval = self.dark
         return retval
-    def read(self, nskip=0, nframes=1, sumImg=False):
+    def read(self, nskip=0, nframes=1, sumImg=False, mask=None):
         """
         sumImg can be set to True or to something like numpy.maximum
         """
@@ -1236,7 +1236,9 @@ class ReadGE(Framer2DRC):
             if self.mask is not None:
                 if self.getFrameUseMask():
                     thisframe[self.mask] = 0
-
+            elif self.mask is None and mask is not None:
+                thisframe[mask] = 0
+            
             # assign output
             if sumImg:
                 if sumImgCallable:

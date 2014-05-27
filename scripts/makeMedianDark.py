@@ -56,3 +56,4 @@ if __name__ == "__main__":
                               filename=os.path.join(outputDir, outputName+'.'+fileSuffix), 
                               nbytesHeader=8192)
     fw.write(darkFrame)
+    fw.close()
