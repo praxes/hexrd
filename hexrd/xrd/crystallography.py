@@ -1241,7 +1241,7 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     if chi is not None:
         chi = c2*chi
     else:
-        chi = 0.
+        chi = 0
 
     # ---------------------
     # SYSTEM SOLVE
@@ -1272,9 +1272,9 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
                           seta * ctht,
                           stht])
 
-    a =  cchi * ceta * ctht
-    b = -cchi * schi * seta * ctht + schi * schi * stht - stht
-    c =  stht + cchi * schi * seta * ctht + schi * schi * stht
+    a = cchi*ceta*ctht
+    b = cchi*schi*seta*ctht + schi*schi*stht - stht
+    c = stht + cchi*schi*seta*ctht + schi*schi*stht
 
     # form solution
     abMag    = num.sqrt(a*a + b*b); assert num.all(abMag > 0), "Beam vector specification is infealible!"
