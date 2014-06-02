@@ -552,7 +552,10 @@ class ReadGeneric(Framer2DRC):
 
         self.img = None
         if self.filename is not None:
-            self.img = open(self.filename, mode='rb')
+            if self.filename.split('.') == 'bz2':
+                self.img = bz2.BZ2File(self.filename, mode='rb')
+            else:
+                self.img = open(self.filename, mode='rb')
             # skip header for now
             self.img.seek(self.__nbytes_header, 0)
             if self.__nempty > 0:

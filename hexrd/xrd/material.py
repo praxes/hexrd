@@ -51,9 +51,9 @@ degrees   = lambda x: valWUnit('lp', 'angle',   x, 'degrees')
 class Material(object):
     """Simple class for holding lattice parameters, accessible by name.
 
-The class references materials by name and contains lattice and
-space group data.
-"""
+    The class references materials by name and contains lattice and
+    space group data.
+    """
     DFLT_NAME   = 'material'
     DFLT_SGNUM  = 230
     DFLT_LPARMS = [angstroms(1.0), angstroms(1.0), angstroms(1.0),
@@ -70,7 +70,7 @@ space group data.
         name -- (str) name of material
         cfgP -- (instance) configuration file parser with
              -- the material name as a section
-"""
+        """
         #
         self.name = name
         self.description = ''

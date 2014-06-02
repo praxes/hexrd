@@ -55,11 +55,11 @@ def initialize_experiment(cfg_file):
     """
     parser = SafeConfigParser()
     parser.read(cfg_file)
-    
+
     hexrd_root = parser.get('base', 'hexrd_root')
-    
+
     # make experiment
-    ws = expt.Experiment(cfgFile=os.path.join(hexrd_root, "hexrd/data/materials.cfg"), 
+    ws = expt.Experiment(cfgFile=os.path.join(hexrd_root, "hexrd/data/materials.cfg"),
                          matFile=os.path.join(hexrd_root, "hexrd/data/all_materials.cfg"))
 
     working_dir = parser.get('base', 'working_dir')
@@ -72,11 +72,11 @@ def initialize_experiment(cfg_file):
     ws.loadMaterialList(os.path.join(working_dir, materials_fname))
     ws.activeMaterial = material_name
     print "setting active material to '%s'" % (material_name)
-    
+
     pd = ws.activeMaterial.planeData
 
     image_dir = parser.get('reader', 'image_dir')
-    
+
     # number of files ASSUMING SEQUENTIAL SCAN NUMBERS
     file_start  = parser.getint('reader', 'file_start')
     file_stop   = parser.getint('reader', 'file_stop')
@@ -97,19 +97,19 @@ def initialize_experiment(cfg_file):
         dark         = None
         subtractDark = False
     else:
-        dark = os.path.join(image_dir, darkName) 
+        dark = os.path.join(image_dir, darkName)
         subtractDark = True
     doFlip  = parser.getboolean('reader', 'doFlip')
     flipArg = parser.get('reader', 'flipArg')
-    
+
     # make frame reader
     reader   = ReadGE(fileInfo, ome_start, ome_delta,
                       subtractDark=subtractDark, dark=dark,
                       doFlip=doFlip, flipArg=flipArg)
-    
+
     # DETECTOR
     ws.loadDetector(os.path.join(working_dir, detector_fname))
-    
+
     return pd, reader, ws.detector
 
 def make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=None):
@@ -133,27 +133,27 @@ def make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=None
             raise RuntimeError, "output specifier must be a string or file"
     return omeEta
 
-def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv, 
-                  omeTol=None, etaTol=None, 
+def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
+                  omeTol=None, etaTol=None,
                   omeRange=None, etaRange=None,
-                  qTol=1e-7, 
-                  doMultiProc=True, nCPUs=multiprocessing.cpu_count(), 
+                  qTol=1e-7,
+                  doMultiProc=True, nCPUs=multiprocessing.cpu_count(),
                   useGrid=None):
     """
     wrapper for indexer.paintGrid
     """
     del_ome = omeEta.omegas[1] - omeEta.omegas[0]
     del_eta = omeEta.etas[1] - omeEta.etas[0]
-    
+
     # tolerances in degrees...  I know, pathological
     if omeTol is None:
         omeTol = 360. / float(fiber_ndiv)
     if etaTol is None:
         etaTol = 360. / float(fiber_ndiv)
-    
+
     # must be consistent
     pd_hkl_ids = omeEta.iHKLList[seed_hkl_ids]
-    
+
     tTh  = pd.getTTh()
     bMat = pd.latVecOps['B']
     csym = pd.getLaueGroup()
@@ -171,7 +171,7 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
                 [1,1,1],
                 [0,1,0]
                 ])
-        qfib = [] 
+        qfib = []
         ii = 0
         jj = fiber_ndiv
         print "labeling maps..."
@@ -180,8 +180,7 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
         coms     = []
         for i in seed_hkl_ids:
             labels_t, numSpots_t = ndimage.label(omeEta.dataStore[i] > threshold, structureNDI_label)
-            labels_list = np.arange(np.amax(labels_t)) + 1
-            coms_t = ndimage.measurements.center_of_mass(omeEta.dataStore[i], labels_t, labels_list)
+            coms_t = np.atleast_2d(ndimage.center_of_mass(omeEta.dataStore[i], labels_t))
             labels.append(labels_t)
             numSpots.append(numSpots_t)
             coms.append(coms_t)
@@ -189,17 +188,17 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
 
         # second pass for generation
         print "generating quaternions..."
-        qfib_tmp = np.empty((4, fiber_ndiv*sum(numSpots)))           
+        qfib_tmp = np.empty((4, fiber_ndiv*sum(numSpots)))
         for i in range(len(pd_hkl_ids)):
             for ispot in range(numSpots[i]):
                 if not np.isnan(coms[i][ispot][0]):
-                    ome_c = omeEta.omeEdges[0] + coms[i][ispot][0]*del_ome
-                    eta_c = omeEta.etaEdges[0] + coms[i][ispot][1]*del_eta
-                    
+                    ome_c = omeEta.omeEdges[0] + (0.5 + coms[i][ispot][0])*del_ome
+                    eta_c = omeEta.etaEdges[0] + (0.5 + coms[i][ispot][1])*del_eta
+
                     gVec_s = xrdutil.makeMeasuredScatteringVectors(tTh[pd_hkl_ids[i]], eta_c, ome_c)
-                    
-                    qfib_tmp[:, ii:jj] = rot.discreteFiber(pd.hkls[:, pd_hkl_ids[i]].reshape(3, 1), 
-                                                           gVec_s, B=bMat, ndiv=fiber_ndiv, 
+
+                    qfib_tmp[:, ii:jj] = rot.discreteFiber(pd.hkls[:, pd_hkl_ids[i]].reshape(3, 1),
+                                                           gVec_s, B=bMat, ndiv=fiber_ndiv,
                                                            invert=False, csym=csym)[0]
                     ii  = jj
                     jj += fiber_ndiv
@@ -218,7 +217,7 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
                             nCPUs=nCPUs)
     return complPG, qfib
 
-def run_cluster(complPG, qfib, qsym, 
+def run_cluster(complPG, qfib, qsym,
                 cl_radius=cl_radius, min_compl=min_compl):
     """
     """
@@ -233,11 +232,11 @@ def run_cluster(complPG, qfib, qsym,
     quatDistance = lambda x, y: xfcapi.quat_distance(np.array(x, order='C'), \
                                                      np.array(y, order='C'), \
                                                      qsym)
-    
+
     qfib_r = qfib[:, np.r_[complPG] > min_compl]
-    
+
     print "Feeding %d orientations above %.1f%% to clustering" % (qfib_r.shape[1], 100*min_compl)
-    
+
     if haveScikit:
         print "Using scikit..."
         pdist = pairwise_distances(qfib_r.T, Y=None, metric=quatDistance, n_jobs=-2)
@@ -246,16 +245,16 @@ def run_cluster(complPG, qfib, qsym,
     else:
         print "Using fclusterdata with a tolerance of %f degrees..." % (cl_radius)
         cl = cluster.hierarchy.fclusterdata(qfib_r.T, d2r*cl_radius, criterion='distance', metric=quatDistance)
-        
+
     nblobs = len(np.unique(cl))
-    
+
     qbar = np.zeros((4, nblobs))
     for i in range(nblobs):
         npts = sum(cl == i + 1)
         qbar[:, i] = mutil.unitVector(
             np.sum(qfib[:, np.r_[complPG] > min_compl][:, cl == i + 1].reshape(4, npts), axis=1).reshape(4, 1)).flatten()
     elapsed = (time.clock() - start)
-    
+
     print "clustering took %f seconds" % (elapsed)
     return qbar, cl
 
@@ -263,7 +262,7 @@ if __name__ == "__main__":
     cfg_filename = sys.argv[1]
     out_filename = sys.argv[2]
     hkl_ids = np.array(sys.argv[3:], dtype=int)
-    
+
     print "Using cfg file '%s'" % (cfg_filename)
 
     parser = SafeConfigParser()
@@ -272,21 +271,21 @@ if __name__ == "__main__":
     # output for eta-ome maps as pickles
     working_dir   = parser.get('base', 'working_dir')
     analysis_name = parser.get('base', 'analysis_name')
-     
-    eta_ome_filename = os.path.join(working_dir, 
+
+    eta_ome_filename = os.path.join(working_dir,
                                     analysis_name + '-eta_ome.cpl')
-    
+
     pd, reader, detector = initialize_experiment(cfg_filename)
-    
+
     if len(hkl_ids) == 0:
         hkl_ids = range(pd.hkls.shape[1])
         print "hkl ids not specified; grabbing from materials file..."
         print hkl_ids
-        
+
     # some ome-eta parameters
     threshold   = parser.getfloat('ome_eta', 'threshold')
     nframesLump = parser.getint('ome_eta', 'nframesLump')
-    
+
     # load stored maps ("if possible")
     load_maps_str = parser.get('ome_eta', 'load_maps')
     save_maps_str = parser.get('ome_eta', 'save_maps')
@@ -328,7 +327,7 @@ if __name__ == "__main__":
                 raise RuntimeWarning, "can't open output file; skipping save"
         # if you got here, make the maps
         ome_eta = make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=eta_ome_out)
-    
+
     # more parameters
     seed_hkl_ids = [0,]
     threshold_pg = parser.getfloat('paint_grid', 'threshold')
@@ -346,30 +345,30 @@ if __name__ == "__main__":
         print "using the following for seed hkls:"
         # print np.r_[hkl_ids][seed_hkl_ids]
         print pd.hkls[:, np.r_[hkl_ids][seed_hkl_ids]]
-    # tolerances go in IN DEGREES 
-    ome_tol      = parser.getfloat('paint_grid', 'ome_tol') 
-    eta_tol      = parser.getfloat('paint_grid', 'eta_tol') 
+    # tolerances go in IN DEGREES
+    ome_tol      = parser.getfloat('paint_grid', 'ome_tol')
+    eta_tol      = parser.getfloat('paint_grid', 'eta_tol')
     restrict_eta = parser.getfloat('paint_grid', 'restrict_eta')
 
     etaRange = None
     if restrict_eta > 0:
         eta_del = d2r*abs(restrict_eta)
-        etaRange = [[-0.5*np.pi + eta_del, 0.5*np.pi - eta_del], 
+        etaRange = [[-0.5*np.pi + eta_del, 0.5*np.pi - eta_del],
                     [ 0.5*np.pi + eta_del, 1.5*np.pi - eta_del]]
         print "eta ranges restricted to:"
         print r2d*np.array(etaRange)
     else:
         print "using full eta range"
-    
+
     if ncpus.strip() == '':
         ncpus = multiprocessing.cpu_count()
     else:
         ncpus = int(ncpus)
-    compl, qfib = run_paintGrid(pd, ome_eta, seed_hkl_ids, threshold_pg, fiber_ndiv, 
+    compl, qfib = run_paintGrid(pd, ome_eta, seed_hkl_ids, threshold_pg, fiber_ndiv,
                                 omeTol=ome_tol, etaTol=eta_tol, etaRange=etaRange,
-                                qTol=1e-7, 
-                                doMultiProc=multiproc, 
-                                nCPUs=ncpus, 
+                                qTol=1e-7,
+                                doMultiProc=multiproc,
+                                nCPUs=ncpus,
                                 useGrid=qgrid_file)
 
     cl_radius = parser.getfloat('clustering', 'cl_radius')
@@ -381,23 +380,23 @@ if __name__ == "__main__":
         qbar = qfib[:, np.r_[compl] > min_compl]
     else:
         qbar, cl = run_cluster(compl, qfib, pd.getQSym(), cl_radius=cl_radius, min_compl=min_compl)
-    
+
     # SAVE OUTPUT
     np.savetxt(os.path.join(working_dir, out_filename), qbar.T, fmt="%1.12e", delimiter="\t")
-    
+
     # import matplotlib.pyplot as plt
     # from mpl_toolkits.mplot3d import Axes3D
     # from hexrd.xrd import rotations as rot
-    # 
+    #
     # fig = plt.figure()
     # ax = fig.add_subplot(111, projection='3d')
     # phis, ns = rot.angleAxisOfRotMat(rot.rotMatOfQuat(qfib[:, np.r_[compl] > min_compl]))
     # rod = np.tile(np.tan(0.5*phis), (3, 1)) * ns
     # ax.scatter(rod[0, :], rod[1, :], rod[2, :], c='r', marker='o')
-    # 
+    #
     # phis, ns = rot.angleAxisOfRotMat(rot.rotMatOfQuat(qbar))
     # rod = np.tile(np.tan(0.5*phis), (3, 1)) * ns
     # ax.scatter(rod[0, :], rod[1, :], rod[2, :], c='b', marker='*')
-    # 
+    #
     # plt.show()
     pass
