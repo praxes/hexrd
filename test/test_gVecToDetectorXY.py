@@ -71,7 +71,7 @@ xy1 = xf.gvecToDetectorXY(gVec_c1,rMat_d,rMat_s,rMat_c,tVec_d,tVec_s,tVec_c,beam
 elapsed3 = (time.clock() - start3)
 print "Time for Python gvecToDetectorXY: %f"%(elapsed3)
 
-maxDiff_xy = np.linalg.norm(np.sqrt(np.sum(np.asarray(XY-xy1.T)**2,1)),np.inf)
+maxDiff_xy = np.linalg.norm(np.sqrt(np.sum(np.asarray(XY-xy1)**2,1)),np.inf)
 print "Maximum disagreement in gVec: %f"%maxDiff_xy
 
 start4 = time.clock()                      # time this

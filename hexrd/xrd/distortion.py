@@ -1,6 +1,11 @@
 import numpy as np
 from scipy import optimize as opt
 
+def dummy(xy_in, params, invert=False):
+    """
+    """
+    return xy_in
+
 def GE_41RT(xy_in, params, invert=False):
     """
     Apply radial distortion to polar coordinates on GE detector

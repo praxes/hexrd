@@ -186,7 +186,7 @@ def gvecToDetectorXY(gVec_c,
         # put feasible transformed gVecs into return array
         retval[:, canDiffract] = P2_d
         pass
-    return retval[:2, :]
+    return retval[:2, :].T
 
 def detectorXYToGvec(xy_det,
                      rMat_d, rMat_s,

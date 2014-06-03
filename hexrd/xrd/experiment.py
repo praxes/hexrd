@@ -322,49 +322,12 @@ class Experiment(object):
         for iG in loop_idx:
             #
             # this grain
+            #
             grain = self.grainList[iG]
-            #
-            # useful locals
-            q   = ROT.quatOfRotMat(grain.rMat)
-            R   = grain.rMat
-            V   = grain.vMat
-            FnT = inv(numpy.dot(V, R)).T
-            E   = logm(V)
-            Es  = logm(grain.uMat)
-            lp  = grain.latticeParameters
-            p   = grain.detectorGeom.pVec
-            #
-            # the output
-            print >> fid, '\n#####################\n#### grain %d\n' % (iG) + \
-                  '\n#    orientation:\n#\n' + \
-                  '#    q = [%1.6e, %1.6e, %1.6e, %1.6e]\n#\n' % (q[0], q[1], q[2], q[3]) + \
-                  '#    R = [[%1.3e, %1.3e, %1.3e],\n' % (R[0, 0], R[0, 1], R[0, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e],\n' % (R[1, 0], R[1, 1], R[1, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e]]\n' % (R[2, 0], R[2, 1], R[2, 2]) + \
-                  '#\n#    left stretch tensor:\n#\n' + \
-                  '#    V = [[%1.3e, %1.3e, %1.3e],\n' % (V[0, 0], V[0, 1], V[0, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e],\n' % (V[1, 0], V[1, 1], V[1, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e]]\n' % (V[2, 0], V[2, 1], V[2, 2]) + \
-                  '#\n#    logarithmic strain tensor (log(V) --> sample frame):\n#\n' + \
-                  '#    E = [[%1.3e, %1.3e, %1.3e],\n' % (E[0, 0], E[0, 1], E[0, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e],\n' % (E[1, 0], E[1, 1], E[1, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e]]\n' % (E[2, 0], E[2, 1], E[2, 2]) + \
-                  '#\n#    logarithmic strain tensor (log(U) --> crystal frame):\n#\n' + \
-                  '#    E = [[%1.3e, %1.3e, %1.3e],\n' % (Es[0, 0], Es[0, 1], Es[0, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e],\n' % (Es[1, 0], Es[1, 1], Es[1, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e]]\n' % (Es[2, 0], Es[2, 1], Es[2, 2]) + \
-                  '#\n#    F^-T ( hkl --> (Xs, Ys, Zs), reciprocal lattice to sample frame ):\n#\n' + \
-                  '#        [[%1.3e, %1.3e, %1.3e],\n' % (FnT[0, 0], FnT[0, 1], FnT[0, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e],\n' % (FnT[1, 0], FnT[1, 1], FnT[1, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e]]\n' % (FnT[2, 0], FnT[2, 1], FnT[2, 2]) + \
-                  '#\n#    lattice parameters:\n#\n' + \
-                  '#    %g, %g, %g, %g, %g, %g\n' % tuple(numpy.hstack([lp[:3], r2d*numpy.r_[lp[3:]]])) + \
-                  '#\n#    COM coordinates (Xs, Ys, Zs):\n' +\
-                  '#    p = (%g, %g, %g)\n' % (p[0], p[1], p[2]) + \
-                  '#\n#    reflection table:'
+            print >> fid, '\n#####################\n# grain %d\n# ' % (iG) 
             s1, s2, s3 = grain.findMatches(etaTol=etaTol, omeTol=omeTol, strainMag=dspTol,
                                            updateSelf=True, claimingSpots=True, doFit=doFit, filename=fid)
-            print >> fid, '#\n#    final completeness for grain %d: %g%%\n' % (iG, grain.completeness*100) + \
+            print >> fid, '#\n#  final completeness for grain %d: %g%%\n' % (iG, grain.completeness*100) + \
                   '#####################\n'
             pass
 

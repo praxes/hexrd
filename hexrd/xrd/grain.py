@@ -29,17 +29,22 @@ import sys, os
 import copy
 
 import numpy as num
-from scipy import optimize
-from scipy.linalg import inv, qr, svd
+
+from scipy                 import optimize
+from scipy.linalg          import inv, qr, svd
+from scipy.linalg.matfuncs import logm
+
+from hexrd import valunits
 
 import hexrd.matrixutil as mUtil
-from hexrd import valunits
-import hexrd.xrd.rotations as rot
-import hexrd.xrd.symmetry as sym
-import hexrd.xrd.crystallography as xtl # latticeParameters, latticeVectors, getFriedelPair
 from hexrd import xrd
+
+import hexrd.xrd.rotations       as rot
+import hexrd.xrd.symmetry        as sym
+import hexrd.xrd.crystallography as xtl # latticeParameters, latticeVectors, getFriedelPair
+
 from hexrd.xrd.xrdutil import calculateBiotStrain, makeMeasuredScatteringVectors
-from hexrd.matrixutil import columnNorm
+from hexrd.matrixutil  import columnNorm
 
 from hexrd.xrd import transforms as xf
 
@@ -471,8 +476,7 @@ class Grain(object):
                     doFit=False,
                     filename=None,
                     ):
-
-
+        
         writeOutput=False
 
         if self.uncertainties:
@@ -864,7 +868,52 @@ class Grain(object):
             elif isinstance(filename, str):
                 fid = open(filename, 'w')
             convMeasXYO = num.array([1,1,r2d])
-            print >> fid, '#\tspotID\thklID' + \
+            # useful locals
+            B    = self.planeData.latVecOps['B']
+            wlen = self.planeData.wavelength
+            q    = rot.quatOfRotMat(self.rMat)
+            R    = self.rMat
+            V    = self.vMat
+            FnT  = inv(num.dot(V, R)).T
+            E    = logm(V)
+            Es   = logm(self.uMat)
+            lp   = self.latticeParameters
+            p    = self.detectorGeom.pVec
+            #
+            # the output
+            print >> fid, '#\n# *******crystallography data*******\n' + \
+              '#\n#  wavelength: \n#\n#    lambda = %1.12e\n' % (wlen) + \
+              '#\n#  reference B matrix:\n#\n' + \
+              '#    B = [[%1.7e, %1.7e, %1.7e],\n' % (B[0, 0], B[0, 1], B[0, 2]) + \
+              '#         [%1.7e, %1.7e, %1.7e],\n' % (B[1, 0], B[1, 1], B[1, 2]) + \
+              '#         [%1.7e, %1.7e, %1.7e]]\n' % (B[2, 0], B[2, 1], B[2, 2]) + \
+              '#\n#  orientation:\n#\n' + \
+              '#    q = [%1.6e, %1.6e, %1.6e, %1.6e]\n#\n' % (q[0], q[1], q[2], q[3]) + \
+              '#    R = [[%1.7e, %1.7e, %1.7e],\n' % (R[0, 0], R[0, 1], R[0, 2]) + \
+              '#         [%1.7e, %1.7e, %1.7e],\n' % (R[1, 0], R[1, 1], R[1, 2]) + \
+              '#         [%1.7e, %1.7e, %1.7e]]\n' % (R[2, 0], R[2, 1], R[2, 2]) + \
+              '#\n#  left stretch tensor:\n#\n' + \
+              '#    V = [[%1.7e, %1.7e, %1.7e],\n' % (V[0, 0], V[0, 1], V[0, 2]) + \
+              '#         [%1.7e, %1.7e, %1.7e],\n' % (V[1, 0], V[1, 1], V[1, 2]) + \
+              '#         [%1.7e, %1.7e, %1.7e]]\n' % (V[2, 0], V[2, 1], V[2, 2]) + \
+              '#\n#  logarithmic strain tensor (log(V) --> sample frame):\n#\n' + \
+              '#    E_s = [[%1.7e, %1.7e, %1.7e],\n' % (E[0, 0], E[0, 1], E[0, 2]) + \
+              '#           [%1.7e, %1.7e, %1.7e],\n' % (E[1, 0], E[1, 1], E[1, 2]) + \
+              '#           [%1.7e, %1.7e, %1.7e]]\n' % (E[2, 0], E[2, 1], E[2, 2]) + \
+              '#\n#  logarithmic strain tensor (log(U) --> crystal frame):\n#\n' + \
+              '#    E_c = [[%1.7e, %1.7e, %1.7e],\n' % (Es[0, 0], Es[0, 1], Es[0, 2]) + \
+              '#           [%1.7e, %1.7e, %1.7e],\n' % (Es[1, 0], Es[1, 1], Es[1, 2]) + \
+              '#           [%1.7e, %1.7e, %1.7e]]\n' % (Es[2, 0], Es[2, 1], Es[2, 2]) + \
+              '#\n#  F^-T ( hkl --> (Xs, Ys, Zs), reciprocal lattice to sample frame ):\n#\n' + \
+              '#    F^-T = [[%1.7e, %1.7e, %1.7e],\n' % (FnT[0, 0], FnT[0, 1], FnT[0, 2]) + \
+              '#            [%1.7e, %1.7e, %1.7e],\n' % (FnT[1, 0], FnT[1, 1], FnT[1, 2]) + \
+              '#            [%1.7e, %1.7e, %1.7e]]\n' % (FnT[2, 0], FnT[2, 1], FnT[2, 2]) + \
+              '#\n#  lattice parameters:\n#\n' + \
+              '#    %g, %g, %g, %g, %g, %g\n' % tuple(num.hstack([lp[:3], r2d*num.r_[lp[3:]]])) + \
+              '#\n#  COM coordinates (Xs, Ys, Zs):\n' +\
+              '#\n#    p = (%1.4e, %1.4e, %1.4e)\n' % (p[0], p[1], p[2]) + \
+              '#\n#  reflection table:'            
+            print >> fid, '# spotID\thklID' + \
                           '\tH \tK \tL ' + \
                           '\tpredTTh \tpredEta \tpredOme ' + \
                           '\tmeasTTh \tmeasEta \tmeasOme ' + \
@@ -879,7 +928,7 @@ class Grain(object):
                     measAnglesString = '%1.12e\t%1.12e\t%1.12e\t' % tuple(r2d*reflInfo['measAngles'][i])
                     measXYOString    = '%1.12e\t%1.12e\t%1.12e' % tuple(reflInfo['measXYO'][i]*convMeasXYO)
 
-                print >> fid, '\t%d\t' % (reflInfo['iRefl'][i]) + \
+                print >> fid, '%d\t' % (reflInfo['iRefl'][i]) + \
                               '%d\t' % (reflInfo['iHKL'][i]) + \
                               '%d\t%d\t%d\t' % tuple(reflInfo['hkl'][i]) + \
                               '%1.12e\t%1.12e\t%1.12e\t' % tuple(r2d*reflInfo['predAngles'][i]) + \
@@ -1309,7 +1358,7 @@ class Grain(object):
         # print results
         if display:
             lp = num.array(self.latticeParameters)
-            print >> fout, 'final objective function value: %1.3e\n' % (sum(infodict['fvec']**2))
+            print >> fout, 'final objective function value: %1.4e\n' % (sum(infodict['fvec']**2))
             print >> fout, 'refined orientation: \n' + \
                   '[%1.12e, %1.12e, %1.12e, %1.12e]\n' % (q1[0], q1[1], q1[2], q1[3])
             print >> fout, 'refined biot strain matrix: \n' + \
