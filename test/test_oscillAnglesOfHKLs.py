@@ -17,7 +17,7 @@ hkls    = np.ascontiguousarray(gtable[idx, 2:5])
 # input parameters
 wavelength = 0.153588                     # Angstroms (80.725keV)
 
-chi    = -0.0011591608938627839
+chi    = -0.00051591608938627839
 
 bMat = np.array( [ [  2.10048731e-01,   0.00000000e+00,   0.00000000e+00],
                    [  1.21271692e-01,   2.42543383e-01,   0.00000000e+00],
@@ -27,6 +27,10 @@ rMat_c = xf.makeRotMatOfExpMap(np.array( [ [ 0.66931818],
                                            [-0.98578066],
                                            [ 0.73593251] ] ) )
 
+vInv_s = np.c_[ -2.10434927e-04,  -9.51655879e-05,   5.21695993e-05,
+                -7.69921049e-05,  -7.75926245e-05,  -2.49452890e-04].T
+# vInv_s = np.c_[1., 1., 1., 0., 0., 0.].T
+
 # ######################################################################
 
 # oscillation angle arrays
@@ -34,14 +38,14 @@ n=22
 start1 = time.clock()                      # time this
 for i in range(n):
     oangs01, oangs11 = xf.oscillAnglesOfHKLs(hklsT, chi, rMat_c, bMat, wavelength, 
-                                             beamVec=bVec_ref, etaVec=eta_ref)
+                                             vInv=vInv_s, beamVec=bVec_ref, etaVec=eta_ref)
 elapsed1 = (time.clock() - start1)
 print "Time for Python oscillAnglesOfHKLs: %f"%elapsed1
 
 start2 = time.clock()                      # time this
 for i in range(n):
     oangs02, oangs12 = xfcapi.oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength, 
-                                                 beamVec=bVec_ref, etaVec=eta_ref)
+                                                 vInv=vInv_s, beamVec=bVec_ref, etaVec=eta_ref)
 elapsed2 = (time.clock() - start2)
 print "Time for CAPI oscillAnglesOfHKLs:   %f"%elapsed2
 #print oangs01.shape, oangs11.shape

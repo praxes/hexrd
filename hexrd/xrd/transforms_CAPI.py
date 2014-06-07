@@ -49,6 +49,9 @@ Xl = np.ascontiguousarray(I3[:, 0].reshape(3, 1))     # X in the lab frame
 Yl = np.ascontiguousarray(I3[:, 1].reshape(3, 1))     # Y in the lab frame
 Zl = np.ascontiguousarray(I3[:, 2].reshape(3, 1))     # Z in the lab frame
 
+# reference stretch
+vInv_ref = np.array([[1., 1., 1., 0., 0., 0.]], order='C').T
+
 # reference beam direction and eta=0 ref in LAB FRAME for standard geometry
 bVec_ref = -Zl
 eta_ref  =  Xl
@@ -191,7 +194,7 @@ def detectorXYToGvec(xy_det,
                                              beamVec.flatten(),etaVec.flatten())
 
 def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
-                       beamVec=bVec_ref, etaVec=eta_ref):
+                       vInv=None, beamVec=bVec_ref, etaVec=eta_ref):
     """
     Takes a list of unit reciprocal lattice vectors in crystal frame to the
     specified detector-relative frame, subject to the conditions:
@@ -255,8 +258,12 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     Laue condition cannot be satisfied (filled with NaNs in the results
     array here)
     """
+    if vInv is None:
+        vInv = vInv_ref
+    else:
+        vInv = np.ascontiguousarray(vInv.flatten())
     return _transforms_CAPI.oscillAnglesOfHKLs(np.ascontiguousarray(hkls),chi,rMat_c,bMat,wavelength,
-                                               beamVec.flatten(),etaVec.flatten())
+                                               vInv,beamVec.flatten(),etaVec.flatten())
 
 """
 #######################################################################
@@ -301,8 +308,10 @@ def angularDifference(angList0, angList1, units=angularUnits):
     *) Default angular range is [-pi, pi]
     """
     period = periodDict[units]
-    d = abs(angList1 - angList0)
-    return np.minimum(d, period - d)
+    # take difference as arrays
+    diffAngles = np.atleast_1d(angList0) - np.atleast_1d(angList1)
+
+    return abs(np.remainder(diffAngles + 0.5*period, period) - 0.5*period)
 
 def mapAngle(ang, *args, **kwargs):
     """
