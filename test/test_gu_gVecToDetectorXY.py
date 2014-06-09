@@ -1,7 +1,9 @@
 import sys, os, time
 import numpy as np
 
-from hexrd.xrd import transforms as xf
+#from hexrd.xrd import transforms as xf
+
+from hexrd.xrd import transforms_gu as xf 
 from hexrd.xrd import transforms_CAPI as xfcapi
 
 # input parameters
