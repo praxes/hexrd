@@ -105,62 +105,15 @@ def gvecToDetectorXY(gVec_c,
     (m, 2) ndarray containing the intersections of m <= n diffracted beams
     associated with gVecs
     """
-    return _transforms_CAPI.gvecToDetectorXY(np.ascontiguousarray(gVec_c),
+    gVec_c  = np.ascontiguousarray( np.atleast_2d( gVec_c ) )
+    tVec_d  = np.ascontiguousarray( tVec_d.flatten()  )
+    tVec_s  = np.ascontiguousarray( tVec_s.flatten()  )
+    tVec_c  = np.ascontiguousarray( tVec_c.flatten()  )
+    beamVec = np.ascontiguousarray( beamVec.flatten() )
+    return _transforms_CAPI.gvecToDetectorXY(gVec_c,
                                              rMat_d, rMat_s, rMat_c,
-                                             tVec_d.flatten(), tVec_s.flatten(), tVec_c.flatten(),
-                                             beamVec.flatten())
-    # ztol = epsf
-
-    # nVec_l = np.dot(rMat_d, Zl)                # detector plane normal
-    # bHat_l = unitRowVector(beamVec.reshape(1, 3)) # make sure beam vector is unit
-    # P0_l   = tVec_s + np.dot(rMat_s, tVec_c)   # origin of CRYSTAL FRAME
-    # P3_l   = tVec_d                            # origin of DETECTOR FRAME
-
-    # # form unit reciprocal lattice vectors in lab frame (w/o translation)
-    # rMat_sc = rMat_s.dot(rMat_c)
-    # gVec_l = np.dot(unitRowVector(gVec_c), rMat_sc.T)
-
-    # # dot with beam vector (upstream direction)
-    # bDot   = np.dot(gVec_l, -bHat_l.T).squeeze()
-
-    # # see who can diffract; initialize output array with NaNs
-    # canDiffract = np.atleast_1d( np.logical_and( bDot >= ztol, bDot <= 1. - ztol ) )
-    # npts        = sum(canDiffract)
-    # retval      = np.nan * np.ones_like(gVec_l)
-    # if np.any(canDiffract):  # subset of admissable reciprocal lattice vectors
-    #     adm_gVec_l = gVec_l[canDiffract, :].reshape(npts, 3)
-    #     dVec_l = np.empty((npts, 3)) # initialize diffracted beam vector array
-    #     for ipt in range(npts):
-    #         dVec_l[ipt, :] = np.dot(makeBinaryRotMat(adm_gVec_l[ipt, :]), -bHat_l.T).squeeze()
-    #         # tmp_op = np.dot(adm_gVec_l[:, ipt].reshape(3, 1),
-    #         #                 adm_gVec_l[:, ipt].reshape(1, 3))
-    #         # dVec_l[:, ipt] = np.dot(2*tmp_op - I3, -bHat_l).squeeze()
-    #         pass
-    #     # ###############################################################
-    #     # displacement vector calculation
-
-    #     # first check for non-instersections
-    #     denom = np.dot(dVec_l, nVec_l).flatten()
-    #     dzero = abs(denom) < ztol
-    #     denom[dzero] = 1.          # mitigate divide-by-zero
-    #     cantIntersect = denom > 0. # index to dVec_l that can't hit det
-
-    #     # displacement scaling (along dVec_l)
-    #     u = np.dot(nVec_l.T, P3_l - P0_l).flatten() / denom
-        
-    #     # filter out non-intersections, fill with NaNs
-    #     u[np.logical_or(dzero, cantIntersect)] = np.nan
-
-    #     # diffracted beam points IN DETECTOR FRAME
-    #     P2_l = np.empty((npts, 3))
-    #     for ipt in range(npts):
-    #         P2_l[ipt,:] = P0_l.T + u[ipt] * dVec_l[ipt,:]
-    #     P2_d = np.dot(P2_l - tVec_d.T, rMat_d)
-
-    #     # put feasible transformed gVecs into return array
-    #     retval[canDiffract, :] = P2_d
-    #     pass
-    # return retval[:, :2]
+                                             tVec_d, tVec_s, tVec_c,
+                                             beamVec)
 
 def detectorXYToGvec(xy_det,
                      rMat_d, rMat_s,
@@ -188,10 +141,16 @@ def detectorXYToGvec(xy_det,
     (n, 3) ndarray containing the associated G vector directions in the LAB FRAME
     associated with gVecs
     """
-    return _transforms_CAPI.detectorXYToGvec(np.ascontiguousarray(xy_det),
+    xy_det  = np.ascontiguousarray( np.atleast_2d(xy_det) )
+    tVec_d  = np.ascontiguousarray( tVec_d.flatten() )
+    tVec_s  = np.ascontiguousarray( tVec_s.flatten() )
+    tVec_c  = np.ascontiguousarray( tVec_c.flatten() )
+    beamVec = np.ascontiguousarray( beamVec.flatten() )
+    etaVec  = np.ascontiguousarray( etaVec.flatten() )
+    return _transforms_CAPI.detectorXYToGvec(xy_det,
                                              rMat_d, rMat_s,
-                                             tVec_d.flatten(), tVec_s.flatten(), tVec_c.flatten(),
-                                             beamVec.flatten(),etaVec.flatten())
+                                             tVec_d, tVec_s, tVec_c,
+                                             beamVec, etaVec)
 
 def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
                        vInv=None, beamVec=bVec_ref, etaVec=eta_ref):
@@ -258,12 +217,16 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     Laue condition cannot be satisfied (filled with NaNs in the results
     array here)
     """
+    hkls = np.array(hkls, dtype=float, order='C')
     if vInv is None:
-        vInv = vInv_ref
+        vInv = np.ascontiguousarray(vInv_ref.flatten())
     else:
         vInv = np.ascontiguousarray(vInv.flatten())
-    return _transforms_CAPI.oscillAnglesOfHKLs(np.ascontiguousarray(hkls),chi,rMat_c,bMat,wavelength,
-                                               vInv,beamVec.flatten(),etaVec.flatten())
+    beamVec = np.ascontiguousarray(beamVec.flatten())
+    etaVec  = np.ascontiguousarray(etaVec.flatten())
+    return _transforms_CAPI.oscillAnglesOfHKLs(hkls,
+                                               chi,rMat_c,bMat,wavelength,
+                                               vInv,beamVec,etaVec)
 
 """
 #######################################################################
@@ -398,19 +361,22 @@ def makeDetectorRotMat(tiltAngles):
 
     tiltAngles = [gamma_Xl, gamma_Yl, gamma_Zl] in radians
     """
-    return _transforms_CAPI.makeDetectorRotMat(tiltAngles.flatten())
+    arg = np.ascontiguousarray(np.r_[tiltAngles].flatten())
+    return _transforms_CAPI.makeDetectorRotMat(arg)
 
 def makeOscillRotMat(oscillAngles):
     """
     oscillAngles = [chi, ome]
     """
-    return _transforms_CAPI.makeOscillRotMat(oscillAngles.flatten())
+    arg = np.ascontiguousarray(np.r_[oscillAngles].flatten())
+    return _transforms_CAPI.makeOscillRotMat(arg)
 
 def makeRotMatOfExpMap(expMap):
     """
     make a rotation matrix from an exponential map
     """
-    return _transforms_CAPI.makeRotMatOfExpMap(expMap.flatten())
+    arg = np.ascontiguousarray(expMap.flatten())
+    return _transforms_CAPI.makeRotMatOfExpMap(arg)
 
 def makeRotMatOfQuat(quat):
     """
@@ -418,13 +384,17 @@ def makeRotMatOfQuat(quat):
 
     ...check to set if input is unit magnitude?
     """
-    return _transforms_CAPI.makeRotMatOfQuat(quat)
+    arg = np.ascontiguousarray(quat.flatten())
+    return _transforms_CAPI.makeRotMatOfQuat(arg)
 
 def makeBinaryRotMat(axis):
-    return _transforms_CAPI.makeBinaryRotMat(axis.flatten())
+    arg = np.ascontiguousarray(axis.flatten())
+    return _transforms_CAPI.makeBinaryRotMat(arg)
 
 def makeEtaFrameRotMat(bHat_l, eHat_l):
-    return _transforms_CAPI.makeEtaFrameRotMat(bHat_l.flatten(),eHat_l.flatten())
+    arg1 = np.ascontiguousarray(bHat_l.flatten())
+    arg2 = np.ascontiguousarray(eHat_l.flatten())
+    return _transforms_CAPI.makeEtaFrameRotMat(arg1, arg2)
 
 def validateAngleRanges(angList, angMin, angMax, ccw=True):
     return _transforms_CAPI.validateAngleRanges(angList,angMin,angMax,ccw)
@@ -433,6 +403,11 @@ def rotate_vecs_about_axis(angle, axis, vecs):
     return _transforms_CAPI.rotate_vecs_about_axis(angle, axis, vecs)
 
 def quat_distance(q1, q2, qsym):
+    """
+    qsy coming from hexrd.xrd.crystallogray.PlaneData.getQSym() is C-contiguous
+    """
+    q1 = np.ascontiguousarray(q1.flatten())
+    q2 = np.ascontiguousarray(q2.flatten())
     return _transforms_CAPI.quat_distance(q1, q2, qsym)
 
 #def rotateVecsAboutAxis(angle, axis, vecs):

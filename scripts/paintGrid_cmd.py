@@ -180,7 +180,9 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
         coms     = []
         for i in seed_hkl_ids:
             labels_t, numSpots_t = ndimage.label(omeEta.dataStore[i] > threshold, structureNDI_label)
-            coms_t = np.atleast_2d(ndimage.center_of_mass(omeEta.dataStore[i], labels_t))
+            coms_t = np.atleast_2d(ndimage.center_of_mass(omeEta.dataStore[i],
+                                                          labels=labels_t,
+                                                          index=np.arange(1, np.amax(labels_t)+1)))
             labels.append(labels_t)
             numSpots.append(numSpots_t)
             coms.append(coms_t)

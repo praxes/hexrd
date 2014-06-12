@@ -789,7 +789,7 @@ class sphericalOptsPanel(wx.Panel):
 
         self.thresh_lab = wx.StaticText(self, wx.NewId(), 'threshold',
                                         style=wx.ALIGN_CENTER)
-        self.thresh_spn  = wx.SpinCtrl(self, wx.NewId(), min=1, max=1000, initial=20)
+        self.thresh_spn  = wx.SpinCtrl(self, wx.NewId(), min=0, max=10000, initial=20)
         #
         #  Material and HKLs selector
         #

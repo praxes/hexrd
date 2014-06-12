@@ -81,14 +81,16 @@ class Material(object):
             pass
         else:
             # Use default values
-            self._hklMax = Material.DFLT_SSMAX
-            self._lparms = Material.DFLT_LPARMS
-            self.sgnum   = Material.DFLT_SGNUM
+            self._lparms     = Material.DFLT_LPARMS
+            self._hklMax     = Material.DFLT_SSMAX
+            #
+            self._beamEnergy = Material.DFLT_KEV
             #
             self.description = ''
-
+            #
+            self.sgnum       = Material.DFLT_SGNUM
+            #
             pass
-        #
         return
 
     def __str__(self):
@@ -117,6 +119,16 @@ class Material(object):
         sgnum = p.getint(self.name, 'space-group')
         tmpSG = SG(sgnum)
 
+        try:
+            hklMax = p.getint(self.name, 'hkls-ssmax')
+        except:
+            hklMax = Material.DFLT_SSMAX
+
+        try:
+            beamEnergy = p.getfloat(self.name, 'beam-energy')
+        except:
+            beamEnergy = Material.DFLT_KEV
+
         lparams = []
         for ind in tmpSG.reqParams:
             param, unit = lpStrings[ind]
@@ -124,10 +136,11 @@ class Material(object):
             pass
 
         # Initialize
-
-        self._hklMax = p.getint(self.name, 'hkls-ssmax')
-        self._lparms = self._toSixLP(sgnum, lparams)
-        self.sgnum   = sgnum
+        self._hklMax     = hklMax
+        self._beamEnergy = beamEnergy
+        self._lparms     = self._toSixLP(sgnum, lparams)
+        #
+        self.sgnum      = sgnum
         #
         self.description = p.get(self.name, 'description')
 
@@ -139,7 +152,7 @@ class Material(object):
         lprm = [self._lparms[i] for i in self.spaceGroup.reqParams]
         laue = self.spaceGroup.laueGroup
         self._pData = PData(hkls, lprm, laue,
-                            Material.DFLT_KEV, Material.DFLT_STR,
+                            self._beamEnergy, Material.DFLT_STR,
                             tThWidth=Material.DFLT_TTH)
         #
         #  Set default exclusions
@@ -197,6 +210,27 @@ class Material(object):
 
     sgnum = property(_get_sgnum, _set_sgnum, None,
                                 "Space group number")
+    # property:  beamEnergy
+
+    def _get_beamEnergy(self):
+        """Get method for beamEnergy"""
+        return self._beamEnergy
+
+    def _set_beamEnergy(self, keV):
+        """
+        Set method for beamEnergy
+
+        * note that units are assumed to be keV for
+          float arguments.  Also can take a valWUnit
+          instance
+        """
+        self._beamEnergy = keV
+        self.planeData.wavelength = keV
+
+        return
+
+    beamEnergy = property(_get_beamEnergy, _set_beamEnergy, None,
+                          "Beam energy in keV")
 
     # property:  hklMax
 
