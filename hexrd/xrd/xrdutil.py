@@ -3189,7 +3189,7 @@ def simulateGVecs(pd, detector_params, grain_params,
         rMat_s = xfcapi.makeOscillRotMat( [chi, angs[2]] )
         tmp_xy = xfcapi.gvecToDetectorXY(gVec_c.T, rMat_d, rMat_s, rMat_c,
                                          tVec_d, tVec_s, tVec_c)
-        if distortion is not None or len(distortion) == 0:
+        if (distortion is not None or len(distortion) == 0) and not num.any(num.isnan(tmp_xy)):
             det_xy.append(distortion[0](tmp_xy, distortion[1], invert=True))
         pass
     det_xy = num.vstack(det_xy)
@@ -3452,11 +3452,11 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 gVec_c = xf.anglesToGVec(num.atleast_2d(com_angs), bVec, eVec,
                                          rMat_s=rMat_s, rMat_c=rMat_c)
                 # these are on ``ideal'' detector
-                new_xy = xfcapi.gvecToDetectorXY(gVec_c,
+                new_xy = xfcapi.gvecToDetectorXY(gVec_c.T,
                                                  rMat_d, rMat_s, rMat_c,
                                                  tVec_d, tVec_s, tVec_c).flatten()
                 if distortion is not None or len(distortion) == 0:
-                    new_xy = distortion[0](new_xy, distortion[1], invert=True)
+                    new_xy = distortion[0](num.atleast_2d(new_xy), distortion[1], invert=True).flatten()
         else:
             print "for reflection %d window, found %d peaks" %(iRefl, 0)
             peakId = -999

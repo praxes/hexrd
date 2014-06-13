@@ -1241,7 +1241,7 @@ class ReadGE(Framer2DRC):
                     thisframe[self.mask] = 0
             elif self.mask is None and mask is not None:
                 thisframe[mask] = 0
-            
+
             # assign output
             if sumImg:
                 if sumImgCallable:
