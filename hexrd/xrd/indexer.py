@@ -636,6 +636,7 @@ def paintGrid(quats, etaOmeMaps,
               threshold=None, bMat=None,
               omegaRange=None, etaRange=None,
               omeTol=d2r, etaTol=d2r, 
+              omePeriod=(-num.pi, num.pi), 
               progressBar=False, doMultiProc=False,
               nCPUs=None, debug=False):
     """
@@ -721,7 +722,7 @@ def paintGrid(quats, etaOmeMaps,
     # obselete # rMatsList = [rotMatOfQuat(quats[:, i]) for i in range(quats.shape[1])]
 
     multiProcMode = xrdbase.haveMultiProc and doMultiProc
-    
+
     if multiProcMode:
         nCPUs = nCPUs or xrdbase.dfltNCPU
         chunksize = min(quats.shape[1] // nCPUs, 10)
@@ -733,7 +734,7 @@ def paintGrid(quats, etaOmeMaps,
         
     # assign the globals for paintGridThis
     global symHKLs_MP, wavelength_MP
-    global omeMin_MP, omeMax_MP, omeTol_MP
+    global omeMin_MP, omeMax_MP, omeTol_MP, omePeriod_MP
     global etaMin_MP, etaMax_MP, etaTol_MP
     global omeIndices_MP, etaIndices_MP
     global omeEdges_MP, etaEdges_MP
@@ -749,6 +750,7 @@ def paintGrid(quats, etaOmeMaps,
     omeMax_MP     = omeMax
     omeTol_MP     = omeTol
     omeIndices_MP = omeIndices
+    omePeriod_MP  = omePeriod
     omeEdges_MP   = etaOmeMaps.omeEdges
     etaMin_MP     = etaMin
     etaMax_MP     = etaMax
@@ -777,6 +779,7 @@ def paintGrid(quats, etaOmeMaps,
     omeMin_MP     = None
     omeMax_MP     = None
     omeIndices_MP = None
+    omePeriod_MP  = None
     omeEdges_MP   = None
     etaMin_MP     = None
     etaMax_MP     = None
@@ -796,7 +799,7 @@ def paintGridThis(quat):
     """
     # pull local vars from globals set in paintGrid
     global symHKLs_MP, wavelength_MP
-    global omeMin_MP, omeMax_MP, omeTol_MP
+    global omeMin_MP, omeMax_MP, omeTol_MP, omePeriod_MP
     global etaMin_MP, etaMax_MP, etaTol_MP
     global omeIndices_MP, etaIndices_MP
     global omeEdges_MP, etaEdges_MP
@@ -811,6 +814,7 @@ def paintGridThis(quat):
     omeMin     = omeMin_MP
     omeMax     = omeMax_MP
     omeTol     = omeTol_MP
+    omePeriod  = omePeriod_MP
     omeIndices = omeIndices_MP
     omeEdges   = omeEdges_MP
     etaMin     = etaMin_MP
@@ -858,8 +862,10 @@ def paintGridThis(quat):
         oangs   = xfcapi.oscillAnglesOfHKLs(these_hkls, 0., rMat, bMat, wavelength)
         angList = num.vstack(oangs)
         if not num.all(num.isnan(angList)):
+            idx = -num.isnan(angList[:, 0])
+            angList = angList[idx, :]
             angList[:, 1] = xf.mapAngle(angList[:, 1])
-            angList[:, 2] = xf.mapAngle(angList[:, 2])
+            angList[:, 2] = xf.mapAngle(angList[:, 2], omePeriod)
             
             if omeMin is None:
                 omeMin = [-num.pi, ]

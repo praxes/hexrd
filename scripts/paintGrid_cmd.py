@@ -136,6 +136,7 @@ def make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=None
 def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
                   omeTol=None, etaTol=None,
                   omeRange=None, etaRange=None,
+                  omePeriod=(-np.pi, np.pi),
                   qTol=1e-7,
                   doMultiProc=True, nCPUs=multiprocessing.cpu_count(),
                   useGrid=None):
@@ -214,7 +215,7 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
                             omeEta,
                             omegaRange=omeRange, etaRange=etaRange,
                             omeTol=d2r*omeTol, etaTol=d2r*etaTol,
-                            threshold=threshold,
+                            omePeriod=omePeriod, threshold=threshold,
                             doMultiProc=doMultiProc,
                             nCPUs=nCPUs)
     return complPG, qfib
@@ -337,6 +338,8 @@ if __name__ == "__main__":
     multiproc    = parser.getboolean('paint_grid', 'multiproc')
     ncpus        = parser.get('paint_grid', 'ncpus')
     use_qgrid    = parser.getboolean('paint_grid', 'use_qgrid')
+    omepd_str    = parser.get('paint_grid', 'ome_period')
+    ome_period   = tuple(d2r*np.array(omepd_str.split(','), dtype=float))
     if use_qgrid:
         qgrid_file = parser.get('paint_grid', 'qgrid_file')
         print "using the file '%s' for quaternion search" % (qgrid_file)
@@ -368,6 +371,7 @@ if __name__ == "__main__":
         ncpus = int(ncpus)
     compl, qfib = run_paintGrid(pd, ome_eta, seed_hkl_ids, threshold_pg, fiber_ndiv,
                                 omeTol=ome_tol, etaTol=eta_tol, etaRange=etaRange,
+                                omePeriod=ome_period,
                                 qTol=1e-7,
                                 doMultiProc=multiproc,
                                 nCPUs=ncpus,
