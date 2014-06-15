@@ -3,7 +3,8 @@ import sys, os, time
 import shelve, cPickle
 import numpy as np
 
-import scipy.cluster as cluster
+import scipy.cluster  as cluster
+import scipy.optimize as opt
 from scipy import ndimage
 
 from ConfigParser import SafeConfigParser
@@ -20,16 +21,25 @@ except:
     sys.path.append(HEXRD_ROOT)
 
 # now can import hexrd modules
-from hexrd     import matrixutil as mutil
-from hexrd.xrd import experiment as expt
-from hexrd.xrd import indexer    as idx
-from hexrd.xrd import rotations  as rot
+from hexrd     import matrixutil      as mutil
+from hexrd.xrd import experiment      as expt
+from hexrd.xrd import indexer         as idx
+from hexrd.xrd import rotations       as rot
 from hexrd.xrd import transforms      as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 
 from hexrd.xrd          import xrdutil
 from hexrd.xrd.xrdbase  import multiprocessing
 from hexrd.xrd.detector import ReadGE
+
+from hexrd.xrd import distortion as dFuncs
+
+have_progBar = False
+try:
+    from progressbar import ProgressBar, Bar, ETA, ReverseBar
+    have_progBar = True
+except:
+    pass
 
 haveScikit = False
 # try:
@@ -47,8 +57,61 @@ haveScikit = False
 d2r = np.pi/180.
 r2d = 180./np.pi
 
+bVec_ref = xf.bVec_ref
+
 min_compl = 0.5
 cl_radius = 1.0
+
+# #################################################
+# LEGACY FUCTIONS FOR WORKING WITH OLD HEXRD PAR
+def tVec_d_from_old_parfile(old_par, detOrigin):
+    beamXYD = old_par[:3, 0]
+    rMat_d  = xf.makeDetectorRotMat(old_par[3:6, 0])
+    args=(rMat_d, beamXYD, detOrigin, bVec_ref)
+    tvd_xy = opt.leastsq(objFun_tVec_d, -beamXYD[:2], args=args)[0]
+    return np.hstack([tvd_xy, -beamXYD[2]]).reshape(3, 1)
+
+def objFun_tVec_d(tvd_xy, rMat_d, beamXYD, detOrigin, bHat_l):
+    """
+    """
+    xformed_xy = beamXYD[:2] - detOrigin
+    tVec_d = np.hstack([tvd_xy, -beamXYD[2]]).T
+    n_d    = rMat_d[:, 2]
+
+    bVec_l = (np.dot(n_d, tVec_d) / np.dot(n_d, bHat_l)) * bHat_l
+    bVec_d = np.hstack([xformed_xy, 0.]).T
+
+    return np.dot(rMat_d, bVec_d).flatten() + tVec_d.flatten() - bVec_l.flatten()
+
+def beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, detOrigin):
+    # calculate beam position
+    n_d = np.dot(rMat_d, np.c_[0., 0., 1.].T)
+
+    u = np.dot(n_d.flatten(), tVec_d) / np.dot(n_d.flatten(), bVec_ref)
+
+    detOrigin - tVec_d[:2].flatten()
+    return np.hstack([detOrigin - tVec_d[:2].flatten(), u.flatten()])
+
+def write_old_parfile(filename, results):
+    if isinstance(filename, file):
+        fid = filename
+    elif isinstance(filename, str) or isinstance(filename, unicode):
+        fid = open(filename, 'w')
+        pass
+    rMat_d = xf.makeDetectorRotMat(results['tiltAngles'])
+    tVec_d = results['tVec_d'] - results['tVec_s']
+    beamXYD = beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, detOrigin)
+    det_plist = np.zeros(12)
+    det_plist[:3]  = beamXYD.flatten()
+    det_plist[3:6] = results['tiltAngles']
+    det_plist[6:]  = results['dParams']
+    print >> fid, "# DETECTOR PARAMETERS (from new geometry model fit)"
+    print >> fid, "# \n# <class 'hexrd.xrd.detector.DetectorGeomGE'>\n#"
+    for i in range(len(det_plist)):
+        print >> fid, "%1.8e\t%d" % (det_plist[i], 0)
+    fid.close()
+    return
+# #################################################
 
 def initialize_experiment(cfg_file):
     """
@@ -97,7 +160,8 @@ def initialize_experiment(cfg_file):
         dark         = None
         subtractDark = False
     else:
-        dark = os.path.join(image_dir, darkName)
+        # dark = os.path.join(image_dir, darkName)
+        dark = darkName
         subtractDark = True
     doFlip  = parser.getboolean('reader', 'doFlip')
     flipArg = parser.get('reader', 'flipArg')
@@ -263,8 +327,7 @@ def run_cluster(complPG, qfib, qsym,
 
 if __name__ == "__main__":
     cfg_filename = sys.argv[1]
-    out_filename = sys.argv[2]
-    hkl_ids = np.array(sys.argv[3:], dtype=int)
+    hkl_ids = np.array(sys.argv[2:], dtype=int)
 
     print "Using cfg file '%s'" % (cfg_filename)
 
@@ -275,8 +338,12 @@ if __name__ == "__main__":
     working_dir   = parser.get('base', 'working_dir')
     analysis_name = parser.get('base', 'analysis_name')
 
-    eta_ome_filename = os.path.join(working_dir,
-                                    analysis_name + '-eta_ome.cpl')
+    eta_ome_filename = os.path.join(working_dir, analysis_name + '-eta_ome.cpl')
+    quats_filename   = os.path.join(working_dir, analysis_name + '-quats.out')
+    compl_filename   = os.path.join(working_dir, analysis_name + '-compl.out')
+    pull_filename    = os.path.join(working_dir, analysis_name + '-spots_%05d.out')
+
+    print "analysis name is '%s'" %analysis_name
 
     pd, reader, detector = initialize_experiment(cfg_filename)
 
@@ -364,7 +431,8 @@ if __name__ == "__main__":
         print r2d*np.array(etaRange)
     else:
         print "using full eta range"
-
+    print "omega period is:"
+    print r2d*np.r_[ome_period]
     if ncpus.strip() == '':
         ncpus = multiprocessing.cpu_count()
     else:
@@ -377,6 +445,8 @@ if __name__ == "__main__":
                                 nCPUs=ncpus,
                                 useGrid=qgrid_file)
 
+    np.savetxt(os.path.join(working_dir, compl_filename), compl)
+
     cl_radius = parser.getfloat('clustering', 'cl_radius')
     min_compl = parser.getfloat('clustering', 'min_compl')
     num_above = sum(np.r_[compl] > min_compl)
@@ -386,9 +456,10 @@ if __name__ == "__main__":
         qbar = qfib[:, np.r_[compl] > min_compl]
     else:
         qbar, cl = run_cluster(compl, qfib, pd.getQSym(), cl_radius=cl_radius, min_compl=min_compl)
+    qbar = np.atleast_2d(qbar)
 
     # SAVE OUTPUT
-    np.savetxt(os.path.join(working_dir, out_filename), qbar.T, fmt="%1.12e", delimiter="\t")
+    np.savetxt(quats_filename, qbar.T, fmt="%1.12e", delimiter="\t")
 
     # import matplotlib.pyplot as plt
     # from mpl_toolkits.mplot3d import Axes3D
@@ -405,4 +476,55 @@ if __name__ == "__main__":
     # ax.scatter(rod[0, :], rod[1, :], rod[2, :], c='b', marker='*')
     #
     # plt.show()
+
+    # PULL SPOTS
+    do_pull_str = parser.get('pull_spots', 'do_pull')
+    if do_pull_str.strip() == '1' or do_pull_str.strip().lower() == 'true':
+
+        pthresh = parser.getfloat('pull_spots', 'threshold')
+        tth_tol = parser.getfloat('pull_spots', 'tth_tol')
+
+        det_origin_str = parser.get('pull_spots', 'det_origin')
+        det_origin = np.array(det_origin_str.split(','), dtype=float)
+
+        geomParams = np.vstack([detector.getParams(allParams=True)[:6], 
+                                np.zeros(6)]).T
+
+        distortion = (dFuncs.GE_41RT, detector.getParams(allParams=True)[6:])
+
+        tVec_d = tVec_d_from_old_parfile(geomParams, det_origin)
+        detector_params = np.hstack([geomParams[3:6, 0], tVec_d.flatten(), 0., np.zeros(3)])
+
+        use_tth_max = parser.get('pull_spots', 'use_tth_max')
+        if use_tth_max.strip() == '1' or use_tth_max.strip().lower() == 'true':
+            excl = np.zeros_like(pd.exclusions, dtype=bool)
+            pd.exclusions = excl
+            excl = pd.getTTh() > detector.getTThMax()
+            pd.exclusions = excl
+            pass
+        phi, n = rot.angleAxisOfRotMat(rot.rotMatOfQuat(qbar))
+        if have_progBar:
+            widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
+            pbar = ProgressBar(widgets=widgets, maxval=len(qbar.T)).start()
+            pass
+        print "pulling spots for %d orientations..." %len(qbar.T)
+        for iq, quat in enumerate(qbar.T):
+            if have_progBar:
+                pbar.update(iq)
+            exp_map = phi[iq]*n[:, iq] 
+            grain_params = np.hstack([exp_map.flatten(), 0., 0., 0., 1., 1., 1., 0., 0., 0.])
+            sd = xrdutil.pullSpots(pd, detector_params, grain_params, reader, 
+                                   filename=pull_filename %iq, 
+                                   eta_range=etaRange, ome_period=ome_period, 
+                                   eta_tol=eta_tol, ome_tol=ome_tol, 
+                                   threshold=pthresh, tth_tol=tth_tol, 
+                                   distortion=distortion)
+            pass
+        if have_progBar:
+            pbar.finish()
+            pass
+        pass # condidional on pull spots
     pass
+
+
+

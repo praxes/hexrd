@@ -866,7 +866,8 @@ def paintGridThis(quat):
             angList = angList[idx, :]
             angList[:, 1] = xf.mapAngle(angList[:, 1])
             angList[:, 2] = xf.mapAngle(angList[:, 2], omePeriod)
-            
+            if num.any(num.isnan(angList)):
+                import pdb;pdb.set_trace()
             if omeMin is None:
                 omeMin = [-num.pi, ]
                 omeMax = [ num.pi, ]

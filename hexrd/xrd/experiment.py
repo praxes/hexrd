@@ -1154,7 +1154,7 @@ GE reader is supported.
 #
 class CalibrationInput(object):
     """CalibrationInput"""
-    def __init__(self, mat):
+    def __init__(self, mat, xtol=1e-6):
         """Constructor for CalibrationInput"""
         #
         self.numRho = 20 # for multiring binned image
@@ -1163,12 +1163,19 @@ class CalibrationInput(object):
         self.corrected = False
         #
         self.calMat = mat
-
+        self._xtol  = xtol
         return
     #
     # ============================== API
     #
     # property:  fitType
+
+    @property
+    def xtol(self):
+        return self._xtol
+    @xtol.setter
+    def xtol(self, val):
+        self._xtol = val
 
     def _get_fitType(self):
         """Get method for fitType"""
@@ -1306,7 +1313,7 @@ class DetectorInfo(object):
             else:
                 print '... using direct fit mode'
 
-                self.detector.fitRings(cFrame, calDat)
+                self.detector.fitRings(cFrame, calDat, xtol=calInp.xtol)
                 tmp = self.detector.xFitRings
                 pass
 

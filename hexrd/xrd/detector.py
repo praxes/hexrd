@@ -4700,7 +4700,7 @@ class Detector2DRC(DetectorBase):
         # self.fitRingsFunc = None
         self.xFitRings = None
         return
-    def fitRings(self, thisframe, planeData, xVec0=None,
+    def fitRings(self, thisframe, planeData, xtol=DFLT_XTOL, xVec0=None,
                  funcType=funcTypeDflt, quadr=1, makePlots=False):
 
       # 'free up memory'
@@ -4717,7 +4717,7 @@ class Detector2DRC(DetectorBase):
               xVec0 = func.guessXVec()
       self.xFitRings = None
 
-      x = func.doFit(xtol=DFLT_XTOL)
+      x = func.doFit(xtol=xtol)
 
       self.xFitRings = x
       # self.fitRingsFunc = func

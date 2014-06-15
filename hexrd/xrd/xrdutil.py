@@ -3255,7 +3255,8 @@ def pullSpots(pd, detector_params, grain_params, reader,
               distortion=(dFunc_ref, dParams_ref),
               tth_tol=0.15, eta_tol=1., ome_tol=1.,
               npdiv=1, threshold=10,
-              doClipping=False, filename=None):
+              doClipping=False, filename=None, 
+              save_spot_list=False):
 
     # steal ref beam and eta from transforms.py
     bVec   = xf.bVec_ref
@@ -3436,11 +3437,11 @@ def pullSpots(pd, detector_params, grain_params, reader,
 
         if numPeaks > 0:
             if numPeaks > 1:
-                print "for reflection %d window, found %d peaks; ignoring" %(iRefl, numPeaks)
+                # print "for reflection %d window, found %d peaks; ignoring" %(iRefl, numPeaks)
                 peakId = -222
                 com_angs = None
             else:
-                print "for reflection %d window, found %d peaks" %(iRefl, numPeaks)
+                # print "for reflection %d window, found %d peaks" %(iRefl, numPeaks)
                 peakId = iRefl
                 coms = ndimage.center_of_mass(spot_data, labels=labels, index=1)
 
@@ -3458,7 +3459,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 if distortion is not None or len(distortion) == 0:
                     new_xy = distortion[0](num.atleast_2d(new_xy), distortion[1], invert=True).flatten()
         else:
-            print "for reflection %d window, found %d peaks" %(iRefl, 0)
+            # print "for reflection %d window, found %d peaks" %(iRefl, 0)
             peakId = -999
             com_angs = None
             pass
@@ -3466,22 +3467,24 @@ def pullSpots(pd, detector_params, grain_params, reader,
         # OUTPUT
         #
         # output dictionary
-        w_dict = {}
-        w_dict['hkl']           = hkl
-        w_dict['dims']          = sdims
-        w_dict['points']        = ( angs[2] + d2r*ome_del,
-                                    angs[1] + d2r*eta_del,
-                                    angs[0] + d2r*tth_del )
-        w_dict['spot_data']     = spot_data
-        w_dict['crd']           = tmp_xy
-        w_dict['con']           = conn
-        w_dict['com']           = com_angs
-        w_dict['angles']        = angs
-        w_dict['ang_grid']      = gVec_angs
-        w_dict['row_indices']   = row_indices
-        w_dict['col_indices']   = col_indices
-        w_dict['frame_indices'] = frame_indices
-        spot_list.append(w_dict)
+        if save_spot_list:
+            w_dict = {}
+            w_dict['hkl']           = hkl
+            w_dict['dims']          = sdims
+            w_dict['points']        = ( angs[2] + d2r*ome_del,
+                                        angs[1] + d2r*eta_del,
+                                        angs[0] + d2r*tth_del )
+            w_dict['spot_data']     = spot_data
+            w_dict['crd']           = tmp_xy
+            w_dict['con']           = conn
+            w_dict['com']           = com_angs
+            w_dict['angles']        = angs
+            w_dict['ang_grid']      = gVec_angs
+            w_dict['row_indices']   = row_indices
+            w_dict['col_indices']   = col_indices
+            w_dict['frame_indices'] = frame_indices
+            spot_list.append(w_dict)
+            pass
         if filename is not None:
             if peakId >= 0:
                 print >> fid, "%d\t"                     % (peakId)                + \
