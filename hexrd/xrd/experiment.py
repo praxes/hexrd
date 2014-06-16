@@ -225,7 +225,7 @@ class Experiment(object):
             self._img_names = []
 
         return self._img_names
-#
+    #
     # ==================== Indexing
     #
     # property:  fitRMats
@@ -294,8 +294,8 @@ class Experiment(object):
 
     def export_grainList(self, f,
                          dspTol=5.0e-3,
-                         etaTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees'),
-                         omeTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees'),
+                         etaTol=None,
+                         omeTol=None,
                          doFit=False,
                          sort=True):
         """
@@ -307,6 +307,11 @@ class Experiment(object):
             fid = open(f, 'w')
             pass
 
+        if etaTol is None:
+            etaTol = self.index_opts.etaTol * d2r
+        if omeTol is None:
+            omeTol = self.index_opts.omeTol * d2r
+            
         if sort:
             loop_idx = numpy.argsort([self.grainList[i].completeness
                                       for i in range(len(self.grainList))])[::-1]
@@ -317,49 +322,12 @@ class Experiment(object):
         for iG in loop_idx:
             #
             # this grain
+            #
             grain = self.grainList[iG]
-            #
-            # useful locals
-            q   = ROT.quatOfRotMat(grain.rMat)
-            R   = grain.rMat
-            V   = grain.vMat
-            FnT = inv(numpy.dot(V, R)).T
-            E   = logm(V)
-            Es  = logm(grain.uMat)
-            lp  = grain.latticeParameters
-            p   = grain.detectorGeom.pVec
-            #
-            # the output
-            print >> fid, '\n#####################\n#### grain %d\n' % (iG) + \
-                  '\n#    orientation:\n#\n' + \
-                  '#    q = [%1.6e, %1.6e, %1.6e, %1.6e]\n#\n' % (q[0], q[1], q[2], q[3]) + \
-                  '#    R = [[%1.3e, %1.3e, %1.3e],\n' % (R[0, 0], R[0, 1], R[0, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e],\n' % (R[1, 0], R[1, 1], R[1, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e]]\n' % (R[2, 0], R[2, 1], R[2, 2]) + \
-                  '#\n#    left stretch tensor:\n#\n' + \
-                  '#    V = [[%1.3e, %1.3e, %1.3e],\n' % (V[0, 0], V[0, 1], V[0, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e],\n' % (V[1, 0], V[1, 1], V[1, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e]]\n' % (V[2, 0], V[2, 1], V[2, 2]) + \
-                  '#\n#    logarithmic strain tensor (log(V) --> sample frame):\n#\n' + \
-                  '#    E = [[%1.3e, %1.3e, %1.3e],\n' % (E[0, 0], E[0, 1], E[0, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e],\n' % (E[1, 0], E[1, 1], E[1, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e]]\n' % (E[2, 0], E[2, 1], E[2, 2]) + \
-                  '#\n#    logarithmic strain tensor (log(U) --> crystal frame):\n#\n' + \
-                  '#    E = [[%1.3e, %1.3e, %1.3e],\n' % (Es[0, 0], Es[0, 1], Es[0, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e],\n' % (Es[1, 0], Es[1, 1], Es[1, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e]]\n' % (Es[2, 0], Es[2, 1], Es[2, 2]) + \
-                  '#\n#    F^-T ( hkl --> (Xs, Ys, Zs), reciprocal lattice to sample frame ):\n#\n' + \
-                  '#        [[%1.3e, %1.3e, %1.3e],\n' % (FnT[0, 0], FnT[0, 1], FnT[0, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e],\n' % (FnT[1, 0], FnT[1, 1], FnT[1, 2]) + \
-                  '#         [%1.3e, %1.3e, %1.3e]]\n' % (FnT[2, 0], FnT[2, 1], FnT[2, 2]) + \
-                  '#\n#    lattice parameters:\n#\n' + \
-                  '#    %g, %g, %g, %g, %g, %g\n' % tuple(numpy.hstack([lp[:3], r2d*numpy.r_[lp[3:]]])) + \
-                  '#\n#    COM coordinates (Xs, Ys, Zs):\n' +\
-                  '#    p = (%g, %g, %g)\n' % (p[0], p[1], p[2]) + \
-                  '#\n#    reflection table:'
+            print >> fid, '\n#####################\n# grain %d\n# ' % (iG) 
             s1, s2, s3 = grain.findMatches(etaTol=etaTol, omeTol=omeTol, strainMag=dspTol,
                                            updateSelf=True, claimingSpots=True, doFit=doFit, filename=fid)
-            print >> fid, '#\n#    final completeness for grain %d: %g%%\n' % (iG, grain.completeness*100) + \
+            print >> fid, '#\n#  final completeness for grain %d: %g%%\n' % (iG, grain.completeness*100) + \
                   '#####################\n'
             pass
 
@@ -427,7 +395,7 @@ class Experiment(object):
         self.rMats = retval[0]
         self.grainList = retval[1]
         return
-
+    
     def run_indexer(self):
         """Run indexer"""
         iopts = self.index_opts
@@ -674,7 +642,7 @@ class Experiment(object):
     Can be set by number (index in material list) or by name.
 
     On output, it is always a material instance.
-"""
+    """
     activeMaterial = property(_get_activeMaterial, _set_activeMaterial, None,
                               _amdoc)
 
@@ -726,7 +694,7 @@ class Experiment(object):
 
         INPUTS
         fname -- the name of the file to load from
-"""
+        """
         # should check the loaded file here
         f = open(fname, 'r')
         self.matList = cPickle.load(f)
@@ -742,7 +710,7 @@ class Experiment(object):
         """Get method for activeReader
 
         Reader is set by using index in reader list or by name.
-"""
+        """
         return self.__active_rdr
 
     def _set_activeReader(self, v):
@@ -760,12 +728,13 @@ class Experiment(object):
 
         return
 
-    _ardoc = r"""Active Material
+    _ardoc = r"""
+    Active Material
 
     Can be set by number (index in saved readers list) or by name.
 
     On output, it is always a ReaderInput instance.
-"""
+    """
 
     activeReader = property(_get_activeReader, _set_activeReader,
                             _ardoc)
@@ -775,7 +744,7 @@ class Experiment(object):
 
         INPUTS
         fname -- the name of the file to save in
-"""
+        """
         f = open(fname, 'w')
         cPickle.dump(self.__savedReaders, f)
         f.close()
@@ -787,7 +756,7 @@ class Experiment(object):
 
         INPUTS
         fname -- the name of the file to load from
-"""
+        """
         # should check the loaded file here
         f = open(fname, 'r')
         self.__savedReaders = cPickle.load(f)
@@ -800,7 +769,7 @@ class Experiment(object):
         """Add new reader to the list and make it active
 
         Changes name if necessary.
-"""
+        """
         self.__active_rdr   = ReaderInput()
         # find name not already in list
         n  = self.__active_rdr.name
@@ -880,7 +849,7 @@ class Experiment(object):
 
         This reads an image according to the active reader
         specification, saving it in the activeImage attribute.
-"""
+        """
         #
         # Now read the current frame
         #
@@ -934,7 +903,7 @@ class Experiment(object):
         """Calibrate the detector
 
         Currently, uses polar rebin only.
-"""
+        """
         try:
             self._detInfo.calibrate(self.calInput,
                                     self.activeReader,
@@ -958,7 +927,7 @@ class Experiment(object):
             """Rebin the image according to certain parameters
 
             opts -- an instance of PolarRebinOpts
-"""
+            """
 
             img_info = det.polarRebin(self.activeImage, opts.kwArgs)
 
@@ -1185,7 +1154,7 @@ GE reader is supported.
 #
 class CalibrationInput(object):
     """CalibrationInput"""
-    def __init__(self, mat):
+    def __init__(self, mat, xtol=1e-6):
         """Constructor for CalibrationInput"""
         #
         self.numRho = 20 # for multiring binned image
@@ -1194,12 +1163,19 @@ class CalibrationInput(object):
         self.corrected = False
         #
         self.calMat = mat
-
+        self._xtol  = xtol
         return
     #
     # ============================== API
     #
     # property:  fitType
+
+    @property
+    def xtol(self):
+        return self._xtol
+    @xtol.setter
+    def xtol(self, val):
+        self._xtol = val
 
     def _get_fitType(self):
         """Get method for fitType"""
@@ -1337,7 +1313,7 @@ class DetectorInfo(object):
             else:
                 print '... using direct fit mode'
 
-                self.detector.fitRings(cFrame, calDat)
+                self.detector.fitRings(cFrame, calDat, xtol=calInp.xtol)
                 tmp = self.detector.xFitRings
                 pass
 

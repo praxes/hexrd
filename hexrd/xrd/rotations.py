@@ -28,6 +28,7 @@
 #
 # Module containing functions relevant to rotations
 #
+import sys, os, time
 import numpy
 from numpy import \
      arange, array, asarray, atleast_1d, ndarray, diag, empty, ones, zeros, \
@@ -53,31 +54,22 @@ periodDict = {'degrees': 360.0, 'radians': 2*numpy.pi}
 #  ================================================== Functions
 #
 def arccosSafe(temp):
-    """ Protect against numbers slightly larger than 1 in magnitude due to round-off
     """
-
-    # Oh, the tricks we must play to make this overloaded and robust...
-    if type(temp) is list:
-        temp = asarray(temp)
-    elif type(temp) is ndarray:
-        if len(temp.shape) == 0:
-            temp = temp.reshape(1)
-
-    if (temp > 1.00001).any():
+    Protect against numbers slightly larger than 1 in magnitude due to round-off
+    """
+    temp = atleast_1d(temp)
+    if (abs(temp) > 1.00001).any():
         print >> sys.stderr, "attempt to take arccos of %s" % temp
         raise RuntimeError, "unrecoverable error"
-    elif (temp < -1.00001).any():
-        print >> sys.stderr, "attempt to take arccos of %s" % temp
-        raise RuntimeError, "unrecoverable error"
-
+    
     gte1 = temp >=  1.
     lte1 = temp <= -1.
 
     temp[gte1] =  1
     temp[lte1] = -1
-
+    
     ang = arccos(temp)
-
+    
     return ang
 #
 #  ==================== Quaternions
@@ -821,8 +813,6 @@ def testRotMatOfExpMap(numpts):
     return
 #
 if __name__ == '__main__':
-    #
-    import sys, time
     #
     #  Simple tests.
     #

@@ -28,7 +28,7 @@
 #
 # Module containing functions relevant to rotations
 
-from numpy import cos, sin, sqrt, pi, \
+from numpy import array, cos, sin, sqrt, pi, \
      vstack, hstack, c_, r_, ix_, tile, dot, \
      sort, argmin, argmax, argsort
 from hexrd.matrixutil import multMatArray, unitVector, findDuplicateVectors
@@ -305,7 +305,8 @@ def quatOfLaueGroup(tag):
     axis  = angleAxis[1:, ]
 
     #  Note: Axis does not need to be normalized in call to quatOfAngleAxis
-    qsym = quatOfAngleAxis(angle, axis)
+    #  05/01/2014 JVB -- made output a contiguous C-ordered array
+    qsym = array(quatOfAngleAxis(angle, axis).T, order='C').T
 
     return qsym
 

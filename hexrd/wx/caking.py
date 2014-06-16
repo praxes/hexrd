@@ -270,7 +270,7 @@ class cakingPanel(wx.Panel):
             nframesLump=nlump,
             nEtaBins=nbins,
             threshold=thresh,
-            debug=True)
+            debug=False)
 
         self.omeEta = CollapseOmeEta(reader, pdata, hklIDs, det, **kwargs)
 
@@ -343,7 +343,7 @@ class cakingDialog(wx.Dialog):
         """Constructor for cakingDialog"""
         #
         wx.Dialog.__init__(self, parent, id, title="Polar Rebinning",
-                           style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+                           style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)                          
         #
         #  Data Objects.
         #
@@ -789,7 +789,7 @@ class sphericalOptsPanel(wx.Panel):
 
         self.thresh_lab = wx.StaticText(self, wx.NewId(), 'threshold',
                                         style=wx.ALIGN_CENTER)
-        self.thresh_spn  = wx.SpinCtrl(self, wx.NewId(), min=1, max=1000, initial=20)
+        self.thresh_spn  = wx.SpinCtrl(self, wx.NewId(), min=0, max=10000, initial=20)
         #
         #  Material and HKLs selector
         #

@@ -252,7 +252,7 @@ class FiberSearchPanel(wx.Panel):
         self.qafter_lab = wx.StaticText(self, wx.NewId(), label,
                                       style=wx.ALIGN_RIGHT)
         self.qafter_spn = wx.SpinCtrl(self, wx.NewId(),
-                                     min=0, initial=0)
+                                     min=0, max=100000, initial=0)
 
         self.hkls_but = wx.Button(self, wx.NewId(), 'HKLs')
 

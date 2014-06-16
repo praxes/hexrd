@@ -263,7 +263,9 @@ class Framer2DRC(object):
         return maxInt
 
     def getEmptyMask(self):
-        """convenience method for getting an emtpy mask"""
+        """
+        convenience method for getting an emtpy mask or bin frame
+        """
         # this used to be a class method
         mask = num.zeros([self.nrows, self.ncols], dtype=bool)
         return mask
@@ -283,7 +285,7 @@ class Framer2DRC(object):
         else:
             assert mask is None,\
                 'not coded: multiframe with mask'
-            shape = (nframes, self.rows, self.ncols)
+            shape = (nframes, self.nrows, self.ncols)
         if buffer is None:
             retval = num.zeros(shape, dtype=dtype)
         else:
@@ -369,14 +371,56 @@ class Framer2DRC(object):
             vmax = min(cls.maxVal(dtypeRead), thr+range/2)
         return vmin, vmax
 
-def omeToFrameRange(omega, omegas, omegaDelta):
+def omeRangeToFrameRange(omeA, omeB, omegaStart, omegaDelta, nFrames, checkWrap=True, slicePad=1):
     """
-    check omega range for the frames instead of omega center;
-    result can be a pair of frames if the specified omega is
-    exactly on the border
+    assumes omegas are evenly spaced
+    omegaDelta may be negative
     """
-    retval = num.where(num.abs(omegas - omega) <= omegaDelta*0.5)[0]
+    retval = None
+    
+    wrapsAround = abs( ( nFrames * abs(omegaDelta) ) - ( 2.0 * num.pi ) ) < 1.0e-6
+    iFA = int((omeA - omegaStart) / omegaDelta)
+    iFB = int((omeB - omegaStart) / omegaDelta)
+    
+    if checkWrap and wrapsAround:
+        iFAW = iFA % nFrames
+        shift = iFAW - iFA
+        iFBW = iFB + shift
+        if iFBW < 0:
+            retval = [ (iFBW+nFrames, nFrames-1 + slicePad), (0, iFAW + slicePad) ]
+            # print '...*** making split range ...*** %g %g %g %g ' % (iFA, iFB, iFAW, iFBW) +str(retval)
+        elif iFBW >= nFrames:
+            retval = [ (iFA, nFrames-1 + slicePad), (0, iFBW-nFrames + slicePad) ]
+            # print '...*** making split range ...*** %g %g %g %g ' % (iFA, iFB, iFAW, iFBW) +str(retval)
+        else:
+            iFA = iFAW
+            iFB = iFBW
+            retval = None
+
+    if retval is None:
+        rawFrameRange = num.sort(num.hstack( (iFA, iFB) ))
+        retval = ( 
+            num.hstack( (rawFrameRange, 0) )[0],
+            num.hstack( (nFrames-1, rawFrameRange ) )[-1] + slicePad,
+            )
     return retval
+#
+def frameInRange(iFrame, frameRange):
+    """
+    for use with output from omeRangeToFrameRange;
+    trust that slicePad=1 was used in omeRangeToFrameRange
+    """
+    retval = False
+    if hasattr(frameRange[0],'index'):
+        for frameRangeThis in frameRange:
+            if iFrame >= frameRangeThis[0] and iFrame < frameRangeThis[1]:
+                retval = True
+                # print '...*** found in range for split range ...***'
+                break
+    else:
+        if iFrame >= frameRange[0] and iFrame < frameRange[1]:
+            retval = True
+    return retval 
 
 def getNFramesFromBytes(fileBytes, nbytesHeader, nbytesFrame):
     assert (fileBytes - nbytesHeader) % nbytesFrame == 0,\
@@ -455,7 +499,11 @@ class ReadGeneric(Framer2DRC):
         self.__nempty        = kwargs.pop('nempty', 0)
         doFlip               = kwargs.pop('doFlip', False)
         self.subtractDark    = kwargs.pop('subtractDark', False)
-
+        
+        'keep things for makeNew convenience'
+        self.__args   = args
+        self.__kwargs = kwargs
+        
         if doFlip is not False:
             raise NotImplementedError, 'doFlip not False'
         if self.subtractDark is not False:
@@ -466,6 +514,8 @@ class ReadGeneric(Framer2DRC):
         self.dark = None
         self.dead = None
         self.mask = None
+
+        self.__wrapsAround       = False # default
 
         self.omegaStart = None
         self.omegaDelta = None
@@ -493,6 +543,7 @@ class ReadGeneric(Framer2DRC):
             self.omegaMax = max(omegaStart, omegaEnd)
             self.omegaDelta = omegaDelta
             self.omegaStart = omegaStart
+            self.__wrapsAround = abs( ( nFramesTot * abs(omegaDelta) ) / ( 2.0 * num.pi ) - 1.0 ) < 1.0e-6
 
         if len(kwargs) > 0:
             raise RuntimeError, 'unparsed kwargs : %s' + str(kwargs.keys())
@@ -501,13 +552,25 @@ class ReadGeneric(Framer2DRC):
 
         self.img = None
         if self.filename is not None:
-            self.img = open(self.filename, mode='rb')
+            if self.filename.split('.') == 'bz2':
+                self.img = bz2.BZ2File(self.filename, mode='rb')
+            else:
+                self.img = open(self.filename, mode='rb')
             # skip header for now
             self.img.seek(self.__nbytes_header, 0)
             if self.__nempty > 0:
                 self.img.seek(self.nbytesFrame*self.__nempty, 1)
 
         return
+
+    def makeNew(self):
+        """return a clean instance for the same data files
+        useful if want to start reading from the beginning"""
+        newSelf = self.__class__(self.filename, self.ncols, self.nrows, *self.__args, **self.__kwargs)
+        return newSelf
+    def get_wrapsAround(self):
+        return self.__wrapsAround
+    wrapsAround = property(get_wrapsAround, None, None)
 
     def getFrameUseMask(self):
         return False
@@ -528,6 +591,8 @@ class ReadGeneric(Framer2DRC):
 
         return data
     '''
+    def __call__(self, *args, **kwargs):
+        return self.read(*args, **kwargs)
     def read(self, nskip=0, nframes=1, sumImg=False):
         """
         sumImg can be set to True or to something like numpy.maximum
@@ -620,6 +685,16 @@ class ReadGeneric(Framer2DRC):
     def getDark(self):
         'no dark yet supported'
         return 0
+    def frameToOmega(self, frame):
+        scalar = num.isscalar(frame)
+        frames = num.asarray(frame)
+        if frames.dtype == int:
+            retval = self.omegas[frames]
+        else:
+            retval = (frames + 0.5) * self.omegaDelta + self.omegaStart
+        if scalar:
+            retval = num.asscalar(retval)
+        return retval
     def getFrameOmega(self, iFrame=None):
         """if iFrame is none, use internal counter"""
         assert self.omegas is not None,\
@@ -792,6 +867,7 @@ class ReadGE(Framer2DRC):
         self.fileInfoR     = None
         self.nFramesRemain = None # remaining in current file
         self.iFrame = -1 # counter for last global frame that was read
+        self.__wrapsAround = False # default
 
         if self.dark is not None:
             if not self.__kwPassed['subtractDark']:
@@ -931,10 +1007,16 @@ class ReadGE(Framer2DRC):
             self.omegaMax = max(omegaStart, omegaEnd)
             self.omegaDelta = omegaDelta
             self.omegaStart = omegaStart
+            self.__wrapsAround = abs( ( nFramesTot * abs(omegaDelta) ) / ( 2.0 * num.pi ) - 1.0 ) < 1.0e-6
 
         self.__nextFile()
 
         return
+
+    def get_wrapsAround(self):
+        return self.__wrapsAround
+    wrapsAround = property(get_wrapsAround, None, None)
+
     def getNFrames(self):
         """number of total frames with real data, not number remaining"""
         nFramesTot = self.getNFramesFromFileInfo(self.fileInfo)
@@ -969,22 +1051,19 @@ class ReadGE(Framer2DRC):
         else:
             retval = self.omegas[iFrame]
         return retval
-    def omegaToFrameRange(self, omega):
-        assert self.omegas is not None,\
-            'instance does not have omega information'
-        assert self.omegaDelta is not None,\
-            'instance does not have omega information'
-        retval = omeToFrameRange(omega, self.omegas, self.omegaDelta)
-        return retval
     def omegaToFrame(self, omega, float=False):
         assert self.omegas is not None,\
             'instance does not have omega information'
+        if self.__wrapsAround:
+            'need to map omegas into range in case omega spans the branch cut'
+            omega = self.omegaMin + omega % (2.0*num.pi)
         if float:
             assert omega >= self.omegaMin and omega <= self.omegaMax,\
                 'omega %g is outside of the range [%g,%g] for the reader' % (omega, self.omegaMin, self.omegaMax)
             retval = (omega - self.omegaStart)/self.omegaDelta - 0.5*self.omegaDelta
         else:
-            temp = num.where(self.omegas == omega)[0]
+            # temp = num.where(self.omegas == omega)[0]
+            temp = num.where( num.abs(self.omegas - omega) < 0.1*abs(self.omegaDelta) )[0]
             assert len(temp) == 1, 'omega not found, or found more than once'
             retval = temp[0]
         return retval
@@ -1111,7 +1190,7 @@ class ReadGE(Framer2DRC):
         else:
             retval = self.dark
         return retval
-    def read(self, nskip=0, nframes=1, sumImg=False):
+    def read(self, nskip=0, nframes=1, sumImg=False, mask=None):
         """
         sumImg can be set to True or to something like numpy.maximum
         """
@@ -1160,6 +1239,8 @@ class ReadGE(Framer2DRC):
             if self.mask is not None:
                 if self.getFrameUseMask():
                     thisframe[self.mask] = 0
+            elif self.mask is None and mask is not None:
+                thisframe[mask] = 0
 
             # assign output
             if sumImg:
@@ -1267,7 +1348,7 @@ class ReadGE(Framer2DRC):
     getReadDtype function replaced by dtypeRead property
     """
     @classmethod
-    def maxVal(cls):
+    def maxVal(cls, dummy):
         'maximum value that can be stored in the image pixel data type'
         # dtype = reader._ReadGE__frame_dtype
         # maxInt = num.iinfo(cls.__frame_dtype_read).max # bigger than it really is
@@ -4179,22 +4260,18 @@ class Detector2DRC(DetectorBase):
         given either angBBox or angCOM (angular center) and angPM (+-values), compute the bounding box on the image frame
 
         if forSlice=True, then returned bbox is appropriate for use in array slicing
+        
+        if reader or omegas is passed, then convert from omegas to frames;
+        and if doWrap=True, then frames may be a list for an omega range that spans the branch cut
         """
 
         units    = kwargs.setdefault('units', 'pixels')
         #
-        # reader = kwargs.get('reader', None)
-        reader = None
-        if kwargs.has_key('reader'):
-            reader = kwargs.pop('reader')
+        reader   = kwargs.pop('reader', None)
+        omegas   = kwargs.pop('omegas', None)
+        doWrap   = kwargs.pop('doWrap', False)
+        forSlice = kwargs.pop('forSlice', True)
         #
-        omegas = None
-        if kwargs.has_key('omegas'):
-            omegas = kwargs.pop('omegas')
-        #
-        forSlice = True
-        if kwargs.has_key('forSlice'):
-            forSlice = kwargs.pop('forSlice')
         slicePad = 0
         if forSlice:
             slicePad = 1
@@ -4231,20 +4308,22 @@ class Detector2DRC(DetectorBase):
             xyoBBox[1] = ( max( int(math.floor(xyoBBox[1][0])), 0),
                            min( int(math.floor(xyoBBox[1][1])), self.ncols-1)+slicePad,
                            )
-        if reader is not None:
-            'convert bounding box from omegas to frames'
-            xyoBBox[2] = ( num.hstack( (reader.omegaToFrameRange(xyoBBox[2][0]), 0) )[0],
-                           num.hstack( (reader.getNFrames()-1, reader.omegaToFrameRange(xyoBBox[2][1]) ) )[-1] + slicePad,
-                           )
-        elif omegas is not None:
-            'convert bounding box from omegas to frames'
-            omegaDelta = num.mean(omegas[1:]-omegas[:-1])
-            nFrames = len(omegas)
-            xyoBBox[2] = (
-                num.hstack( (omeToFrameRange(xyoBBox[2][0], omegas, omegaDelta), 0) )[0],
-                num.hstack( (nFrames-1, omeToFrameRange(xyoBBox[2][1], omegas, omegaDelta) ) )[-1] + slicePad,
-                )
-
+        if (reader is not None) or (omegas is not None):
+            if reader is not None:
+                omegaDelta = reader.omegaDelta
+                omegaStart = reader.omegaStart
+                nFrames    = reader.getNFrames()
+            else:
+                'omegas is not None'
+                omegaDelta = num.mean(omegas[1:]-omegas[:-1]) # assumes uniform omegas
+                omegaStart = omegas[0]-omegaDelta*0.5
+                nFrames    = len(omegas)
+            frameRange = omeRangeToFrameRange(xyoBBox[2][0], xyoBBox[2][1], 
+                                              omegaStart, omegaDelta, nFrames, 
+                                              checkWrap=doWrap, slicePad=slicePad)
+            xyoBBox[2] = frameRange 
+            'try using frameInRange(iFrame, xyoBBox[2])'
+        
         return xyoBBox
 
     def drawRings(self, drawOn, planeData, withRanges=False, legendLoc=(0.05,0.5), legendMaxLen=10,
@@ -4621,7 +4700,7 @@ class Detector2DRC(DetectorBase):
         # self.fitRingsFunc = None
         self.xFitRings = None
         return
-    def fitRings(self, thisframe, planeData, xVec0=None,
+    def fitRings(self, thisframe, planeData, xtol=DFLT_XTOL, xVec0=None,
                  funcType=funcTypeDflt, quadr=1, makePlots=False):
 
       # 'free up memory'
@@ -4638,7 +4717,7 @@ class Detector2DRC(DetectorBase):
               xVec0 = func.guessXVec()
       self.xFitRings = None
 
-      x = func.doFit(xtol=DFLT_XTOL)
+      x = func.doFit(xtol=xtol)
 
       self.xFitRings = x
       # self.fitRingsFunc = func
@@ -4767,22 +4846,26 @@ class Detector2DRC(DetectorBase):
 
         rho, eta, x, y = self.pixelToPolar(rowInd, colInd, corrected=corrected, startEta=startEta)
 
-
         # MAKE POLAR BIN CENTER ARRAY
         deltaEta = (stopEta - startEta) / numEta
         deltaRho = (stopRho - startRho) / numRho
 
         rowEta = startEta + deltaEta * ( num.arange(numEta) + 0.5 )
         colRho = startRho + deltaRho * ( num.arange(numRho) + 0.5 )
-
+        colTTh = num.arctan2(colRho, self.workDist)
+        if corrected:
+            colOut = colTTh
+        else:
+            colOut = colRho
+        
         # initialize output dictionary
         polImg = {}
-        polImg['radius']    = colRho
-        polImg['azimuth']   = rowEta
-        polImg['intensity'] = num.empty( (numEta, numRho) )
-        polImg['deltaRho']  = deltaRho
-
-
+        polImg['corrected']   = corrected
+        polImg['radius']      = colOut
+        polImg['azimuth']     = rowEta
+        polImg['deltaRho']    = deltaRho
+        polImg['intensity']   = num.empty( (numEta, numRho) )
+        
         if verbose:
             msg = "INFO: Masking pixels\n"
             if log:

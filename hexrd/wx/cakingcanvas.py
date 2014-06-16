@@ -31,10 +31,14 @@
 import wx
 
 import numpy
+from scipy import ndimage
+
+import cPickle
+
 import matplotlib
-from matplotlib.axes import Axes
-from matplotlib.patches import Rectangle, Circle, Polygon
-from matplotlib.collections import PatchCollection
+from   matplotlib.axes        import Axes
+from   matplotlib.patches     import Rectangle, Circle, Polygon
+from   matplotlib.collections import PatchCollection
 
 from hexrd.matrixutil import columnNorm, unitVector
 
@@ -405,20 +409,22 @@ class imgOpts(wx.Panel):
         """Add interactors"""
         self.tbarSizer = makeTitleBar(self, 'Full Image Rebinning Results')
         self.cmPanel = cmapPanel(self, wx.NewId())
+        self.exp_but  = wx.Button(self, wx.NewId(), 'Export')
         #
         return
 
     def __makeBindings(self):
         """Bind interactors"""
+        self.Bind(wx.EVT_BUTTON, self.OnExport, self.exp_but)
         return
 
     def __makeSizers(self):
         """Lay out the interactors"""
-        self.sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.sizer.Show(self.tbarSizer, False)
-        self.sizer.Add(self.cmPanel,   1, wx.EXPAND|wx.ALIGN_CENTER)
-
+        self.sizer.Add(self.cmPanel,  0, wx.EXPAND|wx.ALIGN_CENTER)
+        self.sizer.Add(self.exp_but,  0, wx.ALIGN_RIGHT|wx.TOP, 5)
         return
     #
     # ============================== API
@@ -431,19 +437,21 @@ class imgOpts(wx.Panel):
         # tlp = wx.GetTopLevelParent(self)
 
         intensity = p.data['intensity']
-
+        radius    = p.data['radius']
+        azimuth   = p.data['azimuth'] * 180. / numpy.pi
+        if p.data['corrected']:
+            radius = radius * 180. / numpy.pi
+        
         p.axes = p.figure.gca()
         p.axes.set_aspect('equal')
-
-
+        
         p.axes.images = []
         # show new image
         if intensity.shape[0] == 1:
-            import pdb;pdb.set_trace()
-            p.axes.plot(intensity.flatten(), 'b-')
+            p.axes.plot(radius.flatten(), intensity.flatten(), 'b-')
             p.axes.set_title('Intensity Profile')
             p.axes.set_ylabel('Intensity [arb. units]')
-            p.axes.autoscale()
+            p.axes.set_aspect('auto')
         else:
             p.axes.imshow(intensity, origin='upper',
                           interpolation='nearest',
@@ -452,6 +460,25 @@ class imgOpts(wx.Panel):
                           vmin=self.cmPanel.cmin_val,
                           vmax=self.cmPanel.cmax_val)
             p.axes.set_autoscale_on(False)
+            p.axes.set_title('Intensity Profile')
+            p.axes.set_xlabel('Oscillation Angle (omega)')
+            p.axes.set_ylabel('Azimuth (eta)')
+            
+            # tick labels
+            num_ticks = 6
+            xmin = numpy.amin(radius); xmax = numpy.amax(radius)
+            dx = (xmax - xmin) / (num_ticks - 1.); dx1 = (len(radius) - 1) / (num_ticks - 1.)
+            xtlab = ["%.0f" % (xmin + i*dx) for i in range(num_ticks)]
+            xtloc = numpy.array([i*dx1 for i in range(num_ticks)]) + 0.5
+            ymin = numpy.amin(azimuth); ymax = numpy.amax(azimuth)
+            dy = (ymax - ymin) / (num_ticks - 1.); dy1 = (len(azimuth) - 1) / (num_ticks - 1.)
+            ytlab = ["%.0f" % (ymin + i*dy) for i in range(num_ticks)]
+            ytloc = numpy.array([i*dy1 for i in range(num_ticks)]) + 0.5
+            p.axes.xaxis.set_ticks(xtloc)
+            p.axes.xaxis.set_ticklabels(xtlab)
+            p.axes.yaxis.set_ticks(ytloc)
+            p.axes.yaxis.set_ticklabels(ytlab)
+            p.axes.grid(True)
 
         p.canvas.draw()
 
@@ -470,12 +497,32 @@ class imgOpts(wx.Panel):
         dlg = wx.FileDialog(self, 'Export Binning Data', style=wx.FD_SAVE)
         if dlg.ShowModal() == wx.ID_OK:
             f = dlg.GetPath()
-            try:
-                wx.MessageBox('would save to file:  %s' % f)
-                #exp.saveDetector(f)
-            except:
-                wx.MessageBox('failed to save file:  %s' % f)
+            # try:
+            p=self.GetParent()
+            intensity = p.data['intensity']
+            radialDat = p.data['radius']
+            azimuDat  = p.data['azimuth']
+            corrected = p.data['corrected']
+            
+            if corrected:
+                rad_str = 'two-theta'
+            else:
+                rad_str = 'radius'
+            
+            if isinstance(f, file):
+                fid = f
+            elif isinstance(f, str) or isinstance(f, unicode):
+                fid = open(f, 'w')
                 pass
+            for i in range(len(intensity)):
+                print >> fid, "# AZIMUTHAL BLOCK %d" % (i)
+                print >> fid, "# eta = %1.12e\n# %s\tintensity" % (azimuDat[i], rad_str)
+                for j in range(len(intensity[i, :])):
+                    print >> fid, "%1.12e\t%1.12e" % (radialDat[j], intensity[i, j])
+            fid.close()
+            #except:
+            #    wx.MessageBox('failed to save file:  %s' % f)
+            #    pass
             pass
 
         dlg.Destroy()
@@ -537,13 +584,18 @@ class sphOpts(wx.Panel):
 
         self.idata = 0
         self.dispm = self.DISP_RAW
-
+        self.coms  = None                 # centers of mass from optional labeling
+        
+        self.exp_but  = wx.Button(self, wx.NewId(), 'Export')
+        self.lab_but  = wx.Button(self, wx.NewId(), 'Label Spots')
         return
 
     def __makeBindings(self):
         """Bind interactors"""
         self.Bind(wx.EVT_CHOICE, self.OnHKLChoice, self.hkl_cho)
         self.Bind(wx.EVT_CHOICE, self.OnDispChoice, self.disp_cho)
+        self.Bind(wx.EVT_BUTTON, self.OnExport, self.exp_but)
+        self.Bind(wx.EVT_BUTTON, self.OnLabelSpots, self.lab_but)
         return
 
     def __makeSizers(self):
@@ -554,6 +606,8 @@ class sphOpts(wx.Panel):
         self.osizer = wx.BoxSizer(wx.VERTICAL)
         self.osizer.Add(self.hkl_cho,  1, wx.ALIGN_LEFT|wx.TOP, 5)
         self.osizer.Add(self.disp_cho, 1, wx.ALIGN_LEFT|wx.TOP, 5)
+        self.osizer.Add(self.exp_but, 1, wx.ALIGN_LEFT|wx.TOP, 5)
+        self.osizer.Add(self.lab_but, 1, wx.ALIGN_LEFT|wx.TOP, 5)
         self.csizer =wx.BoxSizer(wx.HORIZONTAL)
         self.csizer.Add(self.osizer, 1, wx.ALIGN_RIGHT|wx.TOP, 5)
         self.csizer.Add(self.cmPanel, 1, wx.ALIGN_LEFT|wx.TOP, 5)
@@ -569,16 +623,25 @@ class sphOpts(wx.Panel):
         """Update canvas"""
         p = self.GetParent()
         exp = wx.GetApp().ws
-
+        
         ome_eta = p.data
-        hkldata = ome_eta.getData(self.idata)
+
+        exp._ome_eta = ome_eta
+        
+        # hkldata = ome_eta.getData(self.idata)
+        hkldata = ome_eta.dataStore[self.idata]
+
+        omes = ome_eta.omeEdges * 180. / numpy.pi
+        etas = ome_eta.etaEdges * 180. / numpy.pi
 
         if self.dispm == self.DISP_RAW:
 
             p.figure.delaxes(p.axes)
             p.axes = p.figure.gca()
             p.axes.set_aspect('equal')
+            p.axes.hold(True)
             p.axes.images = []
+            
             # show new image
             p.axes.imshow(hkldata, origin='upper',
                           interpolation='nearest',
@@ -587,7 +650,30 @@ class sphOpts(wx.Panel):
                           vmin=self.cmPanel.cmin_val,
                           vmax=self.cmPanel.cmax_val)
             p.axes.set_autoscale_on(False)
+            p.axes.set_title('Intensity Profile')
+            p.axes.set_xlabel('Azimuth (eta)')
+            p.axes.set_ylabel('Oscillation Angle (omega)')
+            
+            # tick labels
+            num_ticks = 7
+            xmin = numpy.amin(etas); xmax = numpy.amax(etas)
+            dx = (xmax - xmin) / (num_ticks - 1.); dx1 = (len(etas) - 1) / (num_ticks - 1.)
+            xtlab = ["%.0f" % (xmin + i*dx) for i in range(num_ticks)]
+            xtloc = numpy.array([i*dx1 for i in range(num_ticks)]) - 0.5
+            ymin = numpy.amin(omes); ymax = numpy.amax(omes)
+            dy = (ymax - ymin) / (num_ticks - 1.); dy1 = (len(omes) - 1) / (num_ticks - 1.)
+            ytlab = ["%.0f" % (ymin + i*dy) for i in range(num_ticks)]
+            ytloc = numpy.array([i*dy1 for i in range(num_ticks)]) - 0.5
+            p.axes.xaxis.set_ticks(xtloc)
+            p.axes.xaxis.set_ticklabels(xtlab)
+            p.axes.yaxis.set_ticks(ytloc)
+            p.axes.yaxis.set_ticklabels(ytlab)
+            p.axes.grid(True)
 
+            if self.coms is not None:
+                p.axes.plot(self.coms[:, 1], self.coms[:, 0], 'm+', ms=18)
+                pass
+            
             p.canvas.draw()
 
         elif self.dispm == self.DISP_QUICK:
@@ -738,6 +824,7 @@ class sphOpts(wx.Panel):
     def OnHKLChoice(self, e):
         """HKL selection"""
         self.idata = self.hkl_cho.GetSelection()
+        self.coms  = None
         self.update()
 
         return
@@ -751,6 +838,51 @@ class sphOpts(wx.Panel):
     def OnUpdate(self, e):
         """Update canvas"""
         self.update()
+        return
+
+    def OnExport(self, e):
+        """Export results to a cPickle file"""
+        # export self.errs to a file
+        dlg = wx.FileDialog(self, 'Export Binning Errors', style=wx.FD_SAVE)
+        if dlg.ShowModal() == wx.ID_OK:
+            f = dlg.GetPath()
+            if isinstance(f, file):
+                fid = f
+            elif isinstance(f, str) or isinstance(f, unicode):
+                fid = open(f, 'w')
+                pass
+            try:
+                p = self.GetParent()
+                cPickle.dump(p.data, fid)
+            except:
+                wx.MessageBox('failed to save file:  %s' % f)
+                pass
+            pass
+
+        dlg.Destroy()
+        
+        return
+
+    def OnLabelSpots(self, e):
+        """Run spots labeler"""
+        self.idata = self.hkl_cho.GetSelection()
+        p = self.GetParent()
+        
+        this_map = p.data.getData(self.idata)
+
+        threshold = self.cmPanel.cmin_val
+
+        structureNDI_label = numpy.array([[0,1,0],
+                                          [1,1,1],
+                                          [0,1,0]])
+        
+        labels, numSpots   = ndimage.label(this_map > threshold, structureNDI_label)
+        coms               = ndimage.measurements.center_of_mass(this_map, labels, numpy.arange(numpy.amax(labels)) + 1)
+        
+        self.coms = numpy.array(coms)
+
+        self.update()
+
         return
 
     pass # end class

@@ -40,18 +40,18 @@ from wx.lib.wordwrap import wordwrap
 from hexrd import copyright
 from hexrd.xrd.experiment import saveExp, loadExp
 
-from hexrd.wx.guiconfig    import WindowParameters as WP
-from hexrd.wx.guiutil import makeTitleBar
-from hexrd.wx.xrdnotebook  import xrdNoteBook
-from hexrd.wx.canvaspanel  import CanvasPanel
-from hexrd.wx.listeditor      import ListEditDlg
-from hexrd.wx.caking          import cakingDialog
+from hexrd.wx.guiconfig   import WindowParameters as WP
+from hexrd.wx.guiutil     import makeTitleBar
+from hexrd.wx.xrdnotebook import xrdNoteBook
+from hexrd.wx.canvaspanel import CanvasPanel
+from hexrd.wx.listeditor  import ListEditDlg
+from hexrd.wx.caking      import cakingDialog
 #
 # ---------------------------------------------------CLASS:  xrdMainFrame
 #
 class MainFrame(wx.Frame):
     #
-    def __init__(self, parent, id, title='LLNL XRD Analysis Tool'):
+    def __init__(self, parent, id, title='HEXRD Diffraction Analysis Tool'):
         #
         #  Pass option dictionary or string.
         #
