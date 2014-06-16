@@ -789,7 +789,7 @@ double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
     }
   }
 
-  if ( q0_max < 1.0 )
+  if ( q0_max <= 1.0 )
     dist = 2.0*acos(q0_max);
   else
     dist = NAN;

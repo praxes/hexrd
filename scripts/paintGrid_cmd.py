@@ -42,12 +42,12 @@ except:
     pass
 
 haveScikit = False
-# try:
-#     from sklearn.cluster          import dbscan
-#     from sklearn.metrics.pairwise import pairwise_distances
-#     haveScikit = True
-# except:
-#     print "System does not have SciKit installed, using scipy fallback"
+try:
+    from sklearn.cluster          import dbscan
+    from sklearn.metrics.pairwise import pairwise_distances
+    haveScikit = True
+except:
+    print "System does not have SciKit installed, using scipy fallback"
 
 """
 ##################### BEGIN COMPUTATION HERE #####################
@@ -306,8 +306,8 @@ def run_cluster(complPG, qfib, qsym,
 
     if haveScikit:
         print "Using scikit..."
-        pdist = pairwise_distances(qfib_r.T, Y=None, metric=quatDistance, n_jobs=-2)
-        core_samples, labels = dbscan(pdist, eps=d2r*cl_radius, min_samples=2, metric='precomputed')
+        pdist = pairwise_distances(qfib_r.T, metric=quatDistance, n_jobs=-1)
+        core_samples, labels = dbscan(pdist, eps=d2r*cl_radius, min_samples=1, metric='precomputed')
         cl = np.array(labels, dtype=int) + 1
     else:
         print "Using fclusterdata with a tolerance of %f degrees..." % (cl_radius)
@@ -457,6 +457,8 @@ if __name__ == "__main__":
     else:
         qbar, cl = run_cluster(compl, qfib, pd.getQSym(), cl_radius=cl_radius, min_compl=min_compl)
     qbar = np.atleast_2d(qbar)
+    
+    print "Found %d orientation clusters with >=%.1f%% completeness and %2f misorientation" %(qbar.size/4, 100.*min_compl, cl_radius)
 
     # SAVE OUTPUT
     np.savetxt(quats_filename, qbar.T, fmt="%1.12e", delimiter="\t")
