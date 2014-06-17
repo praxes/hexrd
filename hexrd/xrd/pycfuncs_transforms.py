@@ -244,7 +244,7 @@ def gvecToDetectorXY(gVec_c,
             #nb_makeBinaryRotMat_cfunc(gVec_l, brMat);
             for j in range(3):
                 for k in range(3):
-                    brMat[3 *j + k] = 2.0 * gVec_l[j] * gVec_l[k]
+                    brMat[3 * j + k] = 2.0 * gVec_l[j] * gVec_l[k]
             brMat[3 * j + j] -= 1.0
 
             denom = 0.0
@@ -258,11 +258,11 @@ def gvecToDetectorXY(gVec_c,
             if denom < -ztol: 
                 u = num / denom;
                 for j in range(3):
-                    P2_l[j] = P0_l[j] + u * dVec_l[j];
+                    P2_l[j] = P0_l[j] + u * dVec_l[j]
                 for j in range(2):
 	            P2_d[j] = 0.0
                     for k in range(3):
-                        P2_d[j] += rMat_d[j, k] * (P2_l[k] - tVec_d[k, 0])
+                        P2_d[j] += rMat_d[k, j] * (P2_l[k] - tVec_d[k, 0])
                     result[i, j] = P2_d[j];
             else: 
                 result[i, 0] = not_a_num
