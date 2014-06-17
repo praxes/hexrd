@@ -3,6 +3,7 @@ import numpy as np
 
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
+from hexrd.xrd import pycfuncs_transforms as pycfuncs 
 
 # input parameters
 bVec_ref = xf.bVec_ref
@@ -68,15 +69,49 @@ start3 = time.clock()                      # time this
 dangs3 = xfcapi.detectorXYToGvec(XY, rMat_d, rMat_s,
                                  tVec_d.flatten(), tVec_s.flatten(), tVec_c.flatten(), 
                                  beamVec=bVec_ref.flatten(),etaVec=np.array([1.0,0.0,0.0]))
-#tTh_d3 = dangs3[0][0]
-#eta_d3 = dangs3[0][1]
-#gVec3  = dangs3[1]
+tTh_d3 = dangs3[0][0]
+eta_d3 = dangs3[0][1]
+gVec3  = dangs3[1]
 elapsed3 = (time.clock() - start3)
 print "Time for CAPI detectorXYToGvec: %f"%(elapsed3)
 
-#maxDiff_tTh = np.linalg.norm(tTh_d1-tTh_d3,np.inf)
-#print "Maximum disagreement in tTh:  %f"%maxDiff_tTh
-#maxDiff_eta = np.linalg.norm(eta_d1-eta_d3,np.inf)
-#print "Maximum disagreement in eta:  %f"%maxDiff_eta
-#maxDiff_gVec = np.linalg.norm(np.sqrt(np.sum(np.asarray(gVec1.T-gVec3)**2,1)),np.inf)
-#print "Maximum disagreement in gVec: %f"%maxDiff_gVec
+maxDiff_tTh = np.linalg.norm(tTh_d1-tTh_d3,np.inf)
+print "Maximum disagreement in tTh:  %f"%maxDiff_tTh
+maxDiff_eta = np.linalg.norm(eta_d1-eta_d3,np.inf)
+print "Maximum disagreement in eta:  %f"%maxDiff_eta
+maxDiff_gVec = np.linalg.norm(np.sqrt(np.sum(np.asarray(gVec1.T-gVec3)**2,1)),np.inf)
+print "Maximum disagreement in gVec: %f"%maxDiff_gVec
+
+
+start4 = time.clock()                      # time this
+
+dangs4 = pycfuncs.detectorXYToGvec(XY, rMat_d, rMat_s,
+                                 tVec_d.flatten(), tVec_s.flatten(), tVec_c.flatten(), 
+                                 beamVec=bVec_ref.flatten(),etaVec=np.array([1.0,0.0,0.0]))
+tTh_d4 = dangs4[0][0]
+eta_d4 = dangs4[0][1]
+gVec4  = dangs4[1]
+elapsed4 = (time.clock() - start4)
+print "Time for Numba PyCFuncs detectorXYToGvec: %f"%(elapsed4)
+maxDiff_tTh = np.linalg.norm(tTh_d3 - tTh_d4,np.inf)
+print "Maximum disagreement in tTh:  %f"%maxDiff_tTh
+maxDiff_eta = np.linalg.norm(eta_d3 - eta_d4,np.inf)
+print "Maximum disagreement in eta:  %f"%maxDiff_eta
+maxDiff_gVec = np.linalg.norm(np.sqrt(np.sum(np.asarray(gVec3 - gVec4)**2,1)),np.inf)
+print "Maximum disagreement in gVec: %f"%maxDiff_gVec
+
+
+
+
+print 'testing data ...'
+#test tTh
+assert np.allclose(tTh_d1, tTh_d3), 'tTh_d1 not close to tTh_d3'
+#assert np.array_equal(tTh_d1, tTh_d3),  'tTh_d1 not equal to tTh_d3'
+assert np.allclose(tTh_d3, tTh_d4), 'C and PyC not close: tTh_d3, tTh_d4'
+#test eta
+assert np.allclose(eta_d1, eta_d3), 'eta_d1 not close to eta_d3'
+assert np.allclose(eta_d3, eta_d4), 'C and PyC not close: eta_d3, eta_d4'
+#test gVec 
+assert np.allclose(gVec1.T, gVec3), 'eta_d1 not close to eta_d3'
+assert np.allclose(gVec3, gVec4), 'C and PyC not close: eta_d3, eta_d4'
+print 'all tests passed'

@@ -111,13 +111,15 @@ if __name__ == '__main__':
     rMat_sc = np.zeros(9)
     brMat = np.zeros(9) 
     result = np.empty((gVec_c1.T.shape[0], 3))
+    bVec_ref= bVec_ref.flatten()
+
 #
     xy1 = xfcapi.gvecToDetectorXY(gVec_c1.T,rMat_d,rMat_s,rMat_c,tVec_d,tVec_s,tVec_c,bVec_ref, bHat_l, nVec_l, P0_l, P2_l, P2_d, P3_l, gHat_c, gVec_l, dVec_l, rMat_sc, brMat, result)
     #xy1 = xfcapi.gvecToDetectorXY(gVec_c2,rMat_d,rMat_s,rMat_c,tVec_d,tVec_s,tVec_c,bVec_ref)
     elapsed3 = (time.clock() - start3)
     print "Time for Python gvecToDetectorXY: %f"%(elapsed3)
-    import pdb
-    pdb.set_trace()
+#    import pdb
+#    pdb.set_trace()
 
 #    maxDiff_xy = np.linalg.norm(np.sqrt(np.sum(np.asarray(XY-xy1)**2,1)),np.inf)
 #    print "Maximum disagreement in gVec: %f"%maxDiff_xy

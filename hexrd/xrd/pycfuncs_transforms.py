@@ -32,7 +32,7 @@ from hexrd.xrd import _transforms_CAPI
 
 from numpy import float_ as nFloat
 from numpy import int_ as nInt
-from numbapro import vectorize, jit, autojit, guvectorize
+from numbapro import vectorize, jit, autojit, guvectorize, njit
 import math
 
 # ######################################################################
@@ -55,6 +55,10 @@ Z1 = np.array([0., 0., 1.])
 # reference beam direction and eta=0 ref in LAB FRAME for standard geometry
 bVec_ref = -Zl
 eta_ref  =  Xl
+
+
+#numba doesn't handle NaN's correctly
+not_a_num = float('nan')
 
 # ######################################################################
 # Funtions
@@ -82,19 +86,19 @@ def makeGVector(hkl, bMat):
     return unitVector(np.dot(bMat, hkl))
 
 #@jit('void(i8, f8[:,:], f8[:,:])')
-#def nb_unitRowVector_cfunc(n, cIn, cOut):
-#    #n = len(cIn)
-#    nrm = 0.0
-#    for j in range(n):
-#        nrm += cIn[j] * cIn[j]
-#    nrm = math.sqrt(nrm)
-#    if nrm > epsf:
-#        for j in range(n):
-#            cOut[j] = cIn[j] / nrm
-#    else:
-#        for j in range(n):
-#            cOut[j] = cIn[j]
-#
+def nb_unitRowVector_cfunc(n, cIn, cOut):
+    #n = len(cIn)
+    nrm = 0.0
+    for j in range(n):
+        nrm += cIn[j] * cIn[j]
+    nrm = math.sqrt(nrm)
+    if nrm > epsf:
+        for j in range(n):
+            cOut[j] = cIn[j] / nrm
+    else:
+        for j in range(n):
+            cOut[j] = cIn[j]
+
 #@jit('void(i8, f8[:], f8[:])')
 #def nb_unitVec2(n, cIn, cOut):
 #    nrm = 0.0
@@ -137,8 +141,8 @@ def makeGVector(hkl, bMat):
 #@autojit # 21.9 secs
 #@jit('void(f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:] , f8[:], f8[:] , f8[:, :]  )', nopython=True)
 
-@guvectorize(['void(f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:] , f8[:], f8[:] , f8[:, :]  )'], '(m,n),(n,n),(n,n),(n,n),(n,p),(n,p),(n,p),(n,p),(n),(n),(n),(n),(n),(n),(n),(n),(n),(q),(q)->(m,n)')
-#@jit
+#@jit('void(f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:] , f8[:], f8[:] , f8[:, :]  )')
+#@guvectorize(['void(f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:] , f8[:], f8[:] , f8[:, :]  )'], '(m,n),(n,n),(n,n),(n,n),(n,p),(n,p),(n,p),(n,p),(n),(n),(n),(n),(n),(n),(n),(n),(n),(q),(q)->(m,n)')
 def gvecToDetectorXY(gVec_c,
                      rMat_d, rMat_s, rMat_c,
                      tVec_d, tVec_s, tVec_c,
@@ -193,39 +197,30 @@ def gvecToDetectorXY(gVec_c,
 #    rMat_sc = np.zeros(9)
 #    brMat = np.zeros(9) 
 #    result = np.empty((gVec_c.shape[0], 2)) 
-#    nb_unitRowVector_cfunc(3, beamVec, bHat_l)
-    nrm = 0.0
-    for j in range(3):
-        nrm += beamVec[j] * beamVec[j]
-    nrm = math.sqrt(nrm)
-    if nrm > epsf:
-        for j in range(3):
-            bHat_l[j] = beamVec[j] / nrm
-    else:
-        bHat_l = beamVec
 
+    # Normalize the beam vector 
+    nb_unitRowVector_cfunc(3, beamVec, bHat_l)
+    
+    # Initialize the detector normal and frame origins
     num = 0.0
-    for j in range(3):
+    for j in range(3): 
         nVec_l[j] = 0.0
-        P0_l[j] = tVec_s[j, 0]
-        #P0_l[j] = tVec_s[j]
+        P0_l[j] = tVec_s[j]
         for k in range(3):
             nVec_l[j] += rMat_d[j, k] * Z1[k]
-            P0_l[j] += rMat_s[j, k] * tVec_c[k, 0]
-            #P0_l[j] += rMat_s[j, k] * tVec_c[k]
-       
-        P3_l[j] = tVec_d[j, 0]
+            P0_l[j]   += rMat_s[j, k] * tVec_c[k]
+        P3_l[j] = tVec_d[j]
         num += nVec_l[j] * (P3_l[j] - P0_l[j])
 
-    for j in range(3):
-        for k in range(3):
-            for l in range(3):
-                rMat_sc[3 * j + k] += rMat_s[j, l] * rMat_c[l, k]
-
-
+    # Compute the matrix product of rMat_s and rMat_c */
+    for j in range(3): 
+        for k in range(3): 
+            rMat_sc[3 * j + k] = 0.0
+            for l in range(3): 
+	        rMat_sc[3 * j + k] += rMat_s[j, l] * rMat_c[l, k]
+ 
     for i in range(gVec_c.shape[0]): # npts
-#        nb_unitRowVector_cfunc(3, gVec_c[i], gHat_c)
-        #nb_unitVec2(3, gVec_c[i], gHat_c)
+        #nb_unitRowVector_cfunc(3, gVec_c[i], gHat_c)
         nrm = 0.0
         for j in range(3):
             nrm += gVec_c[i, j] * gVec_c[i, j] 
@@ -237,9 +232,9 @@ def gvecToDetectorXY(gVec_c,
             for j in range(3):
                 gHat_c[j] = gVec_c[i, j]
 
-        bDot = 0.
-       #for_loop_bDot(bDot, rMat_sc, gHat_c, gVec_l, bHat_l)
+        bDot = 0.0
         for j in range(3):
+            gVec_l[j] = 0.0
             for k in range(3):
                 gVec_l[j] += rMat_sc[3 * j + k] * gHat_c[k]
             bDot -= bHat_l[j] * gVec_l[j]
@@ -247,89 +242,126 @@ def gvecToDetectorXY(gVec_c,
         if bDot >= ztol and bDot <= 1.0 - ztol:
             #If we are here diffraction is possible so increment the number of admissable vectors */
             #nb_makeBinaryRotMat_cfunc(gVec_l, brMat);
-            for i in range(3):
-                for j in range(3):
-                    brMat[3 * i + j] = 2.0 * gVec_l[i] * gVec_l[j];
-            brMat[3 * i + i] -= 1.0;
-
-            denom = 0.0;
-            
-            #for_loop_denom(denom, dVec_l, brMat, bHat_l, nVec_l)
             for j in range(3):
                 for k in range(3):
-	            dVec_l[j] -= brMat[3 * j + k] * bHat_l[k];
-	    denom += nVec_l[j] * dVec_l[j];
-           
+                    brMat[3 *j + k] = 2.0 * gVec_l[j] * gVec_l[k]
+            brMat[3 * j + j] -= 1.0
+
+            denom = 0.0
             
+            for j in range(3):
+	        dVec_l[j] = 0.0
+                for k in range(3):
+	            dVec_l[j] -= brMat[3 * j + k] * bHat_l[k]
+	        denom += nVec_l[j] * dVec_l[j]
+           
             if denom < -ztol: 
-
-                u = num/denom;
-
+                u = num / denom;
                 for j in range(3):
                     P2_l[j] = P0_l[j] + u * dVec_l[j];
-
                 for j in range(2):
+	            P2_d[j] = 0.0
                     for k in range(3):
                         P2_d[j] += rMat_d[j, k] * (P2_l[k] - tVec_d[k, 0])
                     result[i, j] = P2_d[j];
             else: 
-                result[i, 0] = -1. #np.nan #float('nan') 
-                result[i, 1] = -1. #np.nan #float('nan')
+                result[i, 0] = not_a_num
+                result[i, 1] = not_a_num
         else:
-            result[i, 0] = -1. #np.nan #float('nan')
-            result[i, 1] = -1. #np.nan #float('nan')
+            result[i, 0] = not_a_num
+            result[i, 1] = not_a_num
 
 
-    # nVec_l = np.dot(rMat_d, Zl)                # detector plane normal
-    # bHat_l = unitRowVector(beamVec.reshape(1, 3)) # make sure beam vector is unit
-    # P0_l   = tVec_s + np.dot(rMat_s, tVec_c)   # origin of CRYSTAL FRAME
-    # P3_l   = tVec_d                            # origin of DETECTOR FRAME
+#todo -- @jit
 
-    # # form unit reciprocal lattice vectors in lab frame (w/o translation)
-    # rMat_sc = rMat_s.dot(rMat_c)
-    # gVec_l = np.dot(unitRowVector(gVec_c), rMat_sc.T)
+#@njit
+def nb_makeEtaFrameRotMat_cfunc(bPtr, ePtr, rPtr):
+    # matrices dim
+    # bPtr (3,)
+    # ePtr (3,)
+    # rPtr 9,
+   
+    nrmZ = 0.0;
+    for i in range(3):
+        nrmZ += bPtr[i] * bPtr[i]
+    nrmZ = math.sqrt(nrmZ);
 
-    # # dot with beam vector (upstream direction)
-    # bDot   = np.dot(gVec_l, -bHat_l.T).squeeze()
+    # Assign Z column */
 
-    # # see who can diffract; initialize output array with NaNs
-    # canDiffract = np.atleast_1d( np.logical_and( bDot >= ztol, bDot <= 1. - ztol ) )
-    # npts        = sum(canDiffract)
-    # retval      = np.nan * np.ones_like(gVec_l)
-    # if np.any(canDiffract):  # subset of admissable reciprocal lattice vectors
-    #     adm_gVec_l = gVec_l[canDiffract, :].reshape(npts, 3)
-    #     dVec_l = np.empty((npts, 3)) # initialize diffracted beam vector array
-    #     for ipt in range(npts):
-    #         dVec_l[ipt, :] = np.dot(makeBinaryRotMat(adm_gVec_l[ipt, :]), -bHat_l.T).squeeze()
-    #         # tmp_op = np.dot(adm_gVec_l[:, ipt].reshape(3, 1),
-    #         #                 adm_gVec_l[:, ipt].reshape(1, 3))
-    #         # dVec_l[:, ipt] = np.dot(2*tmp_op - I3, -bHat_l).squeeze()
-    #         pass
-    #     # ###############################################################
-    #     # displacement vector calculation
+    for i in range(3):
+        rPtr[3 * i + 2] = -bPtr[i] / nrmZ
+ 
+    # Determine dot product of Z column and eHat */
+    dotZe = 0.0;
+    for i in range(3):
+        dotZe += rPtr[3 * i + 2] * ePtr[i]
 
-    #     # first check for non-instersections
-    #     denom = np.dot(dVec_l, nVec_l).flatten()
-    #     dzero = abs(denom) < ztol
-    #     denom[dzero] = 1.          # mitigate divide-by-zero
-    #     cantIntersect = denom > 0. # index to dVec_l that can't hit det
+    #Assign X column */
+    for i in range(3):
+        rPtr[3 * i + 0] = ePtr[i] - dotZe * rPtr[3 * i + 2]
 
-    #     # displacement scaling (along dVec_l)
-    #     u = np.dot(nVec_l.T, P3_l - P0_l).flatten() / denom
-        
-    #     # filter out non-intersections, fill with NaNs
-    #     u[np.logical_or(dzero, cantIntersect)] = np.nan
+    #Normalize X column */
+    nrmX = 0.0;
+    for i in range(3):
+        nrmX += rPtr[3 * i + 0] * rPtr[3 * i + 0]
+       
+    nrmX = math.sqrt(nrmX)
 
-    #     # diffracted beam points IN DETECTOR FRAME
-    #     P2_l = np.empty((npts, 3))
-    #     for ipt in range(npts):
-    #         P2_l[ipt,:] = P0_l.T + u[ipt] * dVec_l[ipt,:]
-    #     P2_d = np.dot(P2_l - tVec_d.T, rMat_d)
+    #Assign Y column
+    for i in range(3):
+        rPtr[3*i+1] = rPtr[3 * ((i+1) % 3) + 2] * rPtr[3 * ((i+2) %3) + 0] - rPtr[3 * ((i+2) % 3) + 2] * rPtr[3 * ((i+1) % 3) + 0]
+  
 
-    #     # put feasible transformed gVecs into return array
-    #     retval[canDiffract, :] = P2_d
-    #     pass
-    # return retval[:, :2]
+def nb_rotate_vecs_about_axis_cfunc(na, angles, nax, axes, nv, vecs, rVecs, row):
+
+#  int i, j, sa, sax;
+#  double c, s, nrm, proj, aCrossV[3];
+
+    aCrossV = np.zeros(3)
+
+    if na == 1:
+        sa = 0
+    else: 
+        sa = 1
+    if nax == 1:
+        sax = 0
+    else: 
+        sax = 3
+
+    for i in range(nv): 
+        # Rotate using the Rodrigues' Rotation Formula 
+        # nb the C code was written with angles being an array but
+        # in reality it is just a scalar and i = 0 and nv = 1 
+        # 
+        c = math.cos(angles)
+        s = math.sin(angles)
+
+        # Compute projection of vec along axis 
+        proj = 0.0
+        for j in range(3): 
+            proj += axes[sax * i + j] * vecs[3 * i + j]
+
+        # Compute norm of axis 
+        if nax > 1 or i == 0: 
+            nrm = 0.0
+            for j in range(3): 
+	        nrm += axes[sax * i + j] * axes[sax * i + j]
+            nrm = math.sqrt(nrm);
+
+        # Compute projection of vec along axis */
+        proj = 0.0
+        for j in range(3):
+            proj += axes[sax * i + j] * vecs[3 * i + j]
+
+        # Compute the cross product of the axis with vec */
+        for j in range(3): 
+            aCrossV[j] = axes[sax * i + (j + 1) % 3] * vecs[3 * i + (j + 2) % 3] - axes[sax * i + (j + 2) % 3] * vecs[3 * i+ (j + 1) % 3]
+
+        # Combine the three terms to compute the rotated vector */
+        for j in range(3):
+            rVecs[row, j] = c * vecs[3 * i + j] + (s / nrm) * aCrossV[j] + (1.0 - c) * proj * axes[sax * i + j] / (nrm * nrm)
+
+
 
 def detectorXYToGvec(xy_det,
                      rMat_d, rMat_s,
@@ -357,10 +389,146 @@ def detectorXYToGvec(xy_det,
     (n, 3) ndarray containing the associated G vector directions in the LAB FRAME
     associated with gVecs
     """
-    return _transforms_CAPI.detectorXYToGvec(np.ascontiguousarray(xy_det),
-                                             rMat_d, rMat_s,
-                                             tVec_d.flatten(), tVec_s.flatten(), tVec_c.flatten(),
-                                             beamVec.flatten(),etaVec.flatten())
+    
+    rMat_e = np.zeros(9)
+    bVec = np.zeros(3)
+    tVec1 = np.zeros(3)
+    tVec2 = np.zeros(3)
+    dHat_l = np.zeros(3)
+    n_g = np.zeros(3)
+    npts = xy_det.shape[0]
+    #return values
+    tTh = np.zeros(npts)
+    eta = np.zeros(npts)
+    gVec_l = np.zeros((npts, 3))
+
+    # Fill rMat_e */
+    nb_makeEtaFrameRotMat_cfunc(beamVec, etaVec, rMat_e);
+
+    # Normalize the beam vector
+    nrm = 0.0
+    for j in range(3):
+        nrm += beamVec[j] * beamVec[j]
+    nrm = math.sqrt(nrm)
+    if nrm > epsf: 
+        for j in range(3):
+            bVec[j] = beamVec[j] / nrm
+    else:
+        for j in range(3):
+            bVec[j] = beamVec[j]
+
+    # Compute shift vector 
+    for j in range(3):
+        tVec1[j] = tVec_d[j] - tVec_s[j]
+        for k in range(3):
+            tVec1[j] -= rMat_s[j, k] * tVec_c[k]
+
+
+    for i in range(npts): 
+        # Compute dHat_l vector
+        nrm = 0.0;
+        for j in range(3): 
+            dHat_l[j] = tVec1[j]
+            for k in range(2): 
+	        dHat_l[j] += rMat_d[j, k] * xy_det[i, k]
+            nrm += dHat_l[j] * dHat_l[j]
+        if nrm > epsf:
+            for j in range(3):
+	        dHat_l[j] /= math.sqrt(nrm)
+
+        # Compute tTh 
+        nrm = 0.0;
+        for j in range(3):
+            nrm += bVec[j] * dHat_l[j]
+    
+        tTh[i] = math.acos(nrm)
+
+ 
+        # Compute eta 
+        for j in range(2):
+            tVec2[j] = 0.0
+            for k in range(3):
+	        tVec2[j] += rMat_e[3 * k + j] * dHat_l[k]
+   
+
+        eta[i] = math.atan2(tVec2[1], tVec2[0])
+
+
+       # Compute n_g vector
+        nrm = 0.0
+        for j in range(3):
+            n_g[j] = bVec[(j + 1) % 3] * dHat_l[(j + 2) % 3] - bVec[(j + 2) % 3] * dHat_l[(j + 1) % 3]
+            nrm += n_g[j] * n_g[j]
+        nrm = math.sqrt(nrm)
+        for j in range(3):
+            n_g[j] /= nrm
+
+        # Rotate dHat_l vector
+        phi = 0.5 * (math.pi - tTh[i])
+        nb_rotate_vecs_about_axis_cfunc(1, phi, 1, n_g, 1, dHat_l, gVec_l, i)
+
+    return ((tTh, eta), gVec_l)
+
+#    return _transforms_CAPI.detectorXYToGvec(np.ascontiguousarray(xy_det),
+#                                             rMat_d, rMat_s,
+#                                             tVec_d.flatten(), tVec_s.flatten(), tVec_c.flatten(),
+#                                             beamVec.flatten(),etaVec.flatten())
+
+
+def nb_makeEtaFrameRotMat_cfunc(bPtr, ePtr, rPtr):
+    # int i;
+    # double dotZe, nrmZ, nrmX;
+
+    # Determine norm of bHat
+    nrmZ = 0.0
+    for i in range(3): 
+        nrmZ += bPtr[i] * bPtr[i]
+    nrmZ = math.sqrt(nrmZ)
+
+    # Assign Z column */
+    for i in range(3):
+        rPtr[3 * i + 2] = -bPtr[i] / nrmZ
+
+    # Determine dot product of Z column and eHat
+    dotZe = 0.0
+    for i in range(3):
+        dotZe += rPtr[3 * i + 2] * ePtr[i]
+
+    # Assign X column
+    for i in range(3): 
+       rPtr[3 * i + 0] = ePtr[i] - dotZe * rPtr[3 * i +2]
+
+    # Normalize X column 
+    nrmX = 0.0
+    for i in range(3): 
+        nrmX += rPtr[3 * i + 0] * rPtr[3 * i + 0]
+    nrmX = math.sqrt(nrmX)
+
+    # Assign Y column
+    for i in range(3):
+        rPtr[3 * i + 1] = rPtr[3 * ((i + 1) % 3) + 2] * rPtr[3 * ((i + 2) % 3) + 0] - rPtr[3 * ((i +2) % 3) + 2] * rPtr[3 *((i + 1) % 3) + 0];
+
+
+def nb_makeOscillRotMat_cfunc(oPtr, rPtr):
+#  int i;
+#  double c[2],s[2];
+#
+#  for (i=0; i<2; i++) {
+#    c[i] = cos(oPtr[i]);
+#    s[i] = sin(oPtr[i]);
+#  }
+
+  rPtr[0] =  math.cos(oPtr[1])  # c[1];
+  rPtr[1] =  0.0;
+  rPtr[2] =  math.sin(oPtr[1])  # s[1];
+  rPtr[3] =  math.sin(oPtr[0]) * math.sin(oPtr[1]) # s[0]*s[1];
+  rPtr[4] =  math.cos(oPtr[0])  # c[0];
+  rPtr[5] =  -math.sin(oPtr[0]) * math.cos(oPtr[1])  # -s[0]*c[1];
+  rPtr[6] = -math.cos(oPtr[0]) * math.sin(oPtr[1])  # -c[0]*s[1];
+  rPtr[7] = math.sin(oPtr[0])  # s[0];
+  rPtr[8] =  math.cos(oPtr[0]) * math.cos(oPtr[1]) # c[0]*c[1];
+
+
 
 def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
                        beamVec=bVec_ref, etaVec=eta_ref):
@@ -427,8 +595,154 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     Laue condition cannot be satisfied (filled with NaNs in the results
     array here)
     """
-    return _transforms_CAPI.oscillAnglesOfHKLs(np.ascontiguousarray(hkls),chi,rMat_c,bMat,wavelength,
-                                               beamVec.flatten(),etaVec.flatten())
+    gVec_e = np.zeros(3)
+    gHat_c = np.zeros(3)
+    gHat_s = np.zeros(3)
+    bHat_l = np.zeros(3)
+    eHat_l = np.zeros(3) 
+    oVec = np.zeros(2)
+    tVec0 = np.zeros(3)
+    rMat_e = np.zeros(9)
+    rMat_s = np.zeros(9)
+    npts = hkls.shape[0]
+    #return arrays
+    oangs0 = np.zeros((npts, 3))
+    oangs1 = np.zeros((npts, 3))
+
+
+    # Normalize the beam vector
+    nrm0 = 0.0
+    for j in range(3):
+        nrm0 += beamVec[j] * beamVec[j]
+    nrm0 = math.sqrt(nrm0)
+    if nrm0 > epsf: 
+        for j in range(3): 
+            bHat_l[j] = beamVec[j] / nrm0
+    else:
+        for j in range(3):
+            bHat_l[j] = beamVec[j]
+
+    # Normalize the eta vector 
+    nrm0 = 0.0
+    for j in range(3): 
+        nrm0 += etaVec[j] * etaVec[j]
+    nrm0 = math.sqrt(nrm0)
+    if nrm0 > epsf:
+        for j in range(3):
+            eHat_l[j] = etaVec[j] / nrm0
+    else:
+        for j in range(3): 
+            eHat_l[j] = etaVec[j]
+
+    # Check for consistent reference coordiantes
+    nrm0 = 0.0
+    for j in range(3): 
+        nrm0 += bHat_l[j] * eHat_l[j]
+  
+    if math.fabs(nrm0) < 1.0 - sqrt_epsf:
+        crc = True
+
+    # Compute the sine and cosine of the oscillation axis tilt
+    cchi = math.cos(chi);
+    schi = math.sin(chi);
+
+    for i in range(npts):
+
+        # Compute gVec_c 
+        nrm0 = 0.0
+        for j in range(3):
+            gHat_c[j] = 0.0
+            for k in range(3):
+	        gHat_c[j] += bMat[j, k] * hkls[i, k]
+            nrm0 += gHat_c[j] * gHat_c[j]
+        nrm0 = math.sqrt(nrm0)
+
+        # Compute gVec_s
+        nrm1 = 0.0
+        for j in range(3):
+            gHat_s[j] = 0.0
+            for k in range(3): 
+	        gHat_s[j] += rMat_c[j, k] * gHat_c[k]
+            nrm1 += gHat_s[j] * gHat_s[j]
+        nrm1 = math.sqrt(nrm1)
+
+        # Normalize gVec_c to make gHat_c 
+        if nrm0 > epsf:
+            for j in range(3): 
+	        gHat_c[j] /= nrm0
+
+        # Normalize gVec_s to make gHat_s */
+        if nrm1 > epsf:
+            for j in range(3): 
+	        gHat_s[j] /= nrm1
+
+        # Compute the sine of the Bragg angle */
+        sintht = 0.5 * wavelength * nrm0
+
+        # Compute the coefficients of the harmonic equation
+        a = gHat_s[2] * bHat_l[0] + schi * gHat_s[0] * bHat_l[1] - cchi * gHat_s[0] * bHat_l[2]
+        b = gHat_s[0] * bHat_l[0] - schi * gHat_s[2] * bHat_l[1] + cchi * gHat_s[2] * bHat_l[2]
+        c = -sintht - cchi * gHat_s[1] * bHat_l[1] - schi * gHat_s[1] * bHat_l[2]
+
+        # Form solution
+        abMag = math.sqrt(a * a + b * b) 
+        assert abMag > 0.0, "abMag <= 0.0" 
+        phaseAng = math.atan2(b, a)
+        rhs = c / abMag
+
+        if math.fabs(rhs) > 1.0: 
+            for j in range(3): 
+	        oangs0[i, j] = not_a_num
+	        oangs1[i, j] = not_a_num
+            continue
+
+        try:
+            rhsAng = math.asin(rhs)
+        except ValueError:
+            rhsAng = not_a_num
+
+       # Write ome angles
+        oangs0[i, 2] = rhsAng - phaseAng
+        oangs1[i, 2] = math.pi - rhsAng - phaseAng
+
+        if crc:
+            nb_makeEtaFrameRotMat_cfunc(bHat_l, eHat_l, rMat_e)
+
+        oVec[0] = chi
+        oVec[1] = oangs0[i, 2]
+        nb_makeOscillRotMat_cfunc(oVec, rMat_s)
+
+        for j in range(3):
+	    tVec0[j] = 0.0
+            for k in range(3): 
+	        tVec0[j] += rMat_s[3 * j + k] * gHat_s[k]
+        for j in range(2):
+	    gVec_e[j] = 0.0
+	    for k in range(3): 
+	        gVec_e[j] += rMat_e[3 * k + j] * tVec0[k]
+      
+        oangs0[i, 1] = math.atan2(gVec_e[1], gVec_e[0])
+
+        oVec[1] = oangs1[i, 2]
+        nb_makeOscillRotMat_cfunc(oVec, rMat_s)
+
+        for j in range(3): 
+	    tVec0[j] = 0.0
+            for k in range(3): 
+	        tVec0[j] += rMat_s[3 * j + k] * gHat_s[k]
+        for j in range(2):
+	    gVec_e[j] = 0.0
+            for k in range(3):
+	        gVec_e[j] += rMat_e[3 * k + j] * tVec0[k]
+        oangs1[i, 1] = math.atan2(gVec_e[1], gVec_e[0]);
+
+        oangs0[i, 0] = 2.0 * math.asin(sintht)
+        oangs1[i, 0] = oangs0[i, 0]
+
+    return oangs0, oangs1
+
+#    return _transforms_CAPI.oscillAnglesOfHKLs(np.ascontiguousarray(hkls),chi,rMat_c,bMat,wavelength,
+#                                               beamVec.flatten(),etaVec.flatten())
 
 """
 #######################################################################
