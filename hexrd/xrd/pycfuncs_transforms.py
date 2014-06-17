@@ -99,45 +99,6 @@ def nb_unitRowVector_cfunc(n, cIn, cOut):
         for j in range(n):
             cOut[j] = cIn[j]
 
-#@jit('void(i8, f8[:], f8[:])')
-#def nb_unitVec2(n, cIn, cOut):
-#    nrm = 0.0
-#    for j in range(n):
-#        nrm += cIn[j] * cIn[j]
-#    nrm = math.sqrt(nrm)
-#    if nrm > epsf:
-#        for j in range(n):
-#            cOut[j] = cIn[j] / nrm
-#    else:
-#        for j in range(n):
-#            cOut[j] = cIn[j]
-#
-#@jit('void(f8, f8[:], f8[:], f8[:], f8[:])')
-#def for_loop_bDot(bDot, rMat_sc, gHat_c, gVec_l, bHat_l):
-#    for j in range(3):
-#        for k in range(3):
-#            gVec_l[j] += rMat_sc[3 * j + k] * gHat_c[k]
-#        bDot -= bHat_l[j] * gVec_l[j]
-
-#really know diff in time with this function
-#@jit('void(f8[:], f8[:])')
-#def nb_makeBinaryRotMat_cfunc(aPtr, rPtr):
-#    for i in range(3):
-#        for j in range(3):
-#            rPtr[3 * i + j] = 2.0 * aPtr[i] *aPtr[j];
-#        rPtr[3 * i + i] -= 1.0;
-
-
-#@jit('void(f8, f8[:], f8[:], f8[:], f8[:])')
-#def for_loop_denom(denom, dVec_l, brMat, bHat_l, nVec_l):
-#    for j in range(3):
-#        for k in range(3):
-#	  dVec_l[j] -= brMat[3 * j + k] * bHat_l[k];
-#	denom += nVec_l[j] * dVec_l[j];
-
-
-
-
 #@autojit # 21.9 secs
 #@jit('void(f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:,:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8[:] , f8[:], f8[:] , f8[:, :]  )', nopython=True)
 
@@ -274,7 +235,7 @@ def gvecToDetectorXY(gVec_c,
 
 #todo -- @jit
 
-#@njit
+@njit
 def nb_makeEtaFrameRotMat_cfunc(bPtr, ePtr, rPtr):
     # matrices dim
     # bPtr (3,)
@@ -311,7 +272,7 @@ def nb_makeEtaFrameRotMat_cfunc(bPtr, ePtr, rPtr):
     for i in range(3):
         rPtr[3*i+1] = rPtr[3 * ((i+1) % 3) + 2] * rPtr[3 * ((i+2) %3) + 0] - rPtr[3 * ((i+2) % 3) + 2] * rPtr[3 * ((i+1) % 3) + 0]
   
-
+@jit
 def nb_rotate_vecs_about_axis_cfunc(na, angles, nax, axes, nv, vecs, rVecs, row):
 
 #  int i, j, sa, sax;
@@ -362,7 +323,7 @@ def nb_rotate_vecs_about_axis_cfunc(na, angles, nax, axes, nv, vecs, rVecs, row)
             rVecs[row, j] = c * vecs[3 * i + j] + (s / nrm) * aCrossV[j] + (1.0 - c) * proj * axes[sax * i + j] / (nrm * nrm)
 
 
-
+@jit
 def detectorXYToGvec(xy_det,
                      rMat_d, rMat_s,
                      tVec_d, tVec_s, tVec_c,
@@ -436,7 +397,8 @@ def detectorXYToGvec(xy_det,
     detector_core_loop(xy_det, rMat_d, rMat_s, tVec_d, tVec_s, tVec_c, beamVec, etaVec,
                        rMat_e, bVec, tVec1, tVec2, dHat_l, n_g, npts, tTh, eta, gVec_l)
 
-    #move the main loop to a function so it can be numbaized
+#move the main loop to a function so it can be numbaized
+@jit
 def detector_core_loop(xy_det, rMat_d, rMat_s, tVec_d, tVec_s, tVec_c, beamVec, etaVec,
                        rMat_e, bVec, tVec1, tVec2, dHat_l, n_g, npts, tTh, eta, gVec_l):
 
@@ -544,7 +506,11 @@ def nb_makeOscillRotMat_cfunc(oPtr, rPtr):
 
 
 def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
-                       beamVec=bVec_ref, etaVec=eta_ref):
+                       beamVec, etaVec, 
+                       gVec_e, gHat_c, gHat_s, 
+                       bHat_l, eHat_l, oVec, tVec0, 
+                       rMat_e, rMat_s, npts,
+                       oangs0, oangs1):
     """
     Takes a list of unit reciprocal lattice vectors in crystal frame to the
     specified detector-relative frame, subject to the conditions:
@@ -608,19 +574,19 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     Laue condition cannot be satisfied (filled with NaNs in the results
     array here)
     """
-    gVec_e = np.zeros(3)
-    gHat_c = np.zeros(3)
-    gHat_s = np.zeros(3)
-    bHat_l = np.zeros(3)
-    eHat_l = np.zeros(3) 
-    oVec = np.zeros(2)
-    tVec0 = np.zeros(3)
-    rMat_e = np.zeros(9)
-    rMat_s = np.zeros(9)
-    npts = hkls.shape[0]
-    #return arrays
-    oangs0 = np.zeros((npts, 3))
-    oangs1 = np.zeros((npts, 3))
+#    gVec_e = np.zeros(3)
+#    gHat_c = np.zeros(3)
+#    gHat_s = np.zeros(3)
+#    bHat_l = np.zeros(3)
+#    eHat_l = np.zeros(3) 
+#    oVec = np.zeros(2)
+#    tVec0 = np.zeros(3)
+#    rMat_e = np.zeros(9)
+#    rMat_s = np.zeros(9)
+#    npts = hkls.shape[0]
+#    #return arrays
+#    oangs0 = np.zeros((npts, 3))
+#    oangs1 = np.zeros((npts, 3))
 
 
     # Normalize the beam vector
@@ -658,6 +624,25 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     # Compute the sine and cosine of the oscillation axis tilt
     cchi = math.cos(chi);
     schi = math.sin(chi);
+
+    # move main loop to its own function so it can be numbaized
+    oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
+                       beamVec, etaVec, 
+                       crc, cchi, schi,
+                       gVec_e, gHat_c, gHat_s, 
+                       bHat_l, eHat_l, oVec, tVec0, 
+                       rMat_e, rMat_s, npts,
+                       oangs0, oangs1)
+
+
+
+def oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
+                       beamVec, etaVec, 
+                       crc, cchi, schi,
+                       gVec_e, gHat_c, gHat_s, 
+                       bHat_l, eHat_l, oVec, tVec0, 
+                       rMat_e, rMat_s, npts,
+                       oangs0, oangs1):
 
     for i in range(npts):
 
@@ -752,7 +737,7 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
         oangs0[i, 0] = 2.0 * math.asin(sintht)
         oangs1[i, 0] = oangs0[i, 0]
 
-    return oangs0, oangs1
+    #return oangs0, oangs1
 
 #    return _transforms_CAPI.oscillAnglesOfHKLs(np.ascontiguousarray(hkls),chi,rMat_c,bMat,wavelength,
 #                                               beamVec.flatten(),etaVec.flatten())

@@ -53,13 +53,34 @@ print "Time for CAPI oscillAnglesOfHKLs:   %f"%elapsed2
 
 #print "  Speedup: %f"%(elapsed1/elapsed2)
 
+gVec_e = np.zeros(3)
+gHat_c = np.zeros(3)
+gHat_s = np.zeros(3)
+bHat_l = np.zeros(3)
+eHat_l = np.zeros(3) 
+oVec = np.zeros(2)
+tVec0 = np.zeros(3)
+rMat_e = np.zeros(9)
+rMat_s = np.zeros(9)
+npts = hkls.shape[0]
+#return arrays
+oangs0 = np.zeros((npts, 3))
+oangs1 = np.zeros((npts, 3))
+
 
 start3 = time.clock()                      # time this
 for i in range(n):
-    oangs03, oangs13 = pycfuncs.oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength, beamVec=bVec_ref, etaVec=eta_ref)
+    pycfuncs.oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength, bVec_ref, eta_ref,
+                            gVec_e, gHat_c, gHat_s, 
+                            bHat_l, eHat_l, oVec, tVec0, 
+                            rMat_e, rMat_s, npts,
+                            oangs0, oangs1)
     #xfcapi.oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength, beamVec=bVec_ref, etaVec=eta_ref)
 elapsed3 = (time.clock() - start3)
 print "Time for Numba PyCFuncs oscillAnglesOfHKLs:   %f" %elapsed3
+oangs03 = oangs0
+oangs13 = oangs1
+
 #print oangs01.shape, oangs11.shape
 #print oangs02.shape, oangs12.shape
 #print np.linalg.norm(oangs01[:,0]),np.linalg.norm(oangs01[:,1]),np.linalg.norm(oangs01[:,2])
