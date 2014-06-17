@@ -1,3 +1,4 @@
+from timeit import default_timer as timer
 import sys, os, time
 import numpy as np
 
@@ -38,24 +39,24 @@ dcrds = np.meshgrid(pvec, pvec)
 XY    = np.ascontiguousarray(np.vstack([dcrds[0].flatten(), dcrds[1].flatten()]).T)
 
 # Check the timings
-start1 = time.clock()                      # time this
+start1 = timer()
 dangs1 = xf.detectorXYToGvec(XY, rMat_d, rMat_s,
                              tVec_d, tVec_s, tVec_c, 
                              beamVec=bVec_ref)
 tTh_d1 = dangs1[0][0]
 eta_d1 = dangs1[0][1]
 gVec1  = dangs1[1]
-elapsed1 = (time.clock() - start1)
+elapsed1 = (timer() - start1)
 print "Time for Python detectorXYToGvec: %f"%(elapsed1)
 
-# start2 = time.clock()                      # time this
+# start2 = timer()                      # time this
 # dangs2 = xfc.detectorXYToGvecC(XY, rMat_d, rMat_s,
 #                                tVec_d, tVec_s, tVec_c, 
 #                                beamVec=bVec_ref.flatten())
 # tTh_d2 = dangs2[0][0]
 # eta_d2 = dangs2[0][1]
 # gVec2  = dangs2[1]
-# elapsed2 = (time.clock() - start2)
+# elapsed2 = (timer() - start2)
 # print "Time for Cython detectorXYToGvec: %f"%(elapsed2)
 
 #maxDiff_tTh = np.linalg.norm(tTh_d1-tTh_d2,np.inf)
@@ -65,14 +66,14 @@ print "Time for Python detectorXYToGvec: %f"%(elapsed1)
 #maxDiff_gVec = np.linalg.norm(np.sqrt(np.sum(np.asarray(gVec1.T-gVec2)**2,1)),np.inf)
 #print "Maximum disagreement in gVec: %f"%maxDiff_gVec
 
-start3 = time.clock()                      # time this
+start3 = timer()                      # time this
 dangs3 = xfcapi.detectorXYToGvec(XY, rMat_d, rMat_s,
                                  tVec_d.flatten(), tVec_s.flatten(), tVec_c.flatten(), 
                                  beamVec=bVec_ref.flatten(),etaVec=np.array([1.0,0.0,0.0]))
 tTh_d3 = dangs3[0][0]
 eta_d3 = dangs3[0][1]
 gVec3  = dangs3[1]
-elapsed3 = (time.clock() - start3)
+elapsed3 = (timer() - start3)
 print "Time for CAPI detectorXYToGvec: %f"%(elapsed3)
 
 maxDiff_tTh = np.linalg.norm(tTh_d1-tTh_d3,np.inf)
@@ -82,16 +83,33 @@ print "Maximum disagreement in eta:  %f"%maxDiff_eta
 maxDiff_gVec = np.linalg.norm(np.sqrt(np.sum(np.asarray(gVec1.T-gVec3)**2,1)),np.inf)
 print "Maximum disagreement in gVec: %f"%maxDiff_gVec
 
+#setup for detectorXYToGVec
+rMat_e = np.zeros(9)
+bVec = np.zeros(3)
+tVec1 = np.zeros(3)
+tVec2 = np.zeros(3)
+dHat_l = np.zeros(3)
+n_g = np.zeros(3)
+npts = XY.shape[0]
+#return values
+tTh = np.zeros(npts)
+eta = np.zeros(npts)
+gVec_l = np.zeros((npts, 3))
 
-start4 = time.clock()                      # time this
 
-dangs4 = pycfuncs.detectorXYToGvec(XY, rMat_d, rMat_s,
+start4 = timer()                      # time this
+
+
+
+pycfuncs.detectorXYToGvec(XY, rMat_d, rMat_s,
                                  tVec_d.flatten(), tVec_s.flatten(), tVec_c.flatten(), 
-                                 beamVec=bVec_ref.flatten(),etaVec=np.array([1.0,0.0,0.0]))
-tTh_d4 = dangs4[0][0]
-eta_d4 = dangs4[0][1]
-gVec4  = dangs4[1]
-elapsed4 = (time.clock() - start4)
+                                 bVec_ref.flatten(),np.array([1.0,0.0,0.0]),
+                                 rMat_e, bVec, tVec1, tVec2, dHat_l, n_g, npts, tTh, eta, gVec_l)
+                                 
+tTh_d4 = tTh  #dangs4[0][0]
+eta_d4 = eta  # dangs4[0][1]
+gVec4  = gVec_l  # dangs4[1]
+elapsed4 = (timer() - start4)
 print "Time for Numba PyCFuncs detectorXYToGvec: %f"%(elapsed4)
 maxDiff_tTh = np.linalg.norm(tTh_d3 - tTh_d4,np.inf)
 print "Maximum disagreement in tTh:  %f"%maxDiff_tTh

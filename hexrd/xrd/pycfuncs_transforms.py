@@ -366,7 +366,17 @@ def nb_rotate_vecs_about_axis_cfunc(na, angles, nax, axes, nv, vecs, rVecs, row)
 def detectorXYToGvec(xy_det,
                      rMat_d, rMat_s,
                      tVec_d, tVec_s, tVec_c,
-                     beamVec=bVec_ref, etaVec=eta_ref):
+                     beamVec, etaVec,
+                     rMat_e,
+                     bVec,
+                     tVec1,
+                     tVec2,
+                     dHat_l, 
+                     n_g,
+                     npts,
+                     tTh,
+                     eta,
+                     gVec_l):
     """
     Takes a list cartesian (x, y) pairs in the detector coordinates and calculates
     the associated reciprocal lattice (G) vectors and (bragg angle, azimuth) pairs
@@ -390,17 +400,17 @@ def detectorXYToGvec(xy_det,
     associated with gVecs
     """
     
-    rMat_e = np.zeros(9)
-    bVec = np.zeros(3)
-    tVec1 = np.zeros(3)
-    tVec2 = np.zeros(3)
-    dHat_l = np.zeros(3)
-    n_g = np.zeros(3)
-    npts = xy_det.shape[0]
-    #return values
-    tTh = np.zeros(npts)
-    eta = np.zeros(npts)
-    gVec_l = np.zeros((npts, 3))
+#    rMat_e = np.zeros(9)
+#    bVec = np.zeros(3)
+#    tVec1 = np.zeros(3)
+#    tVec2 = np.zeros(3)
+#    dHat_l = np.zeros(3)
+#    n_g = np.zeros(3)
+#    npts = xy_det.shape[0]
+#    #return values
+#    tTh = np.zeros(npts)
+#    eta = np.zeros(npts)
+#    gVec_l = np.zeros((npts, 3))
 
     # Fill rMat_e */
     nb_makeEtaFrameRotMat_cfunc(beamVec, etaVec, rMat_e);
@@ -423,6 +433,12 @@ def detectorXYToGvec(xy_det,
         for k in range(3):
             tVec1[j] -= rMat_s[j, k] * tVec_c[k]
 
+    detector_core_loop(xy_det, rMat_d, rMat_s, tVec_d, tVec_s, tVec_c, beamVec, etaVec,
+                       rMat_e, bVec, tVec1, tVec2, dHat_l, n_g, npts, tTh, eta, gVec_l)
+
+    #move the main loop to a function so it can be numbaized
+def detector_core_loop(xy_det, rMat_d, rMat_s, tVec_d, tVec_s, tVec_c, beamVec, etaVec,
+                       rMat_e, bVec, tVec1, tVec2, dHat_l, n_g, npts, tTh, eta, gVec_l):
 
     for i in range(npts): 
         # Compute dHat_l vector
@@ -443,16 +459,13 @@ def detectorXYToGvec(xy_det,
     
         tTh[i] = math.acos(nrm)
 
- 
         # Compute eta 
         for j in range(2):
             tVec2[j] = 0.0
             for k in range(3):
 	        tVec2[j] += rMat_e[3 * k + j] * dHat_l[k]
    
-
         eta[i] = math.atan2(tVec2[1], tVec2[0])
-
 
        # Compute n_g vector
         nrm = 0.0
@@ -467,7 +480,7 @@ def detectorXYToGvec(xy_det,
         phi = 0.5 * (math.pi - tTh[i])
         nb_rotate_vecs_about_axis_cfunc(1, phi, 1, n_g, 1, dHat_l, gVec_l, i)
 
-    return ((tTh, eta), gVec_l)
+#    return ((tTh, eta), gVec_l)
 
 #    return _transforms_CAPI.detectorXYToGvec(np.ascontiguousarray(xy_det),
 #                                             rMat_d, rMat_s,
