@@ -777,7 +777,6 @@ def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
     dev_crc = cuda.to_device(crc)
     dev_cchi = cuda.to_device(cchi)
     dev_schi = cuda.to_device(schi)
-
     dev_bHat_l = cuda.to_device(bHat_l)
     dev_eHat_l = cuda.to_device(eHat_l)
     dev_oangs0 = cuda.to_device(oangs0)
@@ -795,8 +794,8 @@ def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
     dev_oangs1.copy_to_host(ary=oangs1)
 
 
-@cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64, "
-        "float64[:], float64[:], int32, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
+#@cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64, "
+#        "float64[:], float64[:], int32, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
 def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
                        beamVec, etaVec, 
                        crc, cchi, schi,
