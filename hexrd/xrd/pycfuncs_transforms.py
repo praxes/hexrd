@@ -32,7 +32,7 @@ from hexrd.xrd import _transforms_CAPI
 
 from numpy import float_ as nFloat
 from numpy import int_ as nInt
-from numbapro import vectorize, jit, autojit, guvectorize, njit, cuda, float64, bool
+from numbapro import vectorize, jit, autojit, guvectorize, njit, cuda, float64, int32 
 import math
 
 # ######################################################################
@@ -741,7 +741,7 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
 #    oangs0 = np.zeros((npts, 3))
 #    oangs1 = np.zeros((npts, 3))
 
-    crc = False
+    crc = 0
     # Normalize the beam vector
     nrm0 = 0.0
     for j in range(3):
@@ -772,7 +772,7 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
         nrm0 += bHat_l[j] * eHat_l[j]
   
     if math.fabs(nrm0) < 1.0 - sqrt_epsf:
-        crc = True
+        crc = 1
 
     # Compute the sine and cosine of the oscillation axis tilt
     cchi = math.cos(chi);
@@ -823,7 +823,7 @@ def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
 
 
 @cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64,"
-        "float64[:], float64[:], bool, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
+        "float64[:], float64[:], int32, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
 def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
                        beamVec, etaVec, 
                        crc, cchi, schi,
@@ -902,7 +902,7 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
     oangs0[i, 2] = rhsAng - phaseAng
     oangs1[i, 2] = math.pi - rhsAng - phaseAng
 
-    if crc:
+    if crc == 1:
         #nb_makeEtaFrameRotMat_cfunc(bHat_l, eHat_l, rMat_e)
 
         nrmZ = 0.0
