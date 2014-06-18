@@ -1001,8 +1001,6 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
     oVec = cuda.local.array(2, dtype=float64)
     tVec0 = cuda.local.array(3, dtype=float64)
     gVec_e = cuda.local.array(3, dtype=float64)
-    #c = cuda.local.array(2, dtype=float64)
-    #s = cuda.local.array(2, dtype=float64)
     rMat_s = cuda.local.array(9, dtype=float64)
     rMat_e = cuda.local.array(9, dtype=float64)
 
@@ -1213,8 +1211,10 @@ def oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
         c = -sintht - cchi * gHat_s[1] * bHat_l[1] - schi * gHat_s[1] * bHat_l[2]
 
         # Form solution
-        abMag = math.sqrt(a * a + b * b) 
-        assert abMag > 0.0, "abMag <= 0.0" 
+        abMag = math.sqrt(a * a + b * b)
+        if abMag > 0.0:
+            return
+        #assert abMag > 0.0, "abMag <= 0.0" 
         phaseAng = math.atan2(b, a)
         rhs = c / abMag
 
