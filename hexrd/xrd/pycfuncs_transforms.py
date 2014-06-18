@@ -989,7 +989,7 @@ def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
     dev_oangs1.copy_to_host(ary=oangs1)
 
 
-#@cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64, float64[:], float64[:], int64, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
+@cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64, float64[:], float64[:], int64, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
 def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
                        beamVec, etaVec, 
                        crc, cchi, schi,
@@ -1047,8 +1047,12 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
     c = -sintht - cchi * gHat_s[1] * bHat_l[1] - schi * gHat_s[1] * bHat_l[2]
 
     # Form solution
-    abMag = math.sqrt(a * a + b * b) 
-    assert abMag > 0.0, "abMag <= 0.0" 
+    abMag = math.sqrt(a * a + b * b)
+    if abMag > 0.0:
+        print 'abMag should be <= 0'
+        print 'bailing'
+        exit
+    #assert abMag > 0.0, "abMag <= 0.0" 
     phaseAng = math.atan2(b, a)
     rhs = c / abMag
 
