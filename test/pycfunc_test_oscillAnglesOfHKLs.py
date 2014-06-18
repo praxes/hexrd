@@ -90,7 +90,9 @@ oangs13 = oangs1
 
 print 'testing data ...'
 #test oangs
-
+print oangs02
+print '*' * 50
+print oangs03
 
 assert np.allclose(oangs01.T, oangs02), 'oangs01 and oangs02 not close'
 assert np.allclose(oangs02, oangs03),  'oangs02 and oangs03 not close'
