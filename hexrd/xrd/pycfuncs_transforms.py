@@ -423,10 +423,10 @@ def gpu_detector_core_loop_kernel(xy_det, rMat_d,
                        rMat_e, bVec, tVec1, tTh, eta, gVec_l):
 
 
-    dHat_l = cuda.local.array(3, dtype=float64)
-    tVec2 = cuda.local.array(3, dtype=float64)
-    n_g = cuda.local.array(3, dtype=float64)
-    aCrossV = cuda.local.array(3, dtype=float64)
+    dHat_l = cuda.local.array(3, dtype=np.float64)
+    tVec2 = cuda.local.array(3, dtype=np.float64)
+    n_g = cuda.local.array(3, dtype=np.float64)
+    aCrossV = cuda.local.array(3, dtype=np.float64)
 
     # Compute dHat_l vector
     nrm = 0.0;
