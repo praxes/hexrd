@@ -890,8 +890,9 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
         for j in range(3): 
             oangs0[i, j] = not_a_num
             oangs1[i, j] = not_a_num
-        continue
-
+        #continue
+        return 
+    
     try:
         rhsAng = math.asin(rhs)
     except ValueError:
