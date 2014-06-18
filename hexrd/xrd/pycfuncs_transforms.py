@@ -32,7 +32,7 @@ from hexrd.xrd import _transforms_CAPI
 
 from numpy import float_ as nFloat
 from numpy import int_ as nInt
-from numbapro import vectorize, jit, autojit, guvectorize, njit, cuda, float64
+from numbapro import vectorize, jit, autojit, guvectorize, njit, cuda, float64, bool
 import math
 
 # ######################################################################
@@ -822,8 +822,8 @@ def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
     dev_oangs1.copy_to_host(ary=oangs1)
 
 
-@cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64, "
-        "float64[:], float64[:], float64, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
+@cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64,"
+        "float64[:], float64[:], bool, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
 def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
                        beamVec, etaVec, 
                        crc, cchi, schi,
