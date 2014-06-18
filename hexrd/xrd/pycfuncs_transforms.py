@@ -32,7 +32,7 @@ from hexrd.xrd import _transforms_CAPI
 
 from numpy import float_ as nFloat
 from numpy import int_ as nInt
-from numbapro import vectorize, jit, autojit, guvectorize, njit, cuda, float64, int32 
+from numbapro import vectorize, jit, autojit, guvectorize, njit, cuda, float64, int64 
 import math
 
 # ######################################################################
