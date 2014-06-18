@@ -32,7 +32,7 @@ from hexrd.xrd import _transforms_CAPI
 
 from numpy import float_ as nFloat
 from numpy import int_ as nInt
-from numbapro import vectorize, jit, autojit, guvectorize, njit
+from numbapro import vectorize, jit, autojit, guvectorize, njit, cuda
 import math
 
 # ######################################################################
@@ -235,7 +235,6 @@ def gvecToDetectorXY(gVec_c,
 
 #todo -- @jit
 
-@njit
 def nb_makeEtaFrameRotMat_cfunc(bPtr, ePtr, rPtr):
     # matrices dim
     # bPtr (3,)
@@ -272,7 +271,6 @@ def nb_makeEtaFrameRotMat_cfunc(bPtr, ePtr, rPtr):
     for i in range(3):
         rPtr[3*i+1] = rPtr[3 * ((i+1) % 3) + 2] * rPtr[3 * ((i+2) %3) + 0] - rPtr[3 * ((i+2) % 3) + 2] * rPtr[3 * ((i+1) % 3) + 0]
   
-@jit
 def nb_rotate_vecs_about_axis_cfunc(na, angles, nax, axes, nv, vecs, rVecs, row):
 
 #  int i, j, sa, sax;
@@ -394,13 +392,124 @@ def detectorXYToGvec(xy_det,
         for k in range(3):
             tVec1[j] -= rMat_s[j, k] * tVec_c[k]
 
-    detector_core_loop(xy_det, rMat_d, rMat_s, tVec_d, tVec_s, tVec_c, beamVec, etaVec,
-                       rMat_e, bVec, tVec1, tVec2, dHat_l, n_g, npts, tTh, eta, gVec_l)
+    #gpu_detector_core_loop(xy_det, rMat_d, rMat_e, bVec, tVec1, tTh, eta, gVec_l)
 
-#move the main loop to a function so it can be numbaized
+    
+    # cpu  
+    detector_core_loop(xy_det, rMat_d, rMat_e, bVec, tVec1, npts, tTh, eta, gVec_l)
+
+def gpu_detector_core_loop(xy_det, rMat_d,  
+        rMat_e, bVec, tVec1, tTh, eta, gVec_l):
+
+    dev_xy_det = cuda.to_device(xy_det)
+    dev_rMat_d = cuda.to_device(rMat_d)
+    dev_rMat_e = cuda.to_device(rMat_e)
+    dev_bVec = cuda.to_device(bVec)
+    dev_tVec1 = cuda.to_device(tVec1)
+    dev_tTh = cuda.to_device(tTh)
+    dev_eta = cuda.to_device(eta)
+    dev_gVec_l = cuda.to_device(gVec_l)
+      
+    gpu_detector_core_loop_kernel.forall(xy_det.shape[0])(dev_xy_det, dev_rMat_d, dev_rMat_e, dev_bVec, dev_tVec1, dev_tTh, dev_eta, dev_gVec_l)
+
+    dev_tTh.copy_to_host(ary=tTh)
+    dev_eta.copy_to_host(ary=eta)
+    dev_gVec_l.copy_to_host(ary=gVec_l)
+
+ 
+#@cuda.jit("float64[:,:], float64[:,:], float64[:], float64[:], float64[:], "
+#        "float64[:], float64[:], float64[:,:]")
+def gpu_detector_core_loop_kernel(xy_det, rMat_d,
+                       rMat_e, bVec, tVec1, tTh, eta, gVec_l):
+
+
+    dHat_l = cuda.local.array(3, dtype=float64)
+    tVec2 = cuda.local.array(3, dtype=float64)
+    n_g = cuda.local.array(3, dtype=float64)
+    aCrossV = cuda.local.array(3, dtype=float64)
+
+    # Compute dHat_l vector
+    nrm = 0.0;
+    for j in range(3): 
+        dHat_l[j] = tVec1[j]
+        for k in range(2): 
+            dHat_l[j] += rMat_d[j, k] * xy_det[i, k]
+        nrm += dHat_l[j] * dHat_l[j]
+    if nrm > epsf:
+        for j in range(3):
+            dHat_l[j] /= math.sqrt(nrm)
+
+    # Compute tTh 
+    nrm = 0.0;
+    for j in range(3):
+        nrm += bVec[j] * dHat_l[j]
+
+    tTh[i] = math.acos(nrm)
+
+    # Compute eta 
+    for j in range(2):
+        tVec2[j] = 0.0
+        for k in range(3):
+            tVec2[j] += rMat_e[3 * k + j] * dHat_l[k]
+
+    eta[i] = math.atan2(tVec2[1], tVec2[0])
+
+   # Compute n_g vector
+    nrm = 0.0
+    for j in range(3):
+        n_g[j] = bVec[(j + 1) % 3] * dHat_l[(j + 2) % 3] - bVec[(j + 2) % 3] * dHat_l[(j + 1) % 3]
+        nrm += n_g[j] * n_g[j]
+    nrm = math.sqrt(nrm)
+    for j in range(3):
+        n_g[j] /= nrm
+
+    # Rotate dHat_l vector
+    phi = 0.5 * (math.pi - tTh[i])
+
+    #nb_rotate_vecs_about_axis_cfunc(1, phi, 1, n_g, 1, dHat_l, gVec_l, i)
+    # rewrote this as local function 
+    # removed for loop which went from for j in range(1)
+    # and removed beginning if since na == 1 and nax == 1 always in this case
+    c = math.cos(phi)
+    s = math.sin(phi)
+    
+    # Compute projection of vec along axis 
+    proj = 0.0
+    for j in range(3): 
+        proj += n_g[j] * dHat_l[j]
+  
+
+    # Compute norm of axis 
+    nrm = 0.0
+    for j in range(3): 
+        nrm += n_g[j] * n_g[j]
+    nrm = math.sqrt(nrm);
+
+
+    # Compute projection of vec along axis 
+    # not sure why this is done again but this is a copy of the
+    # original code
+    proj = 0.0
+    for j in range(3):
+        proj += n_g[j] * dHat_l[j]
+   
+    # Compute the cross product of the axis with vec */
+    for j in range(3): 
+        aCrossV[j] = n_g[(j + 1) % 3] * dHat_l[(j + 2) % 3] - n_g[(j + 2) % 3] * dHat_l[(j + 1) % 3]
+
+    # Combine the three terms to compute the rotated vector */
+    for j in range(3):
+        gVec_l[i, j] = c * dHat_l[j] + (s / nrm) * aCrossV[j] + (1.0 - c) * proj * n_g[j] / (nrm * nrm)
+
+
 @jit
-def detector_core_loop(xy_det, rMat_d, rMat_s, tVec_d, tVec_s, tVec_c, beamVec, etaVec,
-                       rMat_e, bVec, tVec1, tVec2, dHat_l, n_g, npts, tTh, eta, gVec_l):
+def detector_core_loop(xy_det, rMat_d,
+                       rMat_e, bVec, tVec1, npts, tTh, eta, gVec_l):
+
+    dHat_l = np.zeros(3)
+    tVec2 = np.zeros(3)
+    n_g = np.zeros(3)
+    aCrossV = np.zeros(3)
 
     for i in range(npts): 
         # Compute dHat_l vector
@@ -440,8 +549,48 @@ def detector_core_loop(xy_det, rMat_d, rMat_s, tVec_d, tVec_s, tVec_c, beamVec, 
 
         # Rotate dHat_l vector
         phi = 0.5 * (math.pi - tTh[i])
-        nb_rotate_vecs_about_axis_cfunc(1, phi, 1, n_g, 1, dHat_l, gVec_l, i)
 
+
+        #nb_rotate_vecs_about_axis_cfunc(1, phi, 1, n_g, 1, dHat_l, gVec_l, i)
+        # rewrote this as local function 
+        # removed for loop which went from for j in range(1)
+        # and removed beginning if since na == 1 and nax == 1 always in this case
+        sa = 0
+        sax = 0
+        c = math.cos(phi)
+        s = math.sin(phi)
+        
+        # Compute projection of vec along axis 
+        proj = 0.0
+        for j in range(3): 
+            proj += n_g[j] * dHat_l[j]
+      
+
+        # Compute norm of axis 
+        nrm = 0.0
+        for j in range(3): 
+	    nrm += n_g[j] * n_g[j]
+        nrm = math.sqrt(nrm);
+
+ 
+        # Compute projection of vec along axis 
+        # not sure why this is done again but this is a copy of the
+        # original code
+        proj = 0.0
+        for j in range(3):
+            proj += n_g[j] * dHat_l[j]
+       
+        # Compute the cross product of the axis with vec */
+        for j in range(3): 
+            aCrossV[j] = n_g[(j + 1) % 3] * dHat_l[(j + 2) % 3] - n_g[(j + 2) % 3] * dHat_l[(j + 1) % 3]
+
+        # Combine the three terms to compute the rotated vector */
+        for j in range(3):
+            gVec_l[i, j] = c * dHat_l[j] + (s / nrm) * aCrossV[j] + (1.0 - c) * proj * n_g[j] / (nrm * nrm)
+
+
+
+        
 #    return ((tTh, eta), gVec_l)
 
 #    return _transforms_CAPI.detectorXYToGvec(np.ascontiguousarray(xy_det),
