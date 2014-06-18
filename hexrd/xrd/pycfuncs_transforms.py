@@ -857,9 +857,11 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
         #continue
         return 
     
-    try:
+    #try:
+    if rhs >= -1.0 and rhs <= 1:  # check domain
         rhsAng = math.asin(rhs)
-    except ValueError:
+    #except ValueError:
+    else:
         rhsAng = not_a_num
 
    # Write ome angles
