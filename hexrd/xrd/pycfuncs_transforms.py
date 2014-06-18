@@ -949,17 +949,17 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     schi = math.sin(chi);
 
     # move main loop to its own function so it can be numbaized
-    oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
-                       beamVec, etaVec, 
-                       crc, cchi, schi,
-                       bHat_l, eHat_l, 
-                       oangs0, oangs1)
-
-    #gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
+    #oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
     #                   beamVec, etaVec, 
     #                   crc, cchi, schi,
     #                   bHat_l, eHat_l, 
     #                   oangs0, oangs1)
+
+    gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
+                       beamVec, etaVec, 
+                       crc, cchi, schi,
+                       bHat_l, eHat_l, 
+                       oangs0, oangs1)
 
 
 
