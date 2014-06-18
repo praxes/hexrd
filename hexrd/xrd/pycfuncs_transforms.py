@@ -416,8 +416,8 @@ def gpu_detector_core_loop(xy_det, rMat_d,
     dev_gVec_l.copy_to_host(ary=gVec_l)
 
  
-@cuda.jit("float64[:,:], float64[:,:], float64[:], float64[:], float64[:], "
-        "float64[:], float64[:], float64[:,:]")
+#@cuda.jit("float64[:,:], float64[:,:], float64[:], float64[:], float64[:], "
+#        "float64[:], float64[:], float64[:,:]")
 def gpu_detector_core_loop_kernel(xy_det, rMat_d,
                        rMat_e, bVec, tVec1, tTh, eta, gVec_l):
 
@@ -797,8 +797,8 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
     oVec = cuda.local.array(2, dtype=float64)
     tVec0 = cuda.local.array(3, dtype=float64)
     gVec_e = cuda.local.array(3, dtype=float64)
-    c = cuda.local.array(2, dtype=float64)
-    s = cuda.local.array(2, dtype=float64)
+    #c = cuda.local.array(2, dtype=float64)
+    #s = cuda.local.array(2, dtype=float64)
     rMat_s = cuda.local.array(9, dtype=float64)
     rMat_e = cuda.local.array(9, dtype=float64)
 
@@ -876,7 +876,7 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
 
         # Assign Z column */
         for j in range(3):
-            rMat_e[3 * j + 2] = -bHat[j] / nrmZ
+            rMat_e[3 * j + 2] = -bHat_l[j] / nrmZ
 
         # Determine dot product of Z column and eHat
         dotZe = 0.0
@@ -903,19 +903,16 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
 
     #    nb_makeOscillRotMat_cfunc(oVec, rMat_s)
         #inlined this function
-        for j in range(2):
-            c[j] = cos(oVec[j])
-            s[j] = sin(oVec[j])
-
-        rMat_s[0] =  c[1]
+        rMat_s[0] =  math.cos(oVec[1])  # c[1];
         rMat_s[1] =  0.0
-        rMat_s[2] =  s[1]
-        rMat_s[3] =  s[0] * s[1]
-        rMat_s[4] =  c[0]
-        rMat_s[5] = -s[0] * c[1]
-        rMat_s[6] = -c[0] * s[1]
-        rMat_s[7] =  s[0]
-        rMat_s[8] =  c[0] * c[1]
+        rMat_s[2] =  math.sin(oVec[1])  # s[1];
+        rMat_s[3] =  math.sin(oVec[0]) * math.sin(oVec[1]) # s[0]*s[1];
+        rMat_s[4] =  math.cos(oVec[0])  # c[0];
+        rMat_s[5] =  -math.sin(oVec[0]) * math.cos(oVec[1])  # -s[0]*c[1];
+        rMat_s[6] = -math.cos(oVec[0]) * math.sin(oVec[1])  # -c[0]*s[1];
+        rMat_s[7] = math.sin(oVec[0])  # s[0];
+        rMat_s[8] =  math.cos(oVec[0]) * math.cos(oVec[1]) # c[0]*c[1];
+
 
         for j in range(3):
             tVec0[j] = 0.0
@@ -930,19 +927,15 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
 
         oVec[1] = oangs1[i, 2]
         #nb_makeOscillRotMat_cfunc(oVec, rMat_s)
-        for j in range(2):
-            c[j] = cos(oVec[j])
-            s[j] = sin(oVec[j])
-
-        rMat_s[0] =  c[1]
+        rMat_s[0] =  math.cos(oVec[1])  # c[1];
         rMat_s[1] =  0.0
-        rMat_s[2] =  s[1]
-        rMat_s[3] =  s[0] * s[1]
-        rMat_s[4] =  c[0]
-        rMat_s[5] = -s[0] * c[1]
-        rMat_s[6] = -c[0] * s[1]
-        rMat_s[7] =  s[0]
-        rMat_s[8] =  c[0] * c[1]
+        rMat_s[2] =  math.sin(oVec[1])  # s[1];
+        rMat_s[3] =  math.sin(oVec[0]) * math.sin(oVec[1]) # s[0]*s[1];
+        rMat_s[4] =  math.cos(oVec[0])  # c[0];
+        rMat_s[5] =  -math.sin(oVec[0]) * math.cos(oVec[1])  # -s[0]*c[1];
+        rMat_s[6] = -math.cos(oVec[0]) * math.sin(oVec[1])  # -c[0]*s[1];
+        rMat_s[7] = math.sin(oVec[0])  # s[0];
+        rMat_s[8] =  math.cos(oVec[0]) * math.cos(oVec[1]) # c[0]*c[1];
 
         for j in range(3): 
             tVec0[j] = 0.0
@@ -969,8 +962,6 @@ def oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
     oVec = np.zeros(2) 
     tVec0 = np.zeros(3)
     gVec_e = np.zeros(3) 
-    c = np.zeros(2)
-    s = np.zeros(2)
     rMat_s = np.zeros(9)
     rMat_e = np.zeros(9)
 
@@ -1047,7 +1038,7 @@ def oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
 
             # Assign Z column */
             for j in range(3):
-                rMat_e[3 * j + 2] = -bHat[j] / nrmZ
+                rMat_e[3 * j + 2] = -bHat_l[j] / nrmZ
 
             # Determine dot product of Z column and eHat
             dotZe = 0.0
@@ -1071,19 +1062,18 @@ def oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
             oVec[0] = chi
             oVec[1] = oangs0[i, 2]
             #nb_makeOscillRotMat_cfunc(oVec, rMat_s)
-            for j in range(2):
-                c[j] = cos(oVec[j])
-                s[j] = sin(oVec[j])
 
-            rMat_s[0] =  c[1]
+            rMat_s[0] =  math.cos(oVec[1])  # c[1];
             rMat_s[1] =  0.0
-            rMat_s[2] =  s[1]
-            rMat_s[3] =  s[0] * s[1]
-            rMat_s[4] =  c[0]
-            rMat_s[5] = -s[0] * c[1]
-            rMat_s[6] = -c[0] * s[1]
-            rMat_s[7] =  s[0]
-            rMat_s[8] =  c[0] * c[1]
+            rMat_s[2] =  math.sin(oVec[1])  # s[1];
+            rMat_s[3] =  math.sin(oVec[0]) * math.sin(oVec[1]) # s[0]*s[1];
+            rMat_s[4] =  math.cos(oVec[0])  # c[0];
+            rMat_s[5] =  -math.sin(oVec[0]) * math.cos(oVec[1])  # -s[0]*c[1];
+            rMat_s[6] = -math.cos(oVec[0]) * math.sin(oVec[1])  # -c[0]*s[1];
+            rMat_s[7] = math.sin(oVec[0])  # s[0];
+            rMat_s[8] =  math.cos(oVec[0]) * math.cos(oVec[1]) # c[0]*c[1];
+
+
 
 
             for j in range(3):
@@ -1099,19 +1089,16 @@ def oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
 
             oVec[1] = oangs1[i, 2]
             #nb_makeOscillRotMat_cfunc(oVec, rMat_s)
-            for j in range(2):
-                c[j] = cos(oVec[j])
-                s[j] = sin(oVec[j])
 
-            rMat_s[0] =  c[1]
+            rMat_s[0] =  math.cos(oVec[1])  # c[1];
             rMat_s[1] =  0.0
-            rMat_s[2] =  s[1]
-            rMat_s[3] =  s[0] * s[1]
-            rMat_s[4] =  c[0]
-            rMat_s[5] = -s[0] * c[1]
-            rMat_s[6] = -c[0] * s[1]
-            rMat_s[7] =  s[0]
-            rMat_s[8] =  c[0] * c[1]
+            rMat_s[2] =  math.sin(oVec[1])  # s[1];
+            rMat_s[3] =  math.sin(oVec[0]) * math.sin(oVec[1]) # s[0]*s[1];
+            rMat_s[4] =  math.cos(oVec[0])  # c[0];
+            rMat_s[5] =  -math.sin(oVec[0]) * math.cos(oVec[1])  # -s[0]*c[1];
+            rMat_s[6] = -math.cos(oVec[0]) * math.sin(oVec[1])  # -c[0]*s[1];
+            rMat_s[7] = math.sin(oVec[0])  # s[0];
+            rMat_s[8] =  math.cos(oVec[0]) * math.cos(oVec[1]) # c[0]*c[1];
 
 
 
