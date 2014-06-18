@@ -883,7 +883,7 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
         # Determine dot product of Z column and eHat
         dotZe = 0.0
         for j in range(3):
-            dotZe += rMat_e[3 * j + 2] * eHat_l[i]
+            dotZe += rMat_e[3 * j + 2] * eHat_l[j]
 
         # Assign X column
         for j in range(3): 
@@ -892,12 +892,12 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
         # Normalize X column 
         nrmX = 0.0
         for j in range(3): 
-            nrmX += rMat_e[3 * j + 0] * rMat_e[3 * j + 0]
+            nrmX += rMat_e[3 * j] * rMat_e[3 * j]
         nrmX = math.sqrt(nrmX)
 
         # Assign Y column
         for j in range(3):
-            rMat_e[3 * j + 1] = rMat_e[3 * ((j + 1) % 3) + 2] * rMat_e[3 * ((j + 2) % 3) + 0] - rMat_e[3 * ((j +2) % 3) + 2] * rMat_e[3 *((i + 1) % 3) + 0];
+            rMat_e[3 * j + 1] = rMat_e[3 * ((j + 1) % 3) + 2] * rMat_e[3 * ((j + 2) % 3) + 0] - rMat_e[3 * ((j +2) % 3) + 2] * rMat_e[3 *((j + 1) % 3) + 0];
 
 
         oVec[0] = chi
@@ -907,7 +907,7 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
         #inlined this function
         for j in range(2):
             c[j] = cos(oVec[j])
-            s[i] = sin(oVec[j])
+            s[j] = sin(oVec[j])
 
         rMat_s[0] =  c[1]
         rMat_s[1] =  0.0
@@ -934,7 +934,7 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
         #nb_makeOscillRotMat_cfunc(oVec, rMat_s)
         for j in range(2):
             c[j] = cos(oVec[j])
-            s[i] = sin(oVec[j])
+            s[j] = sin(oVec[j])
 
         rMat_s[0] =  c[1]
         rMat_s[1] =  0.0
