@@ -857,10 +857,10 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
         #continue
         return 
     
-    #try:
-    rhsAng = math.asin(rhs)
-    #except ValueError:
-    #    rhsAng = not_a_num
+    try:
+        rhsAng = math.asin(rhs)
+    except ValueError:
+        rhsAng = not_a_num
 
    # Write ome angles
     oangs0[i, 2] = rhsAng - phaseAng
