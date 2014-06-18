@@ -777,8 +777,6 @@ def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
     dev_oangs0 = cuda.to_device(oangs0)
     dev_oangs1 = cuda.to_device(oangs1)
 
-
-
     gpu_oscill_core_loop_kernel.forall(hkls.shape[0])(dev_hkls, chi, dev_rMat_c, dev_bMat, wavelength,
                        dev_beamVec, dev_etaVec, 
                        crc, cchi, schi,
@@ -789,10 +787,8 @@ def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
     dev_oangs1.copy_to_host(ary=oangs1)
 
 
-#@cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64, "
-#        "float64[:], float64[:], int32, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
-@cuda.jit("float64[:,:], float64[:,:], float64[:,:], "
-        "float64[:], float64[:], float64[:], float64[:], float64[:,:], float64[:,:]")
+@cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64, "
+        "float64[:], float64[:], int32, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
 def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
                        beamVec, etaVec, 
                        crc, cchi, schi,
@@ -862,10 +858,10 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
         #continue
         return 
     
-    try:
-        rhsAng = math.asin(rhs)
-    except ValueError:
-        rhsAng = not_a_num
+    #try:
+    rhsAng = math.asin(rhs)
+    #except ValueError:
+    #    rhsAng = not_a_num
 
    # Write ome angles
     oangs0[i, 2] = rhsAng - phaseAng
