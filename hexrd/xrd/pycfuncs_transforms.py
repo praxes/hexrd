@@ -603,40 +603,6 @@ def detector_core_loop(xy_det, rMat_d,
 #                                             beamVec.flatten(),etaVec.flatten())
 
 
-def nb_makeEtaFrameRotMat_cfunc(bPtr, ePtr, rPtr):
-    # int i;
-    # double dotZe, nrmZ, nrmX;
-
-    # Determine norm of bHat
-    nrmZ = 0.0
-    for i in range(3): 
-        nrmZ += bPtr[i] * bPtr[i]
-    nrmZ = math.sqrt(nrmZ)
-
-    # Assign Z column */
-    for i in range(3):
-        rPtr[3 * i + 2] = -bPtr[i] / nrmZ
-
-    # Determine dot product of Z column and eHat
-    dotZe = 0.0
-    for i in range(3):
-        dotZe += rPtr[3 * i + 2] * ePtr[i]
-
-    # Assign X column
-    for i in range(3): 
-       rPtr[3 * i + 0] = ePtr[i] - dotZe * rPtr[3 * i +2]
-
-    # Normalize X column 
-    nrmX = 0.0
-    for i in range(3): 
-        nrmX += rPtr[3 * i + 0] * rPtr[3 * i + 0]
-    nrmX = math.sqrt(nrmX)
-
-    # Assign Y column
-    for i in range(3):
-        rPtr[3 * i + 1] = rPtr[3 * ((i + 1) % 3) + 2] * rPtr[3 * ((i + 2) % 3) + 0] - rPtr[3 * ((i +2) % 3) + 2] * rPtr[3 *((i + 1) % 3) + 0];
-
-
 def nb_makeOscillRotMat_cfunc(oPtr, rPtr):
 #  int i;
 #  double c[2],s[2];
@@ -802,10 +768,16 @@ def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
                        oangs0, oangs1):
 
     dev_hkls = cuda.to_device(hkls)
+    dev_chi = cuda.to_device(chi)
     dev_rMat_c = cuda.to_device(rMat_c)
     dev_bMat = cuda.to_device(bMat)
+    dev_wavelength = cuda.to_device(wavelength)
     dev_beamVec = cuda.to_device(beamVec)
     dev_etaVec = cuda.to_device(etaVec)
+    dev_crc = cuda.to_device(crc)
+    dev_cchi = cuda.to_device(cchi)
+    dev_schi = cuda.to_device(schi)
+
     dev_bHat_l = cuda.to_device(bHat_l)
     dev_eHat_l = cuda.to_device(eHat_l)
     dev_oangs0 = cuda.to_device(oangs0)
@@ -813,9 +785,9 @@ def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
 
 
 
-    gpu_oscill_core_loop_kernel.forall(hkls.shape[0])(dev_hkls, chi, dev_rMat_c, dev_bMat, wavelength,
+    gpu_oscill_core_loop_kernel.forall(hkls.shape[0])(dev_hkls, dev_chi, dev_rMat_c, dev_bMat, dev_wavelength,
                        dev_beamVec, dev_etaVec, 
-                       crc, cchi, schi,
+                       dev_crc, dev_cchi, dev_schi,
                        dev_bHat_l, dev_eHat_l,  
                        dev_oangs0, dev_oangs1)
 
@@ -823,7 +795,7 @@ def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
     dev_oangs1.copy_to_host(ary=oangs1)
 
 
-@cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64,"
+@cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64, "
         "float64[:], float64[:], int32, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
 def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
                        beamVec, etaVec, 
