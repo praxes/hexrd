@@ -416,8 +416,8 @@ def gpu_detector_core_loop(xy_det, rMat_d,
     dev_gVec_l.copy_to_host(ary=gVec_l)
 
  
-#@cuda.jit("float64[:,:], float64[:,:], float64[:], float64[:], float64[:], "
-#        "float64[:], float64[:], float64[:,:]")
+@cuda.jit("float64[:,:], float64[:,:], float64[:], float64[:], float64[:], "
+        "float64[:], float64[:], float64[:,:]")
 def gpu_detector_core_loop_kernel(xy_det, rMat_d,
                        rMat_e, bVec, tVec1, tTh, eta, gVec_l):
 
@@ -785,7 +785,7 @@ def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
     dev_oangs1.copy_to_host(ary=oangs1)
 
 
-#@cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64, float64[:], float64[:], int64, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
+@cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64, float64[:], float64[:], int64, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
 def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
                        beamVec, etaVec, 
                        crc, cchi, schi,
