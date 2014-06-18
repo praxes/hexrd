@@ -392,11 +392,11 @@ def detectorXYToGvec(xy_det,
         for k in range(3):
             tVec1[j] -= rMat_s[j, k] * tVec_c[k]
 
-    #gpu_detector_core_loop(xy_det, rMat_d, rMat_e, bVec, tVec1, tTh, eta, gVec_l)
+    gpu_detector_core_loop(xy_det, rMat_d, rMat_e, bVec, tVec1, tTh, eta, gVec_l)
 
     
     # cpu  
-    detector_core_loop(xy_det, rMat_d, rMat_e, bVec, tVec1, npts, tTh, eta, gVec_l)
+    #detector_core_loop(xy_det, rMat_d, rMat_e, bVec, tVec1, npts, tTh, eta, gVec_l)
 
 def gpu_detector_core_loop(xy_det, rMat_d,  
         rMat_e, bVec, tVec1, tTh, eta, gVec_l):
@@ -417,8 +417,8 @@ def gpu_detector_core_loop(xy_det, rMat_d,
     dev_gVec_l.copy_to_host(ary=gVec_l)
 
  
-#@cuda.jit("float64[:,:], float64[:,:], float64[:], float64[:], float64[:], "
-#        "float64[:], float64[:], float64[:,:]")
+@cuda.jit("float64[:,:], float64[:,:], float64[:], float64[:], float64[:], "
+        "float64[:], float64[:], float64[:,:]")
 def gpu_detector_core_loop_kernel(xy_det, rMat_d,
                        rMat_e, bVec, tVec1, tTh, eta, gVec_l):
 
