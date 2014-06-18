@@ -428,6 +428,11 @@ def gpu_detector_core_loop_kernel(xy_det, rMat_d,
     n_g = cuda.local.array(3, dtype=float64)
     aCrossV = cuda.local.array(3, dtype=float64)
 
+    i = cuda.grid(1)
+    if i >= xy_det.shape[0]:
+        return
+
+
     # Compute dHat_l vector
     nrm = 0.0;
     for j in range(3): 
