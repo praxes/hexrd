@@ -1,4 +1,5 @@
-import sys, os, time
+from timeit import default_timer as timer
+import sys, os
 import numpy as np
 
 from hexrd.xrd import transforms as xf
@@ -32,18 +33,18 @@ rMat_c = xf.makeRotMatOfExpMap(np.array( [ [ 0.66931818],
 
 # oscillation angle arrays
 n=22
-start1 = time.clock()                      # time this
+start1 = timer()                      # time this
 for i in range(n):
     oangs01, oangs11 = xf.oscillAnglesOfHKLs(hklsT, chi, rMat_c, bMat, wavelength, 
                                              beamVec=bVec_ref, etaVec=eta_ref)
-elapsed1 = (time.clock() - start1)
+elapsed1 = (timer() - start1)
 print "Time for Python oscillAnglesOfHKLs: %f"%elapsed1
 
-start2 = time.clock()                      # time this
+start2 = timer()                      # time this
 for i in range(n):
     oangs02, oangs12 = xfcapi.oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength, beamVec=bVec_ref, etaVec=eta_ref)
     #xfcapi.oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength, beamVec=bVec_ref, etaVec=eta_ref)
-elapsed2 = (time.clock() - start2)
+elapsed2 = (timer() - start2)
 print "Time for CAPI oscillAnglesOfHKLs:   %f"%elapsed2
 #print oangs01.shape, oangs11.shape
 #print oangs02.shape, oangs12.shape
@@ -68,7 +69,7 @@ oangs0 = np.zeros((npts, 3))
 oangs1 = np.zeros((npts, 3))
 
 
-start3 = time.clock()                      # time this
+start3 = timer()                      # time this
 for i in range(n):
     pycfuncs.oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength, bVec_ref, eta_ref,
                             gVec_e, gHat_c, gHat_s, 
@@ -76,7 +77,7 @@ for i in range(n):
                             rMat_e, rMat_s, npts,
                             oangs0, oangs1)
     #xfcapi.oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength, beamVec=bVec_ref, etaVec=eta_ref)
-elapsed3 = (time.clock() - start3)
+elapsed3 = (timer() - start3)
 print "Time for Numba PyCFuncs oscillAnglesOfHKLs:   %f" %elapsed3
 oangs03 = oangs0
 oangs13 = oangs1

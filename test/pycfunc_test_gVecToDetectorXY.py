@@ -1,4 +1,5 @@
-import sys, os, time
+from timeit import default_timer as timer
+import sys, os
 #from numbapro import vectorize, float64, jit, guvectorize, autojit
 import numpy as np
 #from hexrd.xrd import nbdistortion as dFuncs
@@ -35,30 +36,30 @@ rMat_s = xf.makeOscillRotMat([chi, 0.])
 # ######################################################################
 # Calculate pixel coordinates
 #
-#pvec  = 204.8 * np.linspace(-1, 1, 2048)
-pvec  = 204.8 * np.linspace(-1, 1, 512)
+pvec  = 204.8 * np.linspace(-1, 1, 2048)
+#pvec  = 204.8 * np.linspace(-1, 1, 512)
 dcrds = np.meshgrid(pvec, pvec)
 XY    = np.vstack([dcrds[0].flatten(), dcrds[1].flatten()]).T
 
 # Check the timings
-start1 = time.clock()                      # time this
+start1 = timer()                      # time this
 dangs1 = xf.detectorXYToGvec(XY, rMat_d, rMat_s,
                              tVec_d, tVec_s, tVec_c, 
                              beamVec=bVec_ref)
 tTh_d1   = dangs1[0][0]
 eta_d1   = dangs1[0][1]
 gVec_l1  = dangs1[1]
-elapsed1 = (time.clock() - start1)
+elapsed1 = (timer() - start1)
 print "Time for Python detectorXYToGvec: %f"%(elapsed1)
 
-start2 = time.clock()                      # time this
+start2 = timer()                      # time this
 dangs2 = xfcapi.detectorXYToGvec(XY, rMat_d, rMat_s,
                                  tVec_d, tVec_s, tVec_c,
                                  beamVec=bVec_ref)
 tTh_d2   = dangs2[0][0]
 eta_d2   = dangs2[0][1]
 gVec_l2  = dangs2[1]
-elapsed2 = (time.clock() - start2)
+elapsed2 = (timer() - start2)
 print "Time for CAPI detectorXYToGvec: %f"%(elapsed2)
 
 # maxDiff_tTh = np.linalg.norm(tTh_d1-tTh_d2,np.inf)
@@ -73,14 +74,14 @@ print "Time for CAPI detectorXYToGvec: %f"%(elapsed2)
 gVec_c1 = np.dot(rMat_c.T,np.dot(rMat_s.T,gVec_l1))
 gVec_c2 = np.ascontiguousarray(np.dot(rMat_c.T,np.dot(rMat_s.T,gVec_l2.T)).T)
 
-start3 = time.clock()                      # time this
+start3 = timer()                      # time this
 xy1 = xf.gvecToDetectorXY(gVec_c1,rMat_d,rMat_s,rMat_c,tVec_d,tVec_s,tVec_c,beamVec=bVec_ref)
-elapsed3 = (time.clock() - start3)
+elapsed3 = (timer() - start3)
 print "Time for Python gvecToDetectorXY: %f"%(elapsed3)
 
-start4 = time.clock()                      # time this
+start4 = timer()                      # time this
 xy2 = xfcapi.gvecToDetectorXY(gVec_c2,rMat_d,rMat_s,rMat_c,tVec_d,tVec_s,tVec_c,beamVec=bVec_ref)
-elapsed4 = (time.clock() - start4)
+elapsed4 = (timer() - start4)
 print "Time for CAPI gvecToDetectorXY: %f"%(elapsed4)
 
 # setup or numba version
@@ -99,9 +100,9 @@ brMat = np.zeros(9)
 result = np.empty((gVec_c2.shape[0], 3))
 bVec_ref= bVec_ref.flatten()
 
-start5 = time.clock()
+start5 = timer()
 pycfuncs.gvecToDetectorXY(gVec_c2,rMat_d,rMat_s,rMat_c,tVec_d,tVec_s,tVec_c,bVec_ref, bHat_l, nVec_l, P0_l, P2_l, P2_d, P3_l, gHat_c, gVec_l, dVec_l, rMat_sc, brMat, result)
-elapsed5 = (time.clock() - start5)
+elapsed5 = (timer() - start5)
 print "Time for Numba PyCFuncs gvecToDetectorXY: %f"%(elapsed5)
 
 xy3 = result[:, 0:2] # result should be a 2 col matrix but an issue with numba

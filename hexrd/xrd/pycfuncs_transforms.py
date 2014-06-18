@@ -741,7 +741,7 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
 #    oangs0 = np.zeros((npts, 3))
 #    oangs1 = np.zeros((npts, 3))
 
-
+    crc = False
     # Normalize the beam vector
     nrm0 = 0.0
     for j in range(3):
@@ -779,23 +779,227 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     schi = math.sin(chi);
 
     # move main loop to its own function so it can be numbaized
-    oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
+    #oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
+    #                   beamVec, etaVec, 
+    #                   crc, cchi, schi,
+    #                   gVec_e, gHat_c, gHat_s, 
+    #                   bHat_l, eHat_l, oVec, tVec0, 
+    #                  rMat_e, rMat_s, npts,
+    #                   oangs0, oangs1)
+
+    gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
                        beamVec, etaVec, 
                        crc, cchi, schi,
-                       gVec_e, gHat_c, gHat_s, 
-                       bHat_l, eHat_l, oVec, tVec0, 
-                       rMat_e, rMat_s, npts,
                        oangs0, oangs1)
 
 
 
-def oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
+def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
                        beamVec, etaVec, 
                        crc, cchi, schi,
-                       gVec_e, gHat_c, gHat_s, 
-                       bHat_l, eHat_l, oVec, tVec0, 
-                       rMat_e, rMat_s, npts,
+                       bHat_l, eHat_l, 
                        oangs0, oangs1):
+
+    dev_hkls = cuda.to_device(hkls)
+    dev_rMat_c = cuda.to_device(rMat_c)
+    dev_bMat = cuda.to_device(bMat)
+    dev_beamVec = cuda.to_device(beamVec)
+    dev_etaVec = cuda.to_device(etaVec)
+    dev_bHat_l = cuda.to_device(bHat_l)
+    dev_eHat_l = cuda.to_device(eHat_l)
+    dev_oangs0 = cuda.to_device(oangs0)
+    dev_oangs1 = cuda.to_device(oangs1)
+
+
+
+    gpu_oscill_core_loop_kernel.forall(hkls.shape[0])(dev_hkls, chi, dev_rMat_c, dev_bMat, wavelength,
+                       dev_beamVec, dev_etaVec, 
+                       crc, cchi, schi,
+                       dev_bHat_l, dev_eHat_l,  
+                       dev_oangs0, dev_oangs1)
+
+    dev_oangs0.copy_to_host(ary=oangs0)
+    dev_oangs1.copy_to_host(ary=oangs1)
+
+
+@cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64, "
+        "float64[:], float64[:], float64, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
+def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
+                       beamVec, etaVec, 
+                       crc, cchi, schi,
+                       bHat_l, eHat_l,  
+                       oangs0, oangs1):
+
+    gHat_c = cuda.local.array(3, dtype=float64)
+    gHat_s = cuda.local.array(3, dtype=float64)
+    oVec = cuda.local.array(2, dtype=float64)
+    tVec0 = cuda.local.array(3, dtype=float64)
+    gVec_e = cuda.local.array(3, dtype=float64)
+    c = cuda.local.array(2, dtype=float64)
+    s = cuda.local.array(2, dtype=float64)
+    rMat_s = cuda.local.array(9, dtype=float64)
+    rMat_e = cuda.local.array(9, dtype=float64)
+
+    i = cuda.grid(1)
+    if i >= hkls.shape[0]:
+        return
+
+    # Compute gVec_c 
+    nrm0 = 0.0
+    for j in range(3):
+        gHat_c[j] = 0.0
+        for k in range(3):
+            gHat_c[j] += bMat[j, k] * hkls[i, k]
+        nrm0 += gHat_c[j] * gHat_c[j]
+    nrm0 = math.sqrt(nrm0)
+
+    # Compute gVec_s
+    nrm1 = 0.0
+    for j in range(3):
+        gHat_s[j] = 0.0
+        for k in range(3): 
+            gHat_s[j] += rMat_c[j, k] * gHat_c[k]
+        nrm1 += gHat_s[j] * gHat_s[j]
+    nrm1 = math.sqrt(nrm1)
+
+    # Normalize gVec_c to make gHat_c 
+    if nrm0 > epsf:
+        for j in range(3): 
+            gHat_c[j] /= nrm0
+
+    # Normalize gVec_s to make gHat_s */
+    if nrm1 > epsf:
+        for j in range(3): 
+            gHat_s[j] /= nrm1
+
+    # Compute the sine of the Bragg angle */
+    sintht = 0.5 * wavelength * nrm0
+
+    # Compute the coefficients of the harmonic equation
+    a = gHat_s[2] * bHat_l[0] + schi * gHat_s[0] * bHat_l[1] - cchi * gHat_s[0] * bHat_l[2]
+    b = gHat_s[0] * bHat_l[0] - schi * gHat_s[2] * bHat_l[1] + cchi * gHat_s[2] * bHat_l[2]
+    c = -sintht - cchi * gHat_s[1] * bHat_l[1] - schi * gHat_s[1] * bHat_l[2]
+
+    # Form solution
+    abMag = math.sqrt(a * a + b * b) 
+    assert abMag > 0.0, "abMag <= 0.0" 
+    phaseAng = math.atan2(b, a)
+    rhs = c / abMag
+
+    if math.fabs(rhs) > 1.0: 
+        for j in range(3): 
+            oangs0[i, j] = not_a_num
+            oangs1[i, j] = not_a_num
+        continue
+
+    try:
+        rhsAng = math.asin(rhs)
+    except ValueError:
+        rhsAng = not_a_num
+
+   # Write ome angles
+    oangs0[i, 2] = rhsAng - phaseAng
+    oangs1[i, 2] = math.pi - rhsAng - phaseAng
+
+    if crc:
+        #nb_makeEtaFrameRotMat_cfunc(bHat_l, eHat_l, rMat_e)
+
+        nrmZ = 0.0
+        for j in range(3): 
+            nrmZ += bHat_l[j] * bHat_l[j]
+        nrmZ = math.sqrt(nrmZ)
+
+        # Assign Z column */
+        for j in range(3):
+            rMat_e[3 * j + 2] = -bHat[j] / nrmZ
+
+        # Determine dot product of Z column and eHat
+        dotZe = 0.0
+        for j in range(3):
+            dotZe += rMat_e[3 * j + 2] * eHat_l[i]
+
+        # Assign X column
+        for j in range(3): 
+           rMat_e[3 * j + 0] = eHat_l[j] - dotZe * rMat_e[3 * j + 2]
+
+        # Normalize X column 
+        nrmX = 0.0
+        for j in range(3): 
+            nrmX += rMat_e[3 * j + 0] * rMat_e[3 * j + 0]
+        nrmX = math.sqrt(nrmX)
+
+        # Assign Y column
+        for j in range(3):
+            rMat_e[3 * j + 1] = rMat_e[3 * ((j + 1) % 3) + 2] * rMat_e[3 * (j + 2) % 3) + 0] - rMat_e[3 * ((j +2) % 3) + 2] * rMat_e[3 *((i + 1) % 3) + 0];
+
+
+        oVec[0] = chi
+        oVec[1] = oangs0[i, 2]
+
+    #    nb_makeOscillRotMat_cfunc(oVec, rMat_s)
+        #inlined this function
+        for j in range(2):
+            c[j] = cos(oVec[j])
+            s[i] = sin(oVec[j])
+
+        rMat_s[0] =  c[1]
+        rMat_s[1] =  0.0
+        rMat_s[2] =  s[1]
+        rMat_s[3] =  s[0] * s[1]
+        rMat_s[4] =  c[0]
+        rMat_s[5] = -s[0] * c[1]
+        rMat_s[6] = -c[0] * s[1]
+        rMat_s[7] =  s[0]
+        rMat_s[8] =  c[0] * c[1]
+
+        for j in range(3):
+            tVec0[j] = 0.0
+            for k in range(3): 
+                tVec0[j] += rMat_s[3 * j + k] * gHat_s[k]
+        for j in range(2):
+            gVec_e[j] = 0.0
+            for k in range(3): 
+                gVec_e[j] += rMat_e[3 * k + j] * tVec0[k]
+      
+        oangs0[i, 1] = math.atan2(gVec_e[1], gVec_e[0])
+
+        oVec[1] = oangs1[i, 2]
+        #nb_makeOscillRotMat_cfunc(oVec, rMat_s)
+        for j in range(2):
+            c[j] = cos(oVec[j])
+            s[i] = sin(oVec[j])
+
+        rMat_s[0] =  c[1]
+        rMat_s[1] =  0.0
+        rMat_s[2] =  s[1]
+        rMat_s[3] =  s[0] * s[1]
+        rMat_s[4] =  c[0]
+        rMat_s[5] = -s[0] * c[1]
+        rMat_s[6] = -c[0] * s[1]
+        rMat_s[7] =  s[0]
+        rMat_s[8] =  c[0] * c[1]
+
+        for j in range(3): 
+            tVec0[j] = 0.0
+            for k in range(3): 
+                tVec0[j] += rMat_s[3 * j + k] * gHat_s[k]
+        for j in range(2):
+            gVec_e[j] = 0.0
+            for k in range(3):
+                gVec_e[j] += rMat_e[3 * k + j] * tVec0[k]
+        oangs1[i, 1] = math.atan2(gVec_e[1], gVec_e[0]);
+
+        oangs0[i, 0] = 2.0 * math.asin(sintht)
+        oangs1[i, 0] = oangs0[i, 0]
+
+
+def oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
+                   beamVec, etaVec, 
+                   crc, cchi, schi,
+                   gVec_e, gHat_c, gHat_s, 
+                   bHat_l, eHat_l, oVec, tVec0, 
+                   rMat_e, rMat_s, npts,
+                   oangs0, oangs1):
 
     for i in range(npts):
 
@@ -804,7 +1008,7 @@ def oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
         for j in range(3):
             gHat_c[j] = 0.0
             for k in range(3):
-	        gHat_c[j] += bMat[j, k] * hkls[i, k]
+                gHat_c[j] += bMat[j, k] * hkls[i, k]
             nrm0 += gHat_c[j] * gHat_c[j]
         nrm0 = math.sqrt(nrm0)
 
@@ -813,19 +1017,19 @@ def oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
         for j in range(3):
             gHat_s[j] = 0.0
             for k in range(3): 
-	        gHat_s[j] += rMat_c[j, k] * gHat_c[k]
+                gHat_s[j] += rMat_c[j, k] * gHat_c[k]
             nrm1 += gHat_s[j] * gHat_s[j]
         nrm1 = math.sqrt(nrm1)
 
         # Normalize gVec_c to make gHat_c 
         if nrm0 > epsf:
             for j in range(3): 
-	        gHat_c[j] /= nrm0
+                gHat_c[j] /= nrm0
 
         # Normalize gVec_s to make gHat_s */
         if nrm1 > epsf:
             for j in range(3): 
-	        gHat_s[j] /= nrm1
+                gHat_s[j] /= nrm1
 
         # Compute the sine of the Bragg angle */
         sintht = 0.5 * wavelength * nrm0
@@ -843,8 +1047,8 @@ def oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
 
         if math.fabs(rhs) > 1.0: 
             for j in range(3): 
-	        oangs0[i, j] = not_a_num
-	        oangs1[i, j] = not_a_num
+                oangs0[i, j] = not_a_num
+                oangs1[i, j] = not_a_num
             continue
 
         try:
@@ -859,38 +1063,37 @@ def oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
         if crc:
             nb_makeEtaFrameRotMat_cfunc(bHat_l, eHat_l, rMat_e)
 
-        oVec[0] = chi
-        oVec[1] = oangs0[i, 2]
-        nb_makeOscillRotMat_cfunc(oVec, rMat_s)
+            oVec[0] = chi
+            oVec[1] = oangs0[i, 2]
+            nb_makeOscillRotMat_cfunc(oVec, rMat_s)
 
-        for j in range(3):
-	    tVec0[j] = 0.0
-            for k in range(3): 
-	        tVec0[j] += rMat_s[3 * j + k] * gHat_s[k]
-        for j in range(2):
-	    gVec_e[j] = 0.0
-	    for k in range(3): 
-	        gVec_e[j] += rMat_e[3 * k + j] * tVec0[k]
-      
-        oangs0[i, 1] = math.atan2(gVec_e[1], gVec_e[0])
+            for j in range(3):
+                tVec0[j] = 0.0
+                for k in range(3): 
+                    tVec0[j] += rMat_s[3 * j + k] * gHat_s[k]
+            for j in range(2):
+                gVec_e[j] = 0.0
+                for k in range(3): 
+                    gVec_e[j] += rMat_e[3 * k + j] * tVec0[k]
+          
+            oangs0[i, 1] = math.atan2(gVec_e[1], gVec_e[0])
 
-        oVec[1] = oangs1[i, 2]
-        nb_makeOscillRotMat_cfunc(oVec, rMat_s)
+            oVec[1] = oangs1[i, 2]
+            nb_makeOscillRotMat_cfunc(oVec, rMat_s)
 
-        for j in range(3): 
-	    tVec0[j] = 0.0
-            for k in range(3): 
-	        tVec0[j] += rMat_s[3 * j + k] * gHat_s[k]
-        for j in range(2):
-	    gVec_e[j] = 0.0
-            for k in range(3):
-	        gVec_e[j] += rMat_e[3 * k + j] * tVec0[k]
-        oangs1[i, 1] = math.atan2(gVec_e[1], gVec_e[0]);
+            for j in range(3): 
+                tVec0[j] = 0.0
+                for k in range(3): 
+                    tVec0[j] += rMat_s[3 * j + k] * gHat_s[k]
+            for j in range(2):
+                gVec_e[j] = 0.0
+                for k in range(3):
+                    gVec_e[j] += rMat_e[3 * k + j] * tVec0[k]
+            oangs1[i, 1] = math.atan2(gVec_e[1], gVec_e[0]);
 
-        oangs0[i, 0] = 2.0 * math.asin(sintht)
-        oangs1[i, 0] = oangs0[i, 0]
+            oangs0[i, 0] = 2.0 * math.asin(sintht)
+            oangs1[i, 0] = oangs0[i, 0]
 
-    #return oangs0, oangs1
 
 #    return _transforms_CAPI.oscillAnglesOfHKLs(np.ascontiguousarray(hkls),chi,rMat_c,bMat,wavelength,
 #                                               beamVec.flatten(),etaVec.flatten())
