@@ -1049,8 +1049,8 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
     # Form solution
     abMag = math.sqrt(a * a + b * b)
     if abMag > 0.0:
-        print 'abMag should be <= 0'
-        print 'bailing'
+        print('abMag should be <= 0')
+        print('bailing')
         exit
     #assert abMag > 0.0, "abMag <= 0.0" 
     phaseAng = math.atan2(b, a)
