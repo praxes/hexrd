@@ -321,7 +321,6 @@ def nb_rotate_vecs_about_axis_cfunc(na, angles, nax, axes, nv, vecs, rVecs, row)
             rVecs[row, j] = c * vecs[3 * i + j] + (s / nrm) * aCrossV[j] + (1.0 - c) * proj * axes[sax * i + j] / (nrm * nrm)
 
 
-@jit
 def detectorXYToGvec(xy_det,
                      rMat_d, rMat_s,
                      tVec_d, tVec_s, tVec_c,
