@@ -32,7 +32,7 @@ from hexrd.xrd import _transforms_CAPI
 
 from numpy import float_ as nFloat
 from numpy import int_ as nInt
-from numbapro import vectorize, jit, autojit, guvectorize, njit, cuda
+from numbapro import vectorize, jit, autojit, guvectorize, njit, cuda, float64
 import math
 
 # ######################################################################
@@ -423,10 +423,10 @@ def gpu_detector_core_loop_kernel(xy_det, rMat_d,
                        rMat_e, bVec, tVec1, tTh, eta, gVec_l):
 
 
-    dHat_l = cuda.local.array(3, dtype=np.float64)
-    tVec2 = cuda.local.array(3, dtype=np.float64)
-    n_g = cuda.local.array(3, dtype=np.float64)
-    aCrossV = cuda.local.array(3, dtype=np.float64)
+    dHat_l = cuda.local.array(3, dtype=float64)
+    tVec2 = cuda.local.array(3, dtype=float64)
+    n_g = cuda.local.array(3, dtype=float64)
+    aCrossV = cuda.local.array(3, dtype=float64)
 
     # Compute dHat_l vector
     nrm = 0.0;
