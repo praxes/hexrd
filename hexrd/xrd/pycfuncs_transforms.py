@@ -950,13 +950,11 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
 
     # move main loop to its own function so it can be numbaized
     #oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
-    #                   beamVec, etaVec, 
     #                   crc, cchi, schi,
     #                   bHat_l, eHat_l, 
     #                   oangs0, oangs1)
 
     gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
-                       beamVec, etaVec, 
                        crc, cchi, schi,
                        bHat_l, eHat_l, 
                        oangs0, oangs1)
@@ -972,15 +970,14 @@ def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
     dev_hkls = cuda.to_device(hkls)
     dev_rMat_c = cuda.to_device(rMat_c)
     dev_bMat = cuda.to_device(bMat)
-    dev_beamVec = cuda.to_device(beamVec)
-    dev_etaVec = cuda.to_device(etaVec)
+    #dev_beamVec = cuda.to_device(beamVec)
+    #dev_etaVec = cuda.to_device(etaVec)
     dev_bHat_l = cuda.to_device(bHat_l)
     dev_eHat_l = cuda.to_device(eHat_l)
     dev_oangs0 = cuda.to_device(oangs0)
     dev_oangs1 = cuda.to_device(oangs1)
 
     gpu_oscill_core_loop_kernel.forall(hkls.shape[0])(dev_hkls, chi, dev_rMat_c, dev_bMat, wavelength,
-                       dev_beamVec, dev_etaVec, 
                        crc, cchi, schi,
                        dev_bHat_l, dev_eHat_l,  
                        dev_oangs0, dev_oangs1)
@@ -991,7 +988,6 @@ def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
 
 @cuda.jit("float64[:,:], float64, float64[:,:], float64[:,:], float64, float64[:], float64[:], int64, float64, float64, float64[:], float64[:], float64[:,:], float64[:,:]")
 def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
-                       beamVec, etaVec, 
                        crc, cchi, schi,
                        bHat_l, eHat_l,  
                        oangs0, oangs1):
@@ -1159,7 +1155,6 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
 
 
 def oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
-                   beamVec, etaVec, 
                    crc, cchi, schi,
                    bHat_l, eHat_l, 
                    oangs0, oangs1):
