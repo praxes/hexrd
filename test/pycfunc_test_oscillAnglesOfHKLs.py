@@ -70,7 +70,7 @@ oangs1 = np.zeros((npts, 3))
 
 
 start3 = timer()                      # time this
-for i in range(n):
+#for i in range(n):
     pycfuncs.oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength, bVec_ref, eta_ref,
                             gVec_e, gHat_c, gHat_s, 
                             bHat_l, eHat_l, oVec, tVec0, 
