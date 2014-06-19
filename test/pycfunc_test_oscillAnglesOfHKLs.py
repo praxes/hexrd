@@ -2,6 +2,8 @@ from timeit import default_timer as timer
 import sys, os
 import numpy as np
 
+import numba.cuda
+
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.xrd import pycfuncs_transforms as pycfuncs
@@ -53,6 +55,9 @@ print "Time for CAPI oscillAnglesOfHKLs:   %f"%elapsed2
 #print "Maximum Relative Differences: %f, %f"%(np.linalg.norm(oangs01-oangs02.T)/np.linalg.norm(oangs01),np.linalg.norm(oangs11-oangs12.T)/np.linalg.norm(oangs11))
 
 #print "  Speedup: %f"%(elapsed1/elapsed2)
+
+
+print 'cudadevice: ', numba.cuda.get_current_device().name
 
 gVec_e = np.zeros(3)
 gHat_c = np.zeros(3)
