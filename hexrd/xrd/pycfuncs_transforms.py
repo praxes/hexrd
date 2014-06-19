@@ -1107,8 +1107,8 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
         #inlined this function
         # version 1
         for j in range(2):
-            cc[i] = math.cos(oPtr[i])
-            ss[i] = math.sin(oPtr[i])
+            cc[i] = math.cos(oVec[i])
+            ss[i] = math.sin(oVec[i])
 
         rMat_s[0] =  cc[1]
         rMat_s[1] =  0.0
@@ -1147,8 +1147,8 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
         #nb_makeOscillRotMat_cfunc(oVec, rMat_s)
         # version 1
         for j in range(2):
-            cc[i] = math.cos(oPtr[i])
-            ss[i] = math.sin(oPtr[i])
+            cc[i] = math.cos(oVec[i])
+            ss[i] = math.sin(oVec[i])
 
         rMat_s[0] =  cc[1]
         rMat_s[1] =  0.0
