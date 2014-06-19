@@ -11,8 +11,9 @@ from hexrd.xrd import pycfuncs_transforms as pycfuncs
 bVec_ref    = np.ascontiguousarray(xf.bVec_ref)
 eta_ref     = np.ascontiguousarray(xf.eta_ref)
 
-idxFile = './ruby_4537-8_log.txt'
+#idxFile = './ruby_4537-8_log.txt'
 
+idxFile = './ruby_triple.txt'
 gtable  = np.loadtxt(idxFile, delimiter='\t')
 idx     = gtable[:, 0] >= 0
 hklsT   = np.ascontiguousarray(gtable[idx, 2:5].T)
