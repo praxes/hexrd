@@ -6,6 +6,7 @@ import numpy as np
 from hexrd.xrd import transforms as xf 
 from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.xrd import pycfuncs_transforms as pycfuncs 
+import numba.cuda
 
 #input parameters
 bVec_ref = xf.bVec_ref
@@ -83,6 +84,10 @@ start4 = timer()                      # time this
 xy2 = xfcapi.gvecToDetectorXY(gVec_c2,rMat_d,rMat_s,rMat_c,tVec_d,tVec_s,tVec_c,beamVec=bVec_ref)
 elapsed4 = (timer() - start4)
 print "Time for CAPI gvecToDetectorXY: %f"%(elapsed4)
+
+
+print 'cudadevice: ', numba.cuda.get_current_device().name
+
 
 # setup or numba version
 # should be able to run in nopython mode

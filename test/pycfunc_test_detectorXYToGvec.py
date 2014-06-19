@@ -6,6 +6,8 @@ from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.xrd import pycfuncs_transforms as pycfuncs 
 
+import numba.cuda
+
 # input parameters
 bVec_ref = xf.bVec_ref
 
@@ -82,6 +84,9 @@ maxDiff_eta = np.linalg.norm(eta_d1-eta_d3,np.inf)
 print "Maximum disagreement in eta:  %f"%maxDiff_eta
 maxDiff_gVec = np.linalg.norm(np.sqrt(np.sum(np.asarray(gVec1.T-gVec3)**2,1)),np.inf)
 print "Maximum disagreement in gVec: %f"%maxDiff_gVec
+
+print 'cudadevice: ', numba.cuda.get_current_device().name
+
 
 #setup for detectorXYToGVec
 rMat_e = np.zeros(9)
