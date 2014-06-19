@@ -1097,7 +1097,7 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
 
         # Assign Y column
         for j in range(3):
-            rMat_e[3 * j + 1] = rMat_e[3 * ((j + 1) % 3) + 2] * rMat_e[3 * ((j + 2) % 3)] - rMat_e[3 * ((j +2) % 3) + 2] * rMat_e[3 *((j + 1) % 3)];
+            rMat_e[3 * j + 1] = rMat_e[3 * ((j + 1) % 3) + 2] * rMat_e[3 * ((j + 2) % 3) + 0] - rMat_e[3 * ((j +2) % 3) + 2] * rMat_e[3 *((j + 1) % 3) + 0]
 
 
         oVec[0] = chi
