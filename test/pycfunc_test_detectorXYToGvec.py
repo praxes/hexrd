@@ -35,8 +35,13 @@ rMat_s = xf.makeOscillRotMat([chi, 0.])
 # ######################################################################
 # Calculate pixel coordinates
 #
-pvec  = 204.8 * np.linspace(-1, 1, 2048)
-#pvec  = 204.8 * np.linspace(-1, 1, 512)
+
+pvec  = 204.8 * np.linspace(-1, 1, 512)
+#pvec  = 204.8 * np.linspace(-1, 1, 2048)
+#pvec  = 204.8 * np.linspace(-1, 1, 4096)
+#pvec  = 204.8 * np.linspace(-1, 1, 8192)
+#pvec  = 204.8 * np.linspace(-1, 1, 16384)
+
 dcrds = np.meshgrid(pvec, pvec)
 XY    = np.ascontiguousarray(np.vstack([dcrds[0].flatten(), dcrds[1].flatten()]).T)
 
