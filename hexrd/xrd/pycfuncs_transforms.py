@@ -995,7 +995,7 @@ def gpu_oscill_core_loop_kernel(hkls, chi, rMat_c, bMat, wavelength,
     tVec0 = cuda.local.array(3, dtype=float64)
     gVec_e = cuda.local.array(3, dtype=float64)
     rMat_s = cuda.local.array(9, dtype=float64)
-    rMat_s = cuda.local.array(9, dtype=float64)
+    rMat_e = cuda.local.array(9, dtype=float64)
     cc = cuda.local.array(2, dtype=float64)
     ss = cuda.local.array(2, dtype=float64)
 
