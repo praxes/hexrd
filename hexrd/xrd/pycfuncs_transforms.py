@@ -962,7 +962,6 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
 
 
 def gpu_oscill_core_loop(hkls, chi, rMat_c, bMat, wavelength,
-                       beamVec, etaVec, 
                        crc, cchi, schi,
                        bHat_l, eHat_l, 
                        oangs0, oangs1):
