@@ -28,6 +28,8 @@
 
 import os, sys, warnings
 import numpy as np
+np.seterr(invalid='ignore')
+
 import scipy.sparse as sparse
 
 from hexrd import matrixutil as mutil
