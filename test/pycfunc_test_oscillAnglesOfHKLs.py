@@ -57,7 +57,7 @@ print "Time for CAPI oscillAnglesOfHKLs:   %f"%elapsed2
 
 #print "  Speedup: %f"%(elapsed1/elapsed2)
 
-
+#cuda info
 print 'cudadevice: ', numba.cuda.get_current_device().name
 
 gVec_e = np.zeros(3)
