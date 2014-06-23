@@ -36,12 +36,12 @@ rMat_c = xf.makeRotMatOfExpMap(np.array( [ [ 0.66931818],
 
 # oscillation angle arrays
 n=22
-start1 = timer()                      # time this
-for i in range(n):
-    oangs01, oangs11 = xf.oscillAnglesOfHKLs(hklsT, chi, rMat_c, bMat, wavelength, 
-                                             beamVec=bVec_ref, etaVec=eta_ref)
-elapsed1 = (timer() - start1)
-print "Time for Python oscillAnglesOfHKLs: %f"%elapsed1
+#start1 = timer()                      # time this
+#for i in range(n):
+#    oangs01, oangs11 = xf.oscillAnglesOfHKLs(hklsT, chi, rMat_c, bMat, wavelength, 
+#                                             beamVec=bVec_ref, etaVec=eta_ref)
+#elapsed1 = (timer() - start1)
+#print "Time for Python oscillAnglesOfHKLs: %f"%elapsed1
 
 start2 = timer()                      # time this
 for i in range(n):
