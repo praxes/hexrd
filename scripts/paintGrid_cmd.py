@@ -43,9 +43,14 @@ except:
 
 haveScikit = False
 try:
-    from sklearn.cluster          import dbscan
-    from sklearn.metrics.pairwise import pairwise_distances
-    haveScikit = True
+    import sklearn
+    vstring = sklearn.__version__.split('.') 
+    if vstring[0] == '0' and int(vstring[1]) >= 14:
+        from sklearn.cluster          import dbscan
+        from sklearn.metrics.pairwise import pairwise_distances
+        haveScikit = True
+    else:
+        print "Installed SciKit is too old (<0.14), using scipy fallback"        
 except:
     print "System does not have SciKit installed, using scipy fallback"
 
