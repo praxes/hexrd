@@ -35,6 +35,7 @@ import time
 import pdb
 
 import numpy as num
+num.seterr(invalid='ignore')
 
 import hexrd.matrixutil as mUtil
 
