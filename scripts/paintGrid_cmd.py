@@ -2,6 +2,7 @@ import sys, os, time
 
 import shelve, cPickle
 import numpy as np
+np.seterr(over='ignore', invalid='ignore')
 
 import scipy.cluster  as cluster
 import scipy.optimize as opt
@@ -457,7 +458,7 @@ if __name__ == "__main__":
     else:
         qbar, cl = run_cluster(compl, qfib, pd.getQSym(), cl_radius=cl_radius, min_compl=min_compl)
     qbar = np.atleast_2d(qbar)
-    
+
     print "Found %d orientation clusters with >=%.1f%% completeness and %2f misorientation" %(qbar.size/4, 100.*min_compl, cl_radius)
 
     # SAVE OUTPUT
@@ -489,7 +490,7 @@ if __name__ == "__main__":
         det_origin_str = parser.get('pull_spots', 'det_origin')
         det_origin = np.array(det_origin_str.split(','), dtype=float)
 
-        geomParams = np.vstack([detector.getParams(allParams=True)[:6], 
+        geomParams = np.vstack([detector.getParams(allParams=True)[:6],
                                 np.zeros(6)]).T
 
         distortion = (dFuncs.GE_41RT, detector.getParams(allParams=True)[6:])
@@ -513,13 +514,13 @@ if __name__ == "__main__":
         for iq, quat in enumerate(qbar.T):
             if have_progBar:
                 pbar.update(iq)
-            exp_map = phi[iq]*n[:, iq] 
+            exp_map = phi[iq]*n[:, iq]
             grain_params = np.hstack([exp_map.flatten(), 0., 0., 0., 1., 1., 1., 0., 0., 0.])
-            sd = xrdutil.pullSpots(pd, detector_params, grain_params, reader, 
-                                   filename=pull_filename %iq, 
-                                   eta_range=etaRange, ome_period=ome_period, 
-                                   eta_tol=eta_tol, ome_tol=ome_tol, 
-                                   threshold=pthresh, tth_tol=tth_tol, 
+            sd = xrdutil.pullSpots(pd, detector_params, grain_params, reader,
+                                   filename=pull_filename %iq,
+                                   eta_range=etaRange, ome_period=ome_period,
+                                   eta_tol=eta_tol, ome_tol=ome_tol,
+                                   threshold=pthresh, tth_tol=tth_tol,
                                    distortion=distortion)
             pass
         if have_progBar:
@@ -527,6 +528,3 @@ if __name__ == "__main__":
             pass
         pass # condidional on pull spots
     pass
-
-
-

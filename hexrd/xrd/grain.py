@@ -119,9 +119,9 @@ class Grain(object):
                  pVec=None, # [0., 0., 0.]  # not in kwargs because does not hang off of self
                  grainData=None,
                  **kwargs):
-        
+
         chiTilt=spots.detectorGeom.chiTilt # need to grab this off of spots
-        
+
         kwHasVMat = kwargs.has_key('vMat')
         for parm, val in self.__inParmDict.iteritems():
             if kwargs.has_key(parm):
@@ -138,7 +138,7 @@ class Grain(object):
         # convert units as necessary
         self.omeTol = valunits.valWithDflt(self.omeTol, self.__omeTolDflt, 'radians')
         self.etaTol = valunits.valWithDflt(self.etaTol, self.__etaTolDflt, 'radians')
-        
+
         self.detectorGeom  = spots.detectorGeom.makeNew(pVec=pVec, chiTilt=chiTilt)
         self.planeData     = spots.getPlaneData(self.phaseID)
         self.spots         = spots
@@ -146,10 +146,10 @@ class Grain(object):
         # process ome range(s)
         self.omeMin        = spots.getOmegaMins()
         self.omeMax        = spots.getOmegaMaxs()
-        
+
         # reference maxTTh for complete rings (for completeness calc)
         self.refTThMax     = spots.detectorGeom.getTThMax()
-        
+
         # lattice operators
         self.__latticeOperators = self.planeData.getLatticeOperators()
 
@@ -173,7 +173,7 @@ class Grain(object):
             self.__refineFlagsFPC = refineFlags
 
         self.debug = self.__debugDflt
-        
+
         if grainData is None:
             if self.rMat is not None:
                 reflInfo, fPairs, completeness = self.findMatches(
@@ -476,7 +476,7 @@ class Grain(object):
                     doFit=False,
                     filename=None,
                     ):
-        
+
         writeOutput=False
 
         if self.uncertainties:
@@ -617,10 +617,10 @@ class Grain(object):
                                              num.logical_and(jCol0 >= 0, jCol0 <= self.detectorGeom.ncols))
                 inCorners1 = num.logical_and(num.logical_and(iRow1 >= 0, iRow1 <= self.detectorGeom.nrows),
                                              num.logical_and(jCol1 >= 0, jCol1 <= self.detectorGeom.ncols))
-                
+
                 reflInRange0 = num.logical_and( reflInRange0, inCorners0 )
                 reflInRange1 = num.logical_and( reflInRange1, inCorners1 )
-            
+
             # get culled angle and hkl lists for predicted spots
             culledTTh = num.r_[ predQAng0[iHKL][0, reflInRange0], predQAng1[iHKL][0, reflInRange1] ]
             culledEta = num.r_[ predQAng0[iHKL][1, reflInRange0], predQAng1[iHKL][1, reflInRange1] ]
@@ -879,10 +879,12 @@ class Grain(object):
             Es   = logm(self.uMat)
             lp   = self.latticeParameters
             p    = self.detectorGeom.pVec
+            if p is None:
+                p = num.zeros(3)
             #
             # the output
             print >> fid, '#\n# *******crystallography data*******\n' + \
-              '#\n#  wavelength: \n#\n#    lambda = %1.12e\n' % (wlen) + \
+              '#\n#  wavelength:\n#\n#    lambda = %1.12e\n' % (wlen) + \
               '#\n#  reference B matrix:\n#\n' + \
               '#    B = [[%1.7e, %1.7e, %1.7e],\n' % (B[0, 0], B[0, 1], B[0, 2]) + \
               '#         [%1.7e, %1.7e, %1.7e],\n' % (B[1, 0], B[1, 1], B[1, 2]) + \
@@ -912,7 +914,7 @@ class Grain(object):
               '#    %g, %g, %g, %g, %g, %g\n' % tuple(num.hstack([lp[:3], r2d*num.r_[lp[3:]]])) + \
               '#\n#  COM coordinates (Xs, Ys, Zs):\n' +\
               '#\n#    p = (%1.4e, %1.4e, %1.4e)\n' % (p[0], p[1], p[2]) + \
-              '#\n#  reflection table:'            
+              '#\n#  reflection table:'
             print >> fid, '# spotID\thklID' + \
                           '\tH \tK \tL ' + \
                           '\tpredTTh \tpredEta \tpredOme ' + \
@@ -1324,7 +1326,7 @@ class Grain(object):
         if len(num.where(self.grainSpots['iRefl'] >= 0)[0]) < 14:
             print >> fout, 'Not enough data for fit, exiting...'
             return
-        
+
         x0 = self.__fitGetX0(fitPVec=fitPVec)
         if fitPVec:
             lsArgs = ()
@@ -1339,7 +1341,7 @@ class Grain(object):
                              xtol=xtol,
                              ftol=ftol,
                              full_output=1)
-        
+
         # strip results
         #   - map rotation to fundamental region... necessary?
         q1 = rot.quatOfExpMap(x1[:3].reshape(3, 1))
@@ -1382,21 +1384,21 @@ class Grain(object):
         return retval
     def rejectOutliers(self, fitResidStdMult=2.5):
         nReject = 0
-        
+
         masterReflInfo = self.grainSpots
         hitReflId      = num.where(masterReflInfo['iRefl'] >= 0)[0]
         nRefl          = len(hitReflId)
-        
+
         fitResid = self.getFitResid(norm=num.linalg.norm)
         assert len(fitResid) == nRefl, 'nRefl mismatch'
-        
+
         rMean = fitResid.mean()
         rStd  = fitResid.std()
         if rStd > 0:
             indxOutliers, = num.where( num.abs(fitResid - fitResid.mean()) > 2.5*rStd )
             nReject += len(indxOutliers)
             masterReflInfo['iRefl'][hitReflId[indxOutliers]] = self.__rejctIdxSpotM
-        
+
         return nReject
     def displaySpots(self):
         grain = self

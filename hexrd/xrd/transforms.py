@@ -251,7 +251,7 @@ def detectorXYToGvec(xy_det,
     return (tTh, eta), gVec_l
 
 def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
-                       vInv=None, beamVec=bVec_ref, etaVec=eta_ref):
+                       vInv=vInv_ref, beamVec=bVec_ref, etaVec=eta_ref):
     """
     Takes a list of unit reciprocal lattice vectors in crystal frame to the
     specified detector-relative frame, subject to the conditions:
@@ -316,13 +316,8 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     Laue condition cannot be satisfied (filled with NaNs in the results
     array here)
     """
-    if vInv is None:
-        vVec_s = np.c_[1., 1., 1., 0., 0., 0.].T
-    else:
-        vVec_s = vInv
-
     gVec_c = np.dot(bMat, hkls)                     # reciprocal lattice vectors in CRYSTAL frame
-    vMat_s = mutil.vecMVToSymm(vVec_s)              # stretch tensor in SAMPLE frame
+    vMat_s = mutil.vecMVToSymm(vInv)                # stretch tensor in SAMPLE frame
     gVec_s = np.dot(vMat_s, np.dot(rMat_c, gVec_c)) # reciprocal lattice vectors in SAMPLE frame
     gHat_s = unitVector(gVec_s)                     # unit reciprocal lattice vectors in SAMPLE frame
     gHat_c = np.dot(rMat_c.T, gHat_s)               # unit reciprocal lattice vectors in CRYSTAL frame
