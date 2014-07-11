@@ -41,7 +41,7 @@ import scipy.optimize as opt
 import matplotlib
 from matplotlib.widgets import Slider, Button, RadioButtons
 from matplotlib import cm, colors
-import matplotlib.collections as collections
+from matplotlib import collections
 
 from hexrd import plotwrap
 from hexrd import tens
