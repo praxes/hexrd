@@ -17,7 +17,7 @@ if __name__ == '__main__':
     docwriter = ApiDocWriter(package,rst_extension='.rst')
     # You have to escape the . here because . is a special char for regexps.
     # You must do make clean if you change this!
-    docwriter.package_skip_patterns += [#r'\.external$',
+    docwriter.package_skip_patterns += [r'\.wx$',
                                         # Extensions are documented elsewhere.
                                         #r'\.extensions',
                                         #r'\.config\.profile',

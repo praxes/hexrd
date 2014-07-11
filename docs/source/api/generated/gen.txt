@@ -15,33 +15,6 @@
    hexrd.quadrature.q3db
    hexrd.tens
    hexrd.valunits
-   hexrd.wx.caking
-   hexrd.wx.cakingcanvas
-   hexrd.wx.canvaspanel
-   hexrd.wx.canvasutil
-   hexrd.wx.detectorpanel
-   hexrd.wx.fitparampanel
-   hexrd.wx.fitparams
-   hexrd.wx.floatcontrol
-   hexrd.wx.gereader
-   hexrd.wx.grainpanel
-   hexrd.wx.guiconfig
-   hexrd.wx.guiutil
-   hexrd.wx.hydracanvas
-   hexrd.wx.hydrainterface
-   hexrd.wx.hydraschematic
-   hexrd.wx.indexpanel
-   hexrd.wx.listeditor
-   hexrd.wx.logwindows
-   hexrd.wx.mainapp
-   hexrd.wx.mainframe
-   hexrd.wx.materialspanel
-   hexrd.wx.planedataeditor
-   hexrd.wx.readerpanel
-   hexrd.wx.ringsubpanel
-   hexrd.wx.selecthkls
-   hexrd.wx.spotspanel
-   hexrd.wx.xrdnotebook
    hexrd.xrd.crystallography
    hexrd.xrd.detector
    hexrd.xrd.distortion
