@@ -191,12 +191,10 @@ def vecMVCOBMatrix(R):
     [A] = [[A_11, A_12, A_13],
            [A_12, A_22, A_23],
            [A_13, A_23, A_33]]
-        |
-        |
-        V
+    
     {A} = [A_11, A_22, A_33, sqrt(2)*A_23, sqrt(2)*A_13, sqrt(2)*A_12]
               
-    where the operation R * A *R.T (in tensor notation) is obtained by
+    where the operation :math:`R*A*R.T` (in tensor notation) is obtained by
     the matrix-vector product [T]*{A}.
     
     USAGE

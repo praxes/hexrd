@@ -3504,3 +3504,6 @@ def pullSpots(pd, detector_params, grain_params, reader,
     fid.close()
 
     return spot_list
+
+def validateQVecAngles(*args, **kwargs):
+    raise NotImplementedError

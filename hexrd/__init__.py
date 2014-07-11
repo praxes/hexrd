@@ -25,4 +25,11 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 
-__version__ = '0.0.0'
+from . import release
+
+# Release data
+__author__ = '%s <%s>' % (release.author, release.author_email)
+__license__ = release.license
+__version__ = release.__version__
+version_info = release.version_info
+
