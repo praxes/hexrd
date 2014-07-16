@@ -39,7 +39,7 @@ from numpy import int_ as nInt
 
 from hexrd.xrd import distortion as dFuncs
 
-warnings.simplefilter("error", RuntimeWarning)
+warnings.simplefilter("always", RuntimeWarning)
 
 # ######################################################################
 # Module Data
