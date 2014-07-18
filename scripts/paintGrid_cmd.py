@@ -324,8 +324,9 @@ def run_cluster(complPG, qfib, qsym,
     qbar = np.zeros((4, nblobs))
     for i in range(nblobs):
         npts = sum(cl == i + 1)
-        qbar[:, i] = mutil.unitVector(
-            np.sum(qfib[:, np.r_[complPG] > min_compl][:, cl == i + 1].reshape(4, npts), axis=1).reshape(4, 1)).flatten()
+        # qbar[:, i] = mutil.unitVector(
+        #     np.sum(qfib_r[:, cl == i + 1].reshape(4, npts), axis=1).reshape(4, 1)).flatten()
+        qbar[:, i] = rot.quatAverage(qfib_r[:, cl == i + 1].reshape(4, npts), qsym)
     elapsed = (time.clock() - start)
 
     print "clustering took %f seconds" % (elapsed)
