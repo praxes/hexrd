@@ -3307,7 +3307,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
         ome_edges = num.arange(nframes+1)*del_ome + ome_range[0]
         #
         row_edges = num.arange(reader.get_nrows() + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
-        col_edges = num.arange(reader.get_cols()  + 1)*pixel_pitch[0] + panel_dims[0][1]
+        col_edges = num.arange(reader.get_ncols()  + 1)*pixel_pitch[0] + panel_dims[0][1]
         pass
     
     iframe  = num.arange(0, nframes)
