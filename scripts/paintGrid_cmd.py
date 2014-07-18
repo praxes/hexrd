@@ -46,7 +46,7 @@ haveScikit = False
 try:
     import sklearn
     vstring = sklearn.__version__.split('.') 
-    if vstring[0] == '0' and int(vstring[1]) >= 14:
+    if vstring[0] == '0' and int(vstring[1]) >= 15:
         from sklearn.cluster          import dbscan
         from sklearn.metrics.pairwise import pairwise_distances
         haveScikit = True
@@ -186,7 +186,7 @@ def make_maps(pd, reader, detector, hkl_ids, threshold, nframesLump, output=None
     """
     OME-ETA MAPS
     """
-    nEtaBins = np.int(2*np.pi / reader.getDeltaOmega()) / nframesLump
+    nEtaBins = np.int(2*np.pi / abs(reader.getDeltaOmega())) / nframesLump
     print "Using %d eta bins" % (nEtaBins)
     omeEta   = xrdutil.CollapseOmeEta(reader,
                                       pd, hkl_ids, detector,

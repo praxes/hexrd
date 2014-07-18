@@ -3172,9 +3172,12 @@ def simulateGVecs(pd, detector_params, grain_params,
         angMask_eta = num.logical_or(angMask_eta, xf.validateAngleRanges(angList[:, 1], etas[0], etas[1]))
 
     # do omega ranges
+    ccw=True
     angMask_ome = num.zeros(len(angList), dtype=bool)
     for omes in ome_range:
-        angMask_ome = num.logical_or(angMask_ome, xf.validateAngleRanges(angList[:, 2], omes[0], omes[1]))
+        if omes[1] - omes[0] < 0:
+            ccw=False
+        angMask_ome = num.logical_or(angMask_ome, xf.validateAngleRanges(angList[:, 2], omes[0], omes[1], ccw=ccw))
 
     # mask angles list, hkls
     angMask = num.logical_and(angMask_eta, angMask_ome)
@@ -3251,6 +3254,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
               ome_period=(-num.pi, num.pi),
               eta_range=[(-num.pi, num.pi), ],
               panel_dims=[(-204.8, -204.8), (204.8, 204.8)],
+              panel_buff=[20, 20],
               pixel_pitch=(0.2, 0.2),
               distortion=(dFunc_ref, dParams_ref),
               tth_tol=0.15, eta_tol=1., ome_tol=1.,
@@ -3275,28 +3279,52 @@ def pullSpots(pd, detector_params, grain_params, reader,
     tVec_c = num.ascontiguousarray(grain_params[3:6])
     vInv_s = num.ascontiguousarray(grain_params[6:12])
 
-    nframes = reader.getNFrames()
-    iframe  = num.arange(0, nframes)
+    reader_as_list = False
+    if hasattr(reader, '__len__'):
+        """
+        HAVE READER INFO LIST INSTEAD OF OLD READER CLASS
 
-    ome_range = reader.getOmegaMinMax()
-    del_ome   = reader.getDeltaOmega() # this one is in radians!
-    ome_edges = num.arange(nframes+1)*del_ome + ome_range[0]
+        [ [frame_list], [ome_start, del_ome] ]
+        """
+        reader_as_list = True
+        #
+        nframes = len(reader[0])
+        #
+        del_ome   = reader[1][1]
+        ome_edges = [reader[1][0] + i*del_ome for i in range(nframes + 1)]
+        ome_range = (ome_edges[0], ome_edges[-1])
+        #
+        row_edges = num.arange(reader[0][0].shape[0] + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
+        col_edges = num.arange(reader[0][0].shape[1] + 1)*pixel_pitch[0] + panel_dims[0][1]        
+    else:
+        """
+        HAVE OLD READER CLASS
+        """        
+        nframes = reader.getNFrames()
+        #
+        del_ome   = reader.getDeltaOmega() # this one is in radians!
+        ome_range = num.array( reader.getOmegaMinMax() ) * num.sign(del_ome)
+        ome_edges = num.arange(nframes+1)*del_ome + ome_range[0]
+        #
+        row_edges = num.arange(reader.get_nrows() + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
+        col_edges = num.arange(reader.get_cols()  + 1)*pixel_pitch[0] + panel_dims[0][1]
+        pass
+    
+    iframe  = num.arange(0, nframes)
 
     full_range = xf.angularDifference(ome_range[0], ome_range[1])
 
-    ndiv_ome = int(ome_tol/r2d/del_ome)
-    ome_del  = num.arange(0, ndiv_ome+1)*ome_tol/float(ndiv_ome) - 0.5*ome_tol
-
-    row_edges = num.arange(reader.get_nrows()+1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
-    col_edges = num.arange(reader.get_nrows()+1)*pixel_pitch[0] + panel_dims[0][1]
+    ndiv_ome = abs(int(ome_tol/r2d/del_ome))
+    ome_del  = num.sign(del_ome)*(num.arange(0, ndiv_ome+1)*ome_tol/float(ndiv_ome) - 0.5*ome_tol)
 
     pixel_area = pixel_pitch[0]*pixel_pitch[1] # mm^2
-
+    pdim_buffered = [(panel_dims[0][0] + panel_buff[0], panel_dims[0][1] + panel_buff[1]),
+                     (panel_dims[1][0] - panel_buff[0], panel_dims[1][1] - panel_buff[1])]
     # results: hkl, ang, xy, pix
     sim_g = simulateGVecs(pd, detector_params, grain_params,
                           ome_range=[ome_range, ], ome_period=ome_period,
                           eta_range=eta_range,
-                          panel_dims=panel_dims,
+                          panel_dims=pdim_buffered,
                           pixel_pitch=pixel_pitch,
                           distortion=distortion)
 
@@ -3309,20 +3337,19 @@ def pullSpots(pd, detector_params, grain_params, reader,
     iRefl = 0
     spot_list = []
     for hkl, angs, xy, pix in zip(*sim_g):
-        rdr = reader.makeNew()
-
+        
         ndiv_tth = npdiv*num.ceil( tth_tol/(pix[0]*r2d) )
         ndiv_eta = npdiv*num.ceil( eta_tol/(pix[1]*r2d) )
-
+        
         tth_del = num.arange(0, ndiv_tth+1)*tth_tol/float(ndiv_tth) - 0.5*tth_tol
         eta_del = num.arange(0, ndiv_eta+1)*eta_tol/float(ndiv_eta) - 0.5*eta_tol
-
+        
         tth_edges = angs[0] + d2r*tth_del
         eta_edges = angs[1] + d2r*eta_del
-
+        
         delta_tth = tth_edges[1] - tth_edges[0]
         delta_eta = eta_edges[1] - eta_edges[0]
-
+        
         ome_centers = angs[2] + d2r*ome_del
         delta_ome   = ome_centers[1] - ome_centers[0] # in radians... sanity check here?
 
@@ -3346,23 +3373,31 @@ def pullSpots(pd, detector_params, grain_params, reader,
         # connectivity
         conn = gutil.cellConnectivity( sdims[1], sdims[2], origin='ll')
 
-        # evaluation points...
-        #   * for lack of a better option will use centroids
-        tth_eta_cen = gutil.cellCentroids( num.atleast_2d(gVec_angs_vtx[:, :2]), conn )
-        gVec_angs  = num.hstack([tth_eta_cen,
-                                 num.tile(angs[2], (len(tth_eta_cen), 1))])
         rMat_s = xfcapi.makeOscillRotMat([chi, angs[2]])
-        gVec_c = xf.anglesToGVec(gVec_angs,
-                                 bVec, eVec,
-                                 rMat_s=rMat_s,
-                                 rMat_c=rMat_c)
-        tmp_xy = xfcapi.gvecToDetectorXY(gVec_c.T,
-                                         rMat_d, rMat_s, rMat_c,
-                                         tVec_d, tVec_s, tVec_c)
+        if doClipping:
+            gVec_c = xf.anglesToGVec(gVec_angs_vtx,
+                                     bVec, eVec,
+                                     rMat_s=rMat_s,
+                                     rMat_c=rMat_c)
+        else:
+            # evaluation points...
+            #   * for lack of a better option will use centroids
+            tth_eta_cen = gutil.cellCentroids( num.atleast_2d(gVec_angs_vtx[:, :2]), conn )
+            gVec_angs  = num.hstack([tth_eta_cen,
+                                     num.tile(angs[2], (len(tth_eta_cen), 1))])
+            gVec_c = xf.anglesToGVec(gVec_angs,
+                                     bVec, eVec,
+                                     rMat_s=rMat_s,
+                                     rMat_c=rMat_c)
+            pass
+        xy_eval = xfcapi.gvecToDetectorXY(gVec_c.T,
+                                          rMat_d, rMat_s, rMat_c,
+                                          tVec_d, tVec_s, tVec_c)
         if distortion is not None or len(distortion) == 0:
-            tmp_xy = distortion[0](tmp_xy, distortion[1], invert=True)
-        row_indices   = gutil.cellIndices(row_edges, tmp_xy[:, 1])
-        col_indices   = gutil.cellIndices(col_edges, tmp_xy[:, 0])
+            xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
+            pass
+        row_indices   = gutil.cellIndices(row_edges, xy_eval[:, 1])
+        col_indices   = gutil.cellIndices(col_edges, xy_eval[:, 0])
         frame_indices = gutil.cellIndices(ome_edges, angs[2] + d2r*ome_del)
 
         patch_j, patch_i = num.meshgrid( range(sdims[2]), range(sdims[1]) )
@@ -3393,25 +3428,38 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 oidx1  = frame_indices[reidx1]
                 oidx2  = iframe[frame_indices[reidx2] - nframes]
 
-        if split_reader:
-            f1 = rdr.read(nframes=len(oidx1), nskip=oidx1[0])
-            r2 = rdr.makeNew()
-            f2 = r2.read(nframes=len(oidx2), nskip=oidx2[0])
-            frames = num.zeros(sdim, dtype=f1.dtype)
-            frames[:len(oidx1), :, :] = f1
-            frames[len(oidx1):, :, :] = f2
+        if reader_as_list:
+            if split_reader:
+                f1 = reader[0][oidx1[0]:oidx1[0]+len(oidx1)]
+                f2 = reader[0][oidx2[0]:oidx2[0]+len(oidx2)]
+                frames = np.hstack([f1, f2])
+            else:
+                frames = reader[0][frame_indices[0]:sdims[0]+frame_indices[0]]
+            
         else:
-            frames = rdr.read(nframes=sdims[0], nskip=int(frame_indices[0]))
+            rdr = reader.makeNew()
+            if split_reader:
+                f1 = rdr.read(nframes=len(oidx1), nskip=oidx1[0])
+                r2 = rdr.makeNew()
+                f2 = r2.read(nframes=len(oidx2), nskip=oidx2[0])
+                frames = num.zeros(sdim, dtype=f1.dtype)
+                frames[:len(oidx1), :, :] = f1
+                frames[len(oidx1):, :, :] = f2
+            else:
+                frames = rdr.read(nframes=sdims[0], nskip=int(frame_indices[0]))
 
         # brute force way...
         spot_data = num.zeros(sdims)
         if not doClipping:
             # ...normalize my bin area ratio?
             for i in range(sdims[0]):
-                spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])
+                if reader_as_list:
+                    spot_data[i, :, :] = frames[i][row_indices, col_indices].todense().reshape(sdims[1], sdims[2])
+                else:
+                    spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])    
         else:
             for iPix in range(len(conn)):
-                clipVertices = xy_vertices[conn[iPix], :]
+                clipVertices = xy_eval[conn[iPix], :]
                 clipArea_xy = gutil.computeArea(clipVertices)
                 dilatationList = []
                 for vertex in clipVertices:
@@ -3423,10 +3471,14 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 binSum     = num.zeros(sdims[0])
                 for pixel in testPixels:
                     subjectVertices = num.vstack([col_edges[pixel[1] + vjcol],
-                                                 row_edges[pixel[0] + virow]]).T
+                                                  row_edges[pixel[0] + virow]]).T
                     clipped = gutil.sutherlandHodgman(subjectVertices, clipVertices)
                     if len(clipped) > 0:
-                        binSum += frames[:, pixel[0], pixel[1]]*gutil.computeArea(clipped)/clipArea_xy
+                        if reader_as_list:
+                            binSum += num.array([frames[i][pixel[0], pixel[1]] for i in range(len(frames))]) * gutil.computeArea(clipped)/clipArea_xy
+                        else:
+                            binSum += frames[:, pixel[0], pixel[1]]*gutil.computeArea(clipped)/clipArea_xy
+                            pass
                         pass
                     pass
                 spot_data[:, patch_i[iPix], patch_j[iPix]] = binSum
@@ -3475,7 +3527,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                                         angs[1] + d2r*eta_del,
                                         angs[0] + d2r*tth_del )
             w_dict['spot_data']     = spot_data
-            w_dict['crd']           = tmp_xy
+            w_dict['crd']           = xy_eval
             w_dict['con']           = conn
             w_dict['com']           = com_angs
             w_dict['angles']        = angs

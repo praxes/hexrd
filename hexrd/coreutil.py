@@ -7,8 +7,12 @@ from scipy.optimize import leastsq
 
 from ConfigParser import SafeConfigParser
 
+from hexrd.xrd import experiment      as expt
 from hexrd.xrd import transforms      as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
+
+from hexrd.xrd.detector import ReadGE
+
 
 # #################################################
 # PARAMETERS
@@ -48,10 +52,10 @@ def beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, det_origin):
     det_origin - tVec_d[:2].flatten()
     return np.hstack([det_origin - tVec_d[:2].flatten(), u.flatten()])
 
-def make_old_detector_parfile(results, filename=None):
+def make_old_detector_parfile(results, det_origin=(204.8, 204.8), filename=None):
     rMat_d = xf.makeDetectorRotMat(results['tiltAngles'])
     tVec_d = results['tVec_d'] - results['tVec_s']
-    beamXYD = beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, det_origi)
+    beamXYD = beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, det_origin)
     det_plist = np.zeros(12)
     det_plist[:3]  = beamXYD.flatten()
     det_plist[3:6] = results['tiltAngles']
