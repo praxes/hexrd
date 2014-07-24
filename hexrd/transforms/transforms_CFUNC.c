@@ -130,10 +130,10 @@ void detectorXYToGvec_cfunc(long int npts, double * xy,
   }
   nrm = sqrt(nrm);
   if ( nrm > epsf ) {
-    for (j=0; j<3; j++) 
+    for (j=0; j<3; j++)
       bVec[j] = beamVec[j]/nrm;
   } else {
-    for (j=0; j<3; j++) 
+    for (j=0; j<3; j++)
       bVec[j] = beamVec[j];
   }
 
@@ -495,26 +495,26 @@ void makeRotMatOfQuat_cfunc(int nq, double * qPtr, double * rPtr)
 {
   int i, j;
   double c, s, phi, n[3]={0.0,0.0,0.0};
-  
+
   for (i=0; i<nq; i++) {
     phi = 2. * acos(qPtr[4*i+0]);
-    
+
     if (phi > epsf) {
       n[0] = (1. / sin(0.5*phi)) * qPtr[4*i+1];
       n[1] = (1. / sin(0.5*phi)) * qPtr[4*i+2];
       n[2] = (1. / sin(0.5*phi)) * qPtr[4*i+3];
-      
+
       s = sin(phi);
       c = cos(phi);
-      
+
       rPtr[9*i+0] = c + n[0]*n[0]*(1. - c);
       rPtr[9*i+1] = n[0]*n[1]*(1. - c) - n[2]*s;
       rPtr[9*i+2] = n[0]*n[2]*(1. - c) + n[1]*s;
-      rPtr[9*i+3] = n[1]*n[0]*(1. - c) + n[2]*s; 
+      rPtr[9*i+3] = n[1]*n[0]*(1. - c) + n[2]*s;
       rPtr[9*i+4] = c + n[1]*n[1]*(1. - c);
       rPtr[9*i+5] = n[1]*n[2]*(1. - c) - n[0]*s;
       rPtr[9*i+6] = n[2]*n[0]*(1. - c) - n[1]*s;
-      rPtr[9*i+7] = n[2]*n[1]*(1. - c) + n[0]*s; 
+      rPtr[9*i+7] = n[2]*n[1]*(1. - c) + n[0]*s;
       rPtr[9*i+8] = c + n[2]*n[2]*(1. - c);
     }
     else {
@@ -568,7 +568,7 @@ void makeEtaFrameRotMat_cfunc(double * bPtr, double * ePtr, double * rPtr)
   /* Assign Y column */
   for (i=0; i<3; i++)
     rPtr[3*i+1] = rPtr[3*((i+1)%3)+2]*rPtr[3*((i+2)%3)+0] -
-                  rPtr[3*((i+2)%3)+2]*rPtr[3*((i+1)%3)+0];
+		  rPtr[3*((i+2)%3)+2]*rPtr[3*((i+1)%3)+0];
 }
 
 void validateAngleRanges_old_cfunc(int na, double * aPtr, int nr, double * minPtr, double * maxPtr, bool * rPtr)
@@ -772,7 +772,7 @@ double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
   int i;
   double q0, q0_max = 0.0, dist = 0.0;
   double q2s[4*nsym];
-    
+
   /* For each symmetry in qsym compute its inner product with q2 */
   for (i=0; i<nsym; i++) {
     q2s[4*i+0] = q2[0]*qsym[4*i+0] - q2[1]*qsym[4*i+1] - q2[2]*qsym[4*i+2] - q2[3]*qsym[4*i+3];
@@ -780,7 +780,7 @@ double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
     q2s[4*i+2] = q2[2]*qsym[4*i+0] + q2[3]*qsym[4*i+1] + q2[0]*qsym[4*i+2] - q2[1]*qsym[4*i+3];
     q2s[4*i+3] = q2[3]*qsym[4*i+0] - q2[2]*qsym[4*i+1] + q2[1]*qsym[4*i+2] + q2[0]*qsym[4*i+3];
   }
-  
+
   /* For each symmetric equivalent q2 compute its inner product with inv(q1) */
   for (i=0; i<nsym; i++) {
     q0 = q1[0]*q2s[4*i+0] + q1[1]*q2s[4*i+1] + q1[2]*q2s[4*i+2] + q1[3]*q2s[4*i+3];
@@ -791,6 +791,9 @@ double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
 
   if ( q0_max <= 1.0 )
     dist = 2.0*acos(q0_max);
+  else if ( q0_max - 1. < 1e-12 )
+    /* in case of quats loaded from single precision file */
+    dist = 0.;
   else
     dist = NAN;
 
