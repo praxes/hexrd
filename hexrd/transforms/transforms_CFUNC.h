@@ -19,7 +19,7 @@
     #define NAN (*(const float *) __nan)
   #endif
 #else
-  #indlude <stdbool.h>
+  #include <stdbool.h>
 #endif
 
 /******************************************************************************/

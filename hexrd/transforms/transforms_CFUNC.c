@@ -2,12 +2,9 @@
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "transforms_CFUNC.h"
-
-#ifdef _WIN32
-  #include <windows.h>
-#endif
 
 static double epsf      = 2.2e-16;
 static double sqrt_epsf = 1.5e-8;
