@@ -2,9 +2,9 @@ package:
   name: hexrd
   version: master
 
-source:
-  git_url: https://github.com/praxes/hexrd.git
-  git_tag: master
+#source:
+#  git_url: https://github.com/praxes/hexrd.git
+#  git_tag: master
 
   #patches:
     #- osx_pyw.patch [osx]
@@ -34,4 +34,3 @@ about:
   license: LGPL
   home: https://github.com/praxes/hexrd
   summary: High energy diffraction data analysis
-

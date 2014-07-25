@@ -9,7 +9,18 @@
 /**                                                                          **/
 /******************************************************************************/
 
-#include <stdbool.h>
+
+#ifdef _WIN32
+  #define false 0
+  #define true 1
+  #define bool int
+  #ifndef NAN
+    static const unsigned long __nan[2] = {0xffffffff, 0x7fffffff};
+    #define NAN (*(const float *) __nan)
+  #endif
+#else
+  #indlude <stdbool.h>
+#endif
 
 /******************************************************************************/
 /* Funtions */

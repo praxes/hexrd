@@ -4,9 +4,6 @@
 gcc -bundle -flat_namespace -undefined suppress -o _transforms_CAPI.so transforms_CAPI.o
 */
 
-#include <math.h>
-#include <stdbool.h>
-
 #include "transforms_CAPI.h"
 #include "transforms_CFUNC.h"
 
@@ -75,7 +72,7 @@ static PyObject * gvecToDetectorXY(PyObject * self, PyObject * args)
 {
   PyArrayObject *gVec_c,
                 *rMat_d, *rMat_s, *rMat_c,
-                *tVec_d, *tVec_s, *tVec_c, 
+                *tVec_d, *tVec_s, *tVec_c,
                 *beamVec;
   PyArrayObject *result;
 
@@ -393,7 +390,7 @@ static PyObject * unitRowVector(PyObject * self, PyObject * args)
   double *cIn, *cOut;
   int d;
   npy_intp n;
- 
+
   if ( !PyArg_ParseTuple(args,"O", &vecIn)) return(NULL);
   if ( vecIn  == NULL ) return(NULL);
 
@@ -422,7 +419,7 @@ static PyObject * unitRowVectors(PyObject *self, PyObject *args)
   double *cIn, *cOut;
   int d;
   npy_intp m,n;
- 
+
   if ( !PyArg_ParseTuple(args,"O", &vecIn)) return(NULL);
   if ( vecIn  == NULL ) return(NULL);
 
@@ -569,18 +566,18 @@ static PyObject * makeRotMatOfQuat(PyObject * self, PyObject * args)
     nq = PyArray_DIMS(quat)[0];
     ne = PyArray_DIMS(quat)[1];
     assert( ne == 4 );
-    dims3[0] = nq; dims3[1] = 3; dims3[2] = 3; 
+    dims3[0] = nq; dims3[1] = 3; dims3[2] = 3;
     /* Allocate the result matrix with appropriate dimensions and type */
     rMat = (PyArrayObject*)PyArray_EMPTY(3,dims3,NPY_DOUBLE,0);
   }
-  
+
   /* Grab pointers to the various data arrays */
   qPtr = (double*)PyArray_DATA(quat);
   rPtr = (double*)PyArray_DATA(rMat);
-  
+
   /* Call the actual function */
   makeRotMatOfQuat_cfunc(nq, qPtr, rPtr);
-  
+
   return((PyObject*)rMat);
 }
 
