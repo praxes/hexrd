@@ -237,11 +237,7 @@ def run_paintGrid(pd, omeEta, seed_hkl_ids, threshold, fiber_ndiv,
         except:
             raise RuntimeError, "unable to load quaternion grid file"
     else:
-        structureNDI_label = np.array([
-                [0,1,0],
-                [1,1,1],
-                [0,1,0]
-                ])
+        structureNDI_label = ndimage.generate_binary_structure(2, 2)
         qfib = []
         ii = 0
         jj = fiber_ndiv

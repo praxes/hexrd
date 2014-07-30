@@ -3294,8 +3294,11 @@ def pullSpots(pd, detector_params, grain_params, reader,
         ome_edges = [reader[1][0] + i*del_ome for i in range(nframes + 1)]
         ome_range = (ome_edges[0], ome_edges[-1])
         #
-        row_edges = num.arange(reader[0][0].shape[0] + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
-        col_edges = num.arange(reader[0][0].shape[1] + 1)*pixel_pitch[0] + panel_dims[0][1]        
+        frame_nrows = reader[0][0].shape[0]
+        frame_ncols = reader[0][0].shape[1]
+        #
+        row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
+        col_edges = num.arange(frame_ncols + 1)*pixel_pitch[0] + panel_dims[0][1]        
     else:
         """
         HAVE OLD READER CLASS
@@ -3306,8 +3309,11 @@ def pullSpots(pd, detector_params, grain_params, reader,
         ome_range = num.array( reader.getOmegaMinMax() ) * num.sign(del_ome)
         ome_edges = num.arange(nframes+1)*del_ome + ome_range[0]
         #
-        row_edges = num.arange(reader.get_nrows() + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
-        col_edges = num.arange(reader.get_ncols()  + 1)*pixel_pitch[0] + panel_dims[0][1]
+        frame_nrows = reader.get_nrows()
+        frame_ncols = reader.get_ncols()
+        #
+        row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
+        col_edges = num.arange(frame_ncols + 1)*pixel_pitch[0] + panel_dims[0][1]
         pass
     
     iframe  = num.arange(0, nframes)
@@ -3317,6 +3323,12 @@ def pullSpots(pd, detector_params, grain_params, reader,
     ndiv_ome = abs(int(ome_tol/r2d/del_ome))
     ome_del  = num.sign(del_ome)*(num.arange(0, ndiv_ome+1)*ome_tol/float(ndiv_ome) - 0.5*ome_tol)
 
+    # generate structuring element for connected component labeling
+    if ndiv_ome == 1:
+        labelStructure = ndimage.generate_binary_structure(2,2)
+    else:
+        labelStructure = ndimage.generate_binary_structure(3,3)
+    
     pixel_area = pixel_pitch[0]*pixel_pitch[1] # mm^2
     pdim_buffered = [(panel_dims[0][0] + panel_buff[0], panel_dims[0][1] + panel_buff[1]),
                      (panel_dims[1][0] - panel_buff[0], panel_dims[1][1] - panel_buff[1])]
@@ -3397,7 +3409,13 @@ def pullSpots(pd, detector_params, grain_params, reader,
             xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
             pass
         row_indices   = gutil.cellIndices(row_edges, xy_eval[:, 1])
+        if num.any(row_indices < 0) or num.any(row_indices >= frame_nrows):
+            print "(%d, %d, %d): window falls off detector; skipping..." % tuple(hkl)
+            continue
         col_indices   = gutil.cellIndices(col_edges, xy_eval[:, 0])
+        if num.any(col_indices < 0) or num.any(col_indices >= frame_ncols):
+            print "(%d, %d, %d): window falls off detector; skipping..." % tuple(hkl)
+            continue
         frame_indices = gutil.cellIndices(ome_edges, angs[2] + d2r*ome_del)
 
         patch_j, patch_i = num.meshgrid( range(sdims[2]), range(sdims[1]) )
@@ -3485,22 +3503,41 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 pass # have spot data now
             pass
 
-        labels, numPeaks = ndimage.label(spot_data > threshold)
+        labels, numPeaks = ndimage.label(spot_data > threshold, structure=labelStructure)
 
         if numPeaks > 0:
             if numPeaks > 1:
-                # print "for reflection %d window, found %d peaks; ignoring" %(iRefl, numPeaks)
-                peakId = -222
-                com_angs = None
+                """
+                for multiple spots, apply hueristic to see if one in MUCH brigher than the others...
+                this can happen for low backgrounds where a few zingers sneak through, or for spots
+                with a lot of weakly scattering substructure.
+
+                Arbitrarily setting cutting of 10% integrated intensity.
+
+                This will NOT help if a strong reflection is close to a weak reflection that happens
+                to be the one associated with the grain of interest...
+                """
+                slabels = num.arange(1, numPeaks+1)
+                spot_intensity = num.array([num.sum(spot_data[labels == i]) for i in slabels])
+                maxi_idx = num.argmax(spot_intensity)
+                sidx = num.ones(numPeaks, dtype=bool); sidx[maxi_idx] = False
+                if num.any(spot_intensity[sidx] / num.max(spot_intensity) > 0.1):
+                    # print "for reflection %d window, found %d peaks; ignoring" %(iRefl, numPeaks)
+                    peakId = -222
+                    coms = com_angs = None
+                else:
+                    peakId = iRefl
+                    coms = ndimage.center_of_mass(spot_data, labels=labels, index=slabels[maxi_idx])                    
             else:
                 # print "for reflection %d window, found %d peaks" %(iRefl, numPeaks)
                 peakId = iRefl
                 coms = ndimage.center_of_mass(spot_data, labels=labels, index=1)
-
+                pass
+            if coms is not None:
                 com_angs = num.array([tth_edges[0] + (0.5 + coms[2])*delta_tth,
                                       eta_edges[0] + (0.5 + coms[1])*delta_eta,
                                       ome_centers[0] + coms[0]*delta_ome],
-                                     order='C')
+                                      order='C')
                 rMat_s = xfcapi.makeOscillRotMat([chi, com_angs[2]])
                 gVec_c = xf.anglesToGVec(num.atleast_2d(com_angs), bVec, eVec,
                                          rMat_s=rMat_s, rMat_c=rMat_c)
@@ -3521,6 +3558,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
         # output dictionary
         if save_spot_list:
             w_dict = {}
+            w_dict['peakID']        = peakID
             w_dict['hkl']           = hkl
             w_dict['dims']          = sdims
             w_dict['points']        = ( angs[2] + d2r*ome_del,
@@ -3529,7 +3567,11 @@ def pullSpots(pd, detector_params, grain_params, reader,
             w_dict['spot_data']     = spot_data
             w_dict['crd']           = xy_eval
             w_dict['con']           = conn
-            w_dict['com']           = com_angs
+            w_dict['refl_ang_com']  = com_angs
+            if peakID >= 0:
+                w_dict['refl_xyo']  = (new_xy[0], new_xy[1], com_angs[2])
+            else:
+                w_dict['refl_xyo']  = tuple(num.nan*num.ones(3))
             w_dict['angles']        = angs
             w_dict['ang_grid']      = gVec_angs
             w_dict['row_indices']   = row_indices

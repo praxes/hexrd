@@ -872,9 +872,9 @@ class sphOpts(wx.Panel):
 
         threshold = self.cmPanel.cmin_val
 
-        structureNDI_label = numpy.array([[0,1,0],
+        structureNDI_label = numpy.array([[1,1,1],
                                           [1,1,1],
-                                          [0,1,0]])
+                                          [1,1,1]])
         
         labels, numSpots   = ndimage.label(this_map > threshold, structureNDI_label)
         coms               = ndimage.measurements.center_of_mass(this_map, labels, numpy.arange(numpy.amax(labels)) + 1)
