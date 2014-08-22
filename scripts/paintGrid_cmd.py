@@ -345,6 +345,7 @@ if __name__ == "__main__":
     eta_ome_filename = os.path.join(working_dir, analysis_name + '-eta_ome.cpl')
     quats_filename   = os.path.join(working_dir, analysis_name + '-quats.out')
     compl_filename   = os.path.join(working_dir, analysis_name + '-compl.out')
+    testq_filename   = os.path.join(working_dir, analysis_name + '-testq.out')
     pull_filename    = os.path.join(working_dir, analysis_name + '-spots_%05d.out')
 
     print "analysis name is '%s'" %analysis_name
@@ -439,6 +440,10 @@ if __name__ == "__main__":
     print r2d*np.r_[ome_period]
     if ncpus.strip() == '':
         ncpus = multiprocessing.cpu_count()
+    elif int(ncpus) == -1:
+        ncpus = multiprocessing.cpu_count() - 1
+    elif int(ncpus) == -2:
+        ncpus = multiprocessing.cpu_count() / 2
     else:
         ncpus = int(ncpus)
     compl, qfib = run_paintGrid(pd, ome_eta, seed_hkl_ids, threshold_pg, fiber_ndiv,
@@ -449,6 +454,8 @@ if __name__ == "__main__":
                                 nCPUs=ncpus,
                                 useGrid=qgrid_file)
 
+    if not use_qgrid:
+        np.savetxt(os.path.join(working_dir, testq_filename), qfib.T, fmt="%.18e", delimiter="\t")
     np.savetxt(os.path.join(working_dir, compl_filename), compl)
 
     cl_radius = parser.getfloat('clustering', 'cl_radius')
@@ -465,7 +472,7 @@ if __name__ == "__main__":
     print "Found %d orientation clusters with >=%.1f%% completeness and %2f misorientation" %(qbar.size/4, 100.*min_compl, cl_radius)
 
     # SAVE OUTPUT
-    np.savetxt(quats_filename, qbar.T, fmt="%1.12e", delimiter="\t")
+    np.savetxt(quats_filename, qbar.T, fmt="%.18e", delimiter="\t")
 
     # import matplotlib.pyplot as plt
     # from mpl_toolkits.mplot3d import Axes3D

@@ -3260,7 +3260,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
               tth_tol=0.15, eta_tol=1., ome_tol=1.,
               npdiv=1, threshold=10,
               doClipping=False, filename=None, 
-              save_spot_list=False):
+              save_spot_list=False, use_closest=False):
 
     # steal ref beam and eta from transforms.py
     bVec   = xf.bVec_ref
@@ -3473,6 +3473,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
             for i in range(sdims[0]):
                 if reader_as_list:
                     spot_data[i, :, :] = frames[i][row_indices, col_indices].todense().reshape(sdims[1], sdims[2])
+                    # spot_data[i, :, :] = frames[i].todense()[row_indices, col_indices].reshape(sdims[1], sdims[2])
                 else:
                     spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])    
         else:
@@ -3517,17 +3518,29 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 This will NOT help if a strong reflection is close to a weak reflection that happens
                 to be the one associated with the grain of interest...
                 """
-                slabels = num.arange(1, numPeaks+1)
-                spot_intensity = num.array([num.sum(spot_data[labels == i]) for i in slabels])
-                maxi_idx = num.argmax(spot_intensity)
-                sidx = num.ones(numPeaks, dtype=bool); sidx[maxi_idx] = False
-                if num.any(spot_intensity[sidx] / num.max(spot_intensity) > 0.1):
-                    # print "for reflection %d window, found %d peaks; ignoring" %(iRefl, numPeaks)
-                    peakId = -222
-                    coms = com_angs = None
-                else:
+                slabels  = num.arange(1, numPeaks+1)
+                if use_closest:
+                    coms     = ndimage.center_of_mass(spot_data, labels=labels, index=slabels)
+                    ang_diff = []
+                    for i in range(numPeaks):
+                        com_angs = num.array([tth_edges[0] + (0.5 + coms[i][2])*delta_tth,
+                                              eta_edges[0] + (0.5 + coms[i][1])*delta_eta,
+                                              ome_centers[0] + coms[i][0]*delta_ome], order='C')
+                        ang_diff.append(xf.angularDifference(angs, com_angs))
+                    closest_peak_idx = num.argmin(mutil.rowNorm(num.array(ang_diff)))
                     peakId = iRefl
-                    coms = ndimage.center_of_mass(spot_data, labels=labels, index=slabels[maxi_idx])                    
+                    coms = coms[closest_peak_idx]
+                else:
+                    spot_intensity = num.array([num.sum(spot_data[labels == i]) for i in slabels])
+                    maxi_idx = num.argmax(spot_intensity)
+                    sidx = num.ones(numPeaks, dtype=bool); sidx[maxi_idx] = False
+                    if num.any(spot_intensity[sidx] / num.max(spot_intensity) > 0.1):
+                        # print "for reflection %d window, found %d peaks; ignoring" %(iRefl, numPeaks)
+                        peakId = -222
+                        coms = com_angs = None
+                    else:
+                        peakId = iRefl
+                        coms = ndimage.center_of_mass(spot_data, labels=labels, index=slabels[maxi_idx])                    
             else:
                 # print "for reflection %d window, found %d peaks" %(iRefl, numPeaks)
                 peakId = iRefl
