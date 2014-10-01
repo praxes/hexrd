@@ -4,6 +4,7 @@ import shelve, cPickle
 import numpy as np
 
 from scipy.optimize import leastsq
+from scipy.linalg import solve
 
 from ConfigParser import SafeConfigParser
 
@@ -25,40 +26,45 @@ vInv_ref = xf.vInv_ref
 
 # #################################################
 # LEGACY FUCTIONS FOR WORKING WITH OLD HEXRD PAR
-def objFun_tVec_d(tvd_xy, rMat_d, beamXYD, det_origin, bHat_l):
-    """
-    """
-    xformed_xy = beamXYD[:2] - det_origin
-    tVec_d = np.hstack([tvd_xy, -beamXYD[2]]).T
-    n_d    = rMat_d[:, 2]
-    bVec_l = (np.dot(n_d, tVec_d) / np.dot(n_d, bHat_l)) * bHat_l
-    bVec_d = np.hstack([xformed_xy, 0.]).T
-    return np.dot(rMat_d, bVec_d).flatten() + tVec_d.flatten() - bVec_l.flatten()
-
 def tVec_d_from_old_detector_params(old_par, det_origin):
     """
-    as loaded the params have 2 columns: val bool
-    """
-    beamXYD = old_par[:3, 0]
-    rMat_d  = xf.makeDetectorRotMat(old_par[3:6, 0])
-    args=(rMat_d, beamXYD, det_origin, bVec_ref)
-    tvd_xy = leastsq(objFun_tVec_d, -beamXYD[:2], args=args)[0]
-    return np.hstack([tvd_xy, -beamXYD[2]]).reshape(3, 1)
+    calculate tVec_d from old [xc, yc, D] parameter spec
 
-def beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, det_origin):
-    # calculate beam position
-    n_d = np.dot(rMat_d, np.c_[0., 0., 1.].T)
-    u = np.dot(n_d.flatten(), tVec_d) / np.dot(n_d.flatten(), bVec_ref)
-    det_origin - tVec_d[:2].flatten()
-    return np.hstack([det_origin - tVec_d[:2].flatten(), u.flatten()])
+    as loaded the params have 2 columns: [val, bool]
+    """
+    rMat_d = xf.makeDetectorRotMat(old_par[3:6, 0])
+    #
+    P2_d   = np.c_[ old_par[0, 0] - det_origin[0], 
+                    old_par[1, 0] - det_origin[1], 
+                    0.].T    
+    P2_l   = np.c_[ 0., 
+                    0., 
+                   -old_par[2, 0]].T
+    return P2_l - np.dot(rMat_d, P2_d) 
+
+def old_detector_params_from_new(new_par, det_origin):
+    """
+    calculate beam position in old parameter spec
+
+    *) may need to consider distortion...
+    """
+    rMat_d = xf.makeDetectorRotMat(new_par[:3])
+    tVec_d = new_par[3:6].reshape(3, 1)
+    #
+    A = np.eye(3); A[:, :2] = rMat_d[:, :2]
+    # 
+    return solve(A, -tVec_d) + np.vstack([det_origin[0], det_origin[1], 0])
 
 def make_old_detector_parfile(results, det_origin=(204.8, 204.8), filename=None):
-    rMat_d = xf.makeDetectorRotMat(results['tiltAngles'])
-    tVec_d = results['tVec_d'] - results['tVec_s']
-    beamXYD = beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, det_origin)
+    tiltAngles = np.array(results['tiltAngles'])
+    rMat_d     = xf.makeDetectorRotMat(tiltAngles)
+    tVec_d     = results['tVec_d'] - results['tVec_s']
+    #
+    beamXYD = old_detector_params_from_new(np.hstack([tiltAngles.flatten(), tVec_d.flatten()]), det_origin)
+    #
     det_plist = np.zeros(12)
     det_plist[:3]  = beamXYD.flatten()
-    det_plist[3:6] = results['tiltAngles']
+    det_plist[3:6] = tiltAngles
     det_plist[6:]  = results['dParams']
     if filename is not None:
         if isinstance(filename, file):
