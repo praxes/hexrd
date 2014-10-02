@@ -3244,7 +3244,7 @@ def angularPixelSize(xy_det, xy_pixelPitch,
         delta_eta = num.zeros(4)
         for j in range(4):
             delta_tth[j] = abs(tth_eta[0][diffs[0, j]] - tth_eta[0][diffs[1, j]])
-            delta_eta[j] = abs(tth_eta[1][diffs[0, j]] - tth_eta[1][diffs[1, j]])
+            delta_eta[j] = xf.angularDifference(tth_eta[1][diffs[0, j]], tth_eta[1][diffs[1, j]])
 
         ang_pix[ipt, 0] = num.amax(delta_tth)
         ang_pix[ipt, 1] = num.amax(delta_eta)
@@ -3320,11 +3320,16 @@ def pullSpots(pd, detector_params, grain_params, reader,
 
     full_range = xf.angularDifference(ome_range[0], ome_range[1])
 
-    ndiv_ome = abs(int(ome_tol/r2d/del_ome))
-    ome_del  = num.sign(del_ome)*(num.arange(0, ndiv_ome+1)*ome_tol/float(ndiv_ome) - 0.5*ome_tol)
+    if ome_tol <= 0.5*r2d*abs(del_ome):
+        ndiv_ome = 1
+        ome_del  = num.zeros(1)
+    else:
+        ome_tol  = num.ceil(ome_tol/r2d/abs(del_ome))*r2d*abs(del_ome)
+        ndiv_ome = abs(int(ome_tol/r2d/del_ome))
+        ome_del  = (num.arange(0, 2*ndiv_ome+1) - ndiv_ome)*del_ome*r2d 
 
     # generate structuring element for connected component labeling
-    if ndiv_ome == 1:
+    if len(ome_del) == 1:
         labelStructure = ndimage.generate_binary_structure(2,2)
     else:
         labelStructure = ndimage.generate_binary_structure(3,3)
@@ -3345,7 +3350,12 @@ def pullSpots(pd, detector_params, grain_params, reader,
             fid = filename
         else:
             fid = open(filename, 'w')
-        print >> fid, "#\n# grain info\n#\n"
+        print >> fid, "#\n# ID\t"                       + \
+                      "H\tK\tL\t"                       + \
+                      "sum(int)\tmax(int)\t"            + \
+                      "pred tth\tpred eta\t pred ome\t" + \
+                      "meas tth\tmeas eta\t meas ome\t" + \
+                      "meas X\tmeas Y\t meas ome\n#"
     iRefl = 0
     spot_list = []
     for hkl, angs, xy, pix in zip(*sim_g):
@@ -3472,8 +3482,9 @@ def pullSpots(pd, detector_params, grain_params, reader,
             # ...normalize my bin area ratio?
             for i in range(sdims[0]):
                 if reader_as_list:
-                    spot_data[i, :, :] = frames[i][row_indices, col_indices].todense().reshape(sdims[1], sdims[2])
-                    # spot_data[i, :, :] = frames[i].todense()[row_indices, col_indices].reshape(sdims[1], sdims[2])
+                    # complains for older scipy...
+                    # spot_data[i, :, :] = frames[i][row_indices, col_indices].todense().reshape(sdims[1], sdims[2])
+                    spot_data[i, :, :] = frames[i].todense()[row_indices, col_indices].reshape(sdims[1], sdims[2])
                 else:
                     spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])    
         else:
@@ -3528,23 +3539,34 @@ def pullSpots(pd, detector_params, grain_params, reader,
                                               ome_centers[0] + coms[i][0]*delta_ome], order='C')
                         ang_diff.append(xf.angularDifference(angs, com_angs))
                     closest_peak_idx = num.argmin(mutil.rowNorm(num.array(ang_diff)))
+                    #
                     peakId = iRefl
-                    coms = coms[closest_peak_idx]
+                    coms   = coms[closest_peak_idx]
+                    #
+                    spot_intensity = num.sum(spot_data[labels == slabels[closest_peak_idx]])
+                    max_intensity  = num.max(spot_data[labels == slabels[closest_peak_idx]])
                 else:
                     spot_intensity = num.array([num.sum(spot_data[labels == i]) for i in slabels])
                     maxi_idx = num.argmax(spot_intensity)
                     sidx = num.ones(numPeaks, dtype=bool); sidx[maxi_idx] = False
                     if num.any(spot_intensity[sidx] / num.max(spot_intensity) > 0.1):
-                        # print "for reflection %d window, found %d peaks; ignoring" %(iRefl, numPeaks)
                         peakId = -222
-                        coms = com_angs = None
+                        coms   = None
+                        #
+                        spot_intensity = num.nan
+                        max_intensity  = num.nan
                     else:
                         peakId = iRefl
-                        coms = ndimage.center_of_mass(spot_data, labels=labels, index=slabels[maxi_idx])                    
+                        coms   = ndimage.center_of_mass(spot_data, labels=labels, index=slabels[maxi_idx]) 
+                        #
+                        spot_intensity = num.sum(spot_data[labels == slabels[maxi_idx]])  
+                        max_intensity  = num.max(spot_data[labels == slabels[maxi_idx]])                 
             else:
-                # print "for reflection %d window, found %d peaks" %(iRefl, numPeaks)
                 peakId = iRefl
-                coms = ndimage.center_of_mass(spot_data, labels=labels, index=1)
+                coms   = ndimage.center_of_mass(spot_data, labels=labels, index=1)
+                #
+                spot_intensity = num.sum(spot_data[labels == 1])
+                max_intensity  = num.max(spot_data[labels == 1])
                 pass
             if coms is not None:
                 com_angs = num.array([tth_edges[0] + (0.5 + coms[2])*delta_tth,
@@ -3561,9 +3583,11 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 if distortion is not None or len(distortion) == 0:
                     new_xy = distortion[0](num.atleast_2d(new_xy), distortion[1], invert=True).flatten()
         else:
-            # print "for reflection %d window, found %d peaks" %(iRefl, 0)
-            peakId = -999
+            peakId   = -999
             com_angs = None
+            #
+            spot_intensity = num.nan
+            max_intensity  = num.nan
             pass
         #
         # OUTPUT
@@ -3594,15 +3618,17 @@ def pullSpots(pd, detector_params, grain_params, reader,
             pass
         if filename is not None:
             if peakId >= 0:
-                print >> fid, "%d\t"                     % (peakId)                + \
-                              "%d\t%d\t%d\t"             % tuple(hkl)              + \
-                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)             + \
-                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(com_angs)        + \
+                print >> fid, "%d\t"                     % (peakId)                            + \
+                              "%d\t%d\t%d\t"             % tuple(hkl)                          + \
+                              "%1.6e\t%1.6e\t"           % (spot_intensity, max_intensity)     + \
+                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                         + \
+                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(com_angs)                     + \
                               "%1.12e\t%1.12e\t%1.12e"   % (new_xy[0], new_xy[1], com_angs[2])
             else:
-                print >> fid, "%d\t"                     % (peakId)                + \
-                              "%d\t%d\t%d\t"             % tuple(hkl)              + \
-                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)             + \
+                print >> fid, "%d\t"                     % (peakId)                   + \
+                              "%d\t%d\t%d\t"             % tuple(hkl)                 + \
+                              "%f\t%f\t"                 % tuple(num.nan*num.ones(2)) + \
+                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                + \
                               "%f\t%f\t%f\t%f\t%f\t%f"   % tuple(num.nan*num.ones(6))
                 pass
             pass
