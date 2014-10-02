@@ -446,10 +446,11 @@ class imgOpts(wx.Panel):
         p.axes.set_aspect('equal')
         
         p.axes.images = []
+        p.axes.set_title('Intensity Profile')
+
         # show new image
         if intensity.shape[0] == 1:
             p.axes.plot(radius.flatten(), intensity.flatten(), 'b-')
-            p.axes.set_title('Intensity Profile')
             p.axes.set_ylabel('Intensity [arb. units]')
             p.axes.set_aspect('auto')
         else:
@@ -461,7 +462,10 @@ class imgOpts(wx.Panel):
                           vmax=self.cmPanel.cmax_val)
             p.axes.set_autoscale_on(False)
             p.axes.set_title('Intensity Profile')
-            p.axes.set_xlabel('Oscillation Angle (omega)')
+            if p.data['corrected']:
+                p.axes.set_xlabel(r'$2\theta$ [deg]')
+            else:
+                p.axes.set_xlabel('radius [mm]')
             p.axes.set_ylabel('Azimuth (eta)')
             
             # tick labels
