@@ -281,35 +281,36 @@ static PyObject * detectorXYToGvec(PyObject * self, PyObject * args)
 static PyObject * oscillAnglesOfHKLs(PyObject * self, PyObject * args)
 {
   PyArrayObject *hkls, *rMat_c, *bMat,
-                *beamVec, *etaVec;
+                *vInv_s, *beamVec, *etaVec;
   PyFloatObject *chi, *wavelength;
   PyArrayObject *oangs0, *oangs1;
 
-  int dhkls, drc, dbm, dbv, dev;
+  int dhkls, drc, dbm, dvi, dbv, dev;
   npy_intp npts, dims[2];
 
   double *hkls_Ptr, chi_d,
          *rMat_c_Ptr, *bMat_Ptr, wavelen_d,
-         *beamVec_Ptr, *etaVec_Ptr;
+         *vInv_s_Ptr, *beamVec_Ptr, *etaVec_Ptr;
   double *oangs0_Ptr, *oangs1_Ptr;
 
   /* Parse arguments */
-  if ( !PyArg_ParseTuple(args,"OOOOOOO",
+  if ( !PyArg_ParseTuple(args,"OOOOOOOO",
 			 &hkls, &chi,
 			 &rMat_c, &bMat, &wavelength,
-			 &beamVec, &etaVec)) return(NULL);
+			 &vInv_s, &beamVec, &etaVec)) return(NULL);
   if ( hkls    == NULL || chi == NULL ||
        rMat_c  == NULL || bMat == NULL || wavelength == NULL ||
-       beamVec == NULL || etaVec == NULL ) return(NULL);
+       vInv_s  == NULL || beamVec == NULL || etaVec == NULL ) return(NULL);
 
   /* Verify shape of input arrays */
   dhkls = PyArray_NDIM(hkls);
   drc   = PyArray_NDIM(rMat_c);
   dbm   = PyArray_NDIM(bMat);
+  dvi   = PyArray_NDIM(vInv_s);
   dbv   = PyArray_NDIM(beamVec);
   dev   = PyArray_NDIM(etaVec);
   assert( dhkls == 2 && drc == 2 && dbm == 2 &&
-	  dbv   == 1 && dev == 1);
+	  dvi   == 1 && dbv == 1 && dev == 1);
 
   /* Verify dimensions of input arrays */
   npts = PyArray_DIMS(hkls)[0];
@@ -317,6 +318,7 @@ static PyObject * oscillAnglesOfHKLs(PyObject * self, PyObject * args)
   assert( PyArray_DIMS(hkls)[1]    == 3 );
   assert( PyArray_DIMS(rMat_c)[0]  == 3 && PyArray_DIMS(rMat_c)[1] == 3 );
   assert( PyArray_DIMS(bMat)[0]    == 3 && PyArray_DIMS(bMat)[1]   == 3 );
+  assert( PyArray_DIMS(vInv_s)[0]  == 6 );
   assert( PyArray_DIMS(beamVec)[0] == 3 );
   assert( PyArray_DIMS(etaVec)[0]  == 3 );
 
@@ -334,6 +336,8 @@ static PyObject * oscillAnglesOfHKLs(PyObject * self, PyObject * args)
   rMat_c_Ptr  = (double*)PyArray_DATA(rMat_c);
   bMat_Ptr    = (double*)PyArray_DATA(bMat);
 
+  vInv_s_Ptr  = (double*)PyArray_DATA(vInv_s);
+
   beamVec_Ptr = (double*)PyArray_DATA(beamVec);
   etaVec_Ptr  = (double*)PyArray_DATA(etaVec);
 
@@ -343,7 +347,7 @@ static PyObject * oscillAnglesOfHKLs(PyObject * self, PyObject * args)
   /* Call the computational routine */
   oscillAnglesOfHKLs_cfunc(npts, hkls_Ptr, chi_d,
 			   rMat_c_Ptr, bMat_Ptr, wavelen_d,
-			   beamVec_Ptr, etaVec_Ptr,
+			   vInv_s_Ptr, beamVec_Ptr, etaVec_Ptr,
 			   oangs0_Ptr, oangs1_Ptr);
 
   // printf("chi = %g, wavelength = %g\n",PyFloat_AsDouble((PyObject*)chi),PyFloat_AsDouble((PyObject*)wavelength));

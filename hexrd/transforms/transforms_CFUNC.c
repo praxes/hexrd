@@ -5,12 +5,9 @@
 #include "transforms_CFUNC.h"
 
 static double epsf      = 2.2e-16;
-/* static double ten_epsf  = 2.2e-15; */
 static double sqrt_epsf = 1.5e-8;
 
-/* static double X1[3] = {1.0,0.0,0.0}; */
-/* static double Y1[3] = {0.0,1.0,0.0}; */
-static double Z1[3] = {0.0,0.0,1.0};
+static double Zl[3] = {0.0,0.0,1.0};
 
 /******************************************************************************/
 /* Funtions */
@@ -39,7 +36,7 @@ void gvecToDetectorXY_cfunc(long int npts, double * gVec_c,
     P0_l[j]   = tVec_s[j];
 
     for (k=0; k<3; k++) {
-      nVec_l[j] += rMat_d[3*j+k]*Z1[k];
+      nVec_l[j] += rMat_d[3*j+k]*Zl[k];
       P0_l[j]   += rMat_s[3*j+k]*tVec_c[k];
     }
 
@@ -133,10 +130,10 @@ void detectorXYToGvec_cfunc(long int npts, double * xy,
   }
   nrm = sqrt(nrm);
   if ( nrm > epsf ) {
-    for (j=0; j<3; j++) 
+    for (j=0; j<3; j++)
       bVec[j] = beamVec[j]/nrm;
   } else {
-    for (j=0; j<3; j++) 
+    for (j=0; j<3; j++)
       bVec[j] = beamVec[j];
   }
 
@@ -200,7 +197,7 @@ void detectorXYToGvec_cfunc(long int npts, double * xy,
 
 void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
 			      double * rMat_c, double * bMat, double wavelength,
-			      double * beamVec, double * etaVec,
+			      double * vInv_s, double * beamVec, double * etaVec,
 			      double * oangs0, double * oangs1)
 {
   long int i;
@@ -208,11 +205,11 @@ void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
   bool crc = false;
 
   double gVec_e[3], gHat_c[3], gHat_s[3], bHat_l[3], eHat_l[3], oVec[2];
-  double tVec0[3];
+  double tVec0[3], tmpVec[3];
   double rMat_e[9], rMat_s[9];
   double a, b, c, sintht, cchi, schi;
   double abMag, phaseAng, rhs, rhsAng;
-  double nrm0, nrm1;
+  double nrm0;
 
   /* Normalize the beam vector */
   nrm0 = 0.0;
@@ -221,10 +218,10 @@ void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
   }
   nrm0 = sqrt(nrm0);
   if ( nrm0 > epsf ) {
-    for (j=0; j<3; j++) 
+    for (j=0; j<3; j++)
       bHat_l[j] = beamVec[j]/nrm0;
   } else {
-    for (j=0; j<3; j++) 
+    for (j=0; j<3; j++)
       bHat_l[j] = beamVec[j];
   }
 
@@ -235,10 +232,10 @@ void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
   }
   nrm0 = sqrt(nrm0);
   if ( nrm0 > epsf ) {
-    for (j=0; j<3; j++) 
+    for (j=0; j<3; j++)
       eHat_l[j] = etaVec[j]/nrm0;
   } else {
-    for (j=0; j<3; j++) 
+    for (j=0; j<3; j++)
       eHat_l[j] = etaVec[j];
   }
 
@@ -256,38 +253,42 @@ void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
   for (i=0; i<npts; i++) {
 
     /* Compute gVec_c */
-    nrm0 = 0.0;
     for (j=0; j<3; j++) {
       gHat_c[j] = 0.0;
       for (k=0; k<3; k++) {
 	gHat_c[j] += bMat[3*j+k]*hkls[3L*i+k];
       }
-      nrm0 += gHat_c[j]*gHat_c[j];
     }
-    nrm0 = sqrt(nrm0);
 
-    /* Compute gVec_s */
-    nrm1 = 0.0;
+    /* Apply rMat_c to get gVec_s */
     for (j=0; j<3; j++) {
       gHat_s[j] = 0.0;
       for (k=0; k<3; k++) {
 	gHat_s[j] += rMat_c[3*j+k]*gHat_c[k];
       }
-      nrm1 += gHat_s[j]*gHat_s[j];
     }
-    nrm1 = sqrt(nrm1);
 
-    /* Normalize gVec_c to make gHat_c */
+    /* Apply vInv_s to gVec_s and store in tmpVec*/
+    tmpVec[0] = vInv_s[0]*gHat_s[0] + (vInv_s[5]*gHat_s[1] + vInv_s[4]*gHat_s[2])/sqrt(2.);
+    tmpVec[1] = vInv_s[1]*gHat_s[1] + (vInv_s[5]*gHat_s[0] + vInv_s[3]*gHat_s[2])/sqrt(2.);
+    tmpVec[2] = vInv_s[2]*gHat_s[2] + (vInv_s[4]*gHat_s[0] + vInv_s[3]*gHat_s[1])/sqrt(2.);
+
+    /* Apply rMat_c.T to get stretched gVec_c and store norm in nrm0*/
+    nrm0 = 0.0;
+    for (j=0; j<3; j++) {
+      gHat_c[j] = 0.0;
+      for (k=0; k<3; k++) {
+	gHat_c[j] += rMat_c[j+3*k]*tmpVec[k];
+      }
+      nrm0 += gHat_c[j]*gHat_c[j];
+    }
+    nrm0 = sqrt(nrm0);
+
+    /* Normalize both gHat_c and gHat_s */
     if ( nrm0 > epsf ) {
       for (j=0; j<3; j++) {
 	gHat_c[j] /= nrm0;
-      }
-    }
-
-    /* Normalize gVec_s to make gHat_s */
-    if ( nrm1 > epsf ) {
-      for (j=0; j<3; j++) {
-	gHat_s[j] /= nrm1;
+	gHat_s[j]  = tmpVec[j]/nrm0;
       }
     }
 
@@ -494,26 +495,26 @@ void makeRotMatOfQuat_cfunc(int nq, double * qPtr, double * rPtr)
 {
   int i, j;
   double c, s, phi, n[3]={0.0,0.0,0.0};
-  
+
   for (i=0; i<nq; i++) {
     phi = 2. * acos(qPtr[4*i+0]);
-    
+
     if (phi > epsf) {
       n[0] = (1. / sin(0.5*phi)) * qPtr[4*i+1];
       n[1] = (1. / sin(0.5*phi)) * qPtr[4*i+2];
       n[2] = (1. / sin(0.5*phi)) * qPtr[4*i+3];
-      
+
       s = sin(phi);
       c = cos(phi);
-      
+
       rPtr[9*i+0] = c + n[0]*n[0]*(1. - c);
       rPtr[9*i+1] = n[0]*n[1]*(1. - c) - n[2]*s;
       rPtr[9*i+2] = n[0]*n[2]*(1. - c) + n[1]*s;
-      rPtr[9*i+3] = n[1]*n[0]*(1. - c) + n[2]*s; 
+      rPtr[9*i+3] = n[1]*n[0]*(1. - c) + n[2]*s;
       rPtr[9*i+4] = c + n[1]*n[1]*(1. - c);
       rPtr[9*i+5] = n[1]*n[2]*(1. - c) - n[0]*s;
       rPtr[9*i+6] = n[2]*n[0]*(1. - c) - n[1]*s;
-      rPtr[9*i+7] = n[2]*n[1]*(1. - c) + n[0]*s; 
+      rPtr[9*i+7] = n[2]*n[1]*(1. - c) + n[0]*s;
       rPtr[9*i+8] = c + n[2]*n[2]*(1. - c);
     }
     else {
@@ -567,7 +568,7 @@ void makeEtaFrameRotMat_cfunc(double * bPtr, double * ePtr, double * rPtr)
   /* Assign Y column */
   for (i=0; i<3; i++)
     rPtr[3*i+1] = rPtr[3*((i+1)%3)+2]*rPtr[3*((i+2)%3)+0] -
-                  rPtr[3*((i+2)%3)+2]*rPtr[3*((i+1)%3)+0];
+		  rPtr[3*((i+2)%3)+2]*rPtr[3*((i+1)%3)+0];
 }
 
 void validateAngleRanges_old_cfunc(int na, double * aPtr, int nr, double * minPtr, double * maxPtr, bool * rPtr)
@@ -771,7 +772,7 @@ double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
   int i;
   double q0, q0_max = 0.0, dist = 0.0;
   double q2s[4*nsym];
-    
+
   /* For each symmetry in qsym compute its inner product with q2 */
   for (i=0; i<nsym; i++) {
     q2s[4*i+0] = q2[0]*qsym[4*i+0] - q2[1]*qsym[4*i+1] - q2[2]*qsym[4*i+2] - q2[3]*qsym[4*i+3];
@@ -779,7 +780,7 @@ double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
     q2s[4*i+2] = q2[2]*qsym[4*i+0] + q2[3]*qsym[4*i+1] + q2[0]*qsym[4*i+2] - q2[1]*qsym[4*i+3];
     q2s[4*i+3] = q2[3]*qsym[4*i+0] - q2[2]*qsym[4*i+1] + q2[1]*qsym[4*i+2] + q2[0]*qsym[4*i+3];
   }
-  
+
   /* For each symmetric equivalent q2 compute its inner product with inv(q1) */
   for (i=0; i<nsym; i++) {
     q0 = q1[0]*q2s[4*i+0] + q1[1]*q2s[4*i+1] + q1[2]*q2s[4*i+2] + q1[3]*q2s[4*i+3];
@@ -788,8 +789,11 @@ double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
     }
   }
 
-  if ( q0_max < 1.0 )
+  if ( q0_max <= 1.0 )
     dist = 2.0*acos(q0_max);
+  else if ( q0_max - 1. < 1e-12 )
+    /* in case of quats loaded from single precision file */
+    dist = 0.;
   else
     dist = NAN;
 

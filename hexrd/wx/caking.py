@@ -28,6 +28,8 @@
 #
 """Module to present caking options
 """
+import os, sys
+
 import wx
 
 import numpy
@@ -183,14 +185,14 @@ class cakingPanel(wx.Panel):
         """Multiring cake method"""
         exp = wx.GetApp().ws
         det = exp.detector
-
-        action = {
-            'exec'  : self.__makeMRB,
-            'args'  : (),
-            'kwargs': dict()
-            }
-        logwin = logWindow(self, wx.NewId(), action, 'Multiring Binning')
-        logwin.ShowModal()
+        self.__makeMRB(log=sys.stdout)
+        # action = {
+        #     'exec'  : self.__makeMRB,
+        #     'args'  : (),
+        #     'kwargs': dict()
+        #     }
+        # logwin = logWindow(self, wx.NewId(), action, 'Multiring Binning')
+        # logwin.ShowModal()
 
         # ====================
 
@@ -242,7 +244,7 @@ class cakingPanel(wx.Panel):
 
         cakeArgs = {'verbose'  : True,
                     'numEta'   : neta,
-                    'corrected': True,
+                    'corrected': False,
                     'etaRange' : [etaMin, etaMax]}
 
         self.mrb = detector.MultiRingBinned(det, pdat, img,
@@ -250,7 +252,7 @@ class cakingPanel(wx.Panel):
                                             polarRebinKWArgs=cakeArgs,
                                             log=log)
 
-        log.write('\ndone', done=True)
+        # log.write('\ndone', done=True)
 
         return
 
@@ -789,7 +791,7 @@ class sphericalOptsPanel(wx.Panel):
 
         self.thresh_lab = wx.StaticText(self, wx.NewId(), 'threshold',
                                         style=wx.ALIGN_CENTER)
-        self.thresh_spn  = wx.SpinCtrl(self, wx.NewId(), min=1, max=1000, initial=20)
+        self.thresh_spn  = wx.SpinCtrl(self, wx.NewId(), min=0, max=10000, initial=20)
         #
         #  Material and HKLs selector
         #

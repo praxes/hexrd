@@ -32,12 +32,14 @@ import sys, os, time
 import numpy
 from numpy import \
      arange, array, asarray, atleast_1d, ndarray, diag, empty, ones, zeros, \
-     cross, dot, pi, arccos, arcsin, cos, sin, \
+     cross, dot, pi, arccos, arcsin, cos, sin, sqrt, \
      sort, squeeze, tile, vstack, hstack, r_, c_, ix_, \
      abs, mod, sign, \
      finfo, isscalar
 from numpy import float_ as nFloat
 from numpy import int_ as nInt
+
+from scipy.optimize import leastsq
 
 from hexrd.matrixutil import columnNorm, unitVector, skewMatrixOfVector, \
     multMatArray, nullSpace
@@ -61,7 +63,7 @@ def arccosSafe(temp):
     if (abs(temp) > 1.00001).any():
         print >> sys.stderr, "attempt to take arccos of %s" % temp
         raise RuntimeError, "unrecoverable error"
-    
+
     gte1 = temp >=  1.
     lte1 = temp <= -1.
 
@@ -328,6 +330,51 @@ def quatOfRotMat(R):
         cos(0.5 * angs),
         tile(sin(0.5 * angs), (3, 1)) * axxs ] )
     return quats
+
+def quatAverage(q_in, qsym):
+    """
+    """
+    assert q_in.ndim == 2, 'input must be 2-s hstacked quats'
+
+    # renormalize
+    q_in = unitVector(q_in)
+
+    # check to see num of quats is > 1
+    if q_in.shape[1] < 3:
+        if q_in.shape[1] == 1:
+            q_bar = q_in
+        else:
+            ma, mq = misorientation(q_in[:, 0].reshape(4, 1),
+                                    q_in[:, 1].reshape(4, 1), (qsym,))
+            q_bar = quatProduct(q_in[:, 0].reshape(4, 1),
+                                quatOfExpMap(0.5*ma*unitVector(mq[1:].reshape(3, 1))))
+    else:
+        # use first quat as initial guess
+        phi = 2. * arccos(q_in[0, 0])
+        if phi <= finfo(float).eps:
+            x0 = zeros(3)
+        else:
+            n = unitVector(q_in[1:, 0].reshape(3, 1))
+            x0 = phi*n.flatten()
+        results = leastsq(quatAverage_obj, x0, args=(q_in, qsym))
+        phi = sqrt(sum(results[0]*results[0]))
+        if phi <= finfo(float).eps:
+            q_bar = c_[1., 0., 0., 0.].T
+        else:
+            n     = results[0] / phi
+            q_bar = hstack([cos(0.5*phi), sin(0.5*phi)*n]).reshape(4, 1)
+    return q_bar
+
+def quatAverage_obj(xi_in, quats, qsym):
+    phi = sqrt(sum(xi_in.flatten()*xi_in.flatten()))
+    if phi <= finfo(float).eps:
+        q0 = c_[1., 0., 0., 0.].T
+    else:
+        n   = xi_in.flatten() / phi
+        q0 = hstack([cos(0.5*phi), sin(0.5*phi)*n])
+    resd = misorientation(q0.reshape(4, 1), quats, (qsym, ))[0]
+    return resd
+
 def rotMatOfExpMap_opt(expMap):
     """Optimized version of rotMatOfExpMap
     """

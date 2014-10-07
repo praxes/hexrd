@@ -31,8 +31,7 @@ rMat_s = xf.makeOscillRotMat([chi, 0.])
 # ######################################################################
 # Calculate pixel coordinates
 #
-#pvec  = 204.8 * np.linspace(-1, 1, 2048)
-pvec  = 204.8 * np.linspace(-1, 1, 512)
+pvec  = 204.8 * np.linspace(-1, 1, 2048)
 dcrds = np.meshgrid(pvec, pvec)
 XY    = np.ascontiguousarray(np.vstack([dcrds[0].flatten(), dcrds[1].flatten()]).T)
 
@@ -47,36 +46,19 @@ gVec1  = dangs1[1]
 elapsed1 = (time.clock() - start1)
 print "Time for Python detectorXYToGvec: %f"%(elapsed1)
 
-# start2 = time.clock()                      # time this
-# dangs2 = xfc.detectorXYToGvecC(XY, rMat_d, rMat_s,
-#                                tVec_d, tVec_s, tVec_c, 
-#                                beamVec=bVec_ref.flatten())
-# tTh_d2 = dangs2[0][0]
-# eta_d2 = dangs2[0][1]
-# gVec2  = dangs2[1]
-# elapsed2 = (time.clock() - start2)
-# print "Time for Cython detectorXYToGvec: %f"%(elapsed2)
-
-#maxDiff_tTh = np.linalg.norm(tTh_d1-tTh_d2,np.inf)
-#print "Maximum disagreement in tTh:  %f"%maxDiff_tTh
-#maxDiff_eta = np.linalg.norm(eta_d1-eta_d2,np.inf)
-#print "Maximum disagreement in eta:  %f"%maxDiff_eta
-#maxDiff_gVec = np.linalg.norm(np.sqrt(np.sum(np.asarray(gVec1.T-gVec2)**2,1)),np.inf)
-#print "Maximum disagreement in gVec: %f"%maxDiff_gVec
-
 start3 = time.clock()                      # time this
 dangs3 = xfcapi.detectorXYToGvec(XY, rMat_d, rMat_s,
                                  tVec_d.flatten(), tVec_s.flatten(), tVec_c.flatten(), 
                                  beamVec=bVec_ref.flatten(),etaVec=np.array([1.0,0.0,0.0]))
-#tTh_d3 = dangs3[0][0]
-#eta_d3 = dangs3[0][1]
-#gVec3  = dangs3[1]
+tTh_d3 = dangs3[0][0]
+eta_d3 = dangs3[0][1]
+gVec3  = dangs3[1]
 elapsed3 = (time.clock() - start3)
 print "Time for CAPI detectorXYToGvec: %f"%(elapsed3)
 
-#maxDiff_tTh = np.linalg.norm(tTh_d1-tTh_d3,np.inf)
-#print "Maximum disagreement in tTh:  %f"%maxDiff_tTh
-#maxDiff_eta = np.linalg.norm(eta_d1-eta_d3,np.inf)
-#print "Maximum disagreement in eta:  %f"%maxDiff_eta
-#maxDiff_gVec = np.linalg.norm(np.sqrt(np.sum(np.asarray(gVec1.T-gVec3)**2,1)),np.inf)
-#print "Maximum disagreement in gVec: %f"%maxDiff_gVec
+maxDiff_tTh = np.linalg.norm(tTh_d1-tTh_d3,np.inf)
+print "Maximum disagreement in tTh:  %f"%maxDiff_tTh
+maxDiff_eta = np.linalg.norm(eta_d1-eta_d3,np.inf)
+print "Maximum disagreement in eta:  %f"%maxDiff_eta
+maxDiff_gVec = np.linalg.norm(np.sqrt(np.sum(np.asarray(gVec1.T-gVec3)**2,1)),np.inf)
+print "Maximum disagreement in gVec: %f"%maxDiff_gVec

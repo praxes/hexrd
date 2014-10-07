@@ -446,10 +446,11 @@ class imgOpts(wx.Panel):
         p.axes.set_aspect('equal')
         
         p.axes.images = []
+        p.axes.set_title('Intensity Profile')
+
         # show new image
         if intensity.shape[0] == 1:
             p.axes.plot(radius.flatten(), intensity.flatten(), 'b-')
-            p.axes.set_title('Intensity Profile')
             p.axes.set_ylabel('Intensity [arb. units]')
             p.axes.set_aspect('auto')
         else:
@@ -461,7 +462,10 @@ class imgOpts(wx.Panel):
                           vmax=self.cmPanel.cmax_val)
             p.axes.set_autoscale_on(False)
             p.axes.set_title('Intensity Profile')
-            p.axes.set_xlabel('Oscillation Angle (omega)')
+            if p.data['corrected']:
+                p.axes.set_xlabel(r'$2\theta$ [deg]')
+            else:
+                p.axes.set_xlabel('radius [mm]')
             p.axes.set_ylabel('Azimuth (eta)')
             
             # tick labels
@@ -872,9 +876,9 @@ class sphOpts(wx.Panel):
 
         threshold = self.cmPanel.cmin_val
 
-        structureNDI_label = numpy.array([[0,1,0],
+        structureNDI_label = numpy.array([[1,1,1],
                                           [1,1,1],
-                                          [0,1,0]])
+                                          [1,1,1]])
         
         labels, numSpots   = ndimage.label(this_map > threshold, structureNDI_label)
         coms               = ndimage.measurements.center_of_mass(this_map, labels, numpy.arange(numpy.amax(labels)) + 1)

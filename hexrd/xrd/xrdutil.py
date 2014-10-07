@@ -45,9 +45,9 @@ import matplotlib.collections as collections
 
 from hexrd import plotwrap
 from hexrd import tens
-from hexrd import matrixutil
+from hexrd import matrixutil as mutil
 from hexrd import pfigutil
-
+from hexrd import gridutil as gutil
 from hexrd.valunits import toFloat
 
 import hexrd.orientations as ors
@@ -71,6 +71,7 @@ from hexrd.xrd import spotfinder
 from hexrd.xrd import transforms      as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 
+from hexrd.xrd import distortion
 try:
     from femODFUtil import pfig as pfigPkg
     havePfigPkg = True
@@ -85,8 +86,11 @@ except:
 
 'quadr1d of 8 is probably overkill, but we are in 1d so it is inexpensive'
 quadr1dDflt = 8
-#
+
 debugDflt = False
+
+dFunc_ref   = distortion.dummy
+dParams_ref = []
 
 d2r = piby180 = num.pi/180.
 r2d = 1.0/d2r
@@ -316,11 +320,11 @@ def textureToSpots(texture,
         bMats = None
     rMats = rot.rotMatOfQuat(quats)
     #
-    spotAngs = makeSynthSpots(rMats, pVecs, bMats, 
+    spotAngs = makeSynthSpots(rMats, pVecs, bMats,
                               planeData, detectorGeom,
                               omeMM=omeMM,
                               etaMM=etaMM)
-    
+
     return spotAngs
 
 def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom,
@@ -337,14 +341,14 @@ def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom,
     nGrains = rMats.shape[0]
     assert rMats.shape[1] == 3 and rMats.shape[2] == 3,\
         'rMats is wrong shape'
-    
+
     'handle ome ranges'
     # min
     omeMin = num.atleast_1d(omeMM[0])
     for i in range(len(omeMin)):
         if hasattr(omeMin[i], 'getVal'):
             omeMin[i] = omeMin[i].getVal('radians')
-    
+
     # max
     omeMax = num.atleast_1d(omeMM[1])
     for i in range(len(omeMax)):
@@ -353,7 +357,7 @@ def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom,
 
     assert len(omeMin) == len(omeMax), \
            'oscillation angle ranges are not the same length'
-    
+
     'handle eta ranges'
     # min
     if etaMM is not None:
@@ -361,7 +365,7 @@ def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom,
         for i in range(len(etaMin)):
             if hasattr(etaMin[i], 'getVal'):
                 etaMin[i] = etaMin[i].getVal('radians')
-        
+
         # max
         etaMax = num.atleast_1d(etaMM[1])
         for i in range(len(etaMax)):
@@ -369,7 +373,7 @@ def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom,
                 etaMax[i] = etaMax[i].getVal('radians')
         assert len(etaMin) == len(etaMax), \
                'azimuthal angle ranges are not the same length'
-        
+
     spotAngs = []
     completeGrains = num.ones(nGrains, dtype='bool')
     for i in range(nGrains):
@@ -385,11 +389,11 @@ def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom,
         else:
             qVec, qAng0, qAng1 = \
                 planeData.makeTheseScatteringVectors(hklList, rMats[i, :, :], bMat=bMat, chiTilt=chiTilt)
-    
+
         # filter using ome ranges
         validAng0 = validateAngleRanges(qAng0[2, :], omeMin, omeMax)
         validAng1 = validateAngleRanges(qAng1[2, :], omeMin, omeMax)
-        
+
         # now eta (if applicable)
         if etaMM is not None:
             validAng0 = num.logical_and( validAng0, validateAngleRanges(qAng0[1, :], etaMin, etaMax) )
@@ -404,10 +408,10 @@ def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom,
                                          num.logical_and(jCol0 >= 0, jCol0 <= detectorGeom.ncols))
             inCorners1 = num.logical_and(num.logical_and(iRow1 >= 0, iRow1 <= detectorGeom.nrows),
                                          num.logical_and(jCol1 >= 0, jCol1 <= detectorGeom.ncols))
-            
+
             validAng0 = num.logical_and( validAng0, inCorners0 )
             validAng1 = num.logical_and( validAng1, inCorners1 )
-        
+
         # validAng0 = num.zeros(qVec.shape[1], dtype='bool')
         # validAng1 = num.zeros(qVec.shape[1], dtype='bool')
         # for j in range(len(omeMin)):
@@ -415,9 +419,9 @@ def makeSynthSpots(rMats, pVecs, bMats, planeData, detectorGeom,
         #         ( qAng0[2, :] >= omeMin[j] ) & ( qAng0[2, :] <= omeMax[j] ) )
         #     validAng1 = validAng1 | (
         #         ( qAng1[2, :] >= omeMin[j] ) & ( qAng1[2, :] <= omeMax[j] ) )
-        
+
         tmpAngs = num.hstack([qAng0[:, validAng0], qAng1[:, validAng1]])
-    
+
         if pVecs is not None:
             tmpDG = detectorGeom.makeNew(pVec=pVecs[i, :])
 
@@ -900,7 +904,7 @@ def makeNVecs(tth, etaIn, omeIn, asGrid=False):
         num.asarray(eta).flatten(),
         num.asarray(ome).flatten())
     # qVecs is 3xN
-    nVecs  = matrixutil.unitVector(qVecs)
+    nVecs  = mutil.unitVector(qVecs)
     return nVecs
 
 def omeEtaGridToNVecs(tTh, omegas, etas):
@@ -1182,9 +1186,9 @@ class OmeEtaPfig(object):
         for p in self.pList:
             p.destroy()
         self.pList = []
-        
+
         self.__nP_cur = nP
-        
+
         if self.doRot is True:
             'rotate to get "x" into "z" so that projection along 3 direction works well'
             rMat = rMat_y90
@@ -2090,7 +2094,7 @@ def pullFromStack(reader, detectorGeom, tThMM, angWidth, angCen,
                   ):
     """
     angWidth is distance from angCen, so actually half-width
-    
+
     do not yet deal with wrap-around (eg, reader that spans 2*pi)
     """
     omeStep = reader.getDeltaOmega()
@@ -2163,23 +2167,23 @@ def pullFromStack(reader, detectorGeom, tThMM, angWidth, angCen,
 
     return iSpot, labels, objs, pixelData, xyfBBox
 
-def grainSpotsFromStack(g, 
+def grainSpotsFromStack(g,
                         reader, detectorGeom, angWidth, threshold,
                         **kwargs):
     """
-    wrapper around spotFromStack; takes a grain and 
-    returns a dictionary of spots for the grain, with 
+    wrapper around spotFromStack; takes a grain and
+    returns a dictionary of spots for the grain, with
     keys (hklID, iThisHKL)
-    
-    angWidth is for orientation spread; for 2-theta, g.planeData 
-    2-theta ranges are used 
-    
+
+    angWidth is for orientation spread; for 2-theta, g.planeData
+    2-theta ranges are used
+
     can specify hklIDs to look for just a subset of spots
-    
+
     set distInAng=False if want the spots to have to contain the predicted angles,
     otherwise, the closest spots in the bounding boxes will be returned
     """
-    
+
     fout   = kwargs.pop('fout', sys.stdout)
     hklIDs = kwargs.pop('hklIDs', num.arange(len(g.planeData.getHKLs())))
     #
@@ -2191,7 +2195,7 @@ def grainSpotsFromStack(g,
     kwargs.setdefault('distInAng',True)
 
     deltaOmega = reader.getDeltaOmega()
-    
+
     retval = {}
     #
     for hklID in hklIDs:
@@ -2202,15 +2206,15 @@ def grainSpotsFromStack(g,
                 if debug: print >> fout, 'spot %d for hklID %d has its center off the detector, skipping' % (iThisHKL, hklID)
                 continue
             key = (hklID, iThisHKL)
-            
+
             spotData = spotFromStack(reader, detectorGeom, tThMM, angWidth, predAngs, threshold, **kwargs)
-            
+
             if spotData is None:
                 if debug: print >> fout, 'spot %d for hklID %d got no data from spotFromStack' % (iThisHKL, hklID)
             else:
                 retval[key] = spotfinder.Spot(key, deltaOmega, spotData, detectorGeom=detectorGeom)
                 if debug: print >> fout, 'made spot %d for hklID %d' % (iThisHKL, hklID)
-    
+
     return retval
 
 def spotFromStack(reader, detectorGeom, tThMM, angWidth, angCen, threshold,
@@ -2661,8 +2665,8 @@ def pfigFromSpots(spots, iHKL, phaseID=None,
             print >> sys.stderr, "WARNING: do not have pfigPkg, returned results are incomplete"
         retval.append( (
                 pfigDict,
-                omeEdges, 
-                etaEdges, 
+                omeEdges,
+                etaEdges,
                 intensVals,
                 ) )
 
@@ -2677,17 +2681,17 @@ def mapAngCen(ang, angCen):
     retval = num.mod(ang + shift, 2.0*num.pi) - shift
     return retval
 
-def makeSynthFrames(spotParamsList, detectorGeom, omegas, 
-                    intensityFunc=spotfinder.IntensityFuncGauss3D(), 
-                    asSparse=None, 
-                    output=None, 
-                    cutoffMult=4.0, 
+def makeSynthFrames(spotParamsList, detectorGeom, omegas,
+                    intensityFunc=spotfinder.IntensityFuncGauss3D(),
+                    asSparse=None,
+                    output=None,
+                    cutoffMult=4.0,
                     debug=1,
                     ):
     """
     intensityFunc is an instance of a class that works as an intensity
     fuction.
-    
+
     spotParamsList should be a list with each entry being a list of
     arguments appropriate to the intensityFunc.constructParams
     function. For intensityFunc=spotfinder.IntensityFuncGauss3D(),
@@ -2695,31 +2699,31 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
     being the 3D spot center in angular coordinates (radians), fwhm
     being the (2-theta, eta, omega) widths in 3D, and A being an
     intensity scaling.
-    
+
     If output is specified as a string, then the frames with the given
     prefix are dumped to files instead of being accumulated in
     memory. If output is callable then frames are passed to output().
-    
+
     If asSparse is true then sparse matrices are used to reduce memory
     footprint. The asSparse option is currently not coded for the case
     of output having been specied.
-    
+
     cutoffMult is the multiplier on the FWHM to determine the angular
     cutoff range for evaluating intensity for each spot.
     """
-    
+
     nFrames = len(omegas)
-    
+
     'might eventually want to add a check for constant delta-omega'
     omegaDelta = num.mean(omegas[1:]-omegas[:-1])
-    
+
     # nParams = intensityFunc.getNParams(noBkg=False) # not needed
-    
+
     spotList = []
     #
     for iSpot, spotParams in enumerate(spotParamsList):
         xVec = intensityFunc.constructParams(*spotParams)
-    
+
         'bbox from center and widths'
         'do not worry about excessive pixel coverage for spots at eta around 45 degrees and the like?'
         angCen = intensityFunc.getCenter(xVec)
@@ -2728,7 +2732,7 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
         xyfBBox = detectorGeom.angToXYOBBox(angCen, angPM, units='pixels', omegas=omegas, forSlice=True, doWrap=True)
         # xyfBBox_0 = num.array([sl[0] for sl in xyfBBox])
         # stack[slice(*xyfBBox[0]), slice(*xyfBBox[1]), slice(*xyfBBox[2])]
-        
+
         'make spot instance, set up for just a single omega frame slice'
         xM, yM = num.meshgrid(num.arange(*xyfBBox[0]), num.arange(*xyfBBox[1]))
         xAll = xM.flatten(); yAll = yM.flatten();
@@ -2747,7 +2751,7 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
     if debug: print 'created %d spots'%(len(spotList))
 
     if asSparse is None:
-        asSparse = output is None 
+        asSparse = output is None
 
     if output is None:
         if asSparse:
@@ -2761,7 +2765,7 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
         stack = None
     #
     for iFrame, omega in enumerate(omegas):
-        
+
         if output is None:
             if asSparse:
                 vThese = []
@@ -2771,9 +2775,9 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
                 frame = stack[iFrame,:,:]
         else:
             frame = detectorGeom.frame()
-        
+
         for spot, xyfBBox, xVec in spotList:
-            
+
             if not detector.frameInRange(iFrame, xyfBBox[2]):
                 if debug>2: print 'spot %s not on frame %d' % (spot.key, iFrame)
                 continue
@@ -2784,9 +2788,9 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
             """
             angCen = intensityFunc.getCenter(xVec)
             spot.oAll[:] = mapAngCen(omega, angCen[2])
-            vCalc = spot.getVCalc(intensityFunc, xVec, noBkg=True) 
+            vCalc = spot.getVCalc(intensityFunc, xVec, noBkg=True)
             if debug>1:print 'frame %d spot %s max %g' % ( iFrame, spot.key, vCalc.max() )
-            
+
             'put intensity on frames'
             if asSparse:
                 vThese.append(vCalc)
@@ -2795,7 +2799,7 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
             else:
                 frame[spot.xAll, spot.yAll] += vCalc
         'done with spot loop'
-        
+
         if output is None:
             if asSparse:
                 if len(vThese) > 0:
@@ -2803,7 +2807,7 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
                     xThese = num.hstack(xThese)
                     yThese = num.hstack(yThese)
                     if debug>1: print 'frame %d will have up to %d nonzeros' % (iFrame,len(vThese))
-                    frame = sparse.coo_matrix( ( vThese , (xThese,yThese) ) , 
+                    frame = sparse.coo_matrix( ( vThese , (xThese,yThese) ) ,
                                                shape=(detectorGeom.nrows, detectorGeom.ncols) )
                     frame = frame.tocsr() # note that coo->csr sums entries as desired for overlapped spots
                 else:
@@ -2821,17 +2825,17 @@ def makeSynthFrames(spotParamsList, detectorGeom, omegas,
                 output(frame)
             else:
                 raise RuntimeError, 'do not know what to do with output of type %s' % (type(output))
-            
-    
+
+
         if debug: print 'created frame %d'%(iFrame)
-    
+
     'done with loop over frames'
-        
+
     return stack # may be None
 
 def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     """
-    A better way to go.  find out if an angle is in the range 
+    A better way to go.  find out if an angle is in the range
     CCW or CW from start to stop
 
     There is, of course an ambigutiy if the start and stop angle are
@@ -2840,29 +2844,29 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     angList   = num.atleast_1d(angList).flatten()   # needs to have len
     startAngs = num.atleast_1d(startAngs).flatten() # needs to have len
     stopAngs  = num.atleast_1d(stopAngs).flatten()  # needs to have len
-    
+
     n_ranges = len(startAngs)
     assert len(stopAngs) == n_ranges, "length of min and max angular limits must match!"
 
     # to avoid warnings in >=, <= later down, mark nans;
     # need these to trick output to False in the case of nan input
     nan_mask = num.isnan(angList)
-    
+
     reflInRange = num.zeros(angList.shape, dtype=bool)
-    
+
     # anonynmous func for zProjection
     zProj = lambda x, y: num.cos(x) * num.sin(y) - num.sin(x) * num.cos(y)
-    
+
     # bin length for chunking
     binLen = num.pi / 2.
 
     # in plane vectors defining wedges
     x0 = num.vstack([num.cos(startAngs), num.sin(startAngs)])
     x1 = num.vstack([num.cos(stopAngs), num.sin(stopAngs)])
-    
+
     # dot products
     dp = num.sum(x0 * x1, axis=0)
-    if num.any(dp >= 1. - sqrt_epsf) and n_ranges > 1: 
+    if num.any(dp >= 1. - sqrt_epsf) and n_ranges > 1:
         # ambiguous case
         raise RuntimeError, "Improper usage; at least one of your ranges is alread 360 degrees!"
     elif dp[0] >= 1. - sqrt_epsf and n_ranges == 1:
@@ -2875,7 +2879,7 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
         a   = x0[0, :]*x1[1, :] - x0[1, :]*x1[0, :]
         b   = x0[0, :]*x1[0, :] + x0[1, :]*x1[1, :]
         phi = num.arctan2(b, a)
-    
+
         arclen = 0.5*num.pi - phi          # these are clockwise
         cw_phis = arclen < 0
         arclen[cw_phis] = 2*num.pi + arclen[cw_phis]   # all positive (CW) now
@@ -2884,7 +2888,7 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
 
         if sum(arclen) > 2*num.pi:
             raise RuntimeWarning, "Specified angle ranges sum to > 360 degrees, which is suspect..."
-        
+
         # check that there are no more thandp = num.zeros(n_ranges)
         for i in range(n_ranges):
             # number or subranges using 'binLen'
@@ -2896,7 +2900,7 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
                 finalBinLen = binLen
             else:
                 finalBinLen = binrem
-            
+
             # if clockwise, negate bin length
             if not ccw:
                  binLen      = -binLen
@@ -2918,7 +2922,7 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
                 else:
                     zStart[nan_mask] = -999.
                     zStop[nan_mask]  =  999.
-                    reflInRange = reflInRange | num.logical_and(zStart >= 0, zStop <= 0)            
+                    reflInRange = reflInRange | num.logical_and(zStart >= 0, zStop <= 0)
     return reflInRange
 
 def tVec_d_from_old_parfile(old_par, detOrigin):
@@ -2935,9 +2939,9 @@ def objFun_tVec_d(tvd_xy, rMat_d, beamXYD, detOrigin, bHat_l):
     xformed_xy = beamXYD[:2] - detOrigin
     tVec_d = num.hstack([tvd_xy, -beamXYD[2]]).T
     n_d    = rMat_d[:, 2]
-    
+
     bVec_l = (num.dot(n_d, tVec_d) / num.dot(n_d, bHat_l)) * bHat_l
-    bVec_d = num.hstack([xformed_xy, 0.]).T 
+    bVec_d = num.hstack([xformed_xy, 0.]).T
 
     return num.dot(rMat_d, bVec_d).flatten() + tVec_d.flatten() - bVec_l.flatten()
 
@@ -2945,7 +2949,7 @@ def beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, detOrigin):
     # calculate beam position
     Zd_l = num.dot(rMat_d, num.c_[0, 0, 1].T)
     bScl = num.dot(Zd_l.T, tVec_d) / num.dot(Zd_l.T, bVec_ref)
-    beamPos_l = bScl*bVec_ref 
+    beamPos_l = bScl*bVec_ref
     return num.dot(rMat_d.T, beamPos_l - tVec_d_ref) + num.hstack([detOrigin, -tVec_d[2]]).reshape(3, 1)
 
 def write_old_parfile(filename, results):
@@ -2970,14 +2974,14 @@ def write_old_parfile(filename, results):
 
 def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
                        chi=0.,
-                       etaTol=None, omeTol=None, 
-                       etaRanges=None, omeRanges=None, 
+                       etaTol=None, omeTol=None,
+                       etaRanges=None, omeRanges=None,
                        bVec=xf.bVec_ref, eVec=xf.eta_ref, vInv=xf.vInv_ref):
     """
     all angular info is entered in degrees
 
     quats are (4, n)
-    
+
     ...might want to creat module-level angluar unit flag
     ...might want to allow resvers delta omega
 
@@ -2996,7 +3000,7 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
     omeMin = omeEdges[0]; omeMax = omeEdges[-1]
     if omeRanges is None:
         omeRanges = [[omeMin, omeMax], ]
-        
+
     if etaRanges is None:
         etaRanges = [[etaMin, etaMax], ]
 
@@ -3005,7 +3009,7 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
     del_eta = etaEdges[1] - etaEdges[0]
 
     delOmeSign = num.sign(del_eta)
-        
+
     # tolerances are in degrees (easier)
     if omeTol is None:
         omeTol = abs(del_ome)
@@ -3015,7 +3019,7 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
         etaTol = abs(del_eta)
     else:
         etaTol = d2r*etaTol
-    
+
     # pixel dialtions
     dpix_ome = round( omeTol / abs(del_ome) )
     dpix_eta = round( etaTol / abs(del_eta) )
@@ -3023,59 +3027,59 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
     # get symmetrically expanded hkls from planeData
     sym_hkls = planeData.getSymHKLs()
     nhkls = len(sym_hkls)
-    
+
     # make things C-contiguous for use in xfcapi functions
     expMaps = num.array(expMaps.T, order='C')
     nOrs    = len(expMaps)
-    
+
     bMat = num.array(planeData.latVecOps['B'], order='C')
     wlen = planeData.wavelength
-    
+
     bVec = num.array(bVec.flatten(), order='C')
     eVec = num.array(eVec.flatten(), order='C')
     vInv = num.array(eVec.flatten(), order='C')
-    
+
     eta_ome = num.zeros((nhkls, max(omeIndices), max(etaIndices)), order='C')
     for iHKL in range(nhkls):
         these_hkls = num.array(sym_hkls[iHKL].T, order='C')
         for iOr in range(nOrs):
             # rMat_c = xfcapi.makeRotMatOfExpMap(expMaps[iOr, :])
-            # oangs  = xfcapi.oscillAnglesOfHKLs(these_hkls, chi, rMat_c, bMat, wlen, 
+            # oangs  = xfcapi.oscillAnglesOfHKLs(these_hkls, chi, rMat_c, bMat, wlen,
             #                                    beamVec=bVec, etaVec=eVec)
             # import pdb;pdb.set_trace()
             # angList = num.vstack(oangs)                # stack two solutions (row vecs)
             # angList[:, 1] = xf.mapAngle(angList[:, 1]) # map etas
             # angList[:, 2] = xf.mapAngle(angList[:, 2]) # map omes
             rMat_c = xf.makeRotMatOfExpMap(expMaps[iOr, :])
-            oangs  = xf.oscillAnglesOfHKLs(these_hkls.T, chi, rMat_c, bMat, wlen, 
+            oangs  = xf.oscillAnglesOfHKLs(these_hkls.T, chi, rMat_c, bMat, wlen,
                                            beamVec=bVec, etaVec=eVec)
-            
+
             angList = num.hstack(oangs)                # stack two solutions (col vecs)
             if not num.all(num.isnan(angList)):
                 angList[1, :] = xf.mapAngle(angList[1, :]) # map etas
                 angList[2, :] = xf.mapAngle(angList[2, :]) # map omes
                 angList = angList.T
-                
+
                 # mask eta angles
                 angMask_eta = num.zeros(len(angList), dtype=bool)
                 for j in range(len(etaRanges)):
                     angMask_eta = num.logical_or(
                         angMask_eta, validateAngleRanges(angList[:, 1], etaRanges[j][0], etaRanges[j][1]))
-                
+
                 # mask ome angles
                 angMask_ome = num.zeros(len(angList), dtype=bool)
                 for j in range(len(omeRanges)):
                     angMask_ome = num.logical_or(
                         angMask_ome, validateAngleRanges(angList[:, 2], omeRanges[j][0], omeRanges[j][1]))
-                
+
                 # import pdb;pdb.set_trace()
                 # join them
                 angMask = num.logical_and(angMask_eta, angMask_ome)
-                
+
                 culledTTh  = angList[angMask, 0]
                 culledEta  = angList[angMask, 1]
                 culledOme  = angList[angMask, 2]
-                
+
                 for iTTh in range(len(culledTTh)):
                     culledEtaIdx = num.where(etaEdges - culledEta[iTTh] > 0)[0]
                     if len(culledEtaIdx) > 0:
@@ -3094,17 +3098,18 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
                             culledOmeIdx = None
                     else:
                         culledOmeIdx = None
-                    
+
                     if culledEtaIdx is not None and culledOmeIdx is not None:
                         if dpix_ome > 0 or dpix_eta > 0:
                             i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
                                                         num.arange(-dpix_eta, dpix_eta + 1))
                             i_sup = omeIndices[culledOmeIdx] + num.array([i_dil.flatten()], dtype=int)
                             j_sup = etaIndices[culledEtaIdx] + num.array([j_dil.flatten()], dtype=int)
-                
-                            # catch shit that falls off detector... maybe make this fancy enough to wrap at 2pi?
+
+                            # catch shit that falls off detector...
+                            # maybe make this fancy enough to wrap at 2pi?
                             idx_mask = num.logical_and(num.logical_and(i_sup >= 0, i_sup < i_max),
-                                                       num.logical_and(j_sup >= 0, j_sup < j_max))                    
+                                                       num.logical_and(j_sup >= 0, j_sup < j_max))
                             eta_ome[ iHKL, i_sup[idx_mask], j_sup[idx_mask] ] = 1.
                         else:
                             eta_ome[ iHKL, omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ] = 1.
@@ -3112,6 +3117,523 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
                         pass # close conditional on ranges
                     pass # close for loop on valid reflections
                 pass # close conditional for valid angles
-            
-            
     return eta_ome
+
+def simulateGVecs(pd, detector_params, grain_params,
+                  ome_range=[(-num.pi, num.pi), ], ome_period=(-num.pi, num.pi),
+                  eta_range=[(-num.pi, num.pi), ],
+                  panel_dims=[(-204.8, -204.8), (204.8, 204.8)],
+                  pixel_pitch=(0.2, 0.2),
+                  distortion=(dFunc_ref, dParams_ref)):
+    """
+    simulate the monochormatic scattering for a specified
+
+        - space group
+        - wavelength
+        - orientation
+        - strain
+        - position
+        - detector parameters
+        - oscillation axis tilt (chi)
+
+    subject to
+
+        - omega (oscillation) ranges (list of (min, max) tuples)
+        - eta (azimuth) ranges
+
+    pd................a hexrd.xrd.crystallography.PlaneData instance
+    detector_params...a (10,) ndarray containing the tilt angles (3), translation (3),
+                      chi (1), and sample frame translation (3) parameters
+    grain_params......a (12,) ndarray containing the exponential map (3),
+                      translation (3), and inverse stretch tensor compnents
+                      in Mandel-Voigt notation (6).
+
+    * currently only one panel is supported, but this will likely change very soon
+    """
+    bMat      = pd.latVecOps['B']
+    wlen      = pd.wavelength
+    full_hkls = num.ascontiguousarray(num.hstack(pd.getSymHKLs()).T, dtype=float)
+
+    # extract variables for convenience
+    rMat_d = xfcapi.makeDetectorRotMat(detector_params[:3])
+    tVec_d = num.ascontiguousarray(detector_params[3:6])
+    chi    = detector_params[6]
+    tVec_s = num.ascontiguousarray(detector_params[7:10])
+    rMat_c = xfcapi.makeRotMatOfExpMap(grain_params[:3])
+    tVec_c = num.ascontiguousarray(grain_params[3:6])
+    vInv_s = num.ascontiguousarray(grain_params[6:12])
+
+    # first find valid G-vectors
+    angList = num.vstack(xfcapi.oscillAnglesOfHKLs(full_hkls, chi, rMat_c, bMat, wlen, vInv=vInv_s))
+
+    # do eta ranges
+    angMask_eta = num.zeros(len(angList), dtype=bool)
+    for etas in eta_range:
+        angMask_eta = num.logical_or(angMask_eta, xf.validateAngleRanges(angList[:, 1], etas[0], etas[1]))
+
+    # do omega ranges
+    ccw=True
+    angMask_ome = num.zeros(len(angList), dtype=bool)
+    for omes in ome_range:
+        if omes[1] - omes[0] < 0:
+            ccw=False
+        angMask_ome = num.logical_or(angMask_ome, xf.validateAngleRanges(angList[:, 2], omes[0], omes[1], ccw=ccw))
+
+    # mask angles list, hkls
+    angMask = num.logical_and(angMask_eta, angMask_ome)
+
+    allAngs = angList[angMask, :]
+    allHKLs = num.vstack([full_hkls, full_hkls])[angMask, :]
+
+    #...preallocate for speed...?
+    det_xy = []
+    for hkl, angs in zip(allHKLs, allAngs):
+        gVec_c = num.dot(bMat, hkl.reshape(3, 1))
+        rMat_s = xfcapi.makeOscillRotMat( [chi, angs[2]] )
+        tmp_xy = xfcapi.gvecToDetectorXY(gVec_c.T, rMat_d, rMat_s, rMat_c,
+                                         tVec_d, tVec_s, tVec_c)
+        if (distortion is not None or len(distortion) == 0) and not num.any(num.isnan(tmp_xy)):
+            det_xy.append(distortion[0](tmp_xy, distortion[1], invert=True))
+        pass
+    det_xy = num.vstack(det_xy)
+    #
+    on_panel_x = num.logical_and(det_xy[:, 0] >= panel_dims[0][0], det_xy[:, 0] <= panel_dims[1][0])
+    on_panel_y = num.logical_and(det_xy[:, 1] >= panel_dims[0][1], det_xy[:, 1] <= panel_dims[1][1])
+    on_panel   = num.logical_and(on_panel_x, on_panel_y)
+    #
+    valid_ang = allAngs[on_panel, :]; valid_ang[:, 2] = xf.mapAngle(valid_ang[:, 2], ome_period)
+    valid_hkl = allHKLs[on_panel, :]
+    valid_xy  = det_xy[on_panel, :]
+    ang_ps    = angularPixelSize(valid_xy, pixel_pitch,
+                                 rMat_d, rMat_s,
+                                 tVec_d, tVec_s, tVec_c,
+                                 distortion=distortion)
+    #
+    return valid_hkl, valid_ang, valid_xy, ang_ps
+
+def angularPixelSize(xy_det, xy_pixelPitch,
+                     rMat_d, rMat_s,
+                     tVec_d, tVec_s, tVec_c,
+                     distortion=(dFunc_ref, dParams_ref)):
+    """
+    * choices to beam vector and eta vector specs have been supressed
+    * assumes xy_det in UNWARPED configuration
+    """
+
+    xy_det = num.atleast_2d(xy_det)
+    if distortion is not None:
+        xy_det = distortion[0](xy_det, distortion[1])
+
+    xp = num.r_[-0.5,  0.5,  0.5, -0.5] * xy_pixelPitch[0]
+    yp = num.r_[-0.5, -0.5,  0.5,  0.5] * xy_pixelPitch[1]
+
+    diffs = num.array([[3, 3, 2, 1],
+                       [2, 0, 1, 0]])
+
+    ang_pix = num.zeros((len(xy_det), 2))
+
+    for ipt, xy in enumerate(xy_det):
+        xc = xp + xy[0]
+        yc = yp + xy[1]
+
+        tth_eta, gHat_l = xfcapi.detectorXYToGvec(num.vstack([xc, yc]).T,
+                                                  rMat_d, rMat_s,
+                                                  tVec_d, tVec_s, tVec_c)
+
+        delta_tth = num.zeros(4)
+        delta_eta = num.zeros(4)
+        for j in range(4):
+            delta_tth[j] = abs(tth_eta[0][diffs[0, j]] - tth_eta[0][diffs[1, j]])
+            delta_eta[j] = xf.angularDifference(tth_eta[1][diffs[0, j]], tth_eta[1][diffs[1, j]])
+
+        ang_pix[ipt, 0] = num.amax(delta_tth)
+        ang_pix[ipt, 1] = num.amax(delta_eta)
+    return ang_pix
+
+def pullSpots(pd, detector_params, grain_params, reader,
+              ome_period=(-num.pi, num.pi),
+              eta_range=[(-num.pi, num.pi), ],
+              panel_dims=[(-204.8, -204.8), (204.8, 204.8)],
+              panel_buff=[20, 20],
+              pixel_pitch=(0.2, 0.2),
+              distortion=(dFunc_ref, dParams_ref),
+              tth_tol=0.15, eta_tol=1., ome_tol=1.,
+              npdiv=1, threshold=10,
+              doClipping=False, filename=None, 
+              save_spot_list=False, use_closest=False):
+
+    # steal ref beam and eta from transforms.py
+    bVec   = xf.bVec_ref
+    eVec   = xf.eta_ref
+
+    # for vertex numbering and dilation
+    virow = [1, 1, 0, 0]
+    vjcol = [0, 1, 1, 0]
+    i_dil_3by3, j_dil_3by3 = num.meshgrid([-1, 0, 1], [-1, 0, 1])
+
+    rMat_d = xfcapi.makeDetectorRotMat(detector_params[:3])
+    tVec_d = num.ascontiguousarray(detector_params[3:6])
+    chi    = detector_params[6]
+    tVec_s = num.ascontiguousarray(detector_params[7:10])
+    rMat_c = xfcapi.makeRotMatOfExpMap(grain_params[:3])
+    tVec_c = num.ascontiguousarray(grain_params[3:6])
+    vInv_s = num.ascontiguousarray(grain_params[6:12])
+
+    reader_as_list = False
+    if hasattr(reader, '__len__'):
+        """
+        HAVE READER INFO LIST INSTEAD OF OLD READER CLASS
+
+        [ [frame_list], [ome_start, del_ome] ]
+        """
+        reader_as_list = True
+        #
+        nframes = len(reader[0])
+        #
+        del_ome   = reader[1][1]
+        ome_edges = [reader[1][0] + i*del_ome for i in range(nframes + 1)]
+        ome_range = (ome_edges[0], ome_edges[-1])
+        #
+        frame_nrows = reader[0][0].shape[0]
+        frame_ncols = reader[0][0].shape[1]
+        #
+        row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
+        col_edges = num.arange(frame_ncols + 1)*pixel_pitch[0] + panel_dims[0][1]        
+    else:
+        """
+        HAVE OLD READER CLASS
+        """        
+        nframes = reader.getNFrames()
+        #
+        del_ome   = reader.getDeltaOmega() # this one is in radians!
+        ome_range = num.array( reader.getOmegaMinMax() ) * num.sign(del_ome)
+        ome_edges = num.arange(nframes+1)*del_ome + ome_range[0]
+        #
+        frame_nrows = reader.get_nrows()
+        frame_ncols = reader.get_ncols()
+        #
+        row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
+        col_edges = num.arange(frame_ncols + 1)*pixel_pitch[0] + panel_dims[0][1]
+        pass
+    
+    iframe  = num.arange(0, nframes)
+
+    full_range = xf.angularDifference(ome_range[0], ome_range[1])
+
+    if ome_tol <= 0.5*r2d*abs(del_ome):
+        ndiv_ome = 1
+        ome_del  = num.zeros(1)
+    else:
+        ome_tol  = num.ceil(ome_tol/r2d/abs(del_ome))*r2d*abs(del_ome)
+        ndiv_ome = abs(int(ome_tol/r2d/del_ome))
+        ome_del  = (num.arange(0, 2*ndiv_ome+1) - ndiv_ome)*del_ome*r2d 
+
+    # generate structuring element for connected component labeling
+    if len(ome_del) == 1:
+        labelStructure = ndimage.generate_binary_structure(2,2)
+    else:
+        labelStructure = ndimage.generate_binary_structure(3,3)
+    
+    pixel_area = pixel_pitch[0]*pixel_pitch[1] # mm^2
+    pdim_buffered = [(panel_dims[0][0] + panel_buff[0], panel_dims[0][1] + panel_buff[1]),
+                     (panel_dims[1][0] - panel_buff[0], panel_dims[1][1] - panel_buff[1])]
+    # results: hkl, ang, xy, pix
+    sim_g = simulateGVecs(pd, detector_params, grain_params,
+                          ome_range=[ome_range, ], ome_period=ome_period,
+                          eta_range=eta_range,
+                          panel_dims=pdim_buffered,
+                          pixel_pitch=pixel_pitch,
+                          distortion=distortion)
+
+    if filename is not None:
+        if isinstance(filename, file):
+            fid = filename
+        else:
+            fid = open(filename, 'w')
+        print >> fid, "#\n# ID\t"                       + \
+                      "H\tK\tL\t"                       + \
+                      "sum(int)\tmax(int)\t"            + \
+                      "pred tth\tpred eta\t pred ome\t" + \
+                      "meas tth\tmeas eta\t meas ome\t" + \
+                      "meas X\tmeas Y\t meas ome\n#"
+    iRefl = 0
+    spot_list = []
+    for hkl, angs, xy, pix in zip(*sim_g):
+        
+        ndiv_tth = npdiv*num.ceil( tth_tol/(pix[0]*r2d) )
+        ndiv_eta = npdiv*num.ceil( eta_tol/(pix[1]*r2d) )
+        
+        tth_del = num.arange(0, ndiv_tth+1)*tth_tol/float(ndiv_tth) - 0.5*tth_tol
+        eta_del = num.arange(0, ndiv_eta+1)*eta_tol/float(ndiv_eta) - 0.5*eta_tol
+        
+        tth_edges = angs[0] + d2r*tth_del
+        eta_edges = angs[1] + d2r*eta_del
+        
+        delta_tth = tth_edges[1] - tth_edges[0]
+        delta_eta = eta_edges[1] - eta_edges[0]
+        
+        ome_centers = angs[2] + d2r*ome_del
+        delta_ome   = ome_centers[1] - ome_centers[0] # in radians... sanity check here?
+
+        # store dimensions for convenience
+        #   * etas and tths are bin vertices, ome is already centers
+        sdims = [ len(ome_del), len(eta_del)-1, len(tth_del)-1 ]
+
+        # meshgrid args are (cols, rows), a.k.a (fast, slow)
+        m_tth, m_eta = num.meshgrid(tth_del, eta_del)
+        npts_patch   = m_tth.size
+
+        # calculate the patch XY coords from the (tth, eta) angles
+        # * will CHEAT and ignore the small perturbation the different
+        #   omega angle values causes and simply use the central value
+        gVec_angs_vtx = num.tile(angs, (npts_patch, 1)) \
+                        + d2r*num.vstack([m_tth.flatten(),
+                                          m_eta.flatten(),
+                                          num.zeros(npts_patch)
+                                         ]).T
+
+        # connectivity
+        conn = gutil.cellConnectivity( sdims[1], sdims[2], origin='ll')
+
+        rMat_s = xfcapi.makeOscillRotMat([chi, angs[2]])
+        if doClipping:
+            gVec_c = xf.anglesToGVec(gVec_angs_vtx,
+                                     bVec, eVec,
+                                     rMat_s=rMat_s,
+                                     rMat_c=rMat_c)
+        else:
+            # evaluation points...
+            #   * for lack of a better option will use centroids
+            tth_eta_cen = gutil.cellCentroids( num.atleast_2d(gVec_angs_vtx[:, :2]), conn )
+            gVec_angs  = num.hstack([tth_eta_cen,
+                                     num.tile(angs[2], (len(tth_eta_cen), 1))])
+            gVec_c = xf.anglesToGVec(gVec_angs,
+                                     bVec, eVec,
+                                     rMat_s=rMat_s,
+                                     rMat_c=rMat_c)
+            pass
+        xy_eval = xfcapi.gvecToDetectorXY(gVec_c.T,
+                                          rMat_d, rMat_s, rMat_c,
+                                          tVec_d, tVec_s, tVec_c)
+        if distortion is not None or len(distortion) == 0:
+            xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
+            pass
+        row_indices   = gutil.cellIndices(row_edges, xy_eval[:, 1])
+        if num.any(row_indices < 0) or num.any(row_indices >= frame_nrows):
+            print "(%d, %d, %d): window falls off detector; skipping..." % tuple(hkl)
+            continue
+        col_indices   = gutil.cellIndices(col_edges, xy_eval[:, 0])
+        if num.any(col_indices < 0) or num.any(col_indices >= frame_ncols):
+            print "(%d, %d, %d): window falls off detector; skipping..." % tuple(hkl)
+            continue
+        frame_indices = gutil.cellIndices(ome_edges, angs[2] + d2r*ome_del)
+
+        patch_j, patch_i = num.meshgrid( range(sdims[2]), range(sdims[1]) )
+        patch_i = patch_i.flatten(); patch_j = patch_j.flatten()
+
+        # read frame in, splitting reader if necessary
+        split_reader = False
+        if min(frame_indices) < 0:
+            if full_range < 2*num.pi:
+                reidx = num.where(frame_indices >= 0)[0]
+                sdims[0] = len(reidx)
+                frame_indices = frame_indices[reidx]
+            elif full_range == 0:
+                split_reader = True
+                reidx1 = num.where(frame_indices <  0)[0]
+                reidx2 = num.where(frame_indices >= 0)[0]
+                oidx1  = iframe[frame_indices[reidx1]]
+                oidx2  = frame_indices[reidx2]
+        if max(frame_indices) >= nframes:
+            if full_range < 2*num.pi:
+                reidx = num.where(frame_indices < nframes)[0]
+                sdims[0] = len(reidx)
+                frame_indices = frame_indices[reidx]
+            elif full_range == 0:
+                split_reader = True
+                reidx1 = num.where(frame_indices <  nframes)[0]
+                reidx2 = num.where(frame_indices >= nframes)[0]
+                oidx1  = frame_indices[reidx1]
+                oidx2  = iframe[frame_indices[reidx2] - nframes]
+
+        if reader_as_list:
+            if split_reader:
+                f1 = reader[0][oidx1[0]:oidx1[0]+len(oidx1)]
+                f2 = reader[0][oidx2[0]:oidx2[0]+len(oidx2)]
+                frames = np.hstack([f1, f2])
+            else:
+                frames = reader[0][frame_indices[0]:sdims[0]+frame_indices[0]]
+            
+        else:
+            rdr = reader.makeNew()
+            if split_reader:
+                f1 = rdr.read(nframes=len(oidx1), nskip=oidx1[0])
+                r2 = rdr.makeNew()
+                f2 = r2.read(nframes=len(oidx2), nskip=oidx2[0])
+                frames = num.zeros(sdim, dtype=f1.dtype)
+                frames[:len(oidx1), :, :] = f1
+                frames[len(oidx1):, :, :] = f2
+            else:
+                frames = rdr.read(nframes=sdims[0], nskip=int(frame_indices[0]))
+
+        # brute force way...
+        spot_data = num.zeros(sdims)
+        if not doClipping:
+            # ...normalize my bin area ratio?
+            for i in range(sdims[0]):
+                if reader_as_list:
+                    # complains for older scipy...
+                    # spot_data[i, :, :] = frames[i][row_indices, col_indices].todense().reshape(sdims[1], sdims[2])
+                    spot_data[i, :, :] = frames[i].todense()[row_indices, col_indices].reshape(sdims[1], sdims[2])
+                else:
+                    spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])    
+        else:
+            for iPix in range(len(conn)):
+                clipVertices = xy_eval[conn[iPix], :]
+                clipArea_xy = gutil.computeArea(clipVertices)
+                dilatationList = []
+                for vertex in clipVertices:
+                    irow = gutil.cellIndices(row_edges, vertex[1]) + i_dil_3by3.flatten()
+                    jcol = gutil.cellIndices(col_edges, vertex[0]) + j_dil_3by3.flatten()
+                    dilatationList.append(num.vstack([irow, jcol]))
+                    pass
+                testPixels = mutil.uniqueVectors(num.hstack(dilatationList)).T
+                binSum     = num.zeros(sdims[0])
+                for pixel in testPixels:
+                    subjectVertices = num.vstack([col_edges[pixel[1] + vjcol],
+                                                  row_edges[pixel[0] + virow]]).T
+                    clipped = gutil.sutherlandHodgman(subjectVertices, clipVertices)
+                    if len(clipped) > 0:
+                        if reader_as_list:
+                            binSum += num.array([frames[i][pixel[0], pixel[1]] for i in range(len(frames))]) * gutil.computeArea(clipped)/clipArea_xy
+                        else:
+                            binSum += frames[:, pixel[0], pixel[1]]*gutil.computeArea(clipped)/clipArea_xy
+                            pass
+                        pass
+                    pass
+                spot_data[:, patch_i[iPix], patch_j[iPix]] = binSum
+                pass # have spot data now
+            pass
+
+        labels, numPeaks = ndimage.label(spot_data > threshold, structure=labelStructure)
+
+        if numPeaks > 0:
+            if numPeaks > 1:
+                """
+                for multiple spots, apply hueristic to see if one in MUCH brigher than the others...
+                this can happen for low backgrounds where a few zingers sneak through, or for spots
+                with a lot of weakly scattering substructure.
+
+                Arbitrarily setting cutting of 10% integrated intensity.
+
+                This will NOT help if a strong reflection is close to a weak reflection that happens
+                to be the one associated with the grain of interest...
+                """
+                slabels  = num.arange(1, numPeaks+1)
+                if use_closest:
+                    coms     = ndimage.center_of_mass(spot_data, labels=labels, index=slabels)
+                    ang_diff = []
+                    for i in range(numPeaks):
+                        com_angs = num.array([tth_edges[0] + (0.5 + coms[i][2])*delta_tth,
+                                              eta_edges[0] + (0.5 + coms[i][1])*delta_eta,
+                                              ome_centers[0] + coms[i][0]*delta_ome], order='C')
+                        ang_diff.append(xf.angularDifference(angs, com_angs))
+                    closest_peak_idx = num.argmin(mutil.rowNorm(num.array(ang_diff)))
+                    #
+                    peakId = iRefl
+                    coms   = coms[closest_peak_idx]
+                    #
+                    spot_intensity = num.sum(spot_data[labels == slabels[closest_peak_idx]])
+                    max_intensity  = num.max(spot_data[labels == slabels[closest_peak_idx]])
+                else:
+                    spot_intensity = num.array([num.sum(spot_data[labels == i]) for i in slabels])
+                    maxi_idx = num.argmax(spot_intensity)
+                    sidx = num.ones(numPeaks, dtype=bool); sidx[maxi_idx] = False
+                    if num.any(spot_intensity[sidx] / num.max(spot_intensity) > 0.1):
+                        peakId = -222
+                        coms   = None
+                        #
+                        spot_intensity = num.nan
+                        max_intensity  = num.nan
+                    else:
+                        peakId = iRefl
+                        coms   = ndimage.center_of_mass(spot_data, labels=labels, index=slabels[maxi_idx]) 
+                        #
+                        spot_intensity = num.sum(spot_data[labels == slabels[maxi_idx]])  
+                        max_intensity  = num.max(spot_data[labels == slabels[maxi_idx]])                 
+            else:
+                peakId = iRefl
+                coms   = ndimage.center_of_mass(spot_data, labels=labels, index=1)
+                #
+                spot_intensity = num.sum(spot_data[labels == 1])
+                max_intensity  = num.max(spot_data[labels == 1])
+                pass
+            if coms is not None:
+                com_angs = num.array([tth_edges[0] + (0.5 + coms[2])*delta_tth,
+                                      eta_edges[0] + (0.5 + coms[1])*delta_eta,
+                                      ome_centers[0] + coms[0]*delta_ome],
+                                      order='C')
+                rMat_s = xfcapi.makeOscillRotMat([chi, com_angs[2]])
+                gVec_c = xf.anglesToGVec(num.atleast_2d(com_angs), bVec, eVec,
+                                         rMat_s=rMat_s, rMat_c=rMat_c)
+                # these are on ``ideal'' detector
+                new_xy = xfcapi.gvecToDetectorXY(gVec_c.T,
+                                                 rMat_d, rMat_s, rMat_c,
+                                                 tVec_d, tVec_s, tVec_c).flatten()
+                if distortion is not None or len(distortion) == 0:
+                    new_xy = distortion[0](num.atleast_2d(new_xy), distortion[1], invert=True).flatten()
+        else:
+            peakId   = -999
+            com_angs = None
+            #
+            spot_intensity = num.nan
+            max_intensity  = num.nan
+            pass
+        #
+        # OUTPUT
+        #
+        # output dictionary
+        if save_spot_list:
+            w_dict = {}
+            w_dict['peakID']        = peakID
+            w_dict['hkl']           = hkl
+            w_dict['dims']          = sdims
+            w_dict['points']        = ( angs[2] + d2r*ome_del,
+                                        angs[1] + d2r*eta_del,
+                                        angs[0] + d2r*tth_del )
+            w_dict['spot_data']     = spot_data
+            w_dict['crd']           = xy_eval
+            w_dict['con']           = conn
+            w_dict['refl_ang_com']  = com_angs
+            if peakID >= 0:
+                w_dict['refl_xyo']  = (new_xy[0], new_xy[1], com_angs[2])
+            else:
+                w_dict['refl_xyo']  = tuple(num.nan*num.ones(3))
+            w_dict['angles']        = angs
+            w_dict['ang_grid']      = gVec_angs
+            w_dict['row_indices']   = row_indices
+            w_dict['col_indices']   = col_indices
+            w_dict['frame_indices'] = frame_indices
+            spot_list.append(w_dict)
+            pass
+        if filename is not None:
+            if peakId >= 0:
+                print >> fid, "%d\t"                     % (peakId)                            + \
+                              "%d\t%d\t%d\t"             % tuple(hkl)                          + \
+                              "%1.6e\t%1.6e\t"           % (spot_intensity, max_intensity)     + \
+                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                         + \
+                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(com_angs)                     + \
+                              "%1.12e\t%1.12e\t%1.12e"   % (new_xy[0], new_xy[1], com_angs[2])
+            else:
+                print >> fid, "%d\t"                     % (peakId)                   + \
+                              "%d\t%d\t%d\t"             % tuple(hkl)                 + \
+                              "%f\t%f\t"                 % tuple(num.nan*num.ones(2)) + \
+                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                + \
+                              "%f\t%f\t%f\t%f\t%f\t%f"   % tuple(num.nan*num.ones(6))
+                pass
+            pass
+        iRefl += 1
+        pass
+    fid.close()
+
+    return spot_list

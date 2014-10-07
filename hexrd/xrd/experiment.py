@@ -38,6 +38,8 @@ import sys, os, copy
 import cPickle
 import numpy
 
+numpy.seterr(invalid='ignore')
+
 from scipy.linalg          import inv
 from scipy.linalg.matfuncs import logm
 from scipy                 import optimize
@@ -239,6 +241,13 @@ class Experiment(object):
 
     # property:  index_opts
 
+    @property
+    def index_opts(self):
+        """(get-only) Options for indexing"""
+        if not hasattr(self, '_index_opts'):
+            self._index_opts = IndexOptions()
+        return self._index_opts
+
     def refine_grains(self,
                       minCompl,
                       nSubIter=3,
@@ -293,7 +302,7 @@ class Experiment(object):
         return
 
     def export_grainList(self, f,
-                         dspTol=5.0e-3,
+                         dspTol=None,
                          etaTol=None,
                          omeTol=None,
                          doFit=False,
@@ -306,12 +315,13 @@ class Experiment(object):
         elif isinstance(f, str) or isinstance(f, unicode):
             fid = open(f, 'w')
             pass
-
+        if dspTol is None:
+            dspTol = self.index_opts.dspTol
         if etaTol is None:
             etaTol = self.index_opts.etaTol * d2r
         if omeTol is None:
             omeTol = self.index_opts.omeTol * d2r
-            
+
         if sort:
             loop_idx = numpy.argsort([self.grainList[i].completeness
                                       for i in range(len(self.grainList))])[::-1]
@@ -324,7 +334,7 @@ class Experiment(object):
             # this grain
             #
             grain = self.grainList[iG]
-            print >> fid, '\n#####################\n# grain %d\n# ' % (iG) 
+            print >> fid, '#####################\n# grain %d\n#' % (iG)
             s1, s2, s3 = grain.findMatches(etaTol=etaTol, omeTol=omeTol, strainMag=dspTol,
                                            updateSelf=True, claimingSpots=True, doFit=doFit, filename=fid)
             print >> fid, '#\n#  final completeness for grain %d: %g%%\n' % (iG, grain.completeness*100) + \
@@ -361,13 +371,6 @@ class Experiment(object):
             sg.findMatches(filename=output)
         return sg
 
-    @property
-    def index_opts(self):
-        """(get-only) Options for indexing"""
-        if not hasattr(self, '_index_opts'):
-            self._index_opts = IndexOptions()
-        return self._index_opts
-
     def _run_grainspotter(self):
         return
 
@@ -395,7 +398,7 @@ class Experiment(object):
         self.rMats = retval[0]
         self.grainList = retval[1]
         return
-    
+
     def run_indexer(self):
         """Run indexer"""
         iopts = self.index_opts
@@ -1154,7 +1157,7 @@ GE reader is supported.
 #
 class CalibrationInput(object):
     """CalibrationInput"""
-    def __init__(self, mat):
+    def __init__(self, mat, xtol=1e-6):
         """Constructor for CalibrationInput"""
         #
         self.numRho = 20 # for multiring binned image
@@ -1163,12 +1166,19 @@ class CalibrationInput(object):
         self.corrected = False
         #
         self.calMat = mat
-
+        self._xtol  = xtol
         return
     #
     # ============================== API
     #
     # property:  fitType
+
+    @property
+    def xtol(self):
+        return self._xtol
+    @xtol.setter
+    def xtol(self, val):
+        self._xtol = val
 
     def _get_fitType(self):
         """Get method for fitType"""
@@ -1306,7 +1316,7 @@ class DetectorInfo(object):
             else:
                 print '... using direct fit mode'
 
-                self.detector.fitRings(cFrame, calDat)
+                self.detector.fitRings(cFrame, calDat, xtol=calInp.xtol)
                 tmp = self.detector.xFitRings
                 pass
 
@@ -1456,9 +1466,9 @@ class IndexOptions(object):
         self.friedelOnly=False
         self.doRefinement=True
         self.doMultiProc=True
-        self.etaTol=0.25
-        self.omeTol=0.50
-        self.minCompleteness=0.67
+        self.etaTol=1.0
+        self.omeTol=1.0
+        self.minCompleteness=0.51
         self.minPctClaimed=0.70
         self.nsteps=360
         self.nCPUs=None

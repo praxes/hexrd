@@ -37,10 +37,13 @@ TO DO
 * Panel for modifying plane-data (in progress)
 
 """
-import os
+import sys,os
 
 import wx
 import numpy
+
+numpy.seterr(over='ignore')
+ 
 #
 #  XRD Modules
 #
@@ -474,19 +477,19 @@ class detectorPanel(wx.Panel):
         #  Get workspace.
         #
         exp = wx.GetApp().ws
-
-        try:
-            action = {
-                'exec': exp.calibrate,
-                'args': (),
-                'kwargs': dict()
-                }
-            logwin = logWindow(self, wx.NewId(), action, 'Fitting Log')
-            logwin.ShowModal()
-
-        except Exception as e:
-            wx.MessageBox(str(e))
-            pass
+        exp.calibrate(log=sys.stdout)
+        # try:
+        #     action = {
+        #         'exec': exp.calibrate,
+        #         'args': (),
+        #         'kwargs': dict()
+        #         }
+        #     logwin = logWindow(self, wx.NewId(), action, 'Fitting Log')
+        #     logwin.ShowModal()
+        # 
+        # except Exception as e:
+        #     wx.MessageBox(str(e))
+        #     pass
 
         self.Refresh()
         self.updateFromExp()
