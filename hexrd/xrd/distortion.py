@@ -1,22 +1,58 @@
 import numpy as np
 from scipy import optimize as opt
+import numba
 
 def dummy(xy_in, params, invert=False):
     """
     """
     return xy_in
 
-def newton(x0, f, fp, extra, prec=3e-16, maxiter=100):
-    for i in range(maxiter):
-        x = x0 - f(x0, *extra) / fp(x0, *extra)
-        relerr = np.max(np.abs(x - x0)) / np.max(np.abs(x))
-        if relerr < prec:
-            # print 'stopping at %d iters' % i
-            return x
-        x0 = x
-    print 'Newtons method got to maximum of %d iters, relerr was %g' % (maxiter, relerr)
-    return x0
+@numba.njit
+def inverse_distortion(rhoOut, rho0, eta0, rhoMax, params):
+    # Apply Newton's method to invert the GE_41RT distortion,
+    # inlining the function and its inverse to help Numba's JIT
+    # produce good machine code.
+    maxiter = 100
+    prec = 1e-16
 
+    p0, p1, p2, p3, p4, p5 = params[0:6]
+    rx = rhoMax
+    for el in range(len(rhoOut)):
+        ri = rho0[el]
+        ni = eta0[el]
+        ro = ri
+        cos2ni = np.cos(2.0*ni)
+        cos4ni = np.cos(4.0*ni)
+        for i in range(maxiter):
+            ratio = ri/rx
+            fx = (p0*ratio**p3*cos2ni + p1*ratio**p4*cos4ni + p2*ratio**p5 + 1)*ri - ro
+            fxp = (p0*ratio**p3*cos2ni*(p3+1) +
+                   p1*ratio**p4*cos4ni*(p4+1) +
+                   p2*ratio**p5*(p5+1) + 1)
+
+            delta = fx/fxp
+            ri = ri - delta
+            # Stop when relative error reaches threshold
+            if np.abs(delta) <= prec * np.abs(ri):
+                break
+
+        rhoOut[el] = ri
+
+def inverse_distortion_original(rhoOut, rho0, eta0, rhoMax, params):
+    rhoSclFuncInv = lambda ri, ni, ro, rx, p: \
+        (p[0]*(ri/rx)**p[3] * np.cos(2.0 * ni) + \
+         p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) + \
+         p[2]*(ri/rx)**p[5] + 1)*ri - ro
+
+    rhoSclFIprime = lambda ri, ni, ro, rx, p: \
+        p[0]*(ri/rx)**p[3] * np.cos(2.0 * ni) * (p[3] + 1) + \
+        p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) * (p[4] + 1) + \
+        p[2]*(ri/rx)**p[5] * (p[5] + 1) + 1
+
+    for iRho in range(len(rho0)):
+        rhoOut[iRho] = opt.fsolve(rhoSclFuncInv, rho0[iRho],
+                                  fprime=rhoSclFIprime,
+                                  args=(eta0[iRho], rho0[iRho], rhoMax, params) )
 
 def GE_41RT(xy_in, params, invert=False):
     """
@@ -47,38 +83,10 @@ def GE_41RT(xy_in, params, invert=False):
 
         if invert:
             # in here must do nonlinear solve for distortion
-            # must loop to call fsolve individually for each point
+            rhoOut = np.empty(npts, dtype=float)
+            inverse_distortion(rhoOut, rho0, eta0, rhoMax, params)
+            #inverse_distortion_original(rhoOut, rho0, eta0, rhoMax, params)
             
-            rhoSclFuncInv = lambda ri, ni, ro, rx, p: \
-                (p[0]*(ri/rx)**p[3] * np.cos(2.0 * ni) + \
-                 p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) + \
-                 p[2]*(ri/rx)**p[5] + 1)*ri - ro
-
-            rhoSclFIprime = lambda ri, ni, ro, rx, p: \
-                p[0]*(ri/rx)**p[3] * np.cos(2.0 * ni) * (p[3] + 1) + \
-                p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) * (p[4] + 1) + \
-                p[2]*(ri/rx)**p[5] * (p[5] + 1) + 1
-
-            useNewton = False
-            if useNewton:
-                rhoOut = newton(rho0, rhoSclFuncInv, rhoSclFIprime,
-                                (eta0, rho0, rhoMax, params))
-            else:
-                rhoOut = np.zeros(npts, dtype=float)
-                for iRho in range(len(rho0)):
-                    rhoOut[iRho] = opt.fsolve(rhoSclFuncInv, rho0[iRho],
-                                              fprime=rhoSclFIprime,
-                                              args=(eta0[iRho], rho0[iRho], rhoMax, params) )
-                    pass
-            if False: # len(rho0) > 1:
-                # Save versions of this data!
-                np.save('rho0.npy', rho0)
-                np.save('rhoOut.npy', rhoOut)
-                np.save('eta0.npy', eta0)
-                np.save('rhoMax.npy', rhoMax)
-                np.save('params.npy', params)
-                import sys
-                sys.exit(1)
         else:
             # usual case: calculate scaling to take you from image to detector plane
             # 1 + p[0]*(ri/rx)**p[2] * np.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
