@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import optimize as opt
+import numba
 
 def dummy(xy_in, params, invert=False):
     """
@@ -16,6 +17,50 @@ def newton(x0, f, fp, extra, prec=3e-16, maxiter=100):
         x0 = x
     return x0
 
+@numba.njit
+def inverse_distortion(rhoOut, rho0, eta0, rhoMax, params):
+    # Apply Newton's method to invert the GE_41RT distortion,
+    # inlining the function and its inverse to help Numba's JIT
+    # produce good machine code.
+    maxiter = 100
+    prec = 1e-16
+
+    p0, p1, p2, p3, p4, p5 = params[0:6]
+    rx = rhoMax
+    for el in range(len(rhoOut)):
+        ri = rho0[el]
+        ni = eta0[el]
+        ro = ri
+        cos2ni = np.cos(2.0*ni)
+        cos4ni = np.cos(4.0*ni)
+        for i in range(maxiter):
+            ratio = ri/rx
+            fx = (p0*ratio**p3*cos2ni + p1*ratio**p4*cos4ni + p2*ratio**p5 + 1)*ri - ro
+            fxp = (p0*ratio**p3*cos2ni*(p3+1) +
+                   p1*ratio**p4*cos4ni*(p4+1) +
+                   p2*ratio**p5*(p5+1) + 1)
+
+            delta = fx/fxp
+            ri = ri - delta
+            # Stop when relative error reaches threshold
+            if np.abs(delta) <= prec * np.abs(ri):
+                break
+
+        rhoOut[el] = ri
+
+def inverse_distortion_original(rho0, eta0, rhoMax, params):
+    rhoSclFuncInv = lambda ri, ni, ro, rx, p: \
+        (p[0]*(ri/rx)**p[3] * np.cos(2.0 * ni) + \
+         p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) + \
+         p[2]*(ri/rx)**p[5] + 1)*ri - ro
+
+    rhoSclFIprime = lambda ri, ni, ro, rx, p: \
+        p[0]*(ri/rx)**p[3] * np.cos(2.0 * ni) * (p[3] + 1) + \
+        p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) * (p[4] + 1) + \
+        p[2]*(ri/rx)**p[5] * (p[5] + 1) + 1
+
+    return newton(rho0, rhoSclFuncInv, rhoSclFIprime,
+                  (eta0, rho0, rhoMax, params))
 
 def GE_41RT(xy_in, params, invert=False):
     """
@@ -46,20 +91,9 @@ def GE_41RT(xy_in, params, invert=False):
 
         if invert:
             # in here must do nonlinear solve for distortion
-            # must loop to call fsolve individually for each point
-            
-            rhoSclFuncInv = lambda ri, ni, ro, rx, p: \
-                (p[0]*(ri/rx)**p[3] * np.cos(2.0 * ni) + \
-                 p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) + \
-                 p[2]*(ri/rx)**p[5] + 1)*ri - ro
-
-            rhoSclFIprime = lambda ri, ni, ro, rx, p: \
-                p[0]*(ri/rx)**p[3] * np.cos(2.0 * ni) * (p[3] + 1) + \
-                p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) * (p[4] + 1) + \
-                p[2]*(ri/rx)**p[5] * (p[5] + 1) + 1
-
-            rhoOut = newton(rho0, rhoSclFuncInv, rhoSclFIprime,
-                            (eta0, rho0, rhoMax, params))
+            rhoOut = np.empty(npts, dtype=float)
+            inverse_distortion(rhoOut, rho0, eta0, rhoMax, params)
+            #rhoOut = inverse_distortion_original(rhoOut, rho0, eta0, rhoMax, params)
         else:
             # usual case: calculate scaling to take you from image to detector plane
             # 1 + p[0]*(ri/rx)**p[2] * np.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
