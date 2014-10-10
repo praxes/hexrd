@@ -116,6 +116,89 @@ def GE_41RT_opt(xy_in, params, invert=False):
     return np.vstack([xout, yout]).T
 
 
+def newton(x0, f, fp, extra, prec=1e-16, maxiter=100):
+    for i in range(maxiter):
+        x = x0 - f(x0, *extra) / fp(x0, *extra)
+        if np.max(np.abs(x - x0)) < prec:
+            return x
+        x0 = x
+    return x0
+
+
+@numba.njit
+def GE_41RT_rho_scl_func_inv_newton(ri, ni, ro, rx, p):
+    ratio = ri/rx
+    a = p[0]*ratio**p[3] * np.cos(2.0 * ni)
+    b = p[1]*ratio**p[4] * np.cos(4.0 * ni)
+    c = p[2]*ratio**p[5]
+
+    return (a + b + c + 1.0)*ri - ro
+
+
+@numba.njit
+def GE_41RT_rho_scl_fi_prime_newton(ri, ni, ro, rx, p):
+    ratio = ri/rx
+    res = p[0]*ratio**p[3] * np.cos(2.0 * ni) * (p[3] + 1) + \
+          p[1]*ratio**p[4] * np.cos(4.0 * ni) * (p[4] + 1) + \
+          p[2]*ratio**p[5] * (p[5] + 1) + 1
+    return res
+
+
+
+def GE_41RT_newton(xy_in, params, invert=False):
+    """
+    Apply radial distortion to polar coordinates on GE detector
+
+    xin, yin are 1D arrays or scalars, assumed to be relative to self.xc, self.yc
+    Units are [mm, radians].  This is the power-law based function of Bernier.
+
+    Available Keyword Arguments :
+
+    invert = True or >False< :: apply inverse warping
+    """
+
+    if params[0] == 0 and params[1] == 0 and params[2] == 0:
+        return xy_in
+    else:
+        # canonical max radius based on perfectly centered beam
+        rhoMax = 204.8
+
+        polar = to_polar(xy_in)
+        npts = len(polar)
+
+        # detector relative polar coordinates
+        #   - this is the radius that gets rescaled
+        rho0 = polar[:,0].flatten()
+        eta0 = polar[:,1].flatten()
+
+        if invert:
+            # in here must do nonlinear solve for distortion
+            # must loop to call fsolve individually for each point
+            rhoOut = np.zeros(npts, dtype=float)
+            
+            rhoSclFuncInv = GE_41RT_rho_scl_func_inv_newton
+            rhoSclFIprime = GE_41RT_rho_scl_fi_prime_newton
+            res = np.array((1,), dtype=np.double)
+            for iRho in range(len(rho0)):
+                rhoOut[iRho] = newton(float(rho0[iRho]), rhoSclFuncInv, rhoSclFIprime,
+                                      (float(eta0[iRho]), float(rho0[iRho]), rhoMax, params) )
+                pass
+        else:
+            # usual case: calculate scaling to take you from image to detector plane
+            # 1 + p[0]*(ri/rx)**p[2] * np.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
+            rhoSclFunc = lambda ri, rx=rhoMax, p=params, ni=eta0: \
+                         p[0]*(ri/rx)**p[3] * np.cos(2.0 * ni) + \
+                         p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) + \
+                         p[2]*(ri/rx)**p[5] + 1
+
+            rhoOut = np.squeeze( rho0 * rhoSclFunc(rho0) )
+            pass
+
+        xout = rhoOut * np.cos(eta0) 
+        yout = rhoOut * np.sin(eta0) 
+    return np.vstack([xout, yout]).T
+
+
 def test_ge41rt(in_file):
     _colors = [nvtx.colors.cyan, nvtx.colors.magenta,
                nvtx.colors.yellow, nvtx.colors.black]
@@ -135,7 +218,13 @@ def test_ge41rt(in_file):
                                     payload=args[1].shape[0]):
                 res_opt = GE_41RT_opt(*args)
 
+            with nvtx.profile_range('ge_41rt_newton',
+                                    color=_colors[(count*2+1)%len(_colors)],
+                                    payload=args[1].shape[0]):
+                res_newton = GE_41RT_newton(*args)
+
             assert np.allclose(res, res_opt)
+            assert np.allclose(res, res_newton)
             count += 1
 
 
