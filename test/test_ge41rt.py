@@ -209,10 +209,10 @@ def inverse_distortion(rhoOut, rho0, eta0, rhoMax, params):
         ri = rho0[el]
         ni = eta0[el]
         ro = ri
+        cos2ni = np.cos(2.0*ni)
+        cos4ni = np.cos(4.0*ni)
         for i in range(maxiter):
             ratio = ri/rx
-            cos2ni = np.cos(2.0*ni)
-            cos4ni = np.cos(4.0*ni)
             fx = (p0*ratio**p3*cos2ni + p1*ratio**p4*cos4ni + p2*ratio**p5 + 1)*ri - ro
             fxp = (p0*ratio**p3*cos2ni*(p3+1) +
                    p1*ratio**p4*cos4ni*(p4+1) +
