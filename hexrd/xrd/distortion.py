@@ -17,8 +17,8 @@ def newton(x0, f, fp, extra, prec=3e-16, maxiter=100):
         x0 = x
     return x0
 
-@numba.njit
-def inverse_distortion(rhoOut, rho0, eta0, rhoMax, params):
+@numba.njit('void(f8[:], f8[:], f8[:], f8, f8[6])')
+def inverse_distortion_numba(rhoOut, rho0, eta0, rhoMax, params):
     # Apply Newton's method to invert the GE_41RT distortion,
     # inlining the function and its inverse to help Numba's JIT
     # produce good machine code.
@@ -48,7 +48,7 @@ def inverse_distortion(rhoOut, rho0, eta0, rhoMax, params):
 
         rhoOut[el] = ri
 
-def inverse_distortion_original(rho0, eta0, rhoMax, params):
+def inverse_distortion_numpy(rho0, eta0, rhoMax, params):
     rhoSclFuncInv = lambda ri, ni, ro, rx, p: \
         (p[0]*(ri/rx)**p[3] * np.cos(2.0 * ni) + \
          p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) + \
@@ -93,7 +93,7 @@ def GE_41RT(xy_in, params, invert=False):
             # in here must do nonlinear solve for distortion
             rhoOut = np.empty(npts, dtype=float)
             inverse_distortion(rhoOut, rho0, eta0, rhoMax, params)
-            #rhoOut = inverse_distortion_original(rhoOut, rho0, eta0, rhoMax, params)
+            #rhoOut = inverse_distortion_numpy(rhoOut, rho0, eta0, rhoMax, params)
         else:
             # usual case: calculate scaling to take you from image to detector plane
             # 1 + p[0]*(ri/rx)**p[2] * np.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
