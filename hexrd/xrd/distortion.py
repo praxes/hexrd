@@ -107,24 +107,9 @@ def GE_41RT(xy_in, params, invert=False):
         if invert:
             # in here must do nonlinear solve for distortion
             rhoOut = np.empty(npts, dtype=float)
-            #inverse_distortion_numba(rhoOut, rho0, eta0, rhoMax, params)
-            inverse_distortion_numpy(rhoOut, rho0, eta0, rhoMax, params)
+            inverse_distortion_numba(rhoOut, rho0, eta0, rhoMax, params)
+            #inverse_distortion_numpy(rhoOut, rho0, eta0, rhoMax, params)
             #inverse_distortion_original(rhoOut, rho0, eta0, rhoMax, params)
-
-            # Compare Newton vs fsolve
-            rhoOut2 = np.empty(npts, dtype=float)
-            inverse_distortion_original(rhoOut2, rho0, eta0, rhoMax, params)
-            if not np.all(rhoOut == rhoOut2):
-                rhoSclFuncInv = lambda ri, ni, ro, rx, p: \
-                    (p[0]*(ri/rx)**p[3] * np.cos(2.0 * ni) + \
-                     p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) + \
-                     p[2]*(ri/rx)**p[5] + 1)*ri - ro
-                print 'Differences in Newton vs fsolve:'
-                print 'max relerr:', np.max(np.abs(rhoOut - rhoOut2) / np.abs(rhoOut))
-                delta0 = rhoSclFuncInv(rhoOut, eta0, rho0, rhoMax, params)
-                delta1 = rhoSclFuncInv(rhoOut2, eta0, rho0, rhoMax, params)
-                print 'max improvement of Newton:', np.max(np.abs(delta1) - np.abs(delta0))
-                print 'max improvement of fsolve:', np.max(np.abs(delta0) - np.abs(delta1))
                         
         else:
             # usual case: calculate scaling to take you from image to detector plane
