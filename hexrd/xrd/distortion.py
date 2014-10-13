@@ -48,7 +48,7 @@ def _ge_41rt_inverse_distortion(out, in_, rhoMax, params):
 
 
 @numba.njit
-def _ge_41rt_direct_distortion(out, in_, rhoMax, params):
+def _ge_41rt_distortion(out, in_, rhoMax, params):
     p0, p1, p2, p3, p4, p5 = params[0:6]
     rxi = 1.0/rhoMax
 
