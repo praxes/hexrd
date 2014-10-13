@@ -17,36 +17,69 @@ def newton(x0, f, fp, extra, prec=3e-16, maxiter=100):
         x0 = x
     return x0
 
-@numba.njit('void(f8[:], f8[:], f8[:], f8, f8[6])')
-def inverse_distortion_numba(rhoOut, rho0, eta0, rhoMax, params):
-    # Apply Newton's method to invert the GE_41RT distortion,
-    # inlining the function and its inverse to help Numba's JIT
-    # produce good machine code.
+@numba.njit
+def _ge_41rt_inverse_distortion(out, in_, rhoMax, params):
     maxiter = 100
     prec = 1e-16
 
     p0, p1, p2, p3, p4, p5 = params[0:6]
-    rx = rhoMax
-    for el in range(len(rhoOut)):
-        ri = rho0[el]
-        ni = eta0[el]
+    rxi = 1.0/rhoMax
+    for el in range(len(in_)):
+        xi, yi = in_[el, 0:2]
+        ri = np.sqrt(xi*xi + yi*yi)
+        ri_inv = 1.0/ri
+        sinni = yi*ri_inv
+        cosni = xi*ri_inv
         ro = ri
-        cos2ni = np.cos(2.0*ni)
-        cos4ni = np.cos(4.0*ni)
-        for i in range(maxiter):
-            ratio = ri/rx
-            fx = (p0*ratio**p3*cos2ni + p1*ratio**p4*cos4ni + p2*ratio**p5 + 1)*ri - ro
+        cos2ni = cosni*cosni - sinni*sinni
+        sin2ni = 2*sinni*cosni
+        cos4ni = cos2ni*cos2ni - sin2ni*sin2ni
+        for i in range(maxiter): # newton solver iteration
+            ratio = ri*rxi
+            fx = (p0*ratio**p3*cos2ni +
+                  p1*ratio**p4*cos4ni +
+                  p2*ratio**p5 + 1)*ri - ro # f(x)
             fxp = (p0*ratio**p3*cos2ni*(p3+1) +
                    p1*ratio**p4*cos4ni*(p4+1) +
-                   p2*ratio**p5*(p5+1) + 1)
+                   p2*ratio**p5*(p5+1) + 1) # f'(x)
 
             delta = fx/fxp
             ri = ri - delta
-            # Stop when relative error reaches threshold
-            if np.abs(delta) <= prec * np.abs(ri):
+            if np.abs(delta) <= prec*np.abs(ri): # convergence check for newton
                 break
 
-        rhoOut[el] = ri
+        xi = ri*cosni
+        yi = ri*sinni
+        out[el, 0] = xi
+        out[el, 1] = yi
+
+    return out
+
+
+@numba.njit
+def _ge_41rt_direct_distortion(out, in_, rhoMax, params):
+    p0, p1, p2, p3, p4, p5 = params[0:6]
+    rxi = 1.0/rhoMax
+
+    for el in range(len(in_)):
+        xi, yi = in_[el, 0:2]
+        ri = np.sqrt(xi*xi + yi*yi)
+        ri_inv = 1.0/ri
+        sinni = yi*ri_inv
+        cosni = xi*ri_inv
+        cos2ni = cosni*cosni - sinni*sinni
+        sin2ni = 2*sinni*cosni
+        cos4ni = cos2ni*cos2ni - sin2ni*sin2ni
+        ratio = ri*rxi
+
+        ri = (p0*ratio**p3*cos2ni + p1*ratio**p4*cos4ni + p2*ratio**p5 + 1)*ri
+        xi = ri*cosni
+        yi = ri*sinni
+        out[el, 0] = xi
+        out[el, 1] = yi
+
+    return out
+
 
 def inverse_distortion_numpy(rho0, eta0, rhoMax, params):
     rhoSclFuncInv = lambda ri, ni, ro, rx, p: \
@@ -73,38 +106,16 @@ def GE_41RT(xy_in, params, invert=False):
 
     invert = True or >False< :: apply inverse warping
     """
-    if params[0] == 0 and params[1] == 0 and params[2] == 0:
+
+    if params[0] == 0 and params[1] == 0 and params[2] ==0:
         return xy_in
     else:
-        # canonical max radius based on perfectly centered beam
         rhoMax = 204.8
-
-        x0 = xy_in[:, 0].flatten()
-        y0 = xy_in[:, 1].flatten()
-
-        npts = len(x0)
-
-        # detector relative polar coordinates
-        #   - this is the radius that gets rescaled
-        rho0 = np.sqrt( x0*x0 + y0*y0 )
-        eta0 = np.arctan2( y0, x0 )
-
+        xy_out = np.empty_like(xy_in)
         if invert:
-            # in here must do nonlinear solve for distortion
-            rhoOut = np.empty(npts, dtype=float)
-            inverse_distortion(rhoOut, rho0, eta0, rhoMax, params)
+            _ge_41rt_inverse_distortion(xy_out, xy_in, rhoMax, params)
             #rhoOut = inverse_distortion_numpy(rhoOut, rho0, eta0, rhoMax, params)
         else:
-            # usual case: calculate scaling to take you from image to detector plane
-            # 1 + p[0]*(ri/rx)**p[2] * np.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
-            rhoSclFunc = lambda ri, rx=rhoMax, p=params, ni=eta0: \
-                         p[0]*(ri/rx)**p[3] * np.cos(2.0 * ni) + \
-                         p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) + \
-                         p[2]*(ri/rx)**p[5] + 1
+            _ge_41rt_distortion(xy_out, xy_in, rhoMax, params)
 
-            rhoOut = np.squeeze( rho0 * rhoSclFunc(rho0) )
-            pass
-
-        xout = rhoOut * np.cos(eta0) 
-        yout = rhoOut * np.sin(eta0) 
-    return np.vstack([xout, yout]).T
+        return xy_out
