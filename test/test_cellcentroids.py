@@ -69,6 +69,22 @@ def cell_centroids_opt1(crd, con):
     result_xy = np.empty((nele, dim))
     return _cell_centroids_opt1(crd, con, result_xy)
 
+
+@numba.jit # relies on loop extraction
+def cell_centroids_numba(crd, con):
+    nele, conn_count = con.shape
+    dim = crd.shape[1]
+    out = np.empty((nele, dim))
+    inv_conn = 1.0/conn_count
+    for i in range(nele):
+        for j in range(dim):
+            acc = 0.0
+            for k in range(conn_count):
+                acc += crd[con[i,k], j]
+            out[i,j] = acc * inv_conn
+    return out
+
+
 def test_cellcentroids(in_file):
     count = 0
     with open(in_file, 'rb') as f:
@@ -78,16 +94,22 @@ def test_cellcentroids(in_file):
             except EOFError:
                 break
 
-            print(args[0].shape, args[0].dtype, args[1].shape, args[1].dtype)
             with nvtx.profile_range('original'):
                 res_orig = cell_centroids_original(*args)
             with nvtx.profile_range('current in hexrd'):
                 res_current = cellCentroids(*args)
             with nvtx.profile_range('numba1'):
                 res_numba1 = cell_centroids_opt1(*args)
+            with nvtx.profile_range('numba1_bis'):
+                res_numba1 = cell_centroids_opt1(*args)
+            with nvtx.profile_range('numba'):
+                res_numba = cell_centroids_numba(*args)
+            with nvtx.profile_range('numba_bis'):
+                res_numba = cell_centroids_numba(*args)
 
             assert np.allclose(res_current, res_orig)
             assert np.allclose(res_current, res_numba1)
+            assert np.allclose(res_current, res_numba)
             count += 1
 
 

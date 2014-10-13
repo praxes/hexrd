@@ -4,6 +4,8 @@ from numpy        import array, c_, r_, hstack, vstack, tile, \
                          ones, zeros
 from numpy        import sum as asum
 from numpy.linalg import det
+import numpy as np
+import numba
 
 def cellIndices(edges, points_1d):
     """
@@ -90,6 +92,8 @@ def cellConnectivity(m, n, p=1, origin='ul'):
         con = con[:, ::-1]
     return con
 
+
+'''
 def cellCentroids(crd, con):
     """
     con.shape = (nele, 4)
@@ -105,6 +109,21 @@ def cellCentroids(crd, con):
         el_crds = crd[con[i, :], :] # (4, 2)
         centroid_xy[i, :] = (el_crds).mean(axis=0)
     return centroid_xy
+'''
+@numba.jit # relies on loop extraction
+def cellCentroids(crd, con):
+    nele, conn_count = con.shape
+    dim = crd.shape[1]
+    out = np.empty((nele, dim))
+    inv_conn = 1.0/conn_count
+    for i in range(nele):
+        for j in range(dim):
+            acc = 0.0
+            for k in range(conn_count):
+                acc += crd[con[i,k], j]
+            out[i,j] = acc * inv_conn
+    return out
+
 
 def computeArea(polygon):
     """
