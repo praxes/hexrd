@@ -128,7 +128,7 @@ def GE_41RT_opt(xy_in, params, invert=False):
 def newton(x0, f, fp, extra, prec=1e-16, maxiter=100):
     for i in range(maxiter):
         x = x0 - f(x0, *extra) / fp(x0, *extra)
-        if np.max(np.abs(x - x0)) < prec:
+        if np.max(np.abs(x - x0)) <= prec:
             return x
         x0 = x
     return x0
@@ -224,7 +224,7 @@ def inverse_distortion(polar, rhoMax, params):
 
             delta = fx/fxp
             ri = ri - delta
-            if np.abs(delta) < prec:
+            if np.abs(delta) <= prec*np.abs(ri):
                 break
 
         polar[el, 0] = ri
@@ -302,7 +302,7 @@ def inverse_distortion_full(out, in_, rhoMax, params):
 
             delta = fx/fxp
             ri = ri - delta
-            if np.abs(delta) < prec:
+            if np.abs(delta) <= prec*np.abs(ri):
                 break
             
         xi = ri*cosni
@@ -376,7 +376,7 @@ def inverse_distortion_full_exp(out, in_, rhoMax, params):
 
             delta = fx/fxp
             ri = ri - delta
-            if np.abs(delta) < prec:
+            if np.abs(delta) <= prec*np.abs(ri):
                 break
             
         xi = ri*cosni
