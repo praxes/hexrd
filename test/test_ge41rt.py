@@ -53,13 +53,23 @@ def GE_41RT_rho_scl_fi_prime_opt(ri, ni, ro, rx, p, res):
              p[2]*ratio**p[5] * (p[5] + 1) + 1
     return res
 
+@numba.njit
+def to_polar(_in_out):
+    "inplace conversion from rectangular coordinates to polar"
+    for i in range(len(_in_out)):
+        x, y = _in_out[i, 0:2]
+        _in_out[i, 0] = np.sqrt(x*x + y*y)
+        _in_out[i, 1] = np.arctan2(y,x)
+    return _in_out
 
-
-@numba.guvectorize(['void(float64[:], float64[:])'], '(n)->(n)')
-def to_polar(_in, _out):
-    _out[0] = np.sqrt(_in[0]*_in[0] + _in[1]*_in[1])
-    _out[1] = np.arctan2(_in[1], _in[0])
-
+@numba.njit
+def to_rectangular(_in_out):
+    "inplace conversion form polar coordinates to rectangular"
+    for i in range(len(_in_out)):
+        rho, theta = _in_out[i, 0:2]
+        _in_out[i, 0] = rho * np.cos(theta)
+        _in_out[i, 1] = rho * np.sin(theta)
+    return _in_out
 
 def GE_41RT_opt(xy_in, params, invert=False):
     """
@@ -79,13 +89,12 @@ def GE_41RT_opt(xy_in, params, invert=False):
         # canonical max radius based on perfectly centered beam
         rhoMax = 204.8
 
-        polar = to_polar(xy_in)
+        polar = to_polar(np.copy(xy_in, order='F'))
         npts = len(polar)
-
         # detector relative polar coordinates
         #   - this is the radius that gets rescaled
-        rho0 = polar[:,0].flatten()
-        eta0 = polar[:,1].flatten()
+        rho0 = polar[:,0]
+        eta0 = polar[:,1]
 
         if invert:
             # in here must do nonlinear solve for distortion
@@ -125,7 +134,6 @@ def newton(x0, f, fp, extra, prec=1e-16, maxiter=100):
     return x0
 
 
-@numba.njit
 def GE_41RT_rho_scl_func_inv_newton(ri, ni, ro, rx, p):
     ratio = ri/rx
     a = p[0]*ratio**p[3] * np.cos(2.0 * ni)
@@ -135,7 +143,6 @@ def GE_41RT_rho_scl_func_inv_newton(ri, ni, ro, rx, p):
     return (a + b + c + 1.0)*ri - ro
 
 
-@numba.njit
 def GE_41RT_rho_scl_fi_prime_newton(ri, ni, ro, rx, p):
     ratio = ri/rx
     res = p[0]*ratio**p[3] * np.cos(2.0 * ni) * (p[3] + 1) + \
@@ -163,13 +170,13 @@ def GE_41RT_newton(xy_in, params, invert=False):
         # canonical max radius based on perfectly centered beam
         rhoMax = 204.8
 
-        polar = to_polar(xy_in)
+        polar = to_polar(np.copy(xy_in, order='F'))
         npts = len(polar)
 
         # detector relative polar coordinates
         #   - this is the radius that gets rescaled
-        rho0 = polar[:,0].flatten()
-        eta0 = polar[:,1].flatten()
+        rho0 = polar[:,0]
+        eta0 = polar[:,1]
 
         if invert:
             # in here must do nonlinear solve for distortion
@@ -178,10 +185,8 @@ def GE_41RT_newton(xy_in, params, invert=False):
 
             rhoSclFuncInv = GE_41RT_rho_scl_func_inv_newton
             rhoSclFIprime = GE_41RT_rho_scl_fi_prime_newton
-            for iRho in range(len(rho0)):
-                rhoOut[iRho] = newton(float(rho0[iRho]), rhoSclFuncInv, rhoSclFIprime,
-                                      (float(eta0[iRho]), float(rho0[iRho]), rhoMax, params) )
-                pass
+            rhoOut = newton(rho0, rhoSclFuncInv, rhoSclFIprime,
+                            (eta0, rho0, rhoMax, params))
         else:
             # usual case: calculate scaling to take you from image to detector plane
             # 1 + p[0]*(ri/rx)**p[2] * np.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
@@ -199,20 +204,19 @@ def GE_41RT_newton(xy_in, params, invert=False):
 
 
 @numba.njit
-def inverse_distortion(rhoOut, rho0, eta0, rhoMax, params):
+def inverse_distortion(polar, rhoMax, params):
     maxiter = 100
     prec = 1e-16
 
     p0, p1, p2, p3, p4, p5 = params[0:6]
-    rx = rhoMax
-    for el in range(len(rhoOut)):
-        ri = rho0[el]
-        ni = eta0[el]
+    rxi = 1.0/rhoMax
+    for el in range(len(polar)):
+        ri, ni = polar[el, 0:2]
         ro = ri
         cos2ni = np.cos(2.0*ni)
         cos4ni = np.cos(4.0*ni)
         for i in range(maxiter):
-            ratio = ri/rx
+            ratio = ri*rxi
             fx = (p0*ratio**p3*cos2ni + p1*ratio**p4*cos4ni + p2*ratio**p5 + 1)*ri - ro
             fxp = (p0*ratio**p3*cos2ni*(p3+1) +
                    p1*ratio**p4*cos4ni*(p4+1) +
@@ -223,7 +227,21 @@ def inverse_distortion(rhoOut, rho0, eta0, rhoMax, params):
             if np.abs(delta) < prec:
                 break
 
-        rhoOut[el] = ri
+        polar[el, 0] = ri
+
+
+@numba.njit
+def direct_distortion(polar, rhoMax, params):
+    p0, p1, p2, p3, p4, p5 = params[0:6]
+    rxi = 1.0/rhoMax
+    for el in range(len(polar)):
+        ri, ni = polar[el, 0:2]
+        cos2ni = np.cos(2.0*ni)
+        cos4ni = np.cos(4.0*ni)
+        ratio = ri*rxi
+
+        polar[el,0] = (p0*ratio**p3*cos2ni + p1*ratio**p4*cos4ni + p2*ratio**p5 + 1)*ri
+
 
 def GE_41RT_newton_numba(xy_in, params, invert=False):
     """
@@ -242,34 +260,169 @@ def GE_41RT_newton_numba(xy_in, params, invert=False):
     else:
         # canonical max radius based on perfectly centered beam
         rhoMax = 204.8
-
-        polar = to_polar(xy_in)
-        npts = len(polar)
-
-        # detector relative polar coordinates
-        #   - this is the radius that gets rescaled
-        rho0 = polar[:,0].flatten()
-        eta0 = polar[:,1].flatten()
+        polar = to_polar(np.copy(xy_in))
 
         if invert:
             # in here must do nonlinear solve for distortion
             # must loop to call fsolve individually for each point
-            rhoOut = np.empty(npts, dtype=float)
-            inverse_distortion(rhoOut, rho0, eta0, rhoMax, params)
+            inverse_distortion(polar, rhoMax, params)
         else:
             # usual case: calculate scaling to take you from image to detector plane
             # 1 + p[0]*(ri/rx)**p[2] * np.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
-            rhoSclFunc = lambda ri, rx=rhoMax, p=params, ni=eta0: \
-                         p[0]*(ri/rx)**p[3] * np.cos(2.0 * ni) + \
-                         p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) + \
-                         p[2]*(ri/rx)**p[5] + 1
+            direct_distortion(polar, rhoMax, params)
 
-            rhoOut = np.squeeze( rho0 * rhoSclFunc(rho0) )
-            pass
+        return to_rectangular(polar)
 
-        xout = rhoOut * np.cos(eta0)
-        yout = rhoOut * np.sin(eta0)
-    return np.vstack([xout, yout]).T
+
+
+
+@numba.njit
+def inverse_distortion_full(out, in_, rhoMax, params):
+    maxiter = 100
+    prec = 1e-16
+
+    p0, p1, p2, p3, p4, p5 = params[0:6]
+    rxi = 1.0/rhoMax
+    for el in range(len(in_)):
+        xi, yi = in_[el, 0:2]
+        ri = np.sqrt(xi*xi + yi*yi)
+        ri_inv = 1.0/ri
+        sinni = yi*ri_inv
+        cosni = xi*ri_inv
+        ro = ri
+        cos2ni = cosni*cosni - sinni*sinni
+        sin2ni = 2*sinni*cosni
+        cos4ni = cos2ni*cos2ni - sin2ni*sin2ni
+        for i in range(maxiter):
+            ratio = ri*rxi
+            fx = (p0*ratio**p3*cos2ni + p1*ratio**p4*cos4ni + p2*ratio**p5 + 1)*ri - ro
+            fxp = (p0*ratio**p3*cos2ni*(p3+1) +
+                   p1*ratio**p4*cos4ni*(p4+1) +
+                   p2*ratio**p5*(p5+1) + 1)
+
+            delta = fx/fxp
+            ri = ri - delta
+            if np.abs(delta) < prec:
+                break
+            
+        xi = ri*cosni
+        yi = ri*sinni
+        out[el, 0] = xi
+        out[el, 1] = yi
+
+    return out
+
+
+@numba.njit
+def direct_distortion_full(out, in_, rhoMax, params):
+    p0, p1, p2, p3, p4, p5 = params[0:6]
+    rxi = 1.0/rhoMax
+
+    for el in range(len(in_)):
+        xi, yi = in_[el, 0:2]
+        ri = np.sqrt(xi*xi + yi*yi)
+        ri_inv = 1.0/ri
+        sinni = yi*ri_inv
+        cosni = xi*ri_inv
+        cos2ni = cosni*cosni - sinni*sinni
+        sin2ni = 2*sinni*cosni
+        cos4ni = cos2ni*cos2ni - sin2ni*sin2ni
+        ratio = ri*rxi
+
+        ri = (p0*ratio**p3*cos2ni + p1*ratio**p4*cos4ni + p2*ratio**p5 + 1)*ri
+        xi = ri*cosni
+        yi = ri*sinni
+        out[el, 0] = xi
+        out[el, 1] = yi
+
+    return out
+
+
+def GE_41RT_newton_numba_full(xy_in, params, invert=False):
+    if params[0] == 0 and params[1] == 0 and params[2] == 0:
+        return xy_in
+    else:
+        rhoMax = 204.8
+        if invert:
+            xy_out = np.empty_like(xy_in)
+            return inverse_distortion_full(xy_out, xy_in, rhoMax, params)
+        else:
+            xy_out = np.empty_like(xy_in)
+            return direct_distortion_full(xy_out, xy_in, rhoMax, params)
+
+@numba.njit('f8[:,:](f8[:,:], f8[:,:], f8, f8[6])')
+def inverse_distortion_full_exp(out, in_, rhoMax, params):
+    maxiter = 100
+    prec = 1e-16
+
+    p0, p1, p2, p3, p4, p5 = params[0:6]
+    rxi = 1.0/rhoMax
+    for el in range(len(in_)):
+        xi, yi = in_[el, 0:2]
+        ri = np.sqrt(xi*xi + yi*yi)
+        ri_inv = 1.0/ri
+        sinni = yi*ri_inv
+        cosni = xi*ri_inv
+        ro = ri
+        cos2ni = cosni*cosni - sinni*sinni
+        sin2ni = 2*sinni*cosni
+        cos4ni = cos2ni*cos2ni - sin2ni*sin2ni
+        for i in range(maxiter):
+            ratio = ri*rxi
+            fx = (p0*ratio**p3*cos2ni + p1*ratio**p4*cos4ni + p2*ratio**p5 + 1)*ri - ro
+            fxp = (p0*ratio**p3*cos2ni*(p3+1) +
+                   p1*ratio**p4*cos4ni*(p4+1) +
+                   p2*ratio**p5*(p5+1) + 1)
+
+            delta = fx/fxp
+            ri = ri - delta
+            if np.abs(delta) < prec:
+                break
+            
+        xi = ri*cosni
+        yi = ri*sinni
+        out[el, 0] = xi
+        out[el, 1] = yi
+
+    return out
+
+
+@numba.njit('f8[:,:](f8[:,:], f8[:,:], f8, f8[6])')
+def direct_distortion_full_exp(out, in_, rhoMax, params):
+    p0, p1, p2, p3, p4, p5 = params[0:6]
+    rxi = 1.0/rhoMax
+
+    for el in range(len(in_)):
+        xi, yi = in_[el, 0:2]
+        ri = np.sqrt(xi*xi + yi*yi)
+        ri_inv = 1.0/ri
+        sinni = yi*ri_inv
+        cosni = xi*ri_inv
+        cos2ni = cosni*cosni - sinni*sinni
+        sin2ni = 2*sinni*cosni
+        cos4ni = cos2ni*cos2ni - sin2ni*sin2ni
+        ratio = ri*rxi
+
+        ri = (p0*ratio**p3*cos2ni + p1*ratio**p4*cos4ni + p2*ratio**p5 + 1)*ri
+        xi = ri*cosni
+        yi = ri*sinni
+        out[el, 0] = xi
+        out[el, 1] = yi
+
+    return out
+
+
+def GE_41RT_newton_numba_full_exp(xy_in, params, invert=False):
+    if params[0] == 0 and params[1] == 0 and params[2] == 0:
+        return xy_in
+    else:
+        rhoMax = 204.8
+        if invert:
+            xy_out = np.empty_like(xy_in)
+            return inverse_distortion_full(xy_out, xy_in, rhoMax, params)
+        else:
+            xy_out = np.empty_like(xy_in)
+            return direct_distortion_full(xy_out, xy_in, rhoMax, params)
 
 
 def test_ge41rt(in_file):
@@ -283,6 +436,10 @@ def test_ge41rt(in_file):
             except EOFError:
                 break
             with nvtx.profile_range('ge_41rt',
+                                    color=_colors[(count*2)%len(_colors)],
+                                    payload=args[1].shape[0]):
+                res = GE_41RT(*args)
+            with nvtx.profile_range('ge_41rt_bis',
                                     color=_colors[(count*2)%len(_colors)],
                                     payload=args[1].shape[0]):
                 res = GE_41RT(*args)
@@ -301,9 +458,35 @@ def test_ge41rt(in_file):
                                     payload=args[1].shape[0]):
                 res_newton_numba = GE_41RT_newton_numba(*args)
 
+            with nvtx.profile_range('ge_41rt_newton_numba_bis',
+                                    color=_colors[(count*2+1)%len(_colors)],
+                                    payload=args[1].shape[0]):
+                res_newton_numba = GE_41RT_newton_numba(*args)
+
+            with nvtx.profile_range('ge_41rt_newton_numba_full',
+                                    color=_colors[(count*2+1)%len(_colors)],
+                                    payload=args[1].shape[0]):
+                res_newton_numba_full = GE_41RT_newton_numba_full(*args)
+
+            with nvtx.profile_range('ge_41rt_newton_numba_full_bis',
+                                    color=_colors[(count*2+1)%len(_colors)],
+                                    payload=args[1].shape[0]):
+                res_newton_numba_full = GE_41RT_newton_numba_full(*args)
+
+            with nvtx.profile_range('ge_41rt_newton_numba_full_exp',
+                                    color=_colors[(count*2+1)%len(_colors)],
+                                    payload=args[1].shape[0]):
+                res_newton_numba_full = GE_41RT_newton_numba_full_exp(*args)
+
+            with nvtx.profile_range('ge_41rt_newton_numba_full_exp_bis',
+                                    color=_colors[(count*2+1)%len(_colors)],
+                                    payload=args[1].shape[0]):
+                res_newton_numba_full = GE_41RT_newton_numba_full_exp(*args)
+
             assert np.allclose(res, res_opt)
             assert np.allclose(res, res_newton)
             assert np.allclose(res, res_newton_numba)
+            assert np.allclose(res, res_newton_numba_full)
             count += 1
 
 
