@@ -88,7 +88,7 @@ def cell_connectivity_numba(m, n, p=1, origin='ul'):
     choice will affect handedness (cw or ccw)
     """
     nele = p*m*n
-    con  = np.zeros((nele, 4), dtype=int)
+    con  = np.empty((nele, 4), dtype=int)
     _fill_connectivity(con, m, n, p)
 
     if p > 1:
