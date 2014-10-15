@@ -3484,7 +3484,13 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 if reader_as_list:
                     # complains for older scipy...
                     # spot_data[i, :, :] = frames[i][row_indices, col_indices].todense().reshape(sdims[1], sdims[2])
-                    spot_data[i, :, :] = frames[i].todense()[row_indices, col_indices].reshape(sdims[1], sdims[2])
+                    #spot_data[i, :, :] = frames[i].todense()[row_indices, col_indices].reshape(sdims[1], sdims[2])
+                    # Extract the window into the matrix we need, then just do the fancy indexing to
+                    # grab the spot_data there.
+                    min_row, max_row = min(row_indices), max(row_indices)
+                    min_col, max_col = min(col_indices), max(col_indices)
+                    window = frames[i][min_row:max_row+1, min_col:max_col+1].todense()
+                    spot_data[i, :, :] = window[row_indices - min_row, col_indices - min_col].reshape(sdims[1], sdims[2])
                 else:
                     spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])    
         else:
