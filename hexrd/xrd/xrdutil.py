@@ -3482,7 +3482,18 @@ def pullSpots(pd, detector_params, grain_params, reader,
                     # grab the spot_data there.
                     min_row, max_row = min(row_indices), max(row_indices)
                     min_col, max_col = min(col_indices), max(col_indices)
-                    window = frames[i][min_row:max_row+1, min_col:max_col+1].todense()
+                    frame_i = frames[i]
+                    if isinstance(frame_i, sparse.coo_matrix):
+                        # coo_matrix doesn't support slicing, so do it manually
+                        mask = ((min_row <= frame_i.row) & (frame_i.row <= max_row) &
+                                (min_col <= frame_i.col) & (frame_i.col <= max_col))
+                        new_row = frame_i.row[mask] - min_row
+                        new_col = frame_i.col[mask] - min_col
+                        new_data = frame_i.data[mask]
+                        window = num.zeros(((max_row - min_row + 1), (max_col - min_col + 1)))
+                        window[new_row, new_col] = new_data
+                    else:
+                        window = frame_i[min_row:max_row+1, min_col:max_col+1].todense()
                     spot_data[i, :, :] = window[row_indices - min_row, col_indices - min_col].reshape(sdims[1], sdims[2])
                 else:
                     spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])
