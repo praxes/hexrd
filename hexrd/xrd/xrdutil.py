@@ -3483,7 +3483,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                     min_row, max_row = min(row_indices), max(row_indices)
                     min_col, max_col = min(col_indices), max(col_indices)
                     frame_i = frames[i]
-                    if isinstance(frame_i, sparse.coo_matrix):
+                    if sparse.isspmatrix_coo(frame_i):
                         # coo_matrix doesn't support slicing, so do it manually
                         mask = ((min_row <= frame_i.row) & (frame_i.row <= max_row) &
                                 (min_col <= frame_i.col) & (frame_i.col <= max_col))
