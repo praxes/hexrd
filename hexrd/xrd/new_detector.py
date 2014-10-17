@@ -32,7 +32,7 @@ import numpy as np
 
 from hexrd import matrixutil as mutil
 
-from hexrd.paramters import *
+#from hexrd.parameters import *
 
 from hexrd.xrd import fitting
 from hexrd.xrd import distortion      as dfunc

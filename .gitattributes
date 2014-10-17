@@ -1,0 +1,8 @@
+# sets line endings in the repository:
+* text=auto
+*.bat text=crlf
+
+# sets how git diffs will be displayed
+*.py diff=python
+*.c diff=cpp
+*.h diff=cpp

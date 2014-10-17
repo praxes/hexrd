@@ -41,7 +41,7 @@ import scipy.optimize as opt
 import matplotlib
 from matplotlib.widgets import Slider, Button, RadioButtons
 from matplotlib import cm, colors
-import matplotlib.collections as collections
+from matplotlib import collections
 
 from hexrd import plotwrap
 from hexrd import tens
@@ -3637,3 +3637,6 @@ def pullSpots(pd, detector_params, grain_params, reader,
     fid.close()
 
     return spot_list
+
+def validateQVecAngles(*args, **kwargs):
+    raise NotImplementedError
