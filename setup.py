@@ -58,7 +58,7 @@ for dirpath, dirnames, filenames in os.walk('hexrd'):
     else:
         del(dirnames[:])
 
-scripts = ['paintgrid']
+scripts = ['scripts/paintgrid']
 if sys.platform.startswith('win'):
     # scripts calling multiprocessing must be importable
     import shutil
