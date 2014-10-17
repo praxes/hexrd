@@ -115,6 +115,7 @@ def process_grain(jobdata):
     parser = jobdata['parser']
     pd = jobdata['pd']
     detector = jobdata['detector']
+    matl = jobdata['matl']
 
     working_dir   = parser.get('base', 'working_dir')
     analysis_name = parser.get('base', 'analysis_name')
@@ -159,10 +160,6 @@ def process_grain(jobdata):
     """
     ####### INITIALIZATION
     """
-    # material class
-    material_name = parser.get('material', 'material_name')
-    matl = material.loadMaterialList(os.path.join(working_dir, material_name+'.ini'))[0]
-    
     # planeData and reader
     pd = matl.planeData
     pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
@@ -285,6 +282,18 @@ def process_grain(jobdata):
 
     return True
 
+def process_all_grains(pool, jobdata, chunksize):
+    print "Processing %d grains:" % len(jobdata)
+    pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], maxval=len(jobdata)).start()
+    if pool is not None:
+        for i, result in enumerate(pool.imap_unordered(process_grain, jobdata, chunksize)):
+            pbar.update(i + 1)
+    else:
+        for i, jd in enumerate(jobdata):
+            process_grain(jd)
+            pbar.update(i + 1)
+    pbar.finish()
+
 """
 ####### INPUT GOES HERE
 """
@@ -315,6 +324,10 @@ if __name__ == "__main__":
         quats_filename = sys.argv[2]
     quats = np.loadtxt(os.path.join(working_dir, quats_filename))
 
+    # material class
+    material_name = parser.get('material', 'material_name')
+    matl = material.loadMaterialList(os.path.join(working_dir, material_name+'.ini'))[0]
+    
     # Temporary directory for intermediate files
     if not os.path.exists('pstmp'):
         os.mkdir('pstmp')
@@ -328,29 +341,28 @@ if __name__ == "__main__":
     else:
         print
         print 'Only 1 process requested, not using multiprocessing'
+        pool = None
 
     start = time.time()                      # time this
 
     # Controls how many jobs each process gets at once
     chunksize = 2
+    # Requires ncpus == 1, runs cProfile on the grains processing
+    profile = False
 
-    nquats = len(quats)
     jobdata = [{'job':i, 'quat':quat, 'reader':reader, 'parser':parser,
-                'pd':pd, 'detector':detector}
+                'pd':pd, 'detector':detector, 'matl':matl}
                for i, quat in enumerate(quats)]
-    print "Processing %d grains:" % nquats
-    pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], maxval=nquats).start()
-    if ncpus > 1:
-        for i, result in enumerate(pool.imap_unordered(process_grain, jobdata, chunksize)):
-            pbar.update(i + 1)
+    if not profile:
+        process_all_grains(pool, jobdata, chunksize)
     else:
-        for i, jd in enumerate(jobdata):
-            process_grain(jd)
-            pbar.update(i + 1)
-    pbar.finish()
+        # Profile just the grain processing step. This only makes sense
+        # if ncpus is 1.
+        import cProfile
+        cProfile.run("process_all_grains(pool, jobdata, chunksize)", sort='cumtime')
 
     elapsed = (time.time() - start)
-    print "Processing %d grains took %.2f seconds" % (nquats, elapsed)
+    print "Processing %d grains took %.2f seconds" % (len(jobdata), elapsed)
 
     print "\nCopying grains to a single file"
     grains_file = open(analysis_name + '-grains.out', 'w')
@@ -360,8 +372,8 @@ if __name__ == "__main__":
       "tVec_c[0]\ttVec_c[1]\ttVec_c[2]\t" + \
       "vInv_s[0]\tvInv_s[1]\tvInv_s[2]\tvInv_s[4]*sqrt(2)\tvInv_s[5]*sqrt(2)\tvInv_s[6]*sqrt(2)\t" + \
       "ln(V[0,0])\tln(V[1,1])\tln(V[2,2])\tln(V[1,2])\tln(V[0,2])\tln(V[0,1])"
-    pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], maxval=nquats).start()
-    for jobnum in range(nquats):
+    pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], maxval=len(jobdata)).start()
+    for jobnum in range(len(jobdata)):
         fileroot = analysis_name + '_job_%05d' %jobnum
         graindata = np.load(os.path.join('pstmp', fileroot + '-grains.npy'))
         print >> grains_file, \
