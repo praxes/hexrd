@@ -106,7 +106,8 @@ def get_ncpus(parser):
     return ncpus
 
 def process_grain(jobdata):
-    procnum =  multiprocessing.current_process()._identity[0]
+    procnum =  multiprocessing.current_process()._identity
+    procnum = 0 if len(procnum) == 0 else procnum[0]
     # Unpack the job data
     jobnum = jobdata['job']
     quat = jobdata['quat']
@@ -320,9 +321,13 @@ if __name__ == "__main__":
 
     ncpus = get_ncpus(parser)
 
-    print
-    print 'Creating pool with %d processes' % ncpus
-    pool = multiprocessing.Pool(ncpus)
+    if ncpus > 1:
+        print
+        print 'Creating pool with %d processes' % ncpus
+        pool = multiprocessing.Pool(ncpus)
+    else:
+        print
+        print 'Only 1 process requested, not using multiprocessing'
 
     start = time.time()                      # time this
 
@@ -335,8 +340,13 @@ if __name__ == "__main__":
                for i, quat in enumerate(quats)]
     print "Processing %d grains:" % nquats
     pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], maxval=nquats).start()
-    for i, result in enumerate(pool.imap_unordered(process_grain, jobdata, chunksize)):
-        pbar.update(i + 1)
+    if ncpus > 1:
+        for i, result in enumerate(pool.imap_unordered(process_grain, jobdata, chunksize)):
+            pbar.update(i + 1)
+    else:
+        for i, jd in enumerate(jobdata):
+            process_grain(jd)
+            pbar.update(i + 1)
     pbar.finish()
 
     elapsed = (time.time() - start)
