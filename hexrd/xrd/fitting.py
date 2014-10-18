@@ -386,11 +386,11 @@ def objFuncFitGrain(gFit, gFull, gFlag,
                                         vInv=vInv_s, beamVec=bVec, etaVec=eVec,
                                         omePeriod=omePeriod)
 
+    rMat_s = xfcapi.makeOscillRotMatArray(chi, calc_omes)
     calc_xy = np.zeros((npts, 2))
     for i in range(npts):
-        rMat_s = xfcapi.makeOscillRotMat([chi, calc_omes[i]])
         calc_xy[i, :] = xfcapi.gvecToDetectorXY(gHat_c[:, i],
-                                                rMat_d, rMat_s, rMat_c,
+                                                rMat_d, rMat_s[i], rMat_c,
                                                 tVec_d, tVec_s, tVec_c,
                                                 beamVec=bVec).flatten()
         pass

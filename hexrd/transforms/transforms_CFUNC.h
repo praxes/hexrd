@@ -51,7 +51,7 @@ void unitRowVectors_cfunc(int m, int n, double * cIn, double * cOut);
 
 void makeDetectorRotMat_cfunc(double * tPtr, double * rPtr);
 
-void makeOscillRotMat_cfunc(double * oPtr, double * rPtr);
+void makeOscillRotMat_cfunc(double chi, double ome, double * rPtr);
 
 void makeRotMatOfExpMap_cfunc(double * ePtr, double * rPtr);
 
