@@ -24,6 +24,7 @@ static PyMethodDef _transform_methods[] = {
   {"unitRowVectors",unitRowVectors,METH_VARARGS,"Normalize a collection of row vectors"},
   {"makeDetectorRotMat",makeDetectorRotMat,METH_VARARGS,""},
   {"makeOscillRotMat",makeOscillRotMat,METH_VARARGS,""},
+  {"makeOscillRotMatArray",makeOscillRotMatArray,METH_VARARGS,""},
   {"makeRotMatOfExpMap",makeRotMatOfExpMap,METH_VARARGS,""},
   {"makeRotMatOfQuat",makeRotMatOfQuat,METH_VARARGS,""},
   {"makeBinaryRotMat",makeBinaryRotMat,METH_VARARGS,""},
@@ -507,7 +508,48 @@ static PyObject * makeOscillRotMat(PyObject * self, PyObject * args)
   rPtr = (double*)PyArray_DATA(rMat);
 
   /* Call the actual function */
-  makeOscillRotMat_cfunc(oPtr,rPtr);
+  makeOscillRotMat_cfunc(oPtr[0], oPtr[1], rPtr);
+
+  return((PyObject*)rMat);
+}
+
+static PyObject * makeOscillRotMatArray(PyObject * self, PyObject * args)
+{
+  PyObject *chiObj;
+  double chi;
+  PyArrayObject *omeArray, *rMat;
+  int doa;
+  npy_intp i, no, dims[3];
+  double *oPtr, *rPtr;
+
+  /* Parse arguments */
+  if ( !PyArg_ParseTuple(args,"OO", &chiObj, &omeArray)) return(NULL);
+  if ( chiObj == NULL ) return(NULL);
+  if ( omeArray == NULL ) return(NULL);
+
+  /* Get chi */
+  chi = PyFloat_AsDouble(chiObj);
+  if (chi == -1 && PyErr_Occurred()) return(NULL);
+
+  /* Verify shape of input arrays */
+  doa = PyArray_NDIM(omeArray);
+  assert( doa == 1 );
+
+  /* Verify dimensions of input arrays */
+  no = PyArray_DIMS(omeArray)[0];
+
+  /* Allocate the result matrix with appropriate dimensions and type */
+  dims[0] = no; dims[1] = 3; dims[2] = 3;
+  rMat = (PyArrayObject*)PyArray_EMPTY(3,dims,NPY_DOUBLE,0);
+
+  /* Grab pointers to the various data arrays */
+  oPtr = (double*)PyArray_DATA(omeArray);
+  rPtr = (double*)PyArray_DATA(rMat);
+
+  /* Call the actual function repeatedly */
+  for (i = 0; i < no; ++i) {
+      makeOscillRotMat_cfunc(chi, oPtr[i], rPtr + i*9);
+  }
 
   return((PyObject*)rMat);
 }

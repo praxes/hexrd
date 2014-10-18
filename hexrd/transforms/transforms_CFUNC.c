@@ -325,7 +325,7 @@ void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
       oVec[0] = chi;
 
       oVec[1] = oangs0[3L*i+2];
-      makeOscillRotMat_cfunc(oVec,rMat_s);
+      makeOscillRotMat_cfunc(oVec[0], oVec[1], rMat_s);
 
       for (j=0; j<3; j++) {
         tVec0[j] = 0.0;
@@ -342,7 +342,7 @@ void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
       oangs0[3L*i+1] = atan2(gVec_e[1],gVec_e[0]);
 
       oVec[1] = oangs1[3L*i+2];
-      makeOscillRotMat_cfunc(oVec,rMat_s);
+      makeOscillRotMat_cfunc(oVec[0], oVec[1], rMat_s);
 
       for (j=0; j<3; j++) {
         tVec0[j] = 0.0;
@@ -432,15 +432,14 @@ void makeDetectorRotMat_cfunc(double * tPtr, double * rPtr)
   rPtr[8] =  c[0]*c[1];
 }
 
-void makeOscillRotMat_cfunc(double * oPtr, double * rPtr)
+void makeOscillRotMat_cfunc(double chi, double ome, double * rPtr)
 {
-  int i;
   double c[2],s[2];
 
-  for (i=0; i<2; i++) {
-    c[i] = cos(oPtr[i]);
-    s[i] = sin(oPtr[i]);
-  }
+  c[0] = cos(chi);
+  s[0] = sin(chi);
+  c[1] = cos(ome);
+  s[1] = sin(ome);
 
   rPtr[0] =  c[1];
   rPtr[1] =  0.0;
