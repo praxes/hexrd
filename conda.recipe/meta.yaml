@@ -1,0 +1,37 @@
+package:
+  name: hexrd
+  version: master
+
+source:
+  git_url: https://github.com/praxes/hexrd.git
+  git_tag: master
+
+build:
+#  entry_points:
+#    - hexrd = hexrd.wx.mainapp:execute
+  osx_is_app: yes
+
+requirements:
+  build:
+    - python
+    - numpy #>=1.4.0
+    - scipy >=0.7.0
+    - wxpython >=2.8
+#    - numbapro
+  run:
+    - python
+    - numpy #>=1.4.0
+    - scipy >=0.7.0
+    - wxpython >=2.8
+    - progressbar
+    - python.app [osx]
+#    - numbapro
+
+test:
+  imports:
+    - hexrd
+
+about:
+  license: LGPL
+  home: https://github.com/praxes/hexrd
+  summary: High energy diffraction data analysis

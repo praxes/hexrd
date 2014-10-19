@@ -278,10 +278,9 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
     else:
         diff_vecs_xy = calc_xy - xy_unwarped[:, :2]
         diff_ome     = xf.angularDifference( calc_omes, xyo_det[:, 2] )
-        retval = mutil.rowNorm(
-            np.hstack([diff_vecs_xy,
-                       diff_ome.reshape(npts, 1)
-                       ]) ).flatten()
+        retval = np.hstack([diff_vecs_xy,
+                            diff_ome.reshape(npts, 1)
+                            ]).flatten()
         if returnScalarValue:
             retval = sum( retval )
     return retval
@@ -404,10 +403,9 @@ def objFuncFitGrain(gFit, gFull, gFlag,
     else:
         diff_vecs_xy = calc_xy - xy_unwarped[:, :2]
         diff_ome     = xf.angularDifference( calc_omes, xyo_det[:, 2] )
-        retval = mutil.rowNorm(
-            np.hstack([diff_vecs_xy,
-                       diff_ome.reshape(npts, 1)
-                       ]) ).flatten()
+        retval = np.hstack([diff_vecs_xy,
+                            diff_ome.reshape(npts, 1)
+                            ]).flatten()
         if returnScalarValue:
             retval = sum( retval )
     return retval

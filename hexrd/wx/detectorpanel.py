@@ -41,6 +41,9 @@ import sys, os
 
 import wx
 import numpy
+
+numpy.seterr(over='ignore')
+ 
 #
 #  XRD Modules
 #
@@ -474,7 +477,6 @@ class detectorPanel(wx.Panel):
         #  Get workspace.
         #
         exp = wx.GetApp().ws
-
         exp.calibrate(log=sys.stdout)
         # try:
         #     action = {

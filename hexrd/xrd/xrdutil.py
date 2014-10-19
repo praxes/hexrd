@@ -41,7 +41,7 @@ import scipy.optimize as opt
 import matplotlib
 from matplotlib.widgets import Slider, Button, RadioButtons
 from matplotlib import cm, colors
-import matplotlib.collections as collections
+from matplotlib import collections
 
 from hexrd import plotwrap
 from hexrd import tens
@@ -3172,9 +3172,12 @@ def simulateGVecs(pd, detector_params, grain_params,
         angMask_eta = num.logical_or(angMask_eta, xf.validateAngleRanges(angList[:, 1], etas[0], etas[1]))
 
     # do omega ranges
+    ccw=True
     angMask_ome = num.zeros(len(angList), dtype=bool)
     for omes in ome_range:
-        angMask_ome = num.logical_or(angMask_ome, xf.validateAngleRanges(angList[:, 2], omes[0], omes[1]))
+        if omes[1] - omes[0] < 0:
+            ccw=False
+        angMask_ome = num.logical_or(angMask_ome, xf.validateAngleRanges(angList[:, 2], omes[0], omes[1], ccw=ccw))
 
     # mask angles list, hkls
     angMask = num.logical_and(angMask_eta, angMask_ome)
@@ -3241,7 +3244,7 @@ def angularPixelSize(xy_det, xy_pixelPitch,
         delta_eta = num.zeros(4)
         for j in range(4):
             delta_tth[j] = abs(tth_eta[0][diffs[0, j]] - tth_eta[0][diffs[1, j]])
-            delta_eta[j] = abs(tth_eta[1][diffs[0, j]] - tth_eta[1][diffs[1, j]])
+            delta_eta[j] = xf.angularDifference(tth_eta[1][diffs[0, j]], tth_eta[1][diffs[1, j]])
 
         ang_pix[ipt, 0] = num.amax(delta_tth)
         ang_pix[ipt, 1] = num.amax(delta_eta)
@@ -3251,11 +3254,13 @@ def pullSpots(pd, detector_params, grain_params, reader,
               ome_period=(-num.pi, num.pi),
               eta_range=[(-num.pi, num.pi), ],
               panel_dims=[(-204.8, -204.8), (204.8, 204.8)],
+              panel_buff=[20, 20],
               pixel_pitch=(0.2, 0.2),
               distortion=(dFunc_ref, dParams_ref),
               tth_tol=0.15, eta_tol=1., ome_tol=1.,
               npdiv=1, threshold=10,
-              doClipping=False, filename=None):
+              doClipping=False, filename=None, 
+              save_spot_list=False, use_closest=False):
 
     # steal ref beam and eta from transforms.py
     bVec   = xf.bVec_ref
@@ -3274,28 +3279,69 @@ def pullSpots(pd, detector_params, grain_params, reader,
     tVec_c = num.ascontiguousarray(grain_params[3:6])
     vInv_s = num.ascontiguousarray(grain_params[6:12])
 
-    nframes = reader.getNFrames()
-    iframe  = num.arange(0, nframes)
+    reader_as_list = False
+    if hasattr(reader, '__len__'):
+        """
+        HAVE READER INFO LIST INSTEAD OF OLD READER CLASS
 
-    ome_range = reader.getOmegaMinMax()
-    del_ome   = reader.getDeltaOmega() # this one is in radians!
-    ome_edges = num.arange(nframes+1)*del_ome + ome_range[0]
+        [ [frame_list], [ome_start, del_ome] ]
+        """
+        reader_as_list = True
+        #
+        nframes = len(reader[0])
+        #
+        del_ome   = reader[1][1]
+        ome_edges = [reader[1][0] + i*del_ome for i in range(nframes + 1)]
+        ome_range = (ome_edges[0], ome_edges[-1])
+        #
+        frame_nrows = reader[0][0].shape[0]
+        frame_ncols = reader[0][0].shape[1]
+        #
+        row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
+        col_edges = num.arange(frame_ncols + 1)*pixel_pitch[0] + panel_dims[0][1]        
+    else:
+        """
+        HAVE OLD READER CLASS
+        """        
+        nframes = reader.getNFrames()
+        #
+        del_ome   = reader.getDeltaOmega() # this one is in radians!
+        ome_range = num.array( reader.getOmegaMinMax() ) * num.sign(del_ome)
+        ome_edges = num.arange(nframes+1)*del_ome + ome_range[0]
+        #
+        frame_nrows = reader.get_nrows()
+        frame_ncols = reader.get_ncols()
+        #
+        row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
+        col_edges = num.arange(frame_ncols + 1)*pixel_pitch[0] + panel_dims[0][1]
+        pass
+    
+    iframe  = num.arange(0, nframes)
 
     full_range = xf.angularDifference(ome_range[0], ome_range[1])
 
-    ndiv_ome = int(ome_tol/r2d/del_ome)
-    ome_del  = num.arange(0, ndiv_ome+1)*ome_tol/float(ndiv_ome) - 0.5*ome_tol
+    if ome_tol <= 0.5*r2d*abs(del_ome):
+        ndiv_ome = 1
+        ome_del  = num.zeros(1)
+    else:
+        ome_tol  = num.ceil(ome_tol/r2d/abs(del_ome))*r2d*abs(del_ome)
+        ndiv_ome = abs(int(ome_tol/r2d/del_ome))
+        ome_del  = (num.arange(0, 2*ndiv_ome+1) - ndiv_ome)*del_ome*r2d 
 
-    row_edges = num.arange(reader.get_nrows()+1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
-    col_edges = num.arange(reader.get_nrows()+1)*pixel_pitch[0] + panel_dims[0][1]
-
+    # generate structuring element for connected component labeling
+    if len(ome_del) == 1:
+        labelStructure = ndimage.generate_binary_structure(2,2)
+    else:
+        labelStructure = ndimage.generate_binary_structure(3,3)
+    
     pixel_area = pixel_pitch[0]*pixel_pitch[1] # mm^2
-
+    pdim_buffered = [(panel_dims[0][0] + panel_buff[0], panel_dims[0][1] + panel_buff[1]),
+                     (panel_dims[1][0] - panel_buff[0], panel_dims[1][1] - panel_buff[1])]
     # results: hkl, ang, xy, pix
     sim_g = simulateGVecs(pd, detector_params, grain_params,
                           ome_range=[ome_range, ], ome_period=ome_period,
                           eta_range=eta_range,
-                          panel_dims=panel_dims,
+                          panel_dims=pdim_buffered,
                           pixel_pitch=pixel_pitch,
                           distortion=distortion)
 
@@ -3304,24 +3350,28 @@ def pullSpots(pd, detector_params, grain_params, reader,
             fid = filename
         else:
             fid = open(filename, 'w')
-        print >> fid, "#\n# grain info\n#\n"
+        print >> fid, "#\n# ID\t"                       + \
+                      "H\tK\tL\t"                       + \
+                      "sum(int)\tmax(int)\t"            + \
+                      "pred tth\tpred eta\t pred ome\t" + \
+                      "meas tth\tmeas eta\t meas ome\t" + \
+                      "meas X\tmeas Y\t meas ome\n#"
     iRefl = 0
     spot_list = []
     for hkl, angs, xy, pix in zip(*sim_g):
-        rdr = reader.makeNew()
-
+        
         ndiv_tth = npdiv*num.ceil( tth_tol/(pix[0]*r2d) )
         ndiv_eta = npdiv*num.ceil( eta_tol/(pix[1]*r2d) )
-
+        
         tth_del = num.arange(0, ndiv_tth+1)*tth_tol/float(ndiv_tth) - 0.5*tth_tol
         eta_del = num.arange(0, ndiv_eta+1)*eta_tol/float(ndiv_eta) - 0.5*eta_tol
-
+        
         tth_edges = angs[0] + d2r*tth_del
         eta_edges = angs[1] + d2r*eta_del
-
+        
         delta_tth = tth_edges[1] - tth_edges[0]
         delta_eta = eta_edges[1] - eta_edges[0]
-
+        
         ome_centers = angs[2] + d2r*ome_del
         delta_ome   = ome_centers[1] - ome_centers[0] # in radians... sanity check here?
 
@@ -3345,23 +3395,37 @@ def pullSpots(pd, detector_params, grain_params, reader,
         # connectivity
         conn = gutil.cellConnectivity( sdims[1], sdims[2], origin='ll')
 
-        # evaluation points...
-        #   * for lack of a better option will use centroids
-        tth_eta_cen = gutil.cellCentroids( num.atleast_2d(gVec_angs_vtx[:, :2]), conn )
-        gVec_angs  = num.hstack([tth_eta_cen,
-                                 num.tile(angs[2], (len(tth_eta_cen), 1))])
         rMat_s = xfcapi.makeOscillRotMat([chi, angs[2]])
-        gVec_c = xf.anglesToGVec(gVec_angs,
-                                 bVec, eVec,
-                                 rMat_s=rMat_s,
-                                 rMat_c=rMat_c)
-        tmp_xy = xfcapi.gvecToDetectorXY(gVec_c.T,
-                                         rMat_d, rMat_s, rMat_c,
-                                         tVec_d, tVec_s, tVec_c)
+        if doClipping:
+            gVec_c = xf.anglesToGVec(gVec_angs_vtx,
+                                     bVec, eVec,
+                                     rMat_s=rMat_s,
+                                     rMat_c=rMat_c)
+        else:
+            # evaluation points...
+            #   * for lack of a better option will use centroids
+            tth_eta_cen = gutil.cellCentroids( num.atleast_2d(gVec_angs_vtx[:, :2]), conn )
+            gVec_angs  = num.hstack([tth_eta_cen,
+                                     num.tile(angs[2], (len(tth_eta_cen), 1))])
+            gVec_c = xf.anglesToGVec(gVec_angs,
+                                     bVec, eVec,
+                                     rMat_s=rMat_s,
+                                     rMat_c=rMat_c)
+            pass
+        xy_eval = xfcapi.gvecToDetectorXY(gVec_c.T,
+                                          rMat_d, rMat_s, rMat_c,
+                                          tVec_d, tVec_s, tVec_c)
         if distortion is not None or len(distortion) == 0:
-            tmp_xy = distortion[0](tmp_xy, distortion[1], invert=True)
-        row_indices   = gutil.cellIndices(row_edges, tmp_xy[:, 1])
-        col_indices   = gutil.cellIndices(col_edges, tmp_xy[:, 0])
+            xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
+            pass
+        row_indices   = gutil.cellIndices(row_edges, xy_eval[:, 1])
+        if num.any(row_indices < 0) or num.any(row_indices >= frame_nrows):
+            print "(%d, %d, %d): window falls off detector; skipping..." % tuple(hkl)
+            continue
+        col_indices   = gutil.cellIndices(col_edges, xy_eval[:, 0])
+        if num.any(col_indices < 0) or num.any(col_indices >= frame_ncols):
+            print "(%d, %d, %d): window falls off detector; skipping..." % tuple(hkl)
+            continue
         frame_indices = gutil.cellIndices(ome_edges, angs[2] + d2r*ome_del)
 
         patch_j, patch_i = num.meshgrid( range(sdims[2]), range(sdims[1]) )
@@ -3392,25 +3456,40 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 oidx1  = frame_indices[reidx1]
                 oidx2  = iframe[frame_indices[reidx2] - nframes]
 
-        if split_reader:
-            f1 = rdr.read(nframes=len(oidx1), nskip=oidx1[0])
-            r2 = rdr.makeNew()
-            f2 = r2.read(nframes=len(oidx2), nskip=oidx2[0])
-            frames = num.zeros(sdim, dtype=f1.dtype)
-            frames[:len(oidx1), :, :] = f1
-            frames[len(oidx1):, :, :] = f2
+        if reader_as_list:
+            if split_reader:
+                f1 = reader[0][oidx1[0]:oidx1[0]+len(oidx1)]
+                f2 = reader[0][oidx2[0]:oidx2[0]+len(oidx2)]
+                frames = np.hstack([f1, f2])
+            else:
+                frames = reader[0][frame_indices[0]:sdims[0]+frame_indices[0]]
+            
         else:
-            frames = rdr.read(nframes=sdims[0], nskip=int(frame_indices[0]))
+            rdr = reader.makeNew()
+            if split_reader:
+                f1 = rdr.read(nframes=len(oidx1), nskip=oidx1[0])
+                r2 = rdr.makeNew()
+                f2 = r2.read(nframes=len(oidx2), nskip=oidx2[0])
+                frames = num.zeros(sdim, dtype=f1.dtype)
+                frames[:len(oidx1), :, :] = f1
+                frames[len(oidx1):, :, :] = f2
+            else:
+                frames = rdr.read(nframes=sdims[0], nskip=int(frame_indices[0]))
 
         # brute force way...
         spot_data = num.zeros(sdims)
         if not doClipping:
             # ...normalize my bin area ratio?
             for i in range(sdims[0]):
-                spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])
+                if reader_as_list:
+                    # complains for older scipy...
+                    # spot_data[i, :, :] = frames[i][row_indices, col_indices].todense().reshape(sdims[1], sdims[2])
+                    spot_data[i, :, :] = frames[i].todense()[row_indices, col_indices].reshape(sdims[1], sdims[2])
+                else:
+                    spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])    
         else:
             for iPix in range(len(conn)):
-                clipVertices = xy_vertices[conn[iPix], :]
+                clipVertices = xy_eval[conn[iPix], :]
                 clipArea_xy = gutil.computeArea(clipVertices)
                 dilatationList = []
                 for vertex in clipVertices:
@@ -3422,32 +3501,78 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 binSum     = num.zeros(sdims[0])
                 for pixel in testPixels:
                     subjectVertices = num.vstack([col_edges[pixel[1] + vjcol],
-                                                 row_edges[pixel[0] + virow]]).T
+                                                  row_edges[pixel[0] + virow]]).T
                     clipped = gutil.sutherlandHodgman(subjectVertices, clipVertices)
                     if len(clipped) > 0:
-                        binSum += frames[:, pixel[0], pixel[1]]*gutil.computeArea(clipped)/clipArea_xy
+                        if reader_as_list:
+                            binSum += num.array([frames[i][pixel[0], pixel[1]] for i in range(len(frames))]) * gutil.computeArea(clipped)/clipArea_xy
+                        else:
+                            binSum += frames[:, pixel[0], pixel[1]]*gutil.computeArea(clipped)/clipArea_xy
+                            pass
                         pass
                     pass
                 spot_data[:, patch_i[iPix], patch_j[iPix]] = binSum
                 pass # have spot data now
             pass
 
-        labels, numPeaks = ndimage.label(spot_data > threshold)
+        labels, numPeaks = ndimage.label(spot_data > threshold, structure=labelStructure)
 
         if numPeaks > 0:
             if numPeaks > 1:
-                print "for reflection %d window, found %d peaks; ignoring" %(iRefl, numPeaks)
-                peakId = -222
-                com_angs = None
-            else:
-                print "for reflection %d window, found %d peaks" %(iRefl, numPeaks)
-                peakId = iRefl
-                coms = ndimage.center_of_mass(spot_data, labels=labels, index=1)
+                """
+                for multiple spots, apply hueristic to see if one in MUCH brigher than the others...
+                this can happen for low backgrounds where a few zingers sneak through, or for spots
+                with a lot of weakly scattering substructure.
 
+                Arbitrarily setting cutting of 10% integrated intensity.
+
+                This will NOT help if a strong reflection is close to a weak reflection that happens
+                to be the one associated with the grain of interest...
+                """
+                slabels  = num.arange(1, numPeaks+1)
+                if use_closest:
+                    coms     = ndimage.center_of_mass(spot_data, labels=labels, index=slabels)
+                    ang_diff = []
+                    for i in range(numPeaks):
+                        com_angs = num.array([tth_edges[0] + (0.5 + coms[i][2])*delta_tth,
+                                              eta_edges[0] + (0.5 + coms[i][1])*delta_eta,
+                                              ome_centers[0] + coms[i][0]*delta_ome], order='C')
+                        ang_diff.append(xf.angularDifference(angs, com_angs))
+                    closest_peak_idx = num.argmin(mutil.rowNorm(num.array(ang_diff)))
+                    #
+                    peakId = iRefl
+                    coms   = coms[closest_peak_idx]
+                    #
+                    spot_intensity = num.sum(spot_data[labels == slabels[closest_peak_idx]])
+                    max_intensity  = num.max(spot_data[labels == slabels[closest_peak_idx]])
+                else:
+                    spot_intensity = num.array([num.sum(spot_data[labels == i]) for i in slabels])
+                    maxi_idx = num.argmax(spot_intensity)
+                    sidx = num.ones(numPeaks, dtype=bool); sidx[maxi_idx] = False
+                    if num.any(spot_intensity[sidx] / num.max(spot_intensity) > 0.1):
+                        peakId = -222
+                        coms   = None
+                        #
+                        spot_intensity = num.nan
+                        max_intensity  = num.nan
+                    else:
+                        peakId = iRefl
+                        coms   = ndimage.center_of_mass(spot_data, labels=labels, index=slabels[maxi_idx]) 
+                        #
+                        spot_intensity = num.sum(spot_data[labels == slabels[maxi_idx]])  
+                        max_intensity  = num.max(spot_data[labels == slabels[maxi_idx]])                 
+            else:
+                peakId = iRefl
+                coms   = ndimage.center_of_mass(spot_data, labels=labels, index=1)
+                #
+                spot_intensity = num.sum(spot_data[labels == 1])
+                max_intensity  = num.max(spot_data[labels == 1])
+                pass
+            if coms is not None:
                 com_angs = num.array([tth_edges[0] + (0.5 + coms[2])*delta_tth,
                                       eta_edges[0] + (0.5 + coms[1])*delta_eta,
                                       ome_centers[0] + coms[0]*delta_ome],
-                                     order='C')
+                                      order='C')
                 rMat_s = xfcapi.makeOscillRotMat([chi, com_angs[2]])
                 gVec_c = xf.anglesToGVec(num.atleast_2d(com_angs), bVec, eVec,
                                          rMat_s=rMat_s, rMat_c=rMat_c)
@@ -3458,41 +3583,52 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 if distortion is not None or len(distortion) == 0:
                     new_xy = distortion[0](num.atleast_2d(new_xy), distortion[1], invert=True).flatten()
         else:
-            print "for reflection %d window, found %d peaks" %(iRefl, 0)
-            peakId = -999
+            peakId   = -999
             com_angs = None
+            #
+            spot_intensity = num.nan
+            max_intensity  = num.nan
             pass
         #
         # OUTPUT
         #
         # output dictionary
-        w_dict = {}
-        w_dict['hkl']           = hkl
-        w_dict['dims']          = sdims
-        w_dict['points']        = ( angs[2] + d2r*ome_del,
-                                    angs[1] + d2r*eta_del,
-                                    angs[0] + d2r*tth_del )
-        w_dict['spot_data']     = spot_data
-        w_dict['crd']           = tmp_xy
-        w_dict['con']           = conn
-        w_dict['com']           = com_angs
-        w_dict['angles']        = angs
-        w_dict['ang_grid']      = gVec_angs
-        w_dict['row_indices']   = row_indices
-        w_dict['col_indices']   = col_indices
-        w_dict['frame_indices'] = frame_indices
-        spot_list.append(w_dict)
+        if save_spot_list:
+            w_dict = {}
+            w_dict['peakID']        = peakID
+            w_dict['hkl']           = hkl
+            w_dict['dims']          = sdims
+            w_dict['points']        = ( angs[2] + d2r*ome_del,
+                                        angs[1] + d2r*eta_del,
+                                        angs[0] + d2r*tth_del )
+            w_dict['spot_data']     = spot_data
+            w_dict['crd']           = xy_eval
+            w_dict['con']           = conn
+            w_dict['refl_ang_com']  = com_angs
+            if peakID >= 0:
+                w_dict['refl_xyo']  = (new_xy[0], new_xy[1], com_angs[2])
+            else:
+                w_dict['refl_xyo']  = tuple(num.nan*num.ones(3))
+            w_dict['angles']        = angs
+            w_dict['ang_grid']      = gVec_angs
+            w_dict['row_indices']   = row_indices
+            w_dict['col_indices']   = col_indices
+            w_dict['frame_indices'] = frame_indices
+            spot_list.append(w_dict)
+            pass
         if filename is not None:
             if peakId >= 0:
-                print >> fid, "%d\t"                     % (peakId)                + \
-                              "%d\t%d\t%d\t"             % tuple(hkl)              + \
-                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)             + \
-                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(com_angs)        + \
+                print >> fid, "%d\t"                     % (peakId)                            + \
+                              "%d\t%d\t%d\t"             % tuple(hkl)                          + \
+                              "%1.6e\t%1.6e\t"           % (spot_intensity, max_intensity)     + \
+                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                         + \
+                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(com_angs)                     + \
                               "%1.12e\t%1.12e\t%1.12e"   % (new_xy[0], new_xy[1], com_angs[2])
             else:
-                print >> fid, "%d\t"                     % (peakId)                + \
-                              "%d\t%d\t%d\t"             % tuple(hkl)              + \
-                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)             + \
+                print >> fid, "%d\t"                     % (peakId)                   + \
+                              "%d\t%d\t%d\t"             % tuple(hkl)                 + \
+                              "%f\t%f\t"                 % tuple(num.nan*num.ones(2)) + \
+                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                + \
                               "%f\t%f\t%f\t%f\t%f\t%f"   % tuple(num.nan*num.ones(6))
                 pass
             pass
@@ -3501,3 +3637,6 @@ def pullSpots(pd, detector_params, grain_params, reader,
     fid.close()
 
     return spot_list
+
+def validateQVecAngles(*args, **kwargs):
+    raise NotImplementedError

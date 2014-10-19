@@ -43,8 +43,10 @@ if __name__ == "__main__":
     for i in range(numImages):
         if fileSuffix.strip() == '':
             fname = fileRoot+zpad_str
+            oname = outputName
         else:
             fname = fileRoot+zpad_str+"."+fileSuffix 
+            oname = outputName+'.'+fileSuffix
         fileInfo.append( ( fname % (int(fileStart) + i), int(nEmtpy) ) )
         pass
     
@@ -53,7 +55,7 @@ if __name__ == "__main__":
     
     darkFrame, deadPixels, std = medianDarkGE(fileInfo, nChunk, medianSize, medianRange)
     fw = detector.FrameWriter(2048, 2048, 
-                              filename=os.path.join(outputDir, outputName+'.'+fileSuffix), 
+                              filename=os.path.join(outputDir, oname), 
                               nbytesHeader=8192)
     fw.write(darkFrame)
     fw.close()
