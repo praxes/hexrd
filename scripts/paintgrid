@@ -12,18 +12,6 @@ from scipy import ndimage
 
 from ConfigParser import SafeConfigParser
 
-# check PYTHONPATH
-try:
-    import hexrd
-except:
-    cfgfile = 'default.cfg'
-    parser = SafeConfigParser()
-    parser.read(cfgfile)
-
-    HEXRD_ROOT = parser.get('base', 'hexrd_root')
-    sys.path.append(HEXRD_ROOT)
-
-# now can import hexrd modules
 from hexrd     import matrixutil      as mutil
 from hexrd.xrd import experiment      as expt
 from hexrd.xrd import indexer         as idx
@@ -47,13 +35,13 @@ except:
 haveScikit = False
 try:
     import sklearn
-    vstring = sklearn.__version__.split('.') 
+    vstring = sklearn.__version__.split('.')
     if vstring[0] == '0' and int(vstring[1]) >= 15:
         from sklearn.cluster          import dbscan
         from sklearn.metrics.pairwise import pairwise_distances
         haveScikit = True
     else:
-        print "Installed SciKit is too old (<0.14), using scipy fallback"        
+        print "Installed SciKit is too old (<0.14), using scipy fallback"
 except:
     print "System does not have SciKit installed, using scipy fallback"
 
@@ -127,11 +115,8 @@ def initialize_experiment(cfg_file):
     parser = SafeConfigParser()
     parser.read(cfg_file)
 
-    hexrd_root = parser.get('base', 'hexrd_root')
-
     # make experiment
-    ws = expt.Experiment(cfgFile=os.path.join(hexrd_root, "hexrd/data/materials.cfg"),
-                         matFile=os.path.join(hexrd_root, "hexrd/data/all_materials.cfg"))
+    ws = expt.Experiment()
 
     working_dir = parser.get('base', 'working_dir')
 
