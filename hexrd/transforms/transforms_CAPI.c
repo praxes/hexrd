@@ -775,6 +775,9 @@ static PyObject * quat_distance(PyObject * self, PyObject * args)
 
   /* Call the actual function */
   dist = quat_distance_cfunc(nsym,q1Ptr,q2Ptr,qsymPtr);
-
+  if (dist < 0) {
+    PyErr_SetString(PyExc_RuntimeError, "Could not allocate memory");
+    return NULL;
+  }
   return(PyFloat_FromDouble(dist));
 }

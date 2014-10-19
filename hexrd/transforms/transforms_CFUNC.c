@@ -775,7 +775,10 @@ double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
   double q0, q0_max = 0.0, dist = 0.0;
   double *q2s;
 
-  q2s = (double *)malloc(4*nsym*sizeof(double));
+  if ( NULL == (q2s = (double *)malloc(4*nsym*sizeof(double))) ) {
+      printf("malloc failed\n");
+      return(-1);
+  }
 
   /* For each symmetry in qsym compute its inner product with q2 */
   for (i=0; i<nsym; i++) {
