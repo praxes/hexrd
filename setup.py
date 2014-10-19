@@ -73,6 +73,14 @@ if ('bdist_wininst' in sys.argv) or ('bdist_msi' in sys.argv):
 repo_root = os.path.dirname(os.path.abspath(__file__))
 execfile(os.path.join(repo_root, 'hexrd','release.py'), globals())
 
+hexrd_data = [
+    'COPYING',
+    'LICENSE',
+    'wx/hexrd.png',
+    'data/materials.cfg',
+    'data/all_materials.cfg',
+    ]
+
 setup(
     name = name,
     version = __version__,
@@ -90,6 +98,6 @@ setup(
         ),
     scripts = scripts,
     package_data = {
-        'hexrd': ['COPYING', 'LICENSE', 'wx/hexrd.png', 'data/materials.cfg']
+        'hexrd': hexrd_data
         }
     )

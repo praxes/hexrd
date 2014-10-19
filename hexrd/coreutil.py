@@ -34,13 +34,13 @@ def tVec_d_from_old_detector_params(old_par, det_origin):
     """
     rMat_d = xf.makeDetectorRotMat(old_par[3:6, 0])
     #
-    P2_d   = np.c_[ old_par[0, 0] - det_origin[0], 
-                    old_par[1, 0] - det_origin[1], 
-                    0.].T    
-    P2_l   = np.c_[ 0., 
-                    0., 
+    P2_d   = np.c_[ old_par[0, 0] - det_origin[0],
+                    old_par[1, 0] - det_origin[1],
+                    0.].T
+    P2_l   = np.c_[ 0.,
+                    0.,
                    -old_par[2, 0]].T
-    return P2_l - np.dot(rMat_d, P2_d) 
+    return P2_l - np.dot(rMat_d, P2_d)
 
 def old_detector_params_from_new(new_par, det_origin):
     """
@@ -52,7 +52,7 @@ def old_detector_params_from_new(new_par, det_origin):
     tVec_d = new_par[3:6].reshape(3, 1)
     #
     A = np.eye(3); A[:, :2] = rMat_d[:, :2]
-    # 
+    #
     return solve(A, -tVec_d) + np.vstack([det_origin[0], det_origin[1], 0])
 
 def make_old_detector_parfile(results, det_origin=(204.8, 204.8), filename=None):
@@ -142,8 +142,8 @@ def initialize_experiment(cfg_file):
     hexrd_root = parser.get('base', 'hexrd_root')
 
     # make experiment
-    ws = expt.Experiment(cfgFile=os.path.join(hexrd_root, "hexrd/data/materials.cfg"),
-                         matFile=os.path.join(hexrd_root, "hexrd/data/all_materials.cfg"))
+    print __file__
+    ws = expt.Experiment()
 
     working_dir = parser.get('base', 'working_dir')
 

@@ -13,19 +13,20 @@ build:
 
 requirements:
   build:
-    - python
+    - matplotlib
+#    - numbapro
     - numpy #>=1.4.0
     - scipy >=0.7.0
     - wxpython >=2.8
-#    - numbapro
   run:
-    - python
+    - matplotlib
+#    - numbapro
     - numpy #>=1.4.0
+    - progressbar
+    - python.app # [osx]
     - scipy >=0.7.0
     - wxpython >=2.8
     - progressbar
-    - python.app [osx]
-#    - numbapro
 
 test:
   imports:
