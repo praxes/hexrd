@@ -1184,7 +1184,7 @@ class CalibrationInput(object):
         return
 
     fitType = property(_get_fitType, _set_fitType, None,
-                                "fit type:  direct or caked")
+                       "fit type:  direct or caked")
     # property:  calMat
 
     def _get_calMat(self):
