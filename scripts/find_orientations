@@ -12,7 +12,7 @@ import time
 import numpy as np
 np.seterr(over='ignore', invalid='ignore')
 
-import scipy.cluster  as cluster
+import scipy.cluster as cluster
 import scipy.optimize as opt
 from scipy import ndimage
 
@@ -130,7 +130,7 @@ def write_old_parfile(filename, results):
 ########################
 
 
-def initialize_experiment(cfg):
+def initialize_experiment(cfg, verbose=False):
     """
     """
     # make experiment
@@ -145,7 +145,8 @@ def initialize_experiment(cfg):
     # MATERIALS
     ws.loadMaterialList(os.path.join(cwd, materials_fname))
     ws.activeMaterial = material_name
-    print "setting active material to '%s'" % (material_name)
+    if verbose:
+        print "setting active material to '%s'" % (material_name)
 
     pd = ws.activeMaterial.planeData
 
@@ -337,7 +338,12 @@ def run_cluster(compl, qfib, qsym, cfg, verbose=False):
                 % (qfib_r.shape[1], 100*min_compl)
                 )
 
-        if algorithm == 'dbscan' and have_sklearn:
+        if algorithm == 'dbscan' and not have_sklearn:
+            algorithm = 'fclusterdata'
+            if verbose:
+                print "sklearn >= 0.14 required for dbscan"
+                print "falling back to fclusterdata"
+        if algorithm == 'dbscan':
             pdist = pairwise_distances(
                 qfib_r.T, metric=quat_distance, n_jobs=-1
                 )
@@ -452,10 +458,18 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
     return eta_ome
 
 
-def find_orientations(cfg, pd, reader, detector, verbose=False, hkls=None):
+def find_orientations(
+    cfg, pd, reader, detector, verbose=False, hkls=None, force=False
+    ):
     cwd = cfg['base'].get('working_dir', os.getcwd())
     analysis_name = cfg['base']['analysis_name']
     analysis_root = os.path.join(cwd, analysis_name)
+    if os.path.exists(analysis_root) and not force:
+        print (
+            'analysis "%s" already exists, change yml file or use "-f"'
+            % analysis_name
+            )
+        sys.exit()
     if not os.path.exists(analysis_root):
         os.makedirs(analysis_root)
     if verbose:
@@ -621,7 +635,7 @@ def find_orientations(cfg, pd, reader, detector, verbose=False, hkls=None):
         #extract_measured_g_vectors(cfg, verbose)
 
 
-def main(cfg, verbose=False, hkls=None):
+def main(cfg, verbose=False, hkls=None, force=False):
     yml_file = cfg
     if verbose:
         print "Using configuration file '%s'" % yml_file
@@ -633,12 +647,12 @@ def main(cfg, verbose=False, hkls=None):
     cfg = cfgs[0]
 
     # a goofy call, could be replaced with two more targeted calls
-    pd, reader, detector = initialize_experiment(cfg)
+    pd, reader, detector = initialize_experiment(cfg, verbose)
 
     for i, c in enumerate(cfgs):
         cfg = merge_dicts(cfg, c)
         find_orientations(
-            cfg, pd, reader, detector, verbose=verbose, hkls=hkls
+            cfg, pd, reader, detector, verbose=verbose, hkls=hkls, force=force
             )
 
 
@@ -660,6 +674,10 @@ if __name__ == '__main__':
         help='report progress in terminal'
         )
     parser.add_argument(
+        '-f', '--force', action='store_true',
+        help='overwrites existing analysis'
+        )
+    parser.add_argument(
         '--hkls', metavar='HKLs', type=str, default=None,
         help=textwrap.dedent(
             '''list hkl entries in the materials file to use for fitting
@@ -670,4 +688,4 @@ if __name__ == '__main__':
     if args.hkls is not None:
         args.hkls = [int(i) for i in args.hkls.split(',') if i]
 
-    main(args.yml, verbose=args.verbose, hkls=args.hkls)
+    main(args.yml, verbose=args.verbose, hkls=args.hkls, force=args.force)
