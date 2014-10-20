@@ -66,6 +66,8 @@ class Config(object):
         self.multiproc = parser.get('paint_grid', 'multiproc')
         ncpus_str = parser.get('paint_grid', 'ncpus')
         self.ncpus = get_ncpus(ncpus_str)
+        # if multiproc and ncpu == 1, prevent multiproc.
+        self.multiproc = self.multiproc if self.ncpus > 1 else False
 
         self.threshold = parser.getfloat('pull_spots', 'threshold')
 
@@ -145,6 +147,7 @@ def read_frames(reader, parser):
     print "Reading %d frames took %.2f seconds" % (nframes, elapsed)
     return reader
 
+
 def get_ncpus(ncpus_str):
     cpucount = multiprocessing.cpu_count()
     if ncpus_str.strip() == '':
@@ -156,6 +159,7 @@ def get_ncpus(ncpus_str):
     else:
         ncpus = int(ncpus_str)
     return ncpus
+
 
 def process_grain(jobdata):
     # Unpack the job data
@@ -288,36 +292,7 @@ def process_grain(jobdata):
 
     return True
 
-def process_all_grains(pool, jobdata, chunksize):
-    print "Processing %d grains:" % len(jobdata)
-    pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], maxval=len(jobdata)).start()
-    if pool is not None:
-        for i, result in enumerate(pool.imap_unordered(process_grain, jobdata, chunksize)):
-            pbar.update(i + 1)
-    else:
-        for i, jd in enumerate(jobdata):
-            process_grain(jd)
-            pbar.update(i + 1)
-    pbar.finish()
-
-"""
-####### INPUT GOES HERE
-"""
-# def pull_spots_block(cfg_filename, blockID, pd, reader, detector):
-if __name__ == "__main__":
-    total_start = time.time()                      # time this
-    cfg_filename = sys.argv[1]
-
-    print "Using cfg file '%s'" % (cfg_filename)
-
-    config = Config(cfg_filename)
-
-    if len(sys.argv) < 3:
-        quats_filename = config.analysis_name+'-quats.out'
-    else:
-        quats_filename = sys.argv[2]
-    quats = np.loadtxt(os.path.join(config.working_dir, quats_filename))
-
+def process_all_grains(config, quats):
     nquats = len(quats)
     jobdata = [{'job':i, 'quat':quat, 'config': config}
                for i, quat in enumerate(quats)]
@@ -331,35 +306,26 @@ if __name__ == "__main__":
     if not os.path.exists('pstmp'):
         os.mkdir('pstmp')
 
-    # config.multiproc = False
-
-    pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], maxval=nquats).start()
     if config.multiproc:
-        print
-        print 'Creating pool with %d processes' % config.ncpus
         pool = multiprocessing.Pool(config.ncpus)
-
-        start = time.time()                      # time this
-
-        # Controls how many jobs each process gets at once
         chunksize = 4
-
-        print "Processing %d grains:" % nquats
-        for i, result in enumerate(pool.imap_unordered(process_grain, jobdata, chunksize)):
-            pbar.update(i + 1)
-
-        elapsed = (time.time() - start)
-        print "Processing %d grains took %.2f seconds" % (nquats, elapsed)
+        print 'Running in  %d processes with chunksize %d' % (config.ncpus, chunksize)
+        executor = pool.imap_unordered
+        extra_args = (chunksize,)
     else:
-        print 'Running sequential'
-        start = time.time()
-        print "Processing %d grains:" % nquats
-        for i, result in enumerate(itertools.imap(process_grain, jobdata)):
-            pbar.update(i+1)
-        elapsed = time.time() - start
-        print "Processing %d grains took %.2f seconds" % (nquats, elapsed)
+        executor = itertools.imap
+        extra_args = tuple()
 
+    print "Processing %d grains:" % nquats
+    pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], maxval=nquats).start()
+    start = time.time()
+    for i, result in enumerate(executor(process_grain, jobdata, *extra_args)):
+        pbar.update(i + 1)
+
+    elapsed = (time.time() - start)
     pbar.finish()
+
+    print "Processing %d grains took %.2f seconds" % (nquats, elapsed)
 
     print "\nCopying grains to a single file"
     grains_file = open(config.analysis_name + '-grains.out', 'w')
@@ -383,6 +349,27 @@ if __name__ == "__main__":
 
     pbar.finish()
     grains_file.close()
+
+
+"""
+####### INPUT GOES HERE
+"""
+# def pull_spots_block(cfg_filename, blockID, pd, reader, detector):
+if __name__ == "__main__":
+    total_start = time.time()                      # time this
+    cfg_filename = sys.argv[1]
+
+    print "Using cfg file '%s'" % (cfg_filename)
+
+    config = Config(cfg_filename)
+
+    if len(sys.argv) < 3:
+        quats_filename = config.analysis_name+'-quats.out'
+    else:
+        quats_filename = sys.argv[2]
+    quats = np.loadtxt(os.path.join(config.working_dir, quats_filename))
+
+    process_all_grains(config, quats)
 
     total_elapsed = (time.time() - total_start)
     print "\nTotal processing time %.2f seconds" % (total_elapsed)
