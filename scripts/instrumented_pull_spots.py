@@ -19,6 +19,9 @@ def add_nvtx_instrumentation(nvtx):
     from hexrd.xrd import distortion
     from hexrd import gridutil
     from numba import dispatcher
+    from hexrd.xrd import transforms_CAPI as xfcapi
+    from hexrd.xrd import transforms as xf
+    import numpy
 
     _locals = locals()
     def PROFILE(func_path, color):
@@ -37,19 +40,29 @@ def add_nvtx_instrumentation(nvtx):
     PROFILE('dispatcher.Overloaded.compile', nvtx.colors.black)
 
     # some key functions
+    PROFILE('numpy.meshgrid', nvtx.colors.red)
+    PROFILE('numpy.arange', nvtx.colors.red)
     PROFILE('xrdutil.pullSpots', nvtx.colors.blue)
+    PROFILE('xrdutil.simulateGVecs', nvtx.colors.yellow)
+    PROFILE('xrdutil._coo_build_window', nvtx.colors.yellow)
     PROFILE('fitting.fitGrain', nvtx.colors.yellow)
     PROFILE('fitting.objFuncFitGrain', nvtx.colors.magenta)
     PROFILE('sparse.coo_matrix', nvtx.colors.yellow)
     PROFILE('sparse.coo.coo_matrix.todense', nvtx.colors.magenta)
-    PROFILE('gridutil.computeArea', nvtx.colors.green)
-    PROFILE('gridutil.sutherlandHodgman', nvtx.colors.blue)
-    PROFILE('xrdutil.simulateGVecs', nvtx.colors.yellow)
-    PROFILE('gridutil.cellCentroids', nvtx.colors.cyan)
+    PROFILE('gridutil.cellIndices', nvtx.colors.red)
+    PROFILE('gridutil.computeArea', nvtx.colors.red)
+    PROFILE('gridutil.sutherlandHodgman', nvtx.colors.red)
+    PROFILE('gridutil.cellCentroids', nvtx.colors.red)
     PROFILE('gridutil.cellConnectivity', nvtx.colors.red)
     PROFILE('ndimage.label', nvtx.colors.white)
     PROFILE('distortion._ge_41rt_distortion', nvtx.colors.yellow)
     PROFILE('distortion._ge_41rt_inverse_distortion', nvtx.colors.yellow)
+    PROFILE('xfcapi.makeDetectorRotMat', nvtx.colors.blue)
+    PROFILE('xfcapi.makeRotMatOfExpMap', nvtx.colors.blue)
+    PROFILE('xfcapi.makeOscillRotMat', nvtx.colors.blue)
+    PROFILE('xfcapi.gvecToDetectorXY', nvtx.colors.blue)
+    PROFILE('xf.anglesToGVec', nvtx.colors.green)
+    PROFILE('xf.angularDifference', nvtx.colors.green)
 
 
 def print_nvtx_profile(nvtx):
