@@ -10,7 +10,7 @@ import itertools
 from ConfigParser import SafeConfigParser
 
 import numpy as np
-from scipy.sparse import coo_matrix
+from scipy import sparse
 from scipy.linalg.matfuncs import logm
 
 from hexrd.xrd import fitting
@@ -137,7 +137,7 @@ def read_frames(reader, parser):
     for i in range(nframes):
         frame = reader.read()
         frame[frame <= threshold] = 0
-        frame_list.append(coo_matrix(frame))
+        frame_list.append(sparse.coo_matrix(frame))
         pbar.update(i+1)
     pbar.finish()
     # frame_list = np.array(frame_list)
