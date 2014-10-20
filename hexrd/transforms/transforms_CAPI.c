@@ -13,6 +13,7 @@ gcc -bundle -flat_namespace -undefined suppress -o _transforms_CAPI.so transform
 static PyMethodDef _transform_methods[] = {
   {"makeGVector",makeGVector,METH_VARARGS,""},
   {"gvecToDetectorXY",gvecToDetectorXY,METH_VARARGS,""},
+  {"gvecToDetectorXYArray",gvecToDetectorXYArray,METH_VARARGS,""},
   {"detectorXYToGvec",detectorXYToGvec,METH_VARARGS,"Calculate lattice info from detector coordinates"},
   {"oscillAnglesOfHKLs",oscillAnglesOfHKLs,METH_VARARGS,""},
   {"arccosSafe",arccosSafe,METH_VARARGS,""},
@@ -148,6 +149,127 @@ static PyObject * gvecToDetectorXY(PyObject * self, PyObject * args)
 
   /* Call the computational routine */
   gvecToDetectorXY_cfunc(npts, gVec_c_Ptr,
+			 rMat_d_Ptr, rMat_s_Ptr, rMat_c_Ptr,
+			 tVec_d_Ptr, tVec_s_Ptr, tVec_c_Ptr,
+			 beamVec_Ptr,
+			 result_Ptr);
+
+  /* Use the returned pointer to build the result object */
+  /* We do this since nadm may be less than npts and the result_Ptr
+     may not be the same as the one allocated earlier. */
+
+  /* if ( nadm < npts ) { */
+  /*   new_result_Ptr = (double*)realloc(result_Ptr,2*nadm*sizeof(double)); */
+  /*   if ( new_result_Ptr != NULL ) result_Ptr = new_result_Ptr; */
+  /*   else */
+  /*     assert( false ); /\* This really should never happen *\/ */
+  /* } */
+
+  /* dims[0] = nadm; */
+  /* dims[1] = 2; */
+  /* result = (PyArrayObject*)PyArray_SimpleNewFromData(2,dims,NPY_DOUBLE,result_Ptr); */
+
+  /* Build and return the nested data structure */
+  return((PyObject*)result);
+}
+
+/*
+    Takes a list of unit reciprocal lattice vectors in crystal frame to the
+    specified detector-relative frame, subject to the conditions:
+
+    1) the reciprocal lattice vector must be able to satisfy a bragg condition
+    2) the associated diffracted beam must intersect the detector plane
+
+    Required Arguments:
+    gVec_c -- (n, 3) ndarray of n reciprocal lattice vectors in the CRYSTAL FRAME
+    rMat_d -- (3, 3) ndarray, the COB taking DETECTOR FRAME components to LAB FRAME
+    rMat_s -- (n, 3, 3) ndarray, the COB taking SAMPLE FRAME components to LAB FRAME
+    rMat_c -- (3, 3) ndarray, the COB taking CRYSTAL FRAME components to SAMPLE FRAME
+    tVec_d -- (3, 1) ndarray, the translation vector connecting LAB to DETECTOR
+    tVec_s -- (3, 1) ndarray, the translation vector connecting LAB to SAMPLE
+    tVec_c -- (3, 1) ndarray, the translation vector connecting SAMPLE to CRYSTAL
+
+    Outputs:
+    (m, 2) ndarray containing the intersections of m <= n diffracted beams
+    associated with gVecs
+*/
+static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
+{
+  PyArrayObject *gVec_c,
+                *rMat_d, *rMat_s, *rMat_c,
+                *tVec_d, *tVec_s, *tVec_c, 
+                *beamVec;
+  PyArrayObject *result;
+
+  int dgc, drd, drs, drc, dtd, dts, dtc, dbv;
+  npy_intp npts, dims[2];
+
+  double *gVec_c_Ptr,
+         *rMat_d_Ptr, *rMat_s_Ptr, *rMat_c_Ptr,
+         *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
+         *beamVec_Ptr;
+  double *result_Ptr;
+
+  /* Parse arguments */
+  if ( !PyArg_ParseTuple(args,"OOOOOOOO",
+			 &gVec_c,
+			 &rMat_d, &rMat_s, &rMat_c,
+			 &tVec_d, &tVec_s, &tVec_c,
+			 &beamVec)) return(NULL);
+  if ( gVec_c  == NULL ||
+       rMat_d  == NULL || rMat_s == NULL || rMat_c == NULL ||
+       tVec_d  == NULL || tVec_s == NULL || tVec_c == NULL ||
+       beamVec == NULL ) return(NULL);
+
+  /* Verify shape of input arrays */
+  dgc = PyArray_NDIM(gVec_c);
+  drd = PyArray_NDIM(rMat_d);
+  drs = PyArray_NDIM(rMat_s);
+  drc = PyArray_NDIM(rMat_c);
+  dtd = PyArray_NDIM(tVec_d);
+  dts = PyArray_NDIM(tVec_s);
+  dtc = PyArray_NDIM(tVec_c);
+  dbv = PyArray_NDIM(beamVec);
+  assert( dgc == 2 );
+  assert( drd == 2 && drs == 3 && drc == 2 );
+  assert( dtd == 1 && dts == 1 && dtc == 1 );
+  assert( dbv == 1 );
+
+  /* Verify dimensions of input arrays */
+  npts = PyArray_DIMS(gVec_c)[0];
+
+  assert( PyArray_DIM(gVec_c, 0) == PyArray_DIM(rMat_s, 0));
+  assert( PyArray_DIMS(gVec_c)[1]  == 3 );
+  assert( PyArray_DIMS(rMat_d)[0]  == 3 && PyArray_DIMS(rMat_d)[1] == 3 );
+  assert( PyArray_DIMS(rMat_s)[1]  == 3 && PyArray_DIMS(rMat_s)[2] == 3 );
+  assert( PyArray_DIMS(rMat_c)[0]  == 3 && PyArray_DIMS(rMat_c)[1] == 3 );
+  assert( PyArray_DIMS(tVec_d)[0]  == 3 );
+  assert( PyArray_DIMS(tVec_s)[0]  == 3 );
+  assert( PyArray_DIMS(tVec_c)[0]  == 3 );
+  assert( PyArray_DIMS(beamVec)[0] == 3 );
+
+  /* Allocate C-style array for return data */
+  // result_Ptr  = malloc(2*npts*sizeof(double));
+  dims[0] = npts; dims[1] = 2;
+  result = (PyArrayObject*)PyArray_EMPTY(2,dims,NPY_DOUBLE,0);
+
+  /* Grab data pointers into various arrays */
+  gVec_c_Ptr  = (double*)PyArray_DATA(gVec_c);
+
+  rMat_d_Ptr  = (double*)PyArray_DATA(rMat_d);
+  rMat_s_Ptr  = (double*)PyArray_DATA(rMat_s);
+  rMat_c_Ptr  = (double*)PyArray_DATA(rMat_c);
+
+  tVec_d_Ptr  = (double*)PyArray_DATA(tVec_d);
+  tVec_s_Ptr  = (double*)PyArray_DATA(tVec_s);
+  tVec_c_Ptr  = (double*)PyArray_DATA(tVec_c);
+
+  beamVec_Ptr = (double*)PyArray_DATA(beamVec);
+
+  result_Ptr     = (double*)PyArray_DATA(result);
+
+  /* Call the computational routine */
+  gvecToDetectorXYArray_cfunc(npts, gVec_c_Ptr,
 			 rMat_d_Ptr, rMat_s_Ptr, rMat_c_Ptr,
 			 tVec_d_Ptr, tVec_s_Ptr, tVec_c_Ptr,
 			 beamVec_Ptr,
