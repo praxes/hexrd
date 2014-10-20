@@ -89,13 +89,14 @@ def profiling(profile=False, use_nvtx=False):
     
 
 def usage():
-    print "USAGE: {0} [-p] [-n] <experiment_file> [<grain_file>]".format(sys.argv[0])
+    print "USAGE: {0} [-p] [-n] [-c <max_grains>] <experiment_file> [<grain_file>]".format(sys.argv[0])
 
 if __name__ == '__main__':
     import getopt
+    max_grains = None
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'pn')
+        opts, args = getopt.getopt(sys.argv[1:], 'pnc:')
     except getopt.GeoptError as err:
         print str(err)
         usage()
@@ -107,6 +108,13 @@ if __name__ == '__main__':
             prof_dict["profile"] = True
         elif o == "-n":
             prof_dict["use_nvtx"] = True
+        elif o=="-c":
+            try:
+                max_grains = int(val)
+            except ValueError:
+                print "invalid grain count"
+                usage()
+                sys.exit(2)
         else:
             assert False, "unhandled option '{0}'".format(o)
 
@@ -124,7 +132,8 @@ if __name__ == '__main__':
         quats_filename = quats_filename if quats_filename is not None else config.analysis_name+'-quats.out'
     
         quats = np.loadtxt(os.path.join(config.working_dir, quats_filename))
-
+        if max_grains is not None and len(quats) > max_grains:
+            quats = quats[:max_grains]
         target.process_all_grains(config, quats)
 
         elapsed = time.time() - start
