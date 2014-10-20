@@ -88,11 +88,35 @@ def profiling(profile=False, use_nvtx=False):
         print_nvtx_profile(nvtx)
     
 
-if __name__ == '__main__':
-    cfg_filename = sys.argv[1]
-    quats_filename = sys.argv[2] if len(sys.argv) >= 3 else None
+def usage():
+    print "USAGE: {0} [-p] [-n] <experiment_file> [<grain_file>]".format(sys.argv[0])
 
-    with profiling(use_nvtx=True):
+if __name__ == '__main__':
+    import getopt
+
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], 'pn')
+    except getopt.GeoptError as err:
+        print str(err)
+        usage()
+        sys.exit(2)
+
+    prof_dict = {}
+    for o, val in opts:
+        if o == "-p":
+            prof_dict["profile"] = True
+        elif o == "-n":
+            prof_dict["use_nvtx"] = True
+        else:
+            assert False, "unhandled option '{0}'".format(o)
+
+    if len(args) < 1:
+        usage()
+        sys.exit(2)
+    cfg_filename = args[0]
+    quats_filename = args[1] if len(args) >= 2 else None
+
+    with profiling(**prof_dict):
         start = time.time()
         print "Using cfg file '%s'" % (cfg_filename)
         config = target.Config(cfg_filename)
