@@ -306,7 +306,7 @@ def process_all_grains(config, quats):
 
     if config.multiproc:
         pool = multiprocessing.Pool(config.ncpus)
-        chunksize = 4
+        chunksize = 2
         print 'Running in  %d processes with chunksize %d' % (config.ncpus, chunksize)
         executor = pool.imap_unordered
         extra_args = (chunksize,)
