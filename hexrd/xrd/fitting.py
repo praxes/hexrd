@@ -392,7 +392,7 @@ def objFuncFitGrain(gFit, gFull, gFlag,
         calc_xy[i, :] = xfcapi.gvecToDetectorXY(gHat_c[:, i],
                                                 rMat_d, rMat_s[i], rMat_c,
                                                 tVec_d, tVec_s, tVec_c,
-                                                beamVec=bVec).flatten()
+                                                beamVec=bVec)
         pass
     if np.any(np.isnan(calc_xy)):
         print "infeasible pFull"
