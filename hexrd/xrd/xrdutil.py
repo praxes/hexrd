@@ -3243,6 +3243,18 @@ def angularPixelSize(xy_det, xy_pixelPitch,
         ang_pix[ipt, 1] = num.amax(delta_eta)
     return ang_pix
 
+
+def _coo_build_window(frame_i, min_row, max_row, min_col, max_col):
+    mask = ((min_row <= frame_i.row) & (frame_i.row <= max_row) &
+            (min_col <= frame_i.col) & (frame_i.col <= max_col))
+    new_row = frame_i.row[mask] - min_row
+    new_col = frame_i.col[mask] - min_col
+    new_data = frame_i.data[mask]
+    window = num.zeros(((max_row - min_row + 1), (max_col - min_col + 1)))
+    window[new_row, new_col] = new_data
+
+    return window
+
 def pullSpots(pd, detector_params, grain_params, reader,
               ome_period=(-num.pi, num.pi),
               eta_range=[(-num.pi, num.pi), ],
@@ -3473,29 +3485,24 @@ def pullSpots(pd, detector_params, grain_params, reader,
         spot_data = num.zeros(sdims)
         if not doClipping:
             # ...normalize my bin area ratio?
-            for i in range(sdims[0]):
-                if reader_as_list:
+            if reader_as_list:
+                min_row, max_row = num.min(row_indices), num.max(row_indices)
+                min_col, max_col = num.min(col_indices), num.max(col_indices)
+                for i in range(sdims[0]):
                     # complains for older scipy...
                     # spot_data[i, :, :] = frames[i][row_indices, col_indices].todense().reshape(sdims[1], sdims[2])
                     #spot_data[i, :, :] = frames[i].todense()[row_indices, col_indices].reshape(sdims[1], sdims[2])
                     # Extract the window into the matrix we need, then just do the fancy indexing to
                     # grab the spot_data there.
-                    min_row, max_row = min(row_indices), max(row_indices)
-                    min_col, max_col = min(col_indices), max(col_indices)
                     frame_i = frames[i]
                     if sparse.isspmatrix_coo(frame_i):
                         # coo_matrix doesn't support slicing, so do it manually
-                        mask = ((min_row <= frame_i.row) & (frame_i.row <= max_row) &
-                                (min_col <= frame_i.col) & (frame_i.col <= max_col))
-                        new_row = frame_i.row[mask] - min_row
-                        new_col = frame_i.col[mask] - min_col
-                        new_data = frame_i.data[mask]
-                        window = num.zeros(((max_row - min_row + 1), (max_col - min_col + 1)))
-                        window[new_row, new_col] = new_data
+                        window = _coo_build_window(frame_i, min_row, max_row, min_col, max_col)
                     else:
                         window = frame_i[min_row:max_row+1, min_col:max_col+1].todense()
                     spot_data[i, :, :] = window[row_indices - min_row, col_indices - min_col].reshape(sdims[1], sdims[2])
-                else:
+            else:
+                for i in range(sdims[0]):
                     spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])
         else:
             for iPix in range(len(conn)):
