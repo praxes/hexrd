@@ -52,6 +52,8 @@ static PyObject * makeDetectorRotMat(PyObject * self, PyObject * args);
 
 static PyObject * makeOscillRotMat(PyObject * self, PyObject * args);
 
+static PyObject * makeOscillRotMatArray(PyObject * self, PyObject * args);
+
 static PyObject * makeRotMatOfExpMap(PyObject * self, PyObject * args);
 
 static PyObject * makeRotMatOfQuat(PyObject * self, PyObject * args);
