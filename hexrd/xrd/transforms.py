@@ -29,6 +29,7 @@
 import os, sys, warnings
 import numpy as np
 #np.seterr(invalid='ignore')
+import numba
 
 import scipy.sparse as sparse
 
@@ -97,15 +98,10 @@ def makeGVector(hkl, bMat):
     assert hkl.shape[0] == 3, 'hkl input must be (3, n)'
     return unitVector(np.dot(bMat, hkl))
 
-def anglesToGVec(angs, bHat_l, eHat_l, rMat_s=None, rMat_c=None):
+def anglesToGVec(angs, bHat_l, eHat_l, rMat_s=I3, rMat_c=I3):
     """
     from 'eta' frame out to lab (with handy kwargs to go to crystal or sample)
     """
-    if rMat_s is None:
-        rMat_s = I3
-    if rMat_c is None:
-        rMat_c = I3
-
     rMat_e = makeEtaFrameRotMat(bHat_l, eHat_l)
     gVec_e = np.vstack([[np.cos(0.5*angs[:, 0]) * np.cos(angs[:, 1])],
                         [np.cos(0.5*angs[:, 0]) * np.sin(angs[:, 1])],
@@ -716,23 +712,51 @@ def rowNorm(a):
 
     return cnrma
 
+@numba.njit
+def _unitVectorSingle(a, b):
+    n = a.shape[0]
+    nrm = 0.0
+    for i in range(n):
+        nrm += a[i]*a[i]
+    nrm = np.sqrt(nrm)
+    # prevent divide by zero
+    if nrm > epsf:
+        for i in range(n):
+            b[i] = a[i] / nrm
+    else:
+        for i in range(n):
+            b[i] = a[i]
+
+@numba.njit
+def _unitVectorMulti(a, b):
+    n = a.shape[0]
+    m = a.shape[1]
+    for j in range(m):
+        nrm = 0.0
+        for i in range(n):
+            nrm += a[i, j]*a[i, j]
+        nrm = np.sqrt(nrm)
+        # prevent divide by zero
+        if nrm > epsf:
+            for i in range(n):
+                b[i, j] = a[i, j] / nrm
+        else:
+            for i in range(n):
+                b[i, j] = a[i, j]
+    
+
 def unitVector(a):
     """
     normalize array of column vectors (hstacked, axis = 0)
     """
-    assert a.ndim in [1, 2], "incorrect arg shape; must be 1-d or 2-d, yours is %d-d" % (a.ndim)
-
-    m = a.shape[0]; n = 1
-
-    nrm = np.tile(np.sqrt(sum(np.asarray(a)**2, 0)), (m, n))
-
-    # prevent divide by zero
-    zchk = nrm <= epsf
-    nrm[zchk] = 1.
-
-    nrma = a/nrm
-
-    return nrma
+    result = np.empty_like(a)
+    if a.ndim == 1:
+        _unitVectorSingle(a, result)
+    elif a.ndim == 2:
+        _unitVectorMulti(a, result)
+    else:
+        raise ValueError("incorrect arg shape; must be 1-d or 2-d, yours is %d-d" % (a.ndim))
+    return result
 
 def makeDetectorRotMat(tiltAngles):
     """
