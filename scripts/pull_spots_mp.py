@@ -128,10 +128,10 @@ gScl  = np.array([1., 1., 1.,
 @numba.njit
 def extract_ijv(in_array, threshold, out_i, out_j, out_v):
     n = 0
-    w, h= in_array.shape
+    w, h = in_array.shape
 
-    for i in range(h):
-        for j in range(w):
+    for i in range(w):
+        for j in range(h):
             v = in_array[i,j]
             if v > threshold:
                 out_v[n] = v
@@ -158,7 +158,8 @@ def read_frames(reader, parser):
     for i in range(nframes):
         frame = reader.read()
         count = extract_ijv(frame, threshold, i_buff, j_buff, v_buff)
-        sparse_frame= sparse.coo_matrix((v_buff[0:count], (i_buff[0:count], j_buff[0:count])),
+        sparse_frame= sparse.coo_matrix((v_buff[0:count].copy(),
+                                         (i_buff[0:count].copy(), j_buff[0:count].copy())),
                                          shape=frame.shape)
         frame_list.append(sparse_frame)
         pbar.update(i+1)
