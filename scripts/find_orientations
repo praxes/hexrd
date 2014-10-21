@@ -265,7 +265,7 @@ def run_cluster(compl, qfib, qsym, cfg, verbose=False):
 
 
 def load_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
-    cwd = cfg['base'].get('working_dir', os.getcwd())
+    cwd = cfg.get('working_dir', os.getcwd())
     fn = cfg['find_orientations']['orientation_maps'].get('file', None)
     try:
         fn = os.path.join(cwd, fn)
@@ -319,7 +319,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
     if verbose:
         print "done"
 
-    cwd = cfg['base'].get('working_dir', os.getcwd())
+    cwd = cfg.get('working_dir', os.getcwd())
     outfile = omcfg.get('file', None)
     if outfile is not None:
         fn = os.path.join(cwd, outfile)
@@ -336,8 +336,8 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
 def find_orientations(
     cfg, pd, reader, detector, verbose=False, hkls=None, force=False
     ):
-    cwd = cfg['base'].get('working_dir', os.getcwd())
-    analysis_name = cfg['base']['analysis_name']
+    cwd = cfg.get('working_dir', os.getcwd())
+    analysis_name = cfg['analysis_name']
     analysis_root = os.path.join(cwd, analysis_name)
     if os.path.exists(analysis_root) and not force:
         print (

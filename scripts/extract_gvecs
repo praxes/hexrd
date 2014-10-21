@@ -1,0 +1,113 @@
+#!/usr/bin/env python
+
+import argparse
+import os
+import sys
+import textwrap
+import time
+
+import numpy as np
+import progressbar
+
+from hexrd.coreutil import initialize_experiment, merge_dicts
+
+
+def extract_measured_g_vectors(cfg, args):
+    pthresh = parser.getfloat('pull_spots', 'threshold')
+    tth_tol = parser.getfloat('pull_spots', 'tth_tol')
+
+    det_origin_str = parser.get('pull_spots', 'det_origin')
+    det_origin = np.array(det_origin_str.split(','), dtype=float)
+
+    geomParams = np.vstack([detector.getParams(allParams=True)[:6],
+                            np.zeros(6)]).T
+
+    distortion = (dFuncs.GE_41RT, detector.getParams(allParams=True)[6:])
+
+    tVec_d = tVec_d_from_old_parfile(geomParams, det_origin)
+    detector_params = np.hstack([geomParams[3:6, 0], tVec_d.flatten(), 0., np.zeros(3)])
+
+    use_tth_max = parser.get('pull_spots', 'use_tth_max').strip().lower()
+    if use_tth_max == '1' or use_tth_max == 'true':
+        pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
+        pd.exclusions = pd.getTTh() > detector.getTThMax()
+    elif use_tth_max != '0' and use_tth_max != 'false' and use_tth_max != '':
+        pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
+        pd.exclusions = pd.getTTh() >= d2r*float(use_tth_max)
+        pass
+    phi, n = rot.angleAxisOfRotMat(rot.rotMatOfQuat(qbar))
+    if have_progBar:
+        widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
+        pbar = ProgressBar(widgets=widgets, maxval=len(qbar.T)).start()
+        pass
+    print "pulling spots for %d orientations..." %len(qbar.T)
+
+    cwd = cfg['base'].get('working_dir', os.getcwd())
+    analysis_name = cfg['base']['analysis_name']
+    spots_f = os.path.join(cwd, analysis_name, 'spots_%05d.out')
+    for iq, quat in enumerate(qbar.T):
+        if have_progBar:
+            pbar.update(iq)
+        exp_map = phi[iq]*n[:, iq]
+        grain_params = np.hstack([exp_map.flatten(), 0., 0., 0., 1., 1., 1., 0., 0., 0.])
+        sd = xrdutil.pullSpots(
+            args.pd,
+            detector_params,
+            grain_params,
+            args.reader,
+            filename=spots_f % iq,
+            eta_range=etaRange,
+            ome_period=ome_period,
+            eta_tol=eta_tol,
+            ome_tol=ome_tol,
+            threshold=pthresh,
+            tth_tol=tth_tol,
+            distortion=distortion
+            )
+        pass
+    if have_progBar:
+        pbar.finish()
+        pass
+    pass # condidional on pull spots
+
+
+def main(cfg, verbose=False, force=False):
+    if verbose:
+        print "Using '%s' configuration file" % cfg
+
+    # need to iterate here
+    # for cfg in cfgs
+    with open(yml_file, 'r') as f:
+        cfgs = [cfg for cfg in yaml.load_all(f)]
+    cfg = cfgs[0]
+
+    # a goofy call, could be replaced with two more targeted calls
+    pd, reader, detector = initialize_experiment(cfg)
+
+    for i, c in enumerate(cfgs):
+        cfg = merge_dicts(cfg, c)
+        extract_measured_g_vectors(cfg, verbose=verbose, force=force)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Extracts measured G vectors',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent('''
+            example:
+            $ extract_gvecs -v configuration.yml
+            ''')
+        )
+    parser.add_argument(
+        'yml', type=str,
+        help='YAML configuration file'
+        )
+    parser.add_argument(
+        '-v', '--verbose', action='store_true',
+        help='report progress in terminal'
+        )
+    parser.add_argument(
+        '-f', '--force', action='store_true',
+        help='force overwrite of existing data'
+        )
+    main(args.yml, verbose=args.verbose, force=args.force)

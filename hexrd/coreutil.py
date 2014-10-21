@@ -142,7 +142,7 @@ def initialize_experiment(cfg, verbose=False):
     # make experiment
     ws = expt.Experiment()
 
-    cwd = cfg['base'].get('working_dir', os.getcwd())
+    cwd = cfg.get('working_dir', os.getcwd())
 
     materials_fname = cfg['material']['definitions']
     material_name = cfg['material']['active']
