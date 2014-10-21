@@ -1,4 +1,7 @@
-import sys, os, time
+import copy
+import os
+import sys
+import time
 
 import shelve, cPickle
 import numpy as np
@@ -195,3 +198,14 @@ def initialize_experiment(cfg_file):
     ws.loadDetector(os.path.join(working_dir, detector_fname))
 
     return pd, reader, ws.detector
+
+
+def merge_dicts(a, b):
+    "Returns a merged dict, updating values in `a` with values from `b`"
+    a = copy.deepcopy(a)
+    for k,v in b.iteritems():
+        if isinstance(v, dict):
+            merge_dicts(a[k], v)
+        else:
+            a[k] = v
+    return a

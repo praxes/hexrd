@@ -16,6 +16,7 @@ requirements:
     - matplotlib
 #    - numbapro
     - numpy #>=1.4.0
+    - python >=2.7,<3
     - scipy >=0.7.0
     - wxpython >=2.8
   run:
@@ -24,6 +25,7 @@ requirements:
     - numpy #>=1.4.0
     - progressbar
     - python.app # [osx]
+    - scikit-learn
     - scipy >=0.7.0
     - wxpython >=2.8
     - progressbar

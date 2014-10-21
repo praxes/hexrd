@@ -377,11 +377,11 @@ def omeRangeToFrameRange(omeA, omeB, omegaStart, omegaDelta, nFrames, checkWrap=
     omegaDelta may be negative
     """
     retval = None
-    
+
     wrapsAround = abs( ( nFrames * abs(omegaDelta) ) - ( 2.0 * num.pi ) ) < 1.0e-6
     iFA = int((omeA - omegaStart) / omegaDelta)
     iFB = int((omeB - omegaStart) / omegaDelta)
-    
+
     if checkWrap and wrapsAround:
         iFAW = iFA % nFrames
         shift = iFAW - iFA
@@ -399,7 +399,7 @@ def omeRangeToFrameRange(omeA, omeB, omegaStart, omegaDelta, nFrames, checkWrap=
 
     if retval is None:
         rawFrameRange = num.sort(num.hstack( (iFA, iFB) ))
-        retval = ( 
+        retval = (
             num.hstack( (rawFrameRange, 0) )[0],
             num.hstack( (nFrames-1, rawFrameRange ) )[-1] + slicePad,
             )
@@ -420,7 +420,7 @@ def frameInRange(iFrame, frameRange):
     else:
         if iFrame >= frameRange[0] and iFrame < frameRange[1]:
             retval = True
-    return retval 
+    return retval
 
 def getNFramesFromBytes(fileBytes, nbytesHeader, nbytesFrame):
     assert (fileBytes - nbytesHeader) % nbytesFrame == 0,\
@@ -499,11 +499,11 @@ class ReadGeneric(Framer2DRC):
         self.__nempty        = kwargs.pop('nempty', 0)
         doFlip               = kwargs.pop('doFlip', False)
         self.subtractDark    = kwargs.pop('subtractDark', False)
-        
+
         'keep things for makeNew convenience'
         self.__args   = args
         self.__kwargs = kwargs
-        
+
         if doFlip is not False:
             raise NotImplementedError, 'doFlip not False'
         if self.subtractDark is not False:
@@ -4260,7 +4260,7 @@ class Detector2DRC(DetectorBase):
         given either angBBox or angCOM (angular center) and angPM (+-values), compute the bounding box on the image frame
 
         if forSlice=True, then returned bbox is appropriate for use in array slicing
-        
+
         if reader or omegas is passed, then convert from omegas to frames;
         and if doWrap=True, then frames may be a list for an omega range that spans the branch cut
         """
@@ -4318,12 +4318,12 @@ class Detector2DRC(DetectorBase):
                 omegaDelta = num.mean(omegas[1:]-omegas[:-1]) # assumes uniform omegas
                 omegaStart = omegas[0]-omegaDelta*0.5
                 nFrames    = len(omegas)
-            frameRange = omeRangeToFrameRange(xyoBBox[2][0], xyoBBox[2][1], 
-                                              omegaStart, omegaDelta, nFrames, 
+            frameRange = omeRangeToFrameRange(xyoBBox[2][0], xyoBBox[2][1],
+                                              omegaStart, omegaDelta, nFrames,
                                               checkWrap=doWrap, slicePad=slicePad)
-            xyoBBox[2] = frameRange 
+            xyoBBox[2] = frameRange
             'try using frameInRange(iFrame, xyoBBox[2])'
-        
+
         return xyoBBox
 
     def drawRings(self, drawOn, planeData, withRanges=False, legendLoc=(0.05,0.5), legendMaxLen=10,
@@ -4857,7 +4857,7 @@ class Detector2DRC(DetectorBase):
             colOut = colTTh
         else:
             colOut = colRho
-        
+
         # initialize output dictionary
         polImg = {}
         polImg['corrected']   = corrected
@@ -4865,7 +4865,7 @@ class Detector2DRC(DetectorBase):
         polImg['azimuth']     = rowEta
         polImg['deltaRho']    = deltaRho
         polImg['intensity']   = num.empty( (numEta, numRho) )
-        
+
         if verbose:
             msg = "INFO: Masking pixels\n"
             if log:
