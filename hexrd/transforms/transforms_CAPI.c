@@ -238,7 +238,11 @@ static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
   /* Verify dimensions of input arrays */
   npts = PyArray_DIMS(gVec_c)[0];
 
-  assert( PyArray_DIM(gVec_c, 0) == PyArray_DIM(rMat_s, 0));
+  if (npts != PyArray_DIM(rMat_s, 0)) {
+    PyErr_Format(PyExc_ValueError, "gVec_c and rMat_s length mismatch %d vs %d",
+                 (int)PyArray_DIM(gVec_c, 0), (int)PyArray_DIM(rMat_s, 0));
+    return NULL;
+  }
   assert( PyArray_DIMS(gVec_c)[1]  == 3 );
   assert( PyArray_DIMS(rMat_d)[0]  == 3 && PyArray_DIMS(rMat_d)[1] == 3 );
   assert( PyArray_DIMS(rMat_s)[1]  == 3 && PyArray_DIMS(rMat_s)[2] == 3 );
@@ -283,6 +287,8 @@ static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
   /*   new_result_Ptr = (double*)realloc(result_Ptr,2*nadm*sizeof(double)); */
   /*   if ( new_result_Ptr != NULL ) result_Ptr = new_result_Ptr; */
   /*   else */
+  /*     assert( false ); /\* This really should never happen *\/ */
+  /* } */
   /*     assert( false ); /\* This really should never happen *\/ */
   /* } */
 

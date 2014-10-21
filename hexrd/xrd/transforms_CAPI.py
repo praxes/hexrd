@@ -145,7 +145,7 @@ def gvecToDetectorXYArray(gVec_c,
     tVec_s  = np.ascontiguousarray( tVec_s.flatten()  )
     tVec_c  = np.ascontiguousarray( tVec_c.flatten()  )
     beamVec = np.ascontiguousarray( beamVec.flatten() )
-    return _transforms_CAPI.gvecToDetectorXY(gVec_c,
+    return _transforms_CAPI.gvecToDetectorXYArray(gVec_c,
                                              rMat_d, rMat_s, rMat_c,
                                              tVec_d, tVec_s, tVec_c,
                                              beamVec)
