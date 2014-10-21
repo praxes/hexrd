@@ -25,6 +25,7 @@ from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 
 from hexrd.xrd.detector import ReadGE
+import numba
 
 try:
     from progressbar import ProgressBar, Bar, ETA, Percentage
@@ -123,6 +124,23 @@ gScl  = np.array([1., 1., 1.,
                   1., 1., 1.,
                   1., 1., 1., 0.01, 0.01, 0.01])
 
+
+@numba.njit
+def extract_ijv(in_array, threshold, out_i, out_j, out_v):
+    n = 0
+    w, h= in_array.shape
+
+    for i in range(h):
+        for j in range(w):
+            v = in_array[i,j]
+            if v > threshold:
+                out_v[n] = v
+                out_i[n] = i
+                out_j[n] = j
+                n += 1
+
+    return n
+
 def read_frames(reader, parser):
     start = time.time()                      # time this
 
@@ -134,14 +152,16 @@ def read_frames(reader, parser):
     nframes = reader.getNFrames()
     print "Reading %d frames:" % nframes
     pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], maxval=nframes).start()
+    v_buff = np.empty((2048*2048,), dtype=np.int16)
+    i_buff = np.empty((2048*2048,), dtype=np.int16)
+    j_buff = np.empty((2048*2048,), dtype=np.int16)
     for i in range(nframes):
         frame = reader.read()
-        mask = frame > threshold
-        sparse_frame = sparse.coo_matrix((frame[mask], mask.nonzero()),
-                                         shape=mask.shape)
+        count = extract_ijv(frame, threshold, i_buff, j_buff, v_buff)
+        sparse_frame= sparse.coo_matrix((v_buff[0:count], (i_buff[0:count], j_buff[0:count])),
+                                         shape=frame.shape)
         frame_list.append(sparse_frame)
         pbar.update(i+1)
-
     pbar.finish()
     # frame_list = np.array(frame_list)
     reader = [frame_list, [ome_start*d2r, ome_delta*d2r]]
