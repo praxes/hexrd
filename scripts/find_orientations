@@ -24,7 +24,7 @@ from hexrd.xrd import indexer as idx
 from hexrd.xrd import rotations as rot
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
-from hexrd.coreutil import merge_dicts
+from hexrd.coreutil import initialize_experiment, merge_dicts
 
 from hexrd.xrd import xrdutil
 from hexrd.xrd.xrdbase import multiprocessing
@@ -52,131 +52,6 @@ try:
         print "Installed scikit-learn is too old (<0.14), using scipy fallback"
 except:
     print "System does not have SciKit installed, using scipy fallback"
-
-"""
-##################### BEGIN COMPUTATION HERE #####################
-"""
-
-# constants
-d2r = np.pi/180.
-r2d = 180./np.pi
-
-bVec_ref = xf.bVec_ref
-
-min_compl = 0.5
-cl_radius = 1.0
-
-
-##################################################
-# LEGACY FUCTIONS FOR WORKING WITH OLD HEXRD PAR #
-##################################################
-
-
-def tVec_d_from_old_parfile(old_par, detOrigin):
-    beamXYD = old_par[:3, 0]
-    rMat_d  = xf.makeDetectorRotMat(old_par[3:6, 0])
-    args=(rMat_d, beamXYD, detOrigin, bVec_ref)
-    tvd_xy = opt.leastsq(objFun_tVec_d, -beamXYD[:2], args=args)[0]
-    return np.hstack([tvd_xy, -beamXYD[2]]).reshape(3, 1)
-
-
-def objFun_tVec_d(tvd_xy, rMat_d, beamXYD, detOrigin, bHat_l):
-    """
-    """
-    xformed_xy = beamXYD[:2] - detOrigin
-    tVec_d = np.hstack([tvd_xy, -beamXYD[2]]).T
-    n_d    = rMat_d[:, 2]
-
-    bVec_l = (np.dot(n_d, tVec_d) / np.dot(n_d, bHat_l)) * bHat_l
-    bVec_d = np.hstack([xformed_xy, 0.]).T
-
-    return np.dot(rMat_d, bVec_d).flatten() \
-           + tVec_d.flatten() - bVec_l.flatten()
-
-
-def beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, detOrigin):
-    # calculate beam position
-    n_d = np.dot(rMat_d, np.c_[0., 0., 1.].T)
-
-    u = np.dot(n_d.flatten(), tVec_d) / np.dot(n_d.flatten(), bVec_ref)
-
-    detOrigin - tVec_d[:2].flatten()
-    return np.hstack([detOrigin - tVec_d[:2].flatten(), u.flatten()])
-
-
-def write_old_parfile(filename, results):
-    if isinstance(filename, file):
-        fid = filename
-    elif isinstance(filename, str) or isinstance(filename, unicode):
-        fid = open(filename, 'w')
-        pass
-    rMat_d = xf.makeDetectorRotMat(results['tiltAngles'])
-    tVec_d = results['tVec_d'] - results['tVec_s']
-    beamXYD = beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, detOrigin)
-    det_plist = np.zeros(12)
-    det_plist[:3]  = beamXYD.flatten()
-    det_plist[3:6] = results['tiltAngles']
-    det_plist[6:]  = results['dParams']
-    print >> fid, "# DETECTOR PARAMETERS (from new geometry model fit)"
-    print >> fid, "# \n# <class 'hexrd.xrd.detector.DetectorGeomGE'>\n#"
-    for i in range(len(det_plist)):
-        print >> fid, "%1.8e\t%d" % (det_plist[i], 0)
-    fid.close()
-    return
-
-
-########################
-# END LEGACY FUNCTIONS #
-########################
-
-
-def initialize_experiment(cfg, verbose=False):
-    """
-    """
-    # make experiment
-    ws = expt.Experiment()
-
-    cwd = cfg['base'].get('working_dir', os.getcwd())
-
-    materials_fname = cfg['material']['definitions']
-    material_name = cfg['material']['active']
-    detector_fname = cfg['detector']['parameters_old']
-
-    # MATERIALS
-    ws.loadMaterialList(os.path.join(cwd, materials_fname))
-    ws.activeMaterial = material_name
-    if verbose:
-        print "setting active material to '%s'" % (material_name)
-
-    pd = ws.activeMaterial.planeData
-
-    # assemble the image series
-    image_dir = cfg['image_series']['directory']
-    file_stem = cfg['image_series']['file']['stem']
-    file_ids = cfg['image_series']['file']['ids']
-    image_start = cfg['image_series']['images']['start']
-    file_info = []
-    for fid in file_ids:
-        file_info.append(
-            (os.path.join(image_dir, file_stem % fid), image_start)
-            )
-    ome_start = cfg['image_series']['ome']['start'] * d2r
-    ome_delta = cfg['image_series']['ome']['step'] * d2r
-    dark = cfg['image_series'].get('dark', None)
-    flip = cfg['image_series'].get('flip', None)
-
-    # make frame reader
-    reader = ReadGE(file_info, ome_start, ome_delta,
-                    subtractDark=dark is not None, # TODO: get rid of this
-                    dark=dark,
-                    doFlip=flip is not None,
-                    flipArg=flip, # TODO: flip=flip
-                    )
-
-    # DETECTOR
-    ws.loadDetector(os.path.join(cwd, detector_fname))
-
-    return pd, reader, ws.detector
 
 
 def generate_orientation_fibers(
@@ -295,7 +170,7 @@ def paintgrid(pd, eta_ome, quats, threshold,
         quats,
         eta_ome,
         omegaRange=omeRange, etaRange=etaRange,
-        omeTol=d2r*omeTol, etaTol=d2r*etaTol,
+        omeTol=np.radians(omeTol), etaTol=np.radians(etaTol),
         omePeriod=omePeriod, threshold=threshold,
         doMultiProc=ncpus>1,
         nCPUs=ncpus)
