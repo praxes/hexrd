@@ -136,9 +136,12 @@ def read_frames(reader, parser):
     pbar = ProgressBar(widgets=[Percentage(), Bar(), ETA()], maxval=nframes).start()
     for i in range(nframes):
         frame = reader.read()
-        frame[frame <= threshold] = 0
-        frame_list.append(sparse.coo_matrix(frame))
+        mask = frame > threshold
+        sparse_frame = sparse.coo_matrix((frame[mask], mask.nonzero()),
+                                         shape=mask.shape)
+        frame_list.append(sparse_frame)
         pbar.update(i+1)
+
     pbar.finish()
     # frame_list = np.array(frame_list)
     reader = [frame_list, [ome_start*d2r, ome_delta*d2r]]
