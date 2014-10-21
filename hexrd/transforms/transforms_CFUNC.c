@@ -125,12 +125,57 @@ void gvecToDetectorXY_cfunc(long int npts, double * gVec_c,
   }
 }
 
+/*
+ * The only difference between this and the non-Array version
+ * is that rMat_s is an array of matrices of length npts instead
+ * of a single matrix.
+ */
 void gvecToDetectorXYArray_cfunc(long int npts, double * gVec_c,
                             double * rMat_d, double * rMat_s, double * rMat_c,
                             double * tVec_d, double * tVec_s, double * tVec_c,
                             double * beamVec, double * result)
 {
-  // TODO
+  long int i;
+  int j, k, l;
+
+  double num;
+  double nVec_l[3], bHat_l[3], P0_l[3], P3_l[3];
+  double rMat_sc[9];
+
+  /* Normalize the beam vector */
+  unitRowVector_cfunc(3,beamVec,bHat_l);
+
+  for (i=0L; i<npts; i++) {
+      /* Initialize the detector normal and frame origins */
+      num = 0.0;
+      for (j=0; j<3; j++) {
+        nVec_l[j] = 0.0;
+        P0_l[j]   = tVec_s[j];
+
+        for (k=0; k<3; k++) {
+          nVec_l[j] += rMat_d[3*j+k]*Zl[k];
+          P0_l[j]   += rMat_s[9*i + 3*j+k]*tVec_c[k];
+        }
+
+        P3_l[j] = tVec_d[j];
+
+        num += nVec_l[j]*(P3_l[j]-P0_l[j]);
+      }
+
+    /* Compute the matrix product of rMat_s and rMat_c */
+    for (j=0; j<3; j++) {
+      for (k=0; k<3; k++) {
+        rMat_sc[3*j+k] = 0.0;
+        for (l=0; l<3; l++) {
+          rMat_sc[3*j+k] += rMat_s[9*i + 3*j+l]*rMat_c[3*l+k];
+        }
+      }
+    }
+
+    gvecToDetectorXYOne_cfunc(&gVec_c[3*i], rMat_d, rMat_sc, tVec_d,
+                              bHat_l, nVec_l, num,
+                              P0_l, &result[2*i]);
+  }
 }
 
 void detectorXYToGvec_cfunc(long int npts, double * xy,
