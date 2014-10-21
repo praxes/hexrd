@@ -24,6 +24,7 @@ requirements:
 #    - numbapro
     - numpy #>=1.4.0
     - progressbar
+    - python >=2.7,<3
     - python.app # [osx]
     - scikit-learn
     - scipy >=0.7.0
