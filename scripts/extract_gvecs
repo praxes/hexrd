@@ -12,29 +12,71 @@ import progressbar
 from hexrd.coreutil import initialize_experiment, merge_dicts
 
 
-def extract_measured_g_vectors(cfg, args):
-    pthresh = parser.getfloat('pull_spots', 'threshold')
-    tth_tol = parser.getfloat('pull_spots', 'tth_tol')
+def migrate_detector_parameters(old, new, rows, cols, size):
+    pass
 
-    det_origin_str = parser.get('pull_spots', 'det_origin')
-    det_origin = np.array(det_origin_str.split(','), dtype=float)
 
-    geomParams = np.vstack([detector.getParams(allParams=True)[:6],
-                            np.zeros(6)]).T
+def extract_measured_g_vectors(
+    cfg, pd, reader, detector, verbose=False, force=False
+    ):
+
+    #####################
+    ## load parameters ##
+    #####################
+
+    cwd = cfg.get('working_dir', os.getcwd())
+    analysis_root = os.path.join(cwd, cfg['analysis_name'])
+
+    exgcfg = cfg['extract_measured_g_vectors']
+    pthresh = exgcfg['threshold']
+    tth_max = exgcfg.get('tth_max', True)
+    try:
+        tth_tol = exgcfg['tolerance'].get('tth', None)
+        eta_tol = exgcfg['tolerance'].get('eta', None)
+        ome_tol = exgcfg['tolerance'].get('ome', None)
+    except KeyError:
+        tth_tol = eta_tol = ome_tol = None
+    if tth_tol is None:
+        tth_tol = 0.2
+    if eta_tol is None:
+        eta_tol = 1
+    if ome_tol is None:
+        ome_tol = 2*cfg['image_series']['ome']['step']
+
+    ###########################
+    ## Instrument parameters ##
+    ###########################
+
+    # attempt to load the new detector parameter file
+    det_p = os.path.join(analysis_root, cfg['detector']['parameters'])
+    if not os.path.exists(det_p):
+        det_o = os.path.join(analysis_root, cfg['detector']['parameters_old'])
+        rows = cfg['detector']['pixels']['rows']
+        cols = cfg['detector']['pixels']['cols']
+        psize = cfg['detector']['pixels']['size']
+        migrate_detector_parameters(det_o, det_p, rows, cols, psize)
+
+    geomParams = np.vstack(
+        [detector.getParams(allParams=True)[:6],
+        np.zeros(6)]
+        ).T
 
     distortion = (dFuncs.GE_41RT, detector.getParams(allParams=True)[6:])
 
     tVec_d = tVec_d_from_old_parfile(geomParams, det_origin)
     detector_params = np.hstack([geomParams[3:6, 0], tVec_d.flatten(), 0., np.zeros(3)])
 
-    use_tth_max = parser.get('pull_spots', 'use_tth_max').strip().lower()
-    if use_tth_max == '1' or use_tth_max == 'true':
+    if tth_max is True:
         pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
         pd.exclusions = pd.getTTh() > detector.getTThMax()
-    elif use_tth_max != '0' and use_tth_max != 'false' and use_tth_max != '':
+    elif tth_max > 0:
         pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
-        pd.exclusions = pd.getTTh() >= d2r*float(use_tth_max)
-        pass
+        pd.exclusions = pd.getTTh() >= np.radians(tth_max)
+    elif tth_max < 0:
+        if verbose:
+            print "Ignoring invalid tth_max: %g."
+            "Must be 'true', 'false', or a non-negative value"
+
     phi, n = rot.angleAxisOfRotMat(rot.rotMatOfQuat(qbar))
     if have_progBar:
         widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]

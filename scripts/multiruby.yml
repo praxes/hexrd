@@ -1,5 +1,5 @@
 ## working directory defaults to current working directory in terminal
-working_dir: /nfs/chess/aux/user/afrl/2014-3/multiruby
+#working_dir: /nfs/chess/aux/user/afrl/2014-3/multiruby
 analysis_name: multiruby
 
 material:
@@ -61,7 +61,7 @@ find_orientations:
 
 extract_measured_g_vectors:
   threshold: 1850
-  tth_max: 15
+  tth_max: 15 # true, false, or a non-negative value, defaults to true
   #tolerance:
   #  tth: 0.2 # defaults to 0.2
   #  eta: 1 # defaults to 1
