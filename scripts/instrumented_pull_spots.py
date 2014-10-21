@@ -10,9 +10,10 @@ import functools
 from contextlib import contextmanager
 import numpy as np
 
-def add_nvtx_instrumentation(nvtx):
+def add_nvtx_instrumentation(nvtx, refinement=1):
     from scipy import sparse
     from scipy import ndimage
+    from scipy import optimize
     from hexrd.xrd import xrdutil
     from hexrd.xrd import fitting
     from hexrd.xrd import xrdutil
@@ -21,6 +22,7 @@ def add_nvtx_instrumentation(nvtx):
     from numba import dispatcher
     from hexrd.xrd import transforms_CAPI as xfcapi
     from hexrd.xrd import transforms as xf
+    from hexrd.xrd import detector
     import numpy
 
     _locals = locals()
@@ -28,24 +30,39 @@ def add_nvtx_instrumentation(nvtx):
         exec '{0} = nvtx.profiled("{0}", color={1})({0})'.format(func_path, color) in globals(), _locals
 
 
+    if refinement < 0:
+        return
+
     # This 3 show a bit of structure:
     # target.Config.__init__ is initialization time that is outside of multiprocessing
     # target.read_frames is the time taken by reading frame data *and* converting to sparse
     # target.process_grain is the "per grain" process, which should be handled by multiproc
+    PROFILE('dispatcher.Overloaded.compile', nvtx.colors.black)
     PROFILE('target.Config.__init__', nvtx.colors.red)
-    PROFILE('target.read_frames', nvtx.colors.green)
     PROFILE('target.process_grain', nvtx.colors.blue)
 
+
+    if refinement < 1:
+        return
+
     # This shows where numba is compiling the @jit decorated functions
-    PROFILE('dispatcher.Overloaded.compile', nvtx.colors.black)
+    PROFILE('target.read_frames', nvtx.colors.green)
+    PROFILE('xrdutil.pullSpots', nvtx.colors.blue)
+    PROFILE('fitting.fitGrain', nvtx.colors.yellow)
+    PROFILE('target.extract_ijv', nvtx.colors.magenta)
+    PROFILE('numpy.nonzero', nvtx.colors.red)
+
+    if refinement < 2:
+        return
+
+    PROFILE('optimize.leastsq', nvtx.colors.blue)
+    PROFILE('detector.ReadGE.read', nvtx.colors.cyan)
 
     # some key functions
     PROFILE('numpy.meshgrid', nvtx.colors.red)
     PROFILE('numpy.arange', nvtx.colors.red)
-    PROFILE('xrdutil.pullSpots', nvtx.colors.blue)
     PROFILE('xrdutil.simulateGVecs', nvtx.colors.yellow)
     PROFILE('xrdutil._coo_build_window', nvtx.colors.yellow)
-    PROFILE('fitting.fitGrain', nvtx.colors.yellow)
     PROFILE('fitting.objFuncFitGrain', nvtx.colors.magenta)
     PROFILE('sparse.coo_matrix', nvtx.colors.yellow)
     PROFILE('sparse.coo.coo_matrix.todense', nvtx.colors.magenta)
