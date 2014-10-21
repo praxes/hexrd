@@ -3255,7 +3255,7 @@ def angularPixelSize(xy_det, xy_pixelPitch,
 
 #@numba.jit("void (intptr[:], intptr[:], int16[:], int, int, int, int, int16[:])")
 #@numba.jit("void (int64[:], int64[:], int16[:], int32, int32, int32, int32, int16[:])")
-@numba.jit
+@numba.njit
 def _coo_build_window(frame_row, frame_col, frame_data,
                       min_row, max_row, min_col, max_col,
                       result):
