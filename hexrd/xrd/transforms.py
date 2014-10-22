@@ -110,7 +110,8 @@ def anglesToGVec(angs, bHat_l, eHat_l, rMat_s=None, rMat_c=None):
     gVec_e = np.vstack([[np.cos(0.5*angs[:, 0]) * np.cos(angs[:, 1])],
                         [np.cos(0.5*angs[:, 0]) * np.sin(angs[:, 1])],
                         [np.sin(0.5*angs[:, 0])]])
-    return np.dot(rMat_c.T, np.dot(rMat_s.T, np.dot(rMat_e, gVec_e)))
+    mat = np.dot(rMat_c.T, np.dot(rMat_s.T, rMat_e))
+    return np.dot(mat, gVec_e)
 
 def gvecToDetectorXY(gVec_c,
                      rMat_d, rMat_s, rMat_c,
