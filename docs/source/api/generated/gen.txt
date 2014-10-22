@@ -1,0 +1,34 @@
+.. AUTO-GENERATED FILE -- DO NOT EDIT!
+
+.. autosummary::
+   :toctree: generated
+
+   hexrd.arrayutil
+   hexrd.fileutil
+   hexrd.gridutil
+   hexrd.matrixutil
+   hexrd.orientations
+   hexrd.pfigutil
+   hexrd.plotwrap
+   hexrd.quadrature.q1db
+   hexrd.quadrature.q2db
+   hexrd.quadrature.q3db
+   hexrd.tens
+   hexrd.valunits
+   hexrd.xrd.crystallography
+   hexrd.xrd.detector
+   hexrd.xrd.distortion
+   hexrd.xrd.experiment
+   hexrd.xrd.fitting
+   hexrd.xrd.grain
+   hexrd.xrd.hydra
+   hexrd.xrd.indexer
+   hexrd.xrd.material
+   hexrd.xrd.rotations
+   hexrd.xrd.spacegroup
+   hexrd.xrd.spotfinder
+   hexrd.xrd.symmetry
+   hexrd.xrd.transforms
+   hexrd.xrd.transforms_CAPI
+   hexrd.xrd.xrdbase
+   hexrd.xrd.xrdutil

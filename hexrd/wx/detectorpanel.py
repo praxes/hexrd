@@ -37,7 +37,7 @@ TO DO
 * Panel for modifying plane-data (in progress)
 
 """
-import sys,os
+import sys, os
 
 import wx
 import numpy

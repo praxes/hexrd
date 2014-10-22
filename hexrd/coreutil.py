@@ -1,4 +1,7 @@
-import sys, os, time
+import copy
+import os
+import sys
+import time
 
 import shelve, cPickle
 import numpy as np
@@ -34,13 +37,13 @@ def tVec_d_from_old_detector_params(old_par, det_origin):
     """
     rMat_d = xf.makeDetectorRotMat(old_par[3:6, 0])
     #
-    P2_d   = np.c_[ old_par[0, 0] - det_origin[0], 
-                    old_par[1, 0] - det_origin[1], 
-                    0.].T    
-    P2_l   = np.c_[ 0., 
-                    0., 
+    P2_d   = np.c_[ old_par[0, 0] - det_origin[0],
+                    old_par[1, 0] - det_origin[1],
+                    0.].T
+    P2_l   = np.c_[ 0.,
+                    0.,
                    -old_par[2, 0]].T
-    return P2_l - np.dot(rMat_d, P2_d) 
+    return P2_l - np.dot(rMat_d, P2_d)
 
 def old_detector_params_from_new(new_par, det_origin):
     """
@@ -52,7 +55,7 @@ def old_detector_params_from_new(new_par, det_origin):
     tVec_d = new_par[3:6].reshape(3, 1)
     #
     A = np.eye(3); A[:, :2] = rMat_d[:, :2]
-    # 
+    #
     return solve(A, -tVec_d) + np.vstack([det_origin[0], det_origin[1], 0])
 
 def make_old_detector_parfile(results, det_origin=(204.8, 204.8), filename=None):
@@ -132,66 +135,62 @@ def make_grain_params(quat, tVec_c=np.zeros(3), vInv=vInv_ref, filename=None):
 # #################################################
 
 # #################################################
-#
-def initialize_experiment(cfg_file):
-    """
-    """
-    parser = SafeConfigParser()
-    parser.read(cfg_file)
 
-    hexrd_root = parser.get('base', 'hexrd_root')
 
+def initialize_experiment(cfg, verbose=False):
+    """takes a yml configuration file as input"""
     # make experiment
-    ws = expt.Experiment(cfgFile=os.path.join(hexrd_root, "hexrd/data/materials.cfg"),
-                         matFile=os.path.join(hexrd_root, "hexrd/data/all_materials.cfg"))
+    ws = expt.Experiment()
 
-    working_dir = parser.get('base', 'working_dir')
+    cwd = cfg.get('working_dir', os.getcwd())
 
-    materials_fname = parser.get('material', 'materials_fname')
-    material_name   = parser.get('material', 'material_name')
-    detector_fname  = parser.get('detector', 'parfile_name')
+    materials_fname = cfg['material']['definitions']
+    material_name = cfg['material']['active']
+    detector_fname = cfg['detector']['parameters_old']
 
     # MATERIALS
-    ws.loadMaterialList(os.path.join(working_dir, materials_fname))
+    ws.loadMaterialList(os.path.join(cwd, materials_fname))
     ws.activeMaterial = material_name
-    print "setting active material to '%s'" % (material_name)
+    if verbose:
+        print "setting active material to '%s'" % (material_name)
 
     pd = ws.activeMaterial.planeData
 
-    image_dir = parser.get('reader', 'image_dir')
-
-    # number of files ASSUMING SEQUENTIAL SCAN NUMBERS
-    file_start  = parser.getint('reader', 'file_start')
-    file_stop   = parser.getint('reader', 'file_stop')
-    file_suffix = parser.get('reader', 'file_suffix')
-    nfiles      = file_stop - file_start + 1
-    zpad_str    = '%0' + parser.get('reader', 'file_zpad') + 'd' # int
-    fileInfo = []
-    for i in [file_start + i for i in range(nfiles)]:
-        if file_suffix == '':
-            image_filename = parser.get('reader', 'file_root') + '_' + zpad_str % (i)
-        else:
-            image_filename = parser.get('reader', 'file_root') + '_' + zpad_str % (i) + '.' + file_suffix
-        fileInfo.append( ( os.path.join(image_dir, image_filename), parser.getint('reader', 'nempty') ) )
-    ome_start = parser.getfloat('reader', 'ome_start') * d2r
-    ome_delta = parser.getfloat('reader', 'ome_delta') * d2r
-    darkName  = parser.get('reader', 'dark')
-    if darkName.strip() == '':
-        dark         = None
-        subtractDark = False
-    else:
-        # dark = os.path.join(image_dir, darkName)
-        dark = darkName
-        subtractDark = True
-    doFlip  = parser.getboolean('reader', 'doFlip')
-    flipArg = parser.get('reader', 'flipArg')
+    # assemble the image series
+    image_dir = cfg['image_series']['directory']
+    file_stem = cfg['image_series']['file']['stem']
+    file_ids = cfg['image_series']['file']['ids']
+    image_start = cfg['image_series']['images']['start']
+    file_info = []
+    for fid in file_ids:
+        file_info.append(
+            (os.path.join(image_dir, file_stem % fid), image_start)
+            )
+    ome_start = cfg['image_series']['ome']['start'] * d2r
+    ome_delta = cfg['image_series']['ome']['step'] * d2r
+    dark = cfg['image_series'].get('dark', None)
+    flip = cfg['image_series'].get('flip', None)
 
     # make frame reader
-    reader   = ReadGE(fileInfo, ome_start, ome_delta,
-                      subtractDark=subtractDark, dark=dark,
-                      doFlip=doFlip, flipArg=flipArg)
+    reader = ReadGE(file_info, ome_start, ome_delta,
+                    subtractDark=dark is not None, # TODO: get rid of this
+                    dark=dark,
+                    doFlip=flip is not None,
+                    flipArg=flip, # TODO: flip=flip
+                    )
 
     # DETECTOR
-    ws.loadDetector(os.path.join(working_dir, detector_fname))
+    ws.loadDetector(os.path.join(cwd, detector_fname))
 
     return pd, reader, ws.detector
+
+
+def merge_dicts(a, b):
+    "Returns a merged dict, updating values in `a` with values from `b`"
+    a = copy.deepcopy(a)
+    for k,v in b.iteritems():
+        if isinstance(v, dict):
+            merge_dicts(a[k], v)
+        else:
+            a[k] = v
+    return a

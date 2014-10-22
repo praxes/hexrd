@@ -1,6 +1,8 @@
+#define _USE_MATH_DEFINES
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "transforms_CFUNC.h"
 
@@ -837,7 +839,12 @@ double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
 {
   int i;
   double q0, q0_max = 0.0, dist = 0.0;
-  double q2s[4*nsym];
+  double *q2s;
+
+  if ( NULL == (q2s = (double *)malloc(4*nsym*sizeof(double))) ) {
+      printf("malloc failed\n");
+      return(-1);
+  }
 
   /* For each symmetry in qsym compute its inner product with q2 */
   for (i=0; i<nsym; i++) {
@@ -862,6 +869,8 @@ double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
     dist = 0.;
   else
     dist = NAN;
+
+  free(q2s);
 
   return(dist);
 }

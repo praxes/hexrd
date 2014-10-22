@@ -47,6 +47,7 @@ from scipy                 import optimize
 from hexrd import matrixutil
 from hexrd import valunits
 
+from hexrd import data
 from hexrd.xrd import detector
 from hexrd.xrd import grain      as G
 from hexrd.xrd import indexer
@@ -110,7 +111,7 @@ class ImageModes(object):
 #
 class Experiment(object):
     """Wrapper for xrd functionality"""
-    def __init__(self, cfgFile, matFile):
+    def __init__(self, cfgFile=data.materials, matFile=data.all_materials):
         """Constructor for Experiment
 
         INPUTS
@@ -1194,7 +1195,7 @@ class CalibrationInput(object):
         return
 
     fitType = property(_get_fitType, _set_fitType, None,
-                                "fit type:  direct or caked")
+                       "fit type:  direct or caked")
     # property:  calMat
 
     def _get_calMat(self):

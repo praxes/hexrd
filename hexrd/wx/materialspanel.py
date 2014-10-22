@@ -349,9 +349,11 @@ PANEL FOR ...
         self.gamma_txt.ChangeValue(str(lprm[5].getVal(D)))
 
         for i in range(6): enable(i)
-
+        
+        # update ring panel
+        self.ring_pan.updateFromExp()
+        
         app.getCanvas().update()
-
 
         return
     #

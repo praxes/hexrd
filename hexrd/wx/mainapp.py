@@ -135,7 +135,6 @@ def execute(*args):
     #
     splashFile = 'hexrd.png'
     splashDir = os.path.dirname(__file__)
-    print 'splash:  ', os.path.join(splashDir, splashFile)
     splashImage = wx.Bitmap(os.path.join(splashDir, splashFile))
     #
     wx.SplashScreen(splashImage, wx.SPLASH_CENTRE_ON_PARENT|wx.SPLASH_TIMEOUT,

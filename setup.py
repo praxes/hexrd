@@ -58,13 +58,7 @@ for dirpath, dirnames, filenames in os.walk('hexrd'):
     else:
         del(dirnames[:])
 
-with open('hexrd/__init__.py') as f:
-    for line in f:
-        if line[:11] == '__version__':
-            exec(line)
-            break
-
-scripts = []
+scripts = ['scripts/find_orientations']
 if sys.platform.startswith('win'):
     # scripts calling multiprocessing must be importable
     import shutil
@@ -75,13 +69,25 @@ else:
 if ('bdist_wininst' in sys.argv) or ('bdist_msi' in sys.argv):
     scripts.append('scripts/hexrd_win_post_install.py')
 
+# release.py contains version, authors, license, url, keywords, etc.
+repo_root = os.path.dirname(os.path.abspath(__file__))
+execfile(os.path.join(repo_root, 'hexrd','release.py'), globals())
+
+hexrd_data = [
+    'COPYING',
+    'LICENSE',
+    'wx/hexrd.png',
+    'data/materials.cfg',
+    'data/all_materials.cfg',
+    ]
+
 setup(
-    name = 'hexrd',
-    version = '0.0.0',
-    author = 'Joel Bernier, et al.',
-    author_email = 'bernier2@llnl.gov',
-    description = 'High energy diffraction microscopy',
-    license = 'LGPL',
+    name = name,
+    version = __version__,
+    author = author,
+    author_email = author_email,
+    description = description,
+    license = license,
     ext_modules = ext_modules,
     packages = packages,
     requires = (
@@ -91,5 +97,7 @@ setup(
         'wxpython (>= 2.8)',
         ),
     scripts = scripts,
-    package_data = {'hexrd': ['COPYING', 'wx/hexrd.png', 'data/materials.cfg'] }
+    package_data = {
+        'hexrd': hexrd_data
+        }
     )

@@ -1,0 +1,77 @@
+## working directory defaults to current working directory in terminal
+#working_dir: /nfs/chess/aux/user/afrl/2014-3/multiruby
+analysis_name: multiruby
+
+material:
+  definitions: /nfs/chess/aux/user/afrl/2014-3/multiruby/materials.cpl
+  active: ruby
+
+image_series:
+  directory: /nfs/chess/aux/user/afrl/2014-3/multiruby/1/ff
+  file:
+    stem: ff_%05d.ge2
+    ids: [24, 25, 26, 27, 28, 29]
+  images:
+    start: 0
+    #stop: -1
+    #step: 1
+  ome:
+    start: 0.0
+    step: 0.25
+  #dark: ~
+  flip: h # ~, v, h, etc.
+
+detector:
+  parameters_old: CeO2.par # the old detector spec, produced by the GUI
+  parameters: FOUR_CORNERS_REF-calibration.par
+  pixels:
+    rows: 2048
+    columns: 2048
+    size: [0.200, 0.200] # mm
+
+find_orientations:
+  orientation_maps:
+    # A file name must be specified. If it doesn't exist, one will be created
+    file: some/file/name.cpl
+    threshold: 1850
+    #bin_frames: 1 # defaults to 1
+    ## list of hkl orders used to find orientations
+    ## defaults to all orders listed in the material definition
+    #active_hkls: [0,1,2,3]
+  ## either search full quaternian grid, or seed search based on sparse
+  ## orientation maps
+  #use_quaternian_grid: some/file/name # defaults to seeded search
+  seed_search: # this section is ignored if use_quaternian_grid is defined
+    hkl_seeds: [2] # hkls ids to use, must be defined for seeded search
+  #  fiber_step: 0.5 # degrees, defaults to ome tolerance
+  #threshold: 10 # defaults to 1
+  #ome:
+  #  tolerance: 0.5 # in degrees, defaults to 2x ome step
+  #  period: [0, 360] # in degrees, defaults to full 360 starting at "ome start"
+  #eta:
+  #  tolerance: 0.5 # in degrees, defaults to 2x ome step
+  #  mask: 5 # in degrees, mask angles close to ome rotation axis, defaults to 5
+  ## number of processors to use, or "all", or "half", or -1 means all but one.
+  #multiprocessing: 1 # defaults to -1
+  clustering:
+    radius: 1.0
+    completeness: 0.35 # completeness threshold
+    #algorithm: fclusterdata # defaults to dbscan
+  #extract_measured_g_vectors: true # defaults to false
+
+extract_measured_g_vectors:
+  threshold: 1850
+  tth_max: 15 # true, false, or a non-negative value, defaults to true
+  #tolerance:
+  #  tth: 0.2 # defaults to 0.2
+  #  eta: 1 # defaults to 1
+  #  ome: 0.5 # defaults to 2x ome step size from image_series
+
+fit_grains:
+  panel_buffer: 10 # don't fit spots within this many pixels from edge
+  threshold: 1850
+  tth_max: 15
+  tolerance:
+    tth: [0.2, 0.1] # tolerance lists must be identical length
+    eta: [2.0, 2.0]
+    ome: [1.0, 1.0]
