@@ -19,7 +19,7 @@ from hexrd.xrd import indexer as idx
 from hexrd.xrd import rotations as rot
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
-from hexrd.coreutil import initialize_experiment, merge_dicts
+from hexrd.coreutil import initialize_experiment, merge_dicts, make_eta_ranges
 
 from hexrd.xrd import xrdutil
 from hexrd.xrd.xrdbase import multiprocessing
@@ -366,7 +366,7 @@ def find_orientations(
 
     try:
         ome_tol = pgcfg['ome'].get('tolerance', None)
-        ome_period = omecfg.get('period', None)
+        ome_period = pgcfg['ome'].get('period', None)
     except (KeyError, AttributeError):
         ome_tol = None
         ome_period = None
@@ -384,23 +384,21 @@ def find_orientations(
     ome_period = np.radians(ome_period)
     try:
         eta_tol = pgcfg['eta'].get('tolerance', None)
-        eta_mask = np.radians(abs(etacfg.get('mask', 5)))
+        eta_mask = abs(pgcfg.get('mask', 5))
     except (KeyError, AttributeError):
         eta_tol = None
         eta_mask = 5
-    eta_mask = np.radians(eta_mask)
     if eta_tol is None:
-        eta_tol = ome_tol
+        eta_tol = 2*ome_tol     # ome tol is half, eta is full
     if verbose:
         print "Eta tolerance: %g" % eta_tol
     eta_range = None
     if eta_mask:
-        eta_range = [[-0.5*np.pi + eta_mask, 0.5*np.pi - eta_mask],
-                    [ 0.5*np.pi + eta_mask, 1.5*np.pi - eta_mask]]
+        eta_range = make_eta_ranges(eta_mask)
         if verbose:
             print (
                 "Masking eta angles within %g of ome rotation axis"
-                % np.degrees(eta_mask)
+                % eta_mask
                 )
     else:
         if verbose:

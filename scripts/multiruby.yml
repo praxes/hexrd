@@ -1,3 +1,4 @@
+
 ## working directory defaults to current working directory in terminal
 #working_dir: /nfs/chess/aux/user/afrl/2014-3/multiruby
 analysis_name: multiruby
@@ -23,11 +24,11 @@ image_series:
 
 detector:
   parameters_old: CeO2.par # the old detector spec, produced by the GUI
-  parameters: FOUR_CORNERS_REF-calibration.par
+  parameters: CeO2.yml
   pixels:
     rows: 2048
     columns: 2048
-    size: [0.200, 0.200] # mm
+    size: [0.200, 0.200] # [row height, col widt] mm
 
 find_orientations:
   orientation_maps:

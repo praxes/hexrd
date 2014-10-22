@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import argparse
 import os
 import sys
@@ -27,9 +25,10 @@ from hexrd.xrd import rotations as rot
 from hexrd.xrd import xrdutil
 
 
-def extract_measured_g_vectors(
+def _extract_measured_g_vectors(
     cfg, pd, reader, detector, verbose=False, force=False
     ):
+    """ takes a cfg dict, not a file """
 
     #####################
     ## load parameters ##
@@ -166,7 +165,7 @@ def extract_measured_g_vectors(
         pbar.finish()
 
 
-def main(cfg, verbose=False, force=False):
+def extract_g_vectors(cfg, verbose=False, force=False):
     if verbose:
         print "Using '%s' configuration file" % cfg
 
@@ -185,28 +184,3 @@ def main(cfg, verbose=False, force=False):
             cfg, pd, reader, detector,
             verbose=verbose, force=force
         )
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='Extracts measured G vectors',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=textwrap.dedent('''
-            example:
-            $ extract_gvecs -v configuration.yml
-            ''')
-        )
-    parser.add_argument(
-        'yml', type=str,
-        help='YAML configuration file'
-        )
-    parser.add_argument(
-        '-v', '--verbose', action='store_true',
-        help='report progress in terminal'
-        )
-    parser.add_argument(
-        '-f', '--force', action='store_true',
-        help='force overwrite of existing data'
-        )
-    args = parser.parse_args()
-    main(args.yml, verbose=args.verbose, force=args.force)
