@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from hexrd.indexing import cli_main
+from hexrd.indexing.cli import main_find_orientations
 
 
-cli_main()
+main_find_orientations()
