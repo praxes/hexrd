@@ -1,7 +1,8 @@
 import argparse
 import textwrap
 
-from hexrd.indexing.find_orientations import find_orientations
+from hexrd.coreutil import iter_cfg_sections
+from hexrd.peakextraction.extractgvecs import extract_g_vectors
 
 
 def main_extract_g_vectors():
@@ -18,7 +19,7 @@ def main_extract_g_vectors():
         help='YAML configuration file'
         )
     parser.add_argument(
-        '-v', '--verbose', action='store_true',
+        '-q', '--quiet', action='store_true',
         help='report progress in terminal'
         )
     parser.add_argument(
@@ -26,4 +27,6 @@ def main_extract_g_vectors():
         help='force overwrite of existing data'
         )
     args = parser.parse_args()
-    extract_g_vectors(args.yml, verbose=args.verbose, force=args.force)
+
+    for cfg in iter_cfg_sections(args.yml):
+        extract_g_vectors(cfg, verbose=not args.quiet, force=args.force)

@@ -19,7 +19,7 @@ from hexrd.xrd import indexer as idx
 from hexrd.xrd import rotations as rot
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
-from hexrd.coreutil import initialize_experiment, merge_dicts, make_eta_ranges
+from hexrd.coreutil import initialize_experiment, make_eta_ranges, merge_dicts
 
 from hexrd.xrd import xrdutil
 from hexrd.xrd.xrdbase import multiprocessing
@@ -329,15 +329,10 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
 
 
 def find_orientations(
-    yml_file, verbose=False, hkls=None, force=False
+    cfg, verbose=False, hkls=None, force=False
     ):
+    """Takes a config dict as input, generally a yml document"""
 
-    if verbose:
-        print "Using configuration file '%s'" % yml_file
-    # need to iterate her
-    # for cfg in cfgs
-    with open(yml_file, 'r') as f:
-        cfg = [cfg for cfg in yaml.load_all(f)][0]
     # a goofy call, could be replaced with two more targeted calls
     pd, reader, detector = initialize_experiment(cfg, verbose)
 

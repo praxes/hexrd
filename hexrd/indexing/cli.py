@@ -1,7 +1,9 @@
 import argparse
 import textwrap
 
-from hexrd.indexing.find_orientations import find_orientations
+import yaml
+
+from hexrd.indexing.orientations import find_orientations
 
 
 def main_find_orientations():
@@ -36,6 +38,8 @@ def main_find_orientations():
     if args.hkls is not None:
         args.hkls = [int(i) for i in args.hkls.split(',') if i]
 
+    with open(args.yml) as f:
+        cfg = [cfg for cfg in yaml.load_all(f)][0]
     find_orientations(
-        args.yml, verbose=not args.quiet, hkls=args.hkls, force=args.force
+        cfg, verbose=not args.quiet, hkls=args.hkls, force=args.force
         )

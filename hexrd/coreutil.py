@@ -1,3 +1,4 @@
+from ConfigParser import SafeConfigParser
 import copy
 import os
 import sys
@@ -9,7 +10,7 @@ import numpy as np
 from scipy.optimize import leastsq
 from scipy.linalg import solve
 
-from ConfigParser import SafeConfigParser
+import yaml
 
 from hexrd.xrd import experiment as expt
 from hexrd.xrd import transforms as xf
@@ -203,6 +204,24 @@ def merge_dicts(a, b):
         else:
             a[k] = v
     return a
+
+
+def iter_cfg_sections(cfg):
+    """
+    Iterate over sections specified in the yml configuration file.
+
+    Each section inherits unspecified values from previous section.
+
+    Takes a file name as input.
+    """
+    with open(cfg, 'r') as f:
+        cfgs = f.read()
+    for cfg in yaml.load_all(cfgs):
+        try:
+            yield merge_dicts(base_cfg, cfg)
+        except NameError:
+            base_cfg = cfg
+            yield cfg
 
 
 def make_eta_ranges(eta_mask, units='degrees'):

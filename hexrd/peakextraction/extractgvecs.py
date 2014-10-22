@@ -16,8 +16,8 @@ except IOError:
     pass
 
 from hexrd.coreutil import (
-    initialize_experiment, merge_dicts,
-    migrate_detector_config, make_eta_ranges
+    initialize_experiment, iter_cfg_sections, make_eta_ranges, merge_dicts,
+    migrate_detector_config,
     )
 
 from hexrd.xrd import distortion as dFuncs
@@ -25,10 +25,12 @@ from hexrd.xrd import rotations as rot
 from hexrd.xrd import xrdutil
 
 
-def _extract_measured_g_vectors(
-    cfg, pd, reader, detector, verbose=False, force=False
+def extract_g_vectors(
+    cfg, verbose=False, force=False
     ):
     """ takes a cfg dict, not a file """
+
+    pd, reader, detector = initialize_experiment(cfg)
 
     #####################
     ## load parameters ##
@@ -48,10 +50,16 @@ def _extract_measured_g_vectors(
         tth_tol = eta_tol = ome_tol = None
     if tth_tol is None:
         tth_tol = 0.2
+        if verbose:
+            print "tth tolerance is %g" % tth_tol
     if eta_tol is None:
         eta_tol = 1
+        if verbose:
+            print "eta tolerance is %g" % eta_tol
     if ome_tol is None:
         ome_tol = 2*cfg['image_series']['ome']['step']
+        if verbose:
+            "ome tolerance is %g" % ome_tol
 
     try:
         eta_mask = abs(cfg['find_orientations']['eta'].get('mask', 5))
@@ -77,7 +85,7 @@ def _extract_measured_g_vectors(
         eta_range = make_eta_ranges(eta_mask)
         if verbose:
             print (
-                "Masking eta angles within %g of ome rotation axis"
+                "Masking eta angles within %g degrees of ome rotation axis"
                 % eta_mask
                 )
     else:
@@ -163,24 +171,3 @@ def _extract_measured_g_vectors(
             )
     if have_progBar:
         pbar.finish()
-
-
-def extract_g_vectors(cfg, verbose=False, force=False):
-    if verbose:
-        print "Using '%s' configuration file" % cfg
-
-    # need to iterate here
-    # for cfg in cfgs
-    with open(cfg, 'r') as f:
-        cfgs = [cfg for cfg in yaml.load_all(f)]
-    cfg = cfgs[0]
-
-    # a goofy call, could be replaced with two more targeted calls
-    pd, reader, detector = initialize_experiment(cfg)
-
-    for i, c in enumerate(cfgs):
-        cfg = merge_dicts(cfg, c)
-        extract_measured_g_vectors(
-            cfg, pd, reader, detector,
-            verbose=verbose, force=force
-        )
