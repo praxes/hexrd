@@ -817,16 +817,39 @@ def makeBinaryRotMat(axis):
     assert len(n) == 3, 'Axis input does not have 3 components'
     return 2*np.dot(n.reshape(3, 1), n.reshape(1, 3)) - I3
 
+@numba.njit
+def _makeEtaFrameRotMat(bHat_l, eHat_l, out):
+    # Ze = -unitVector(np.atleast_2d(bHat_l).reshape(3, 1))
+    bHat_mag = np.sqrt(bHat_l[0]**2 + bHat_l[1]**2 + bHat_l[2]**2)
+    if bHat_mag > epsf:
+        for i in range(3):
+            out[2, i] = -bHat_l[i] / bHat_mag
+    else:
+        for i in range(3):
+            out[2, i] = -bHat_l[i]
+    # Xe = unitVector(np.dot(I3 - np.dot(Ze, Ze.T), np.atleast_2d(eHat_l).reshape(3, 1)))
+    Ze_dot_eHat = (out[2, 0] * eHat_l[0] + out[2, 1] * eHat_l[1] + out[2, 2] * eHat_l[2])
+    for i in range(3):
+        out[0, i] = eHat_l[i] - out[2, i] * Ze_dot_eHat
+    Xe_mag = np.sqrt(out[0, 0]**2 + out[0, 1]**2 + out[0, 2]**2)
+    if Xe_mag > epsf:
+        for i in range(3):
+            out[0, i] = out[0, i] / Xe_mag
+    # Ye = np.cross(Ze.flatten(), Xe.flatten()).reshape(3, 1)
+    out[1, 0] = out[2, 1] * out[0, 2] - out[2, 2] * out[0, 1]
+    out[1, 1] = out[2, 2] * out[0, 0] - out[2, 0] * out[0, 2]
+    out[1, 2] = out[2, 0] * out[0, 1] - out[2, 1] * out[0, 0]
+    
+
 def makeEtaFrameRotMat(bHat_l, eHat_l):
     """
     make eta basis COB matrix with beam antiparallel with Z
 
     takes components from ETA frame to LAB
     """
-    Ze = -unitVector(np.atleast_2d(bHat_l).reshape(3, 1))
-    Xe = unitVector(np.dot(I3 - np.dot(Ze, Ze.T), np.atleast_2d(eHat_l).reshape(3, 1)))
-    Ye = np.cross(Ze.flatten(), Xe.flatten()).reshape(3, 1)
-    return np.hstack([Xe, Ye, Ze])
+    result = np.empty((3,3))
+    _makeEtaFrameRotMat(bHat_l.reshape(3), eHat_l.reshape(3), result)
+    return result
 
 def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     """
