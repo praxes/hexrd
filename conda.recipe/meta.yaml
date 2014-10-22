@@ -7,13 +7,20 @@ source:
   git_tag: master
 
 build:
-#  entry_points:
-#    - hexrd = hexrd.wx.mainapp:execute
   osx_is_app: yes
+  entry_points:
+    - find_orientations = hexrd.indexing.cli:main_find_orientations
+    - extract_gvecs = hexrd.peakextraction.cli:main_extract_g_vectors
+    - hexrd = hexrd.wx.mainapp:execute
+
+app:
+  entry: hexrd
+  summary: High-energy x-ray diffraction analysis
 
 requirements:
   build:
     - matplotlib
+#    - numba
 #    - numbapro
     - numpy #>=1.4.0
     - python
@@ -21,19 +28,23 @@ requirements:
     - wxpython >=2.8
   run:
     - matplotlib
+#    - numba
 #    - numbapro
     - numpy #>=1.4.0
     - progressbar
     - python
     - python.app # [osx]
+    - pyyaml
     - scikit-learn
     - scipy >=0.7.0
     - wxpython >=2.8
-    - progressbar
 
 test:
   imports:
     - hexrd
+  commands:
+    - extract_gvecs -h
+    - find_orientations -h
 
 about:
   license: LGPL

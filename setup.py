@@ -58,7 +58,7 @@ for dirpath, dirnames, filenames in os.walk('hexrd'):
     else:
         del(dirnames[:])
 
-scripts = ['scripts/find_orientations']
+scripts = ['scripts/find_orientations', 'scripts/extract_gvecs']
 if sys.platform.startswith('win'):
     # scripts calling multiprocessing must be importable
     import shutil
