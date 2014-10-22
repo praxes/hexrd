@@ -98,16 +98,31 @@ def makeGVector(hkl, bMat):
     assert hkl.shape[0] == 3, 'hkl input must be (3, n)'
     return unitVector(np.dot(bMat, hkl))
 
+@numba.njit
+def _anglesToGVecHelper(angs, out):
+    #gVec_e = np.vstack([[np.cos(0.5*angs[:, 0]) * np.cos(angs[:, 1])],
+    #                    [np.cos(0.5*angs[:, 0]) * np.sin(angs[:, 1])],
+    #                    [np.sin(0.5*angs[:, 0])]])
+    n = angs.shape[0]
+    for i in range(n):
+        ca0 = np.cos(0.5*angs[i, 0])
+        sa0 = np.sin(0.5*angs[i, 0])
+        ca1 = np.cos(angs[i, 1])
+        sa1 = np.sin(angs[i, 1])
+        out[i, 0] = ca0 * ca1
+        out[i, 1] = ca0 * sa1
+        out[i, 2] = sa0
+
+
 def anglesToGVec(angs, bHat_l, eHat_l, rMat_s=I3, rMat_c=I3):
     """
     from 'eta' frame out to lab (with handy kwargs to go to crystal or sample)
     """
     rMat_e = makeEtaFrameRotMat(bHat_l, eHat_l)
-    gVec_e = np.vstack([[np.cos(0.5*angs[:, 0]) * np.cos(angs[:, 1])],
-                        [np.cos(0.5*angs[:, 0]) * np.sin(angs[:, 1])],
-                        [np.sin(0.5*angs[:, 0])]])
+    gVec_e = np.empty((angs.shape[0], 3))
+    _anglesToGVecHelper(angs, gVec_e)
     mat = np.dot(rMat_c.T, np.dot(rMat_s.T, rMat_e))
-    return np.dot(mat, gVec_e)
+    return np.dot(mat, gVec_e.T)
 
 def gvecToDetectorXY(gVec_c,
                      rMat_d, rMat_s, rMat_c,
