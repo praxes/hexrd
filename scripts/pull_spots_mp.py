@@ -6,6 +6,7 @@
 import os, sys, time, datetime
 import multiprocessing
 import itertools
+import yaml
 
 from ConfigParser import SafeConfigParser
 
@@ -56,54 +57,54 @@ except:
 
 class Config(object):
     def __init__(self, cfg_filename):
-        self.pd, reader, self.detector = coreutil.initialize_experiment(cfg_filename)
+        with open(cfg_filename) as f:
+            cfg = yaml.load(f)
 
-        parser = SafeConfigParser()
-        parser.read(cfg_filename)
+        self.pd, reader, self.detector = coreutil.initialize_experiment(cfg)
 
-        self.working_dir = parser.get('base', 'working_dir')
-        self.analysis_name = parser.get('base', 'analysis_name')
-        self.multiproc = parser.get('paint_grid', 'multiproc')
-        ncpus_str = parser.get('paint_grid', 'ncpus')
+        self.working_dir = cfg['base']['working_dir']
+        self.analysis_name = cfg['base']['analysis_name']
+        self.multiproc = cfg['paint_grid']['multiproc']
+        ncpus_str = cfg['paint_grid']['ncpus']
         self.ncpus = get_ncpus(ncpus_str)
         # if multiproc and ncpu == 1, prevent multiproc.
         self.multiproc = self.multiproc if self.ncpus > 1 else False
 
-        self.threshold = parser.getfloat('pull_spots', 'threshold')
+        self.threshold = cfg['pull_spots']['threshold']
 
-        self.threshold = parser.getfloat('pull_spots', 'threshold')
-        det_origin_str = parser.get('pull_spots', 'det_origin')
+        self.threshold = cfg['pull_spots']['threshold']
+        det_origin_str = cfg['pull_spots']['det_origin']
         self.det_origin = np.array(det_origin_str.split(','), dtype=float)
 
-        self.tth_tol = parser.getfloat('pull_spots', 'tth_tol')
-        self.eta_tol = parser.getfloat('pull_spots', 'eta_tol')
-        self.ome_tol = parser.getfloat('pull_spots', 'ome_tol')
-        self.tth_tol_r = parser.getfloat('pull_spots', 'tth_tol_r')
-        self.eta_tol_r = parser.getfloat('pull_spots', 'eta_tol_r')
-        self.ome_tol_r = parser.getfloat('pull_spots', 'ome_tol_r')
+        self.tth_tol = cfg['pull_spots']['tth_tol']
+        self.eta_tol = cfg['pull_spots']['eta_tol']
+        self.ome_tol = cfg['pull_spots']['ome_tol']
+        self.tth_tol_r = cfg['pull_spots']['tth_tol_r']
+        self.eta_tol_r = cfg['pull_spots']['eta_tol_r']
+        self.ome_tol_r = cfg['pull_spots']['ome_tol_r']
 
-        maxTTh_str = parser.get('pull_spots', 'use_tth_max')
+        maxTTh_str = cfg['pull_spots']['use_tth_max']
         self.maxTTh = float(maxTTh_str) # in DEGREES
 
-        material_name = parser.get('material', 'material_name')
+        material_name = cfg['material']['active']
         self.matl = material.loadMaterialList(os.path.join(self.working_dir, material_name+'.ini'))[0]
-        self.old_par = np.loadtxt(parser.get('detector', 'parfile_name'))
-        self.new_par = np.loadtxt(parser.get('pull_spots', 'parfile_name'))
+        self.old_par = np.loadtxt(cfg['detector']['parameters_old'])
+        self.new_par = np.loadtxt(cfg['pull_spots']['parfile_name'])
         self.detector_params = self.new_par[:10]
 
         self.distortion = (dFuncs.GE_41RT, self.old_par[-6:,0])
 
-        restrict_eta = parser.getfloat('paint_grid', 'restrict_eta')
+        restrict_eta = cfg['paint_grid']['restrict_eta']
         eta_del = d2r*abs(restrict_eta)
         self.etaRange = [[-0.5*np.pi + eta_del, 0.5*np.pi - eta_del],
                          [ 0.5*np.pi + eta_del, 1.5*np.pi - eta_del]]
 
-        self.reader = read_frames(reader, parser)
+        self.reader = read_frames(reader, cfg)
 
-        self.ome_start = parser.getfloat('reader', 'ome_start')
-        self.ome_delta = parser.getfloat('reader', 'ome_delta')
+        self.ome_start = cfg['image_series']['ome']['start']
+        self.ome_delta = cfg['image_series']['ome']['step']
         self.ome_stop = self.ome_start + len(self.reader[0])*self.ome_delta
-        omepd_str = parser.get('paint_grid', 'ome_period')
+        omepd_str = cfg['paint_grid']['ome_period']
         self.ome_period = tuple(d2r*np.array(omepd_str.split(','), dtype=float))
 
 
@@ -123,12 +124,12 @@ gScl  = np.array([1., 1., 1.,
                   1., 1., 1.,
                   1., 1., 1., 0.01, 0.01, 0.01])
 
-def read_frames(reader, parser):
+def read_frames(reader, cfg):
     start = time.time()                      # time this
 
-    threshold = parser.getfloat('pull_spots', 'threshold')
-    ome_start = parser.getfloat('reader', 'ome_start')     # in DEGREES
-    ome_delta = parser.getfloat('reader', 'ome_delta')     # in DEGREES
+    threshold = cfg['pull_spots']['threshold']
+    ome_start = cfg['image_series']['ome']['start']     # in DEGREES
+    ome_delta = cfg['image_series']['ome']['step']     # in DEGREES
 
     frame_list = []
     nframes = reader.getNFrames()
@@ -151,16 +152,14 @@ def read_frames(reader, parser):
     return reader
 
 
-def get_ncpus(ncpus_str):
+def get_ncpus(ncpus):
     cpucount = multiprocessing.cpu_count()
-    if ncpus_str.strip() == '':
+    if ncpus is None:
         ncpus = cpucount
-    elif int(ncpus_str) == -1:
+    elif ncpus == -1:
         ncpus = cpucount - 1
-    elif int(ncpus_str) == -2:
+    elif ncpus == -2:
         ncpus = cpucount / 2
-    else:
-        ncpus = int(ncpus_str)
     return ncpus
 
 
