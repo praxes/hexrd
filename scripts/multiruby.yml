@@ -1,7 +1,6 @@
-base:
-  ## working directory defaults to current working directory in terminal
-  working_dir: /nfs/chess/aux/user/afrl/2014-3/multiruby
-  analysis_name: multiruby
+## working directory defaults to current working directory in terminal
+#working_dir: /nfs/chess/aux/user/afrl/2014-3/multiruby
+analysis_name: multiruby
 
 material:
   definitions: /nfs/chess/aux/user/afrl/2014-3/multiruby/materials.cpl
@@ -62,11 +61,11 @@ find_orientations:
 
 extract_measured_g_vectors:
   threshold: 1850
-  tth_max: 15
-  tolerance:
-    tth: 0.2
-    eta: 1
-    #ome: 0.5 # defaults to 2x ome step size from image_series
+  tth_max: 15 # true, false, or a non-negative value, defaults to true
+  #tolerance:
+  #  tth: 0.2 # defaults to 0.2
+  #  eta: 1 # defaults to 1
+  #  ome: 0.5 # defaults to 2x ome step size from image_series
 
 fit_grains:
   panel_buffer: 10 # don't fit spots within this many pixels from edge
@@ -76,4 +75,3 @@ fit_grains:
     tth: [0.2, 0.1] # tolerance lists must be identical length
     eta: [2.0, 2.0]
     ome: [1.0, 1.0]
-
