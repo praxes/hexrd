@@ -346,7 +346,7 @@ def find_orientations(
     analysis_root = os.path.join(cwd, analysis_name)
     if os.path.exists(analysis_root) and not force:
         print (
-            'analysis "%s" already exists, change yml file or use "-f"'
+            'analysis "%s" already exists, change yml file or specify "force"'
             % analysis_name
             )
         sys.exit()
