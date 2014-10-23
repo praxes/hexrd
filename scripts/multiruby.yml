@@ -1,16 +1,16 @@
 ## working directory defaults to current working directory in terminal
-#working_dir: /nfs/chess/aux/user/afrl/2014-3/multiruby
-analysis_name: multiruby
+working_dir: /home/jbernier/gao-56-1
+analysis_name: val001
 
 material:
-  definitions: /nfs/chess/aux/user/afrl/2014-3/multiruby/materials.cpl
-  active: ruby
+  definitions: materials.cpl
+  active: rene88
 
 image_series:
-  directory: /nfs/chess/aux/user/afrl/2014-3/multiruby/1/ff
+  directory: /nfs/chess/raw/2014-3/f2/gao-56-1/val001/5/ff
   file:
     stem: ff_%05d.ge2
-    ids: [24, 25, 26, 27, 28, 29]
+    ids: [36, 37, 38]
   images:
     start: 0
     #stop: -1
@@ -23,7 +23,7 @@ image_series:
 
 detector:
   parameters_old: CeO2.par # the old detector spec, produced by the GUI
-  parameters: FOUR_CORNERS_REF-calibration.par
+  parameters: mr.par
   pixels:
     rows: 2048
     columns: 2048
@@ -33,7 +33,7 @@ find_orientations:
   orientation_maps:
     # A file name must be specified. If it doesn't exist, one will be created
     file: some/file/name.cpl
-    threshold: 1850
+    threshold: 15
     #bin_frames: 1 # defaults to 1
     ## list of hkl orders used to find orientations
     ## defaults to all orders listed in the material definition
@@ -42,20 +42,20 @@ find_orientations:
   ## orientation maps
   #use_quaternian_grid: some/file/name # defaults to seeded search
   seed_search: # this section is ignored if use_quaternian_grid is defined
-    hkl_seeds: [2] # hkls ids to use, must be defined for seeded search
-  #  fiber_step: 0.5 # degrees, defaults to ome tolerance
+    hkl_seeds: [-1] # hkls ids to use, must be defined for seeded search
+    fiber_step: 0.2 # degrees, defaults to ome tolerance
   #threshold: 10 # defaults to 1
-  #ome:
-  #  tolerance: 0.5 # in degrees, defaults to 2x ome step
-  #  period: [0, 360] # in degrees, defaults to full 360 starting at "ome start"
-  #eta:
-  #  tolerance: 0.5 # in degrees, defaults to 2x ome step
-  #  mask: 5 # in degrees, mask angles close to ome rotation axis, defaults to 5
+  ome:
+    tolerance: 0.25 # in degrees, defaults to 2x ome step
+    period: [0, 360] # in degrees, defaults to full 360 starting at "ome start"
+  eta:
+    tolerance: 0.25 # in degrees, defaults to 2x ome step
+    mask: 5 # in degrees, mask angles close to ome rotation axis, defaults to 5
   ## number of processors to use, or "all", or "half", or -1 means all but one.
   #multiprocessing: 1 # defaults to -1
   clustering:
     radius: 1.0
-    completeness: 0.35 # completeness threshold
+    completeness: 0.90 # completeness threshold
     #algorithm: fclusterdata # defaults to dbscan
   #extract_measured_g_vectors: true # defaults to false
 

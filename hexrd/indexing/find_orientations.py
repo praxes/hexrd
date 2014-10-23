@@ -366,7 +366,7 @@ def find_orientations(
 
     try:
         ome_tol = pgcfg['ome'].get('tolerance', None)
-        ome_period = omecfg.get('period', None)
+        ome_period = pgcfg['ome'].get('period', None)
     except (KeyError, AttributeError):
         ome_tol = None
         ome_period = None
@@ -384,7 +384,7 @@ def find_orientations(
     ome_period = np.radians(ome_period)
     try:
         eta_tol = pgcfg['eta'].get('tolerance', None)
-        eta_mask = np.radians(abs(etacfg.get('mask', 5)))
+        eta_mask = np.radians(abs(pgcfg['eta'].get('mask', 5)))
     except (KeyError, AttributeError):
         eta_tol = None
         eta_mask = 5
@@ -396,7 +396,7 @@ def find_orientations(
     eta_range = None
     if eta_mask:
         eta_range = [[-0.5*np.pi + eta_mask, 0.5*np.pi - eta_mask],
-                    [ 0.5*np.pi + eta_mask, 1.5*np.pi - eta_mask]]
+                     [ 0.5*np.pi + eta_mask, 1.5*np.pi - eta_mask]]
         if verbose:
             print (
                 "Masking eta angles within %g of ome rotation axis"
