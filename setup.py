@@ -33,6 +33,9 @@ import numpy
 np_include_dir = os.path.join(numpy.get_include(), 'numpy')
 
 
+description = "hexrd diffraction data analysis"
+
+
 # for SgLite
 srclist = ['sgglobal.c','sgcb.c','sgcharmx.c','sgfile.c',
            'sggen.c','sghall.c','sghkl.c','sgltr.c','sgmath.c','sgmetric.c',
