@@ -1,7 +1,8 @@
 
+analysis_name: multiruby
 ## working directory defaults to current working directory in terminal
 #working_dir: /nfs/chess/aux/user/afrl/2014-3/multiruby
-analysis_name: multiruby
+#multiprocessing: 1 # "all", or "half", or -1 means all but one, defaults to -1
 
 material:
   definitions: /nfs/chess/aux/user/afrl/2014-3/multiruby/materials.cpl
@@ -52,26 +53,18 @@ find_orientations:
   #eta:
   #  tolerance: 0.5 # in degrees, defaults to 2x ome step
   #  mask: 5 # in degrees, mask angles close to ome rotation axis, defaults to 5
-  ## number of processors to use, or "all", or "half", or -1 means all but one.
-  #multiprocessing: 1 # defaults to -1
   clustering:
     radius: 1.0
     completeness: 0.35 # completeness threshold
     #algorithm: fclusterdata # defaults to dbscan
   #extract_measured_g_vectors: true # defaults to false
 
-extract_measured_g_vectors:
+extract_grains:
   threshold: 1850
   tth_max: 15 # true, false, or a non-negative value, defaults to true
-  #tolerance:
-  #  tth: 0.2 # defaults to 0.2
-  #  eta: 1 # defaults to 1
-  #  ome: 0.5 # defaults to 2x ome step size from image_series
-
-fit_grains:
   panel_buffer: 10 # don't fit spots within this many pixels from edge
-  threshold: 1850
-  tth_max: 15
+  #npdiv: 1 # number of polar pixel grid subdivisions, defaults to 2
+  fit_grains: true
   tolerance:
     tth: [0.2, 0.1] # tolerance lists must be identical length
     eta: [2.0, 2.0]

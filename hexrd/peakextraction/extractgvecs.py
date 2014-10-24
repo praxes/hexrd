@@ -1,4 +1,6 @@
 import argparse
+import multiprocessing as mp
+from multiprocessing.queues import Empty
 import os
 import sys
 import textwrap
@@ -7,6 +9,7 @@ import time
 import yaml
 
 import numpy as np
+from scipy.sparse import coo_matrix
 
 have_progBar = False
 try:
@@ -22,7 +25,7 @@ from hexrd.coreutil import (
 
 from hexrd.xrd import distortion as dFuncs
 from hexrd.xrd import rotations as rot
-from hexrd.xrd import xrdutil
+from hexrd.xrd.xrdutil import pullSpots as pull_spots
 
 
 def extract_g_vectors(
@@ -39,9 +42,11 @@ def extract_g_vectors(
     cwd = cfg.get('working_dir', os.getcwd())
     analysis_root = os.path.join(cwd, cfg['analysis_name'])
 
-    exgcfg = cfg['extract_measured_g_vectors']
+    exgcfg = cfg['extract_grains']
     pthresh = exgcfg['threshold']
     tth_max = exgcfg.get('tth_max', True)
+    ome_start = cfg['image_series']['ome']['start']
+    ome_step = cfg['image_series']['ome']['step']
     try:
         tth_tol = exgcfg['tolerance'].get('tth', None)
         eta_tol = exgcfg['tolerance'].get('eta', None)
@@ -57,7 +62,7 @@ def extract_g_vectors(
         if verbose:
             print "eta tolerance is %g" % eta_tol
     if ome_tol is None:
-        ome_tol = 2*cfg['image_series']['ome']['step']
+        ome_tol = 2*ome_step
         if verbose:
             "ome tolerance is %g" % ome_tol
 
@@ -71,13 +76,12 @@ def extract_g_vectors(
     except (KeyError, AttributeError):
         ome_period = None
     if ome_period is None:
-        temp = cfg['image_series']['ome']['start']
-        if cfg['image_series']['ome']['step'] > 0:
-            ome_period = [temp, temp + 360]
+        if ome_step > 0:
+            ome_period = [ome_start, ome_start + 360]
         else:
-            ome_period = [temp, temp - 360]
+            ome_period = [ome_start, ome_start - 360]
         if verbose:
-            print "Omega tolerance: %g" % ome_tol
+            print "Omega tolerance: %s" % ome_tol
             print "Omega period: %s" % ome_period
     ome_period = np.radians(ome_period)
 
@@ -91,6 +95,32 @@ def extract_g_vectors(
     else:
         if verbose:
             print "Using full eta range"
+
+    panel_buffer = exgcfg.get('panel_buffer', 10)
+    if isinstance(panel_buffer, int):
+        panel_buffer = [panel_buffer, panel_buffer]
+    npdiv = exgcfg.get('pixel_subdivisions', 2)
+
+    # determine number of processes to run in parallel
+    multiproc = cfg.get('multiprocessing', -1)
+    ncpus = mp.cpu_count()
+    if multiproc == 'all':
+        pass
+    elif multiproc == -1:
+        ncpus -= 1
+    elif int(ncpus) == 'half':
+        ncpus /= 2
+    elif isinstance(multiproc, int):
+        if multiproc < ncpus:
+            ncpus = multiproc
+    else:
+        ncpus -= 1
+        if verbose:
+            print (
+                "Invalid value %s for find_orientations:multiprocessing"
+                % multiproc
+                )
+    ncpus = ncpus if ncpus else 1
 
     ###########################
     ## Instrument parameters ##
@@ -136,38 +166,125 @@ def extract_g_vectors(
             "Must be 'true', 'false', or a non-negative value"
 
     # load quaternion file
-    quats = np.atleast_2d(np.loadtxt(os.path.join(analysis_root, 'quats.out'))).T
+    quats = np.atleast_2d(
+        np.loadtxt(os.path.join(analysis_root, 'quats.out'))
+        )
+    n_quats = len(quats)
+    quats = quats.T
 
     phi, n = rot.angleAxisOfRotMat(rot.rotMatOfQuat(quats))
-    if have_progBar:
-        widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
-        pbar = ProgressBar(widgets=widgets, maxval=len(quats.T)).start()
-    if verbose:
-        print "pulling spots for %d orientations...\n" %len(quats.T)
 
     cwd = cfg.get('working_dir', os.getcwd())
     analysis_name = cfg['analysis_name']
     spots_f = os.path.join(cwd, analysis_name, 'spots_%05d.out')
-    for iq, quat in enumerate(quats.T):
+
+    job_queue = mp.JoinableQueue()
+    manager = mp.Manager()
+    results = manager.list()
+
+    n_frames = reader.getNFrames()
+    if verbose:
+        print "reading %d frames of data" % n_frames
         if have_progBar:
-            pbar.update(iq)
-        exp_map = phi[iq]*n[:, iq]
-        grain_params = np.hstack([exp_map.flatten(), 0., 0., 0., 1., 1., 1., 0., 0., 0.])
-        sd = xrdutil.pullSpots(
-            pd,
-            detector_params,
-            grain_params,
-            reader,
-            distortion=distortion,
-            eta_range=eta_range,
-            ome_period=ome_period,
-            tth_tol=tth_tol,
-            eta_tol=eta_tol,
-            ome_tol=ome_tol,
-            panel_buff=[10, 10],
-            npdiv=2,
-            threshold=pthresh,
-            filename=spots_f % iq,
-            )
-    if have_progBar:
+            widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
+            pbar = ProgressBar(widgets=widgets, maxval=n_frames).start()
+
+    frame_list = []
+    for i in range(n_frames):
+        frame = reader.read()
+        frame[frame <= pthresh] = 0
+        frame_list.append(coo_matrix(frame))
+        if have_progBar and verbose:
+            pbar.update(i)
+    frame_list = np.array(frame_list)
+    reader = [frame_list, [np.radians(ome_start), np.radians(ome_step)]]
+    if have_progBar and verbose:
         pbar.finish()
+
+    if verbose:
+        print "pulling spots for %d orientations...\n" % n_quats
+        if have_progBar:
+            widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
+            pbar = ProgressBar(widgets=widgets, maxval=n_quats).start()
+
+    for i, quat in enumerate(quats.T):
+        exp_map = phi[i]*n[:, i]
+        grain_params = np.hstack(
+            [exp_map.flatten(), 0., 0., 0., 1., 1., 1., 0., 0., 0.]
+            )
+        job_queue.put((i, grain_params))
+
+    for i in range(ncpus):
+        w = PullSpotsWorker(
+            job_queue, results,
+            reader, pd, detector_params, distortion, eta_range,
+            ome_period, tth_tol[0], eta_tol[0], ome_tol[0], panel_buffer, npdiv,
+            pthresh, spots_f
+            )
+        w.daemon = True
+        w.start()
+    while True:
+        n_res = len(results)
+        if have_progBar and verbose:
+            pbar.update(n_res)
+        if n_res == n_quats:
+            break
+    job_queue.join()
+    if have_progBar and verbose:
+        pbar.finish()
+
+# bMat = pd.latVecOps['B']
+# wlen = pd.wavelength
+
+
+class PullSpotsWorker(mp.Process):
+
+
+    def __init__(self,
+                 jobs, results,
+                 reader, plane_data, detector_params, distortion, eta_range,
+                 ome_period, tth_tol, eta_tol, ome_tol, panel_buff, npdiv,
+                 pthresh, spots_f
+                 ):
+        super(PullSpotsWorker, self).__init__()
+        self._jobs = jobs
+        self._results = results
+        self._reader = reader
+        self._plane_data = plane_data
+        self._detector_params = detector_params
+        self._distortion = distortion
+        self._eta_range = eta_range
+        self._ome_period = ome_period
+        self._tth_tol = tth_tol
+        self._eta_tol = eta_tol
+        self._ome_tol = ome_tol
+        self._panel_buff = panel_buff
+        self._npdiv = npdiv
+        self._pthresh = pthresh
+        self._spots_f = spots_f
+
+
+    def run(self):
+        while True:
+            try:
+                i, grain_params = self._jobs.get(False)
+                res = pull_spots(
+                    self._plane_data,
+                    self._detector_params,
+                    grain_params,
+                    self._reader,
+                    distortion=self._distortion,
+                    eta_range=self._eta_range,
+                    ome_period=self._ome_period,
+                    tth_tol=self._tth_tol,
+                    eta_tol=self._eta_tol,
+                    ome_tol=self._ome_tol,
+                    panel_buff=self._panel_buff,
+                    npdiv=self._npdiv,
+                    threshold=self._pthresh,
+                    filename=self._spots_f % i,
+                    )
+                self._results.append((i, res))
+                self._jobs.task_done()
+            except Empty:
+                break

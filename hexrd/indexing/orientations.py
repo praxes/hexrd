@@ -1,4 +1,5 @@
 import cPickle
+import multiprocessing as mp
 import os
 import shelve
 import sys
@@ -22,7 +23,6 @@ from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.coreutil import initialize_experiment, make_eta_ranges, merge_dicts
 
 from hexrd.xrd import xrdutil
-from hexrd.xrd.xrdbase import multiprocessing
 from hexrd.xrd.detector import ReadGE
 
 from hexrd.xrd import distortion as dFuncs
@@ -146,7 +146,7 @@ def paintgrid(pd, eta_ome, quats, threshold,
                   omeRange=None, etaRange=None,
                   omePeriod=(-np.pi, np.pi),
                   qTol=1e-7,
-                  ncpus=multiprocessing.cpu_count(),
+                  ncpus=mp.cpu_count(),
                   verbose=False
                   ):
     """
@@ -402,7 +402,7 @@ def find_orientations(
     threshold = pgcfg.get('threshold', 1)
 
     # determine number of processes to run in parallel
-    multiproc = pgcfg.get('multiprocessing', -1)
+    multiproc = cfg.get('multiprocessing', -1)
     ncpus = multiprocessing.cpu_count()
     if multiproc == 'all':
         pass
