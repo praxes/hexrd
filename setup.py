@@ -24,12 +24,14 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
+
 from distutils.core import setup, Extension
 import os
 import sys
-import numpy
 
+import numpy
 np_include_dir = os.path.join(numpy.get_include(), 'numpy')
+
 
 # for SgLite
 srclist = ['sgglobal.c','sgcb.c','sgcharmx.c','sgfile.c',
@@ -58,7 +60,7 @@ for dirpath, dirnames, filenames in os.walk('hexrd'):
     else:
         del(dirnames[:])
 
-scripts = ['scripts/find_orientations', 'scripts/extract_gvecs']
+scripts = ['scripts/find_orientations', 'scripts/fit_grains']
 if sys.platform.startswith('win'):
     # scripts calling multiprocessing must be importable
     import shutil
@@ -73,13 +75,19 @@ if ('bdist_wininst' in sys.argv) or ('bdist_msi' in sys.argv):
 repo_root = os.path.dirname(os.path.abspath(__file__))
 execfile(os.path.join(repo_root, 'hexrd','release.py'), globals())
 
-hexrd_data = [
+package_data = [
     'COPYING',
     'LICENSE',
     'wx/hexrd.png',
     'data/materials.cfg',
     'data/all_materials.cfg',
     ]
+
+data_files = [
+    'share/example_config.yml',
+    'share/calibrate_from_single_crystal.ipynb'
+    ]
+
 
 setup(
     name = name,
@@ -91,13 +99,12 @@ setup(
     ext_modules = ext_modules,
     packages = packages,
     requires = (
-        'python (>=2.6)',
+        'python (>=2.7)',
         'numpy (>=1.4.0)',
         'scipy (>=0.7.0)',
         'wxpython (>= 2.8)',
         ),
     scripts = scripts,
-    package_data = {
-        'hexrd': hexrd_data
-        }
+    package_data = {'hexrd': package_data},
+    data_files = [('share/hexrd', data_files)]
     )

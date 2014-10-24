@@ -2,16 +2,16 @@ import argparse
 import textwrap
 
 from hexrd.coreutil import iter_cfg_sections
-from hexrd.peakextraction.extractgvecs import extract_g_vectors
+from hexrd.fitgrains import fit_grains
 
 
-def main_extract_g_vectors():
+def main_fit_grains():
     parser = argparse.ArgumentParser(
-        description='Extracts measured G vectors',
+        description='Extracts G vectors, grain position and strain',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=textwrap.dedent('''
             example:
-            $ extract_gvecs -v configuration.yml
+            $ fit_grains -v configuration.yml
             ''')
         )
     parser.add_argument(
@@ -29,4 +29,4 @@ def main_extract_g_vectors():
     args = parser.parse_args()
 
     for cfg in iter_cfg_sections(args.yml):
-        extract_g_vectors(cfg, verbose=not args.quiet, force=args.force)
+        fit_grains(cfg, verbose=not args.quiet, force=args.force)

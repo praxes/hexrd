@@ -10,7 +10,7 @@ build:
   osx_is_app: yes
   entry_points:
     - find_orientations = hexrd.indexing.cli:main_find_orientations
-    - extract_gvecs = hexrd.peakextraction.cli:main_extract_g_vectors
+    - fit_grains = hexrd.fitgrains.cli:main_fit_grains
     - hexrd = hexrd.wx.mainapp:execute
 
 app:
