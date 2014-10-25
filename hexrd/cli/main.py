@@ -1,13 +1,13 @@
 from __future__ import print_function, absolute_import
 
 import argparse
+import logging
 import sys
 
-from . import hexrd_argparse
-from . import main_grains
-from . import main_gui
-from . import main_help
-from . import main_indexing
+from . import grains
+from . import gui
+from . import help
+from . import indexing
 
 def main():
     if len(sys.argv) == 1:
@@ -16,7 +16,7 @@ def main():
     import logging
     import hexrd
 
-    p = hexrd_argparse.ArgumentParser(
+    p = argparse.ArgumentParser(
         description='High energy diffraction data analysis'
     )
     p.add_argument(
@@ -34,10 +34,10 @@ def main():
         dest = 'cmd',
     )
 
-    main_help.configure_parser(sub_parsers)
-    main_gui.configure_parser(sub_parsers)
-    main_indexing.configure_parser(sub_parsers)
-    main_grains.configure_parser(sub_parsers)
+    help.configure_parser(sub_parsers)
+    gui.configure_parser(sub_parsers)
+    indexing.configure_parser(sub_parsers)
+    grains.configure_parser(sub_parsers)
 
     try:
         import argcomplete
@@ -51,29 +51,4 @@ def main():
         logging.disable(logging.NOTSET)
         logging.basicConfig(level=logging.DEBUG)
 
-    args_func(args, p)
-
-
-def args_func(args, p):
-    use_json = getattr(args, 'json', False)
-    try:
-        args.func(args, p)
-    except RuntimeError as e:
-        common.error_and_exit(str(e), json=use_json)
-    except Exception as e:
-        if e.__class__.__name__ not in ('ScannerError', 'ParserError'):
-            message = """\
-An unexpected error has occurred, please consider sending the
-following traceback to the hexrd GitHub issue tracker at:
-
-    https://github.com/praxes/hexrd/issues
-
-Include the output of the command 'hexrd info' in your report.
-
-"""
-            print(message)
-        raise  # as if we did not catch it
-
-
-if __name__ == '__main__':
-    main()
+    args.func(args, p)
