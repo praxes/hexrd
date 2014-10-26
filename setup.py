@@ -26,11 +26,35 @@
 # ============================================================
 
 from distutils.core import setup, Extension
+from distutils.cmd import Command
 import os
 import sys
 
 import numpy
 np_include_dir = os.path.join(numpy.get_include(), 'numpy')
+
+
+class test(Command):
+
+    """Run the test suite."""
+
+    description = "Run the test suite"
+
+    user_options = [('verbosity', 'v', 'set test report verbosity')]
+
+    def initialize_options(self):
+        self.verbosity = 0
+
+    def finalize_options(self):
+        try:
+            self.verbosity = int(self.verbosity)
+        except ValueError:
+            raise ValueError('Verbosity must be an integer.')
+
+    def run(self):
+        import unittest
+        suite = unittest.TestLoader().discover('hexrd')
+        unittest.TextTestRunner(verbosity=self.verbosity+1).run(suite)
 
 
 # for SgLite
@@ -106,5 +130,6 @@ setup(
         ),
     scripts = scripts,
     package_data = {'hexrd': package_data},
-    data_files = [('share/hexrd', data_files)]
+    data_files = [('share/hexrd', data_files)],
+    cmdclass = {'test': test}
     )
