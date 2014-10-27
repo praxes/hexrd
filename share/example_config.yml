@@ -1,5 +1,4 @@
-
-analysis_name: multiruby
+analysis_name: multiruby # defaults to analysis
 
 ## working directory defaults to current working directory
 working_dir: /nfs/chess/aux/user/afrl/2014-3/multiruby
@@ -70,7 +69,7 @@ find_orientations:
 
   #extract_measured_g_vectors: true # defaults to false
 
-extract_grains:
+fit_grains:
   threshold: 1850
 
   tth_max: 15 # true, false, or a non-negative value, defaults to true
@@ -79,7 +78,7 @@ extract_grains:
 
   #npdiv: 1 # number of polar pixel grid subdivisions, defaults to 2
 
-  fit_grains: true
+  #do_fit: false # if false, extracts grains but doesn't fit. defaults to true
 
   tolerance:
     tth: [0.2, 0.1] # tolerance lists must be identical length

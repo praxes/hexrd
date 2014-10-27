@@ -2,15 +2,48 @@ import os
 import logging
 import multiprocessing as mp
 
+from .config import Config
+#from .detector import DetectorConfig
+#from .findorientations import FindOrientationsConfig
+#from .fitgrains import FitGrainsConfig
+#from .imageseries import ImageSeriesConfig
+from .material import MaterialConfig
+
+
 logger = logging.getLogger(__name__)
 
 
-class ConfigRoot(object):
+class RootConfig(Config):
 
 
     @property
     def analysis_name(self):
-        return self._cfg.get('analysis_name', '')
+        return str(self._cfg.get('analysis_name', 'analysis'))
+
+
+    @property
+    def detector(self):
+        return DetectorConfig(self._cfg.get('detector', {}))
+
+
+    @property
+    def find_orientations(self):
+        return FindOrientationsConfig(self._cfg.get('find_orientations', {}))
+
+
+    @property
+    def fit_grains(self):
+        return FitGrainsConfig(self._cfg.get('fit_grains', {}))
+
+
+    @property
+    def image_sereis(self):
+        return ImageSeriesConfig(self._cfg.get('image_series', {}))
+
+
+    @property
+    def material(self):
+        return MaterialConfig(self._cfg.get('material', {}))
 
 
     @property
@@ -58,7 +91,3 @@ class ConfigRoot(object):
         if not os.path.isdir(temp):
             raise IOError()
         return temp
-
-
-    def __init__(self, cfg):
-        self._cfg = cfg

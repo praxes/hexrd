@@ -3,6 +3,7 @@ import yaml
 from . import root
 from . import utils
 
+
 def open(file_name):
     """
     Reads configuration settings from a yaml file.
@@ -20,4 +21,4 @@ def open(file_name):
             except IndexError:
                 # this is the first config section
                 res.append(cfg)
-        return [root.ConfigRoot(i) for i in res]
+        return [root.RootConfig(i) for i in res]
