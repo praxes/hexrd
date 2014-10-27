@@ -33,7 +33,6 @@ from math import pi
 import shelve
 
 import numpy as num
-import numba
 from scipy import sparse
 from scipy.linalg import svd
 from scipy import ndimage
@@ -50,7 +49,7 @@ from hexrd import matrixutil as mutil
 from hexrd import pfigutil
 from hexrd import gridutil as gutil
 from hexrd.valunits import toFloat
-
+from hexrd.config import USE_NUMBA
 import hexrd.orientations as ors
 
 from hexrd.xrd import crystallography
@@ -78,6 +77,9 @@ except:
     havePfigPkg = False
 
 from hexrd.utils.progressbar import ProgressBar, Bar, ETA, ReverseBar
+
+if USE_NUMBA:
+    import numba
 
 'quadr1d of 8 is probably overkill, but we are in 1d so it is inexpensive'
 quadr1dDflt = 8
@@ -3246,19 +3248,41 @@ def angularPixelSize(xy_det, xy_pixelPitch,
 
 
 
-#@numba.jit("void (intptr[:], intptr[:], int16[:], int, int, int, int, int16[:])")
-#@numba.jit("void (int64[:], int64[:], int16[:], int32, int32, int32, int32, int16[:])")
-@numba.njit
-def _coo_build_window(frame_row, frame_col, frame_data,
-                      min_row, max_row, min_col, max_col,
-                      result):
-    n = len(frame_row)
-    for i in range(n):
-        if ((min_row <= frame_row[i] <= max_row) and
-                (min_col <= frame_col[i] <= max_col)):
-            new_row = frame_row[i] - min_row
-            new_col = frame_col[i] - min_col
-            result[new_row, new_col] = frame_data[i]
+if USE_NUMBA:
+    @numba.njit
+    def _coo_build_window_jit(frame_row, frame_col, frame_data,
+                              min_row, max_row, min_col, max_col,
+                              result):
+        n = len(frame_row)
+        for i in range(n):
+            if ((min_row <= frame_row[i] <= max_row) and
+                    (min_col <= frame_col[i] <= max_col)):
+                new_row = frame_row[i] - min_row
+                new_col = frame_col[i] - min_col
+                result[new_row, new_col] = frame_data[i]
+
+        return result
+
+
+    def _coo_build_window(frame_i, min_row, max_row, min_col, max_col):
+        window = num.zeros(((max_row - min_row + 1), (max_col- min_col + 1)),
+                           dtype=num.int16)
+
+        return _coo_build_window_jit(frame_i.row, frame_i.col, frame_i.data,
+                                     min_row, max_row, min_col, max_col,
+                                     window)
+else: # not USE_NUMBA
+    def _coo_build_window(frame_i, min_row, max_row, min_col, max_col):
+        mask = ((min_row <= frame_i.row) & (frame_i.row <= max_row) &
+                (min_col <= frame_i.col) & (frame_i.col <= max_col))
+        new_row = frame_i.row[mask] - min_row
+        new_col = frame_i.col[mask] - min_col
+        new_data = frame_i.data[mask]
+        window = num.zeros(((max_row - min_row + 1), (max_col - min_col + 1)),
+                           dtype=num.int16)
+        window[new_row, new_col] = new_data
+
+        return window
 
 def pullSpots(pd, detector_params, grain_params, reader,
               ome_period=(-num.pi, num.pi),
@@ -3502,10 +3526,8 @@ def pullSpots(pd, detector_params, grain_params, reader,
                     frame_i = frames[i]
                     if sparse.isspmatrix_coo(frame_i):
                         # coo_matrix doesn't support slicing, so do it manually
-                        window = num.zeros(((max_row - min_row + 1), (max_col - min_col + 1)), dtype=num.int16)
-                        _coo_build_window(frame_i.row, frame_i.col, frame_i.data,
-                                          min_row, max_row, min_col, max_col,
-                                          window)
+                        window = _coo_build_window(frame_i, min_row, max_row,
+                                                   min_col, max_col)
                     else:
                         window = frame_i[min_row:max_row+1, min_col:max_col+1].todense()
                     spot_data[i, :, :] = window[row_indices - min_row, col_indices - min_col].reshape(sdims[1], sdims[2])

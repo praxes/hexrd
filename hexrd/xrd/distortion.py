@@ -1,6 +1,8 @@
 import numpy as np
 from scipy import optimize as opt
-import numba
+from hexrd.config import USE_NUMBA
+if USE_NUMBA:
+    import numba
 
 def dummy(xy_in, params, invert=False):
     """
@@ -17,15 +19,79 @@ def newton(x0, f, fp, extra, prec=3e-16, maxiter=100):
         x0 = x
     return x0
 
-@numba.njit
-def _ge_41rt_inverse_distortion(out, in_, rhoMax, params):
-    maxiter = 100
-    prec = 1e-16
+if USE_NUMBA:
+    @numba.njit
+    def _ge_41rt_inverse_distortion(out, in_, rhoMax, params):
+        maxiter = 100
+        prec = 1e-16
 
-    p0, p1, p2, p3, p4, p5 = params[0:6]
-    rxi = 1.0/rhoMax
-    for el in range(len(in_)):
-        xi, yi = in_[el, 0:2]
+        p0, p1, p2, p3, p4, p5 = params[0:6]
+        rxi = 1.0/rhoMax
+        for el in range(len(in_)):
+            xi, yi = in_[el, 0:2]
+            ri = np.sqrt(xi*xi + yi*yi)
+            ri_inv = 1.0/ri
+            sinni = yi*ri_inv
+            cosni = xi*ri_inv
+            ro = ri
+            cos2ni = cosni*cosni - sinni*sinni
+            sin2ni = 2*sinni*cosni
+            cos4ni = cos2ni*cos2ni - sin2ni*sin2ni
+            for i in range(maxiter): # newton solver iteration
+                ratio = ri*rxi
+                fx = (p0*ratio**p3*cos2ni +
+                      p1*ratio**p4*cos4ni +
+                      p2*ratio**p5 + 1)*ri - ro # f(x)
+                fxp = (p0*ratio**p3*cos2ni*(p3+1) +
+                       p1*ratio**p4*cos4ni*(p4+1) +
+                       p2*ratio**p5*(p5+1) + 1) # f'(x)
+
+                delta = fx/fxp
+                ri = ri - delta
+                if np.abs(delta) <= prec*np.abs(ri): # convergence check for newton
+                    break
+
+            xi = ri*cosni
+            yi = ri*sinni
+            out[el, 0] = xi
+            out[el, 1] = yi
+
+        return out
+
+
+    @numba.njit
+    def _ge_41rt_distortion(out, in_, rhoMax, params):
+        p0, p1, p2, p3, p4, p5 = params[0:6]
+        rxi = 1.0/rhoMax
+
+        for el in range(len(in_)):
+            xi, yi = in_[el, 0:2]
+            ri = np.sqrt(xi*xi + yi*yi)
+            ri_inv = 1.0/ri
+            sinni = yi*ri_inv
+            cosni = xi*ri_inv
+            cos2ni = cosni*cosni - sinni*sinni
+            sin2ni = 2*sinni*cosni
+            cos4ni = cos2ni*cos2ni - sin2ni*sin2ni
+            ratio = ri*rxi
+
+            ri = (p0*ratio**p3*cos2ni + p1*ratio**p4*cos4ni + p2*ratio**p5 + 1)*ri
+            xi = ri*cosni
+            yi = ri*sinni
+            out[el, 0] = xi
+            out[el, 1] = yi
+
+        return out
+else:
+    # non-numba versions for the direct and inverse distortion
+    def _ge_41rt_inverse_distortion(out, in_, rhoMax, params):
+        maxiter = 100
+        prec = 1e-16
+
+        p0, p1, p2, p3, p4, p5 = params[0:6]
+        rxi = 1.0/rhoMax
+
+        xi, yi = in_[:, 0], in_[:,1]
         ri = np.sqrt(xi*xi + yi*yi)
         ri_inv = 1.0/ri
         sinni = yi*ri_inv
@@ -34,6 +100,7 @@ def _ge_41rt_inverse_distortion(out, in_, rhoMax, params):
         cos2ni = cosni*cosni - sinni*sinni
         sin2ni = 2*sinni*cosni
         cos4ni = cos2ni*cos2ni - sin2ni*sin2ni
+
         for i in range(maxiter): # newton solver iteration
             ratio = ri*rxi
             fx = (p0*ratio**p3*cos2ni +
@@ -45,24 +112,20 @@ def _ge_41rt_inverse_distortion(out, in_, rhoMax, params):
 
             delta = fx/fxp
             ri = ri - delta
-            if np.abs(delta) <= prec*np.abs(ri): # convergence check for newton
+
+            if np.max(np.abs(delta/ri)) <= prec: # convergence check for newton
                 break
 
-        xi = ri*cosni
-        yi = ri*sinni
-        out[el, 0] = xi
-        out[el, 1] = yi
+        out[:, 0] = ri*cosni
+        out[:, 1] = ri*sinni
 
-    return out
+        return out
 
+    def _ge_41rt_distortion(out, in_, rhoMax, params):
+        p0, p1, p2, p3, p4, p5 = params[0:6]
+        rxi = 1.0/rhoMax
 
-@numba.njit
-def _ge_41rt_distortion(out, in_, rhoMax, params):
-    p0, p1, p2, p3, p4, p5 = params[0:6]
-    rxi = 1.0/rhoMax
-
-    for el in range(len(in_)):
-        xi, yi = in_[el, 0:2]
+        xi, yi = in_[:, 0], in_[:,1]
         ri = np.sqrt(xi*xi + yi*yi)
         ri_inv = 1.0/ri
         sinni = yi*ri_inv
@@ -73,13 +136,10 @@ def _ge_41rt_distortion(out, in_, rhoMax, params):
         ratio = ri*rxi
 
         ri = (p0*ratio**p3*cos2ni + p1*ratio**p4*cos4ni + p2*ratio**p5 + 1)*ri
-        xi = ri*cosni
-        yi = ri*sinni
-        out[el, 0] = xi
-        out[el, 1] = yi
+        out[:,0] = ri*cosni
+        out[:,1] = ri*sinni
 
-    return out
-
+        return out
 
 def inverse_distortion_numpy(rho0, eta0, rhoMax, params):
     rhoSclFuncInv = lambda ri, ni, ro, rx, p: \

@@ -29,9 +29,9 @@
 import os, sys, warnings
 import numpy as np
 #np.seterr(invalid='ignore')
-import numba
 
 import scipy.sparse as sparse
+
 
 from hexrd import matrixutil as mutil
 
@@ -39,6 +39,11 @@ from numpy import float_ as nFloat
 from numpy import int_ as nInt
 
 from hexrd.xrd import distortion as dFuncs
+from hexrd.config import USE_NUMBA
+
+if USE_NUMBA:
+    import numba
+
 
 # ######################################################################
 # Module Data
@@ -98,31 +103,44 @@ def makeGVector(hkl, bMat):
     assert hkl.shape[0] == 3, 'hkl input must be (3, n)'
     return unitVector(np.dot(bMat, hkl))
 
-@numba.njit
-def _anglesToGVecHelper(angs, out):
-    #gVec_e = np.vstack([[np.cos(0.5*angs[:, 0]) * np.cos(angs[:, 1])],
-    #                    [np.cos(0.5*angs[:, 0]) * np.sin(angs[:, 1])],
-    #                    [np.sin(0.5*angs[:, 0])]])
-    n = angs.shape[0]
-    for i in range(n):
-        ca0 = np.cos(0.5*angs[i, 0])
-        sa0 = np.sin(0.5*angs[i, 0])
-        ca1 = np.cos(angs[i, 1])
-        sa1 = np.sin(angs[i, 1])
-        out[i, 0] = ca0 * ca1
-        out[i, 1] = ca0 * sa1
-        out[i, 2] = sa0
+
+if USE_NUMBA:
+    @numba.njit
+    def _anglesToGVecHelper(angs, out):
+        #gVec_e = np.vstack([[np.cos(0.5*angs[:, 0]) * np.cos(angs[:, 1])],
+        #                    [np.cos(0.5*angs[:, 0]) * np.sin(angs[:, 1])],
+        #                    [np.sin(0.5*angs[:, 0])]])
+        n = angs.shape[0]
+        for i in range(n):
+            ca0 = np.cos(0.5*angs[i, 0])
+            sa0 = np.sin(0.5*angs[i, 0])
+            ca1 = np.cos(angs[i, 1])
+            sa1 = np.sin(angs[i, 1])
+            out[i, 0] = ca0 * ca1
+            out[i, 1] = ca0 * sa1
+            out[i, 2] = sa0
 
 
-def anglesToGVec(angs, bHat_l, eHat_l, rMat_s=I3, rMat_c=I3):
-    """
-    from 'eta' frame out to lab (with handy kwargs to go to crystal or sample)
-    """
-    rMat_e = makeEtaFrameRotMat(bHat_l, eHat_l)
-    gVec_e = np.empty((angs.shape[0], 3))
-    _anglesToGVecHelper(angs, gVec_e)
-    mat = np.dot(rMat_c.T, np.dot(rMat_s.T, rMat_e))
-    return np.dot(mat, gVec_e.T)
+    def anglesToGVec(angs, bHat_l, eHat_l, rMat_s=I3, rMat_c=I3):
+        """
+        from 'eta' frame out to lab (with handy kwargs to go to crystal or sample)
+        """
+        rMat_e = makeEtaFrameRotMat(bHat_l, eHat_l)
+        gVec_e = np.empty((angs.shape[0], 3))
+        _anglesToGVecHelper(angs, gVec_e)
+        mat = np.dot(rMat_c.T, np.dot(rMat_s.T, rMat_e))
+        return np.dot(mat, gVec_e.T)
+else:
+    def anglesToGVec(angs, bHat_l, eHat_l, rMat_s=I3, rMat_c=I3):
+         """
+         from 'eta' frame out to lab (with handy kwargs to go to crystal or sample)
+         """
+         rMat_e = makeEtaFrameRotMat(bHat_l, eHat_l)
+         gVec_e = np.vstack([[np.cos(0.5*angs[:, 0]) * np.cos(angs[:, 1])],
+                             [np.cos(0.5*angs[:, 0]) * np.sin(angs[:, 1])],
+                             [np.sin(0.5*angs[:, 0])]])
+         mat = np.dot(rMat_c.T, np.dot(rMat_s.T, rMat_e))
+         return np.dot(mat, gVec_e)
 
 def gvecToDetectorXY(gVec_c,
                      rMat_d, rMat_s, rMat_c,
@@ -727,51 +745,73 @@ def rowNorm(a):
 
     return cnrma
 
-@numba.njit
-def _unitVectorSingle(a, b):
-    n = a.shape[0]
-    nrm = 0.0
-    for i in range(n):
-        nrm += a[i]*a[i]
-    nrm = np.sqrt(nrm)
-    # prevent divide by zero
-    if nrm > epsf:
-        for i in range(n):
-            b[i] = a[i] / nrm
-    else:
-        for i in range(n):
-            b[i] = a[i]
 
-@numba.njit
-def _unitVectorMulti(a, b):
-    n = a.shape[0]
-    m = a.shape[1]
-    for j in range(m):
+if USE_NUMBA:
+    @numba.njit
+    def _unitVectorSingle(a, b):
+        n = a.shape[0]
         nrm = 0.0
         for i in range(n):
-            nrm += a[i, j]*a[i, j]
+            nrm += a[i]*a[i]
         nrm = np.sqrt(nrm)
         # prevent divide by zero
         if nrm > epsf:
             for i in range(n):
-                b[i, j] = a[i, j] / nrm
+                b[i] = a[i] / nrm
         else:
             for i in range(n):
-                b[i, j] = a[i, j]
+                b[i] = a[i]
+
+    @numba.njit
+    def _unitVectorMulti(a, b):
+        n = a.shape[0]
+        m = a.shape[1]
+        for j in range(m):
+            nrm = 0.0
+            for i in range(n):
+                nrm += a[i, j]*a[i, j]
+            nrm = np.sqrt(nrm)
+            # prevent divide by zero
+            if nrm > epsf:
+                for i in range(n):
+                    b[i, j] = a[i, j] / nrm
+            else:
+                for i in range(n):
+                    b[i, j] = a[i, j]
     
 
-def unitVector(a):
-    """
-    normalize array of column vectors (hstacked, axis = 0)
-    """
-    result = np.empty_like(a)
-    if a.ndim == 1:
-        _unitVectorSingle(a, result)
-    elif a.ndim == 2:
-        _unitVectorMulti(a, result)
-    else:
-        raise ValueError("incorrect arg shape; must be 1-d or 2-d, yours is %d-d" % (a.ndim))
-    return result
+    def unitVector(a):
+        """
+        normalize array of column vectors (hstacked, axis = 0)
+        """
+        result = np.empty_like(a)
+        if a.ndim == 1:
+            _unitVectorSingle(a, result)
+        elif a.ndim == 2:
+            _unitVectorMulti(a, result)
+        else:
+            raise ValueError("incorrect arg shape; must be 1-d or 2-d, yours is %d-d" % (a.ndim))
+        return result
+
+else: # not USE_NUMBA
+    def unitVector(a):
+         """
+         normalize array of column vectors (hstacked, axis = 0)
+         """
+         assert a.ndim in [1, 2], "incorrect arg shape; must be 1-d or 2-d, yours is %d-d" % (a.ndim)
+
+         m = a.shape[0]; n = 1
+
+         nrm = np.tile(np.sqrt(sum(np.asarray(a)**2, 0)), (m, n))
+
+         # prevent divide by zero
+         zchk = nrm <= epsf
+         nrm[zchk] = 1.
+
+         nrma = a/nrm
+
+         return nrma
+
 
 def makeDetectorRotMat(tiltAngles):
     """
@@ -794,6 +834,7 @@ def makeDetectorRotMat(tiltAngles):
                       [     0.,      0.,      1.]])
     return np.dot(rotZl, np.dot(rotYl, rotXl))
 
+
 def makeOscillRotMat(oscillAngles):
     """
     oscillAngles = [chi, ome]
@@ -807,6 +848,7 @@ def makeOscillRotMat(oscillAngles):
                      [   0.,    1.,    0.],
                      [-some,    0.,  come]])
     return np.dot(rchi, rome)
+
 
 def makeRotMatOfExpMap(expMap):
     """
@@ -825,6 +867,7 @@ def makeRotMatOfExpMap(expMap):
     	rMat = I3
     return rMat
 
+
 def makeBinaryRotMat(axis):
     """
     """
@@ -832,39 +875,54 @@ def makeBinaryRotMat(axis):
     assert len(n) == 3, 'Axis input does not have 3 components'
     return 2*np.dot(n.reshape(3, 1), n.reshape(1, 3)) - I3
 
-@numba.njit
-def _makeEtaFrameRotMat(bHat_l, eHat_l, out):
-    # Ze = -unitVector(np.atleast_2d(bHat_l).reshape(3, 1))
-    bHat_mag = np.sqrt(bHat_l[0]**2 + bHat_l[1]**2 + bHat_l[2]**2)
-    if bHat_mag > epsf:
-        for i in range(3):
-            out[2, i] = -bHat_l[i] / bHat_mag
-    else:
-        for i in range(3):
-            out[2, i] = -bHat_l[i]
-    # Xe = unitVector(np.dot(I3 - np.dot(Ze, Ze.T), np.atleast_2d(eHat_l).reshape(3, 1)))
-    Ze_dot_eHat = (out[2, 0] * eHat_l[0] + out[2, 1] * eHat_l[1] + out[2, 2] * eHat_l[2])
-    for i in range(3):
-        out[0, i] = eHat_l[i] - out[2, i] * Ze_dot_eHat
-    Xe_mag = np.sqrt(out[0, 0]**2 + out[0, 1]**2 + out[0, 2]**2)
-    if Xe_mag > epsf:
-        for i in range(3):
-            out[0, i] = out[0, i] / Xe_mag
-    # Ye = np.cross(Ze.flatten(), Xe.flatten()).reshape(3, 1)
-    out[1, 0] = out[2, 1] * out[0, 2] - out[2, 2] * out[0, 1]
-    out[1, 1] = out[2, 2] * out[0, 0] - out[2, 0] * out[0, 2]
-    out[1, 2] = out[2, 0] * out[0, 1] - out[2, 1] * out[0, 0]
-    
 
-def makeEtaFrameRotMat(bHat_l, eHat_l):
-    """
-    make eta basis COB matrix with beam antiparallel with Z
+if USE_NUMBA:
+    @numba.njit
+    def _makeEtaFrameRotMat(bHat_l, eHat_l, out):
+        # Ze = -unitVector(np.atleast_2d(bHat_l).reshape(3, 1))
+        bHat_mag = np.sqrt(bHat_l[0]**2 + bHat_l[1]**2 + bHat_l[2]**2)
+        if bHat_mag > epsf:
+            for i in range(3):
+                out[2, i] = -bHat_l[i] / bHat_mag
+        else:
+            for i in range(3):
+                out[2, i] = -bHat_l[i]
+        # Xe = unitVector(np.dot(I3 - np.dot(Ze, Ze.T), np.atleast_2d(eHat_l).reshape(3, 1)))
+        Ze_dot_eHat = (out[2, 0] * eHat_l[0] + out[2, 1] * eHat_l[1] + out[2, 2] * eHat_l[2])
+        for i in range(3):
+            out[0, i] = eHat_l[i] - out[2, i] * Ze_dot_eHat
+        Xe_mag = np.sqrt(out[0, 0]**2 + out[0, 1]**2 + out[0, 2]**2)
+        if Xe_mag > epsf:
+            for i in range(3):
+                out[0, i] = out[0, i] / Xe_mag
+        # Ye = np.cross(Ze.flatten(), Xe.flatten()).reshape(3, 1)
+        out[1, 0] = out[2, 1] * out[0, 2] - out[2, 2] * out[0, 1]
+        out[1, 1] = out[2, 2] * out[0, 0] - out[2, 0] * out[0, 2]
+        out[1, 2] = out[2, 0] * out[0, 1] - out[2, 1] * out[0, 0]
 
-    takes components from ETA frame to LAB
-    """
-    result = np.empty((3,3))
-    _makeEtaFrameRotMat(bHat_l.reshape(3), eHat_l.reshape(3), result)
-    return result
+
+    def makeEtaFrameRotMat(bHat_l, eHat_l):
+        """
+        make eta basis COB matrix with beam antiparallel with Z
+
+        takes components from ETA frame to LAB
+        """
+        result = np.empty((3,3))
+        _makeEtaFrameRotMat(bHat_l.reshape(3), eHat_l.reshape(3), result)
+        return result
+
+else: # not USE_NUMBA
+    def makeEtaFrameRotMat(bHat_l, eHat_l):
+         """
+         make eta basis COB matrix with beam antiparallel with Z
+
+         takes components from ETA frame to LAB
+         """
+         Ze = -unitVector(np.atleast_2d(bHat_l).reshape(3, 1))
+         Xe = unitVector(np.dot(I3 - np.dot(Ze, Ze.T), np.atleast_2d(eHat_l).reshape(3, 1)))
+         Ye = np.cross(Ze.flatten(), Xe.flatten()).reshape(3, 1)
+         return np.hstack([Xe, Ye, Ze])
+
 
 def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     """
@@ -958,6 +1016,7 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
                     reflInRange = reflInRange | np.logical_and(zStart >= 0, zStop <= 0)
     return reflInRange
 
+
 def rotate_vecs_about_axis(angle, axis, vecs):
     """
     Rotate vectors about an axis
@@ -1005,6 +1064,7 @@ def rotate_vecs_about_axis(angle, axis, vecs):
       + 2. * np.tile(q0, (3, 1)) * qcrossn
     return v_rot
 
+
 def quat_product_matrix(q, mult='right'):
     """
     Form 4 x 4 array to perform the quaternion product
@@ -1045,6 +1105,7 @@ def quat_product_matrix(q, mult='right'):
                          [ q[3], -q[2],  q[1],  q[0]],
                          ])
     return qmat
+
 
 def quat_distance(q1, q2, qsym):
     """
