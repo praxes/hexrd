@@ -28,7 +28,7 @@ class RootConfig(Config):
     def _get_config(self, ctype):
         temp = self._cfg.get(ctype, None)
         temp = temp if temp is not None else {}
-        return self.__config_map[ctype](temp, self._cfg)
+        return self.__config_map[ctype](temp, self)
 
 
     @property
@@ -108,3 +108,7 @@ class RootConfig(Config):
                 'working directory "%s" not found' % temp
                 )
         return temp
+
+
+    def __init__(self, cfg):
+        self._cfg = cfg

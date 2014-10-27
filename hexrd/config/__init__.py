@@ -21,4 +21,4 @@ def open(file_name):
             except IndexError:
                 # this is the first config section
                 res.append(cfg)
-        return [root.RootConfig(i, i) for i in res]
+        return [root.RootConfig(i) for i in res]
