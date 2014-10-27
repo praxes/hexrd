@@ -1,4 +1,5 @@
 import cPickle
+import multiprocessing as mp
 import os
 import shelve
 import sys
@@ -19,10 +20,9 @@ from hexrd.xrd import indexer as idx
 from hexrd.xrd import rotations as rot
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
-from hexrd.coreutil import initialize_experiment, merge_dicts
+from hexrd.coreutil import initialize_experiment, make_eta_ranges, merge_dicts
 
 from hexrd.xrd import xrdutil
-from hexrd.xrd.xrdbase import multiprocessing
 from hexrd.xrd.detector import ReadGE
 
 from hexrd.xrd import distortion as dFuncs
@@ -146,7 +146,7 @@ def paintgrid(pd, eta_ome, quats, threshold,
                   omeRange=None, etaRange=None,
                   omePeriod=(-np.pi, np.pi),
                   qTol=1e-7,
-                  ncpus=multiprocessing.cpu_count(),
+                  ncpus=mp.cpu_count(),
                   verbose=False
                   ):
     """
@@ -329,15 +329,10 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
 
 
 def find_orientations(
-    yml_file, verbose=False, hkls=None, force=False
+    cfg, verbose=False, hkls=None, force=False
     ):
+    """Takes a config dict as input, generally a yml document"""
 
-    if verbose:
-        print "Using configuration file '%s'" % yml_file
-    # need to iterate her
-    # for cfg in cfgs
-    with open(yml_file, 'r') as f:
-        cfg = [cfg for cfg in yaml.load_all(f)][0]
     # a goofy call, could be replaced with two more targeted calls
     pd, reader, detector = initialize_experiment(cfg, verbose)
 
@@ -384,23 +379,21 @@ def find_orientations(
     ome_period = np.radians(ome_period)
     try:
         eta_tol = pgcfg['eta'].get('tolerance', None)
-        eta_mask = np.radians(abs(pgcfg['eta'].get('mask', 5)))
+        eta_mask = abs(pgcfg.get('mask', 5))
     except (KeyError, AttributeError):
         eta_tol = None
         eta_mask = 5
-    eta_mask = np.radians(eta_mask)
     if eta_tol is None:
-        eta_tol = ome_tol
+        eta_tol = 2*ome_tol     # ome tol is half, eta is full
     if verbose:
         print "Eta tolerance: %g" % eta_tol
     eta_range = None
     if eta_mask:
-        eta_range = [[-0.5*np.pi + eta_mask, 0.5*np.pi - eta_mask],
-                     [ 0.5*np.pi + eta_mask, 1.5*np.pi - eta_mask]]
+        eta_range = make_eta_ranges(eta_mask)
         if verbose:
             print (
                 "Masking eta angles within %g of ome rotation axis"
-                % np.degrees(eta_mask)
+                % eta_mask
                 )
     else:
         if verbose:
@@ -409,7 +402,7 @@ def find_orientations(
     threshold = pgcfg.get('threshold', 1)
 
     # determine number of processes to run in parallel
-    multiproc = pgcfg.get('multiprocessing', -1)
+    multiproc = cfg.get('multiprocessing', -1)
     ncpus = multiprocessing.cpu_count()
     if multiproc == 'all':
         pass

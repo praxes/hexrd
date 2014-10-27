@@ -1,3 +1,5 @@
+import collections
+from ConfigParser import SafeConfigParser
 import copy
 import os
 import sys
@@ -9,10 +11,10 @@ import numpy as np
 from scipy.optimize import leastsq
 from scipy.linalg import solve
 
-from ConfigParser import SafeConfigParser
+import yaml
 
-from hexrd.xrd import experiment      as expt
-from hexrd.xrd import transforms      as xf
+from hexrd.xrd import experiment as expt
+from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 
 from hexrd.xrd.detector import ReadGE
@@ -81,11 +83,18 @@ def make_old_detector_parfile(results, det_origin=(204.8, 204.8), filename=None)
         fid.close()
     return det_plist
 
-def convert_detector_params(old_par, det_origin, chi=0., tVec_s=np.zeros(3), filename=None):
+def migrate_detector_config(old_par, nrows, ncols, pixel_size,
+                            detID='GE', chi=0., tVec_s=np.zeros(3),
+                            filename=None):
     """
     takes old ge detector parfile from hexrd and converts to the new 10
-    parameters
+    parameter spec.
     """
+
+    # in old spec, origin of detector frame was lower-left corner of panel;
+    # in new spec, origin is centroid of detector frame vvv
+    det_origin = 0.5 * np.r_[ncols, nrows] * np.array(pixel_size).flatten()
+
     tVec_d = tVec_d_from_old_detector_params(old_par, det_origin)
     detector_params = np.hstack([old_par[3:6, 0], tVec_d.flatten(), chi, tVec_s.flatten()])
     if filename is not None:
@@ -93,18 +102,20 @@ def convert_detector_params(old_par, det_origin, chi=0., tVec_s=np.zeros(3), fil
             fid = filename
         elif isinstance(filename, str) or isinstance(filename, unicode):
             fid = open(filename, 'w')
-        print >> fid, "# DETECTOR PARAMETERS"
-        print >> fid, \
-            "%1.7e\t# tiltAngles[0]\n" % (detector_params[0]) + \
-            "%1.7e\t# tiltAngles[1]\n" % (detector_params[1]) + \
-            "%1.7e\t# tiltAngles[2]\n" % (detector_params[2]) + \
-            "%1.7e\t# tVec_d[0]    \n" % (detector_params[3]) + \
-            "%1.7e\t# tVec_d[1]    \n" % (detector_params[4]) + \
-            "%1.7e\t# tVec_d[2]    \n" % (detector_params[5]) + \
-            "%1.7e\t# chi          \n" % (detector_params[6]) + \
-            "%1.7e\t# tVec_s[0]    \n" % (detector_params[7]) + \
-            "%1.7e\t# tVec_s[1]    \n" % (detector_params[8]) + \
-            "%1.7e\t# tVec_s[2]    \n" % (detector_params[9])
+        print >> fid, "oscillation_stage:"
+        print >> fid, "  chi:     %1.8e # radians" %detector_params[6]
+        print >> fid, "  t_vec_s: [%1.8e, %1.8e, %1.8e] # mm\n" %tuple(detector_params[7:10])
+        print >> fid, "detector:\n  id: '%s'" %detID
+        print >> fid, "  pixels:"
+        print >> fid, "    rows:    %d" %nrows
+        print >> fid, "    columns: %d" %ncols
+        print >> fid, "    size:    [%f, %f] # [row height, col width] in mm" %tuple(pixel_size)
+        print >> fid, "  transform:"
+        print >> fid, "    tilt_angles: [%1.8e, %1.8e, %1.8e] # radians" %tuple(detector_params[:3])
+        print >> fid, "    t_vec_d:     [%1.8e, %1.8e, %1.8e] # mm\n" %tuple(detector_params[3:6])
+        print >> fid, "  distortion:"
+        print >> fid, "    function_name: GE_41RT"
+        print >> fid, "    parameters:    [%1.8e, %1.8e, %1.8e, %1.8e, %1.8e, %1.8e]" %tuple(old_par[-6:, 0])
         fid.close()
     return detector_params
 
@@ -194,3 +205,54 @@ def merge_dicts(a, b):
         else:
             a[k] = v
     return a
+
+
+def iter_cfg_sections(cfg):
+    """
+    Iterate over sections specified in the yml configuration file.
+
+    Each section inherits unspecified values from previous section.
+
+    Takes a file name as input.
+    """
+    with open(cfg, 'r') as f:
+        cfgs = f.read()
+    for cfg in yaml.load_all(cfgs):
+        try:
+            yield merge_dicts(base_cfg, cfg)
+        except NameError:
+            base_cfg = cfg
+            yield cfg
+
+
+def make_eta_ranges(eta_mask, units='degrees'):
+    """
+    take spec from yaml input and export to list of ranges (radians)
+    """
+    if units.strip().lower() == 'degrees':
+        eta_mask = np.radians(eta_mask)
+    eta_range = [[-0.5*np.pi + eta_mask, 0.5*np.pi - eta_mask],
+                 [ 0.5*np.pi + eta_mask, 1.5*np.pi - eta_mask]]
+    return eta_range
+
+
+class memoized(object):
+    """Decorator. Caches a function's return value each time it is called.
+    If called later with the same arguments, the cached value is returned
+    (not reevaluated).
+    """
+    def __init__(self, func):
+        self.func = func
+        self.cache = {}
+    def __call__(self, *args, **kw):
+        if not isinstance(args, collections.Hashable):
+            # uncacheable. a list, for instance.
+            # better to not cache than blow up.
+            return self.func(*args, **kw)
+        key = (args, frozenset(kw.items()))
+        if key in self.cache:
+            return self.cache[key]
+        else:
+            value = self.func(*args, **kw)
+            self.cache[key] = value
+            return value
