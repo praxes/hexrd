@@ -33,6 +33,9 @@ import numpy
 np_include_dir = os.path.join(numpy.get_include(), 'numpy')
 
 
+description = "hexrd diffraction data analysis"
+
+
 # for SgLite
 srclist = ['sgglobal.c','sgcb.c','sgcharmx.c','sgfile.c',
            'sggen.c','sghall.c','sghkl.c','sgltr.c','sgmath.c','sgmetric.c',
@@ -60,7 +63,7 @@ for dirpath, dirnames, filenames in os.walk('hexrd'):
     else:
         del(dirnames[:])
 
-scripts = ['scripts/find_orientations', 'scripts/fit_grains']
+scripts = []
 if sys.platform.startswith('win'):
     # scripts calling multiprocessing must be importable
     import shutil
