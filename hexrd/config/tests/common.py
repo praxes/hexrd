@@ -10,11 +10,12 @@ test_data = {
     'nonexistent_path': 'an_unlikely_name_for_a_directory',
     'existing_file': __file__,
     'nonexistent_file': 'an_unlikely_name_for_a_file.dat',
+    'file_stem': 'test_%%05d.dat'
     }
 
 
 
-class YmlTestCase(testing.TestCase):
+class TestConfig(testing.TestCase):
 
 
     file_name = None

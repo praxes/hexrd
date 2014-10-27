@@ -1,9 +1,4 @@
-import multiprocessing as mp
-import os
-from unittest import skipIf
-
-from hexrd import config
-from .common import YmlTestCase, test_data
+from .common import TestConfig, test_data
 
 
 reference_data = \
@@ -22,7 +17,7 @@ material:
 """ % test_data
 
 
-class TestMaterialConfig(YmlTestCase):
+class TestMaterialConfig(TestConfig):
 
 
     @classmethod

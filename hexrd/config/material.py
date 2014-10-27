@@ -12,7 +12,7 @@ class MaterialConfig(Config):
             temp = self._cfg['definitions']
             if not os.path.isfile(temp):
                 raise IOError(
-                    'material definitions specified at "%s" do not exist' % temp
+                    'material:definitions specified at "%s" do not exist' % temp
                     )
             return temp
         except KeyError:

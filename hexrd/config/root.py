@@ -6,7 +6,7 @@ from .config import Config
 #from .detector import DetectorConfig
 #from .findorientations import FindOrientationsConfig
 #from .fitgrains import FitGrainsConfig
-#from .imageseries import ImageSeriesConfig
+from .imageseries import ImageSeriesConfig
 from .material import MaterialConfig
 
 
@@ -16,6 +16,21 @@ logger = logging.getLogger(__name__)
 class RootConfig(Config):
 
 
+    __config_map = {
+        #'detector': DetectorConfig,
+        #'find_orientations': FindOrientationsConfig,
+        #'fit_grains': FitGrainsConfig,
+        'image_series': ImageSeriesConfig,
+        'material': MaterialConfig,
+        }
+
+
+    def _get_config(self, ctype):
+        temp = self._cfg.get(ctype, None)
+        temp = temp if temp is not None else {}
+        return self.__config_map[ctype](temp, self._cfg)
+
+
     @property
     def analysis_name(self):
         return str(self._cfg.get('analysis_name', 'analysis'))
@@ -23,27 +38,27 @@ class RootConfig(Config):
 
     @property
     def detector(self):
-        return DetectorConfig(self._cfg.get('detector', {}))
+        return self._get_config('detector')
 
 
     @property
     def find_orientations(self):
-        return FindOrientationsConfig(self._cfg.get('find_orientations', {}))
+        return self._get_config('find_orientations')
 
 
     @property
     def fit_grains(self):
-        return FitGrainsConfig(self._cfg.get('fit_grains', {}))
+        return self._get_config('fit_grains')
 
 
     @property
-    def image_sereis(self):
-        return ImageSeriesConfig(self._cfg.get('image_series', {}))
+    def image_series(self):
+        return self._get_config('image_series')
 
 
     @property
     def material(self):
-        return MaterialConfig(self._cfg.get('material', {}))
+        return self._get_config('material')
 
 
     @property
@@ -89,5 +104,7 @@ class RootConfig(Config):
     def working_dir(self):
         temp = self._cfg.get('working_dir', os.getcwd())
         if not os.path.isdir(temp):
-            raise IOError()
+            raise IOError(
+                'working directory "%s" not found' % temp
+                )
         return temp

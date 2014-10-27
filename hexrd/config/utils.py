@@ -10,7 +10,14 @@ def merge_dicts(a, b):
 def _merge_dicts(a, b):
     for k,v in b.iteritems():
         if isinstance(v, dict):
+            if a.get(k) is None:
+                # happens in cases where all but section head is commented
+                a[k] = {}
             _merge_dicts(a[k], v)
         else:
-            a[k] = v
+            if v is None and a.get(k) is not None:
+                # entire section commented out. Inherit, don't overwrite
+                pass
+            else:
+                a[k] = v
     return a

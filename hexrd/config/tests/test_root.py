@@ -2,8 +2,7 @@ import multiprocessing as mp
 import os
 from unittest import skipIf
 
-from hexrd import config
-from .common import YmlTestCase, test_data
+from .common import TestConfig, test_data
 
 
 reference_data = \
@@ -31,7 +30,7 @@ multiprocessing: foo
 """ % test_data
 
 
-class TestRootConfig(YmlTestCase):
+class TestRootConfig(TestConfig):
 
     @classmethod
     def get_reference_data(cls):
@@ -46,7 +45,6 @@ class TestRootConfig(YmlTestCase):
         self.assertEqual(self.cfgs[1].analysis_name, 'analysis_2')
         # 2 should inherit from 0, not 1:
         self.assertEqual(self.cfgs[2].analysis_name, 'analysis')
-
 
     def test_working_dir(self):
         self.assertEqual(self.cfgs[0].working_dir, os.getcwd())
@@ -64,3 +62,13 @@ class TestRootConfig(YmlTestCase):
         self.assertEqual(self.cfgs[5].multiprocessing, ncpus)
         self.assertEqual(self.cfgs[6].multiprocessing, 1)
         self.assertEqual(self.cfgs[7].multiprocessing, ncpus-1)
+
+
+class TestSingleConfig(TestConfig):
+
+    @classmethod
+    def get_reference_data(cls):
+        return "analysis_name: foo"
+
+    def test_analysis_name(self):
+        self.assertEqual(self.cfgs[0].analysis_name, 'foo')
