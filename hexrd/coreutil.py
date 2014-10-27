@@ -195,35 +195,6 @@ def initialize_experiment(cfg, verbose=False):
     return pd, reader, ws.detector
 
 
-def merge_dicts(a, b):
-    "Returns a merged dict, updating values in `a` with values from `b`"
-    a = copy.deepcopy(a)
-    for k,v in b.iteritems():
-        if isinstance(v, dict):
-            merge_dicts(a[k], v)
-        else:
-            a[k] = v
-    return a
-
-
-def iter_cfg_sections(cfg):
-    """
-    Iterate over sections specified in the yml configuration file.
-
-    Each section inherits unspecified values from previous section.
-
-    Takes a file name as input.
-    """
-    with open(cfg, 'r') as f:
-        cfgs = f.read()
-    for cfg in yaml.load_all(cfgs):
-        try:
-            yield merge_dicts(base_cfg, cfg)
-        except NameError:
-            base_cfg = cfg
-            yield cfg
-
-
 def make_eta_ranges(eta_mask, units='degrees'):
     """
     take spec from yaml input and export to list of ranges (radians)
