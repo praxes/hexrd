@@ -41,7 +41,6 @@ test:
   imports:
     - hexrd
   commands:
-    - echo $PATH
     - hexrd -h
     - hexrd help
     - hexrd find-orientations -h
