@@ -3232,44 +3232,101 @@ def simulateGVecs(pd, detector_params, grain_params,
     #
     return valid_hkl, valid_ang, valid_xy, ang_ps
 
-def angularPixelSize(xy_det, xy_pixelPitch,
-                     rMat_d, rMat_s,
-                     tVec_d, tVec_s, tVec_c,
-                     distortion=(dFunc_ref, dParams_ref)):
-    """
-    * choices to beam vector and eta vector specs have been supressed
-    * assumes xy_det in UNWARPED configuration
-    """
 
-    xy_det = num.atleast_2d(xy_det)
-    if distortion is not None:
-        xy_det = distortion[0](xy_det, distortion[1])
+if USE_NUMBA:
+    @numba.njit
+    def _expand_pixels(original, w, h, result):
+        hw = 0.5 * w
+        hh = 0.5 * h
+        for el in range(len(original)):
+            x, y = original[el, 0], original[el,1]
+            result[el*4 + 0, 0] = x - hw
+            result[el*4 + 0, 1] = y - hh
+            result[el*4 + 1, 0] = x + hw
+            result[el*4 + 1, 1] = y - hh
+            result[el*4 + 2, 0] = x + hw
+            result[el*4 + 2, 1] = y + hh
+            result[el*4 + 3, 0] = x - hw
+            result[el*4 + 3, 1] = y + hh
 
-    xp = num.r_[-0.5,  0.5,  0.5, -0.5] * xy_pixelPitch[0]
-    yp = num.r_[-0.5, -0.5,  0.5,  0.5] * xy_pixelPitch[1]
+        return result
 
-    diffs = num.array([[3, 3, 2, 1],
-                       [2, 0, 1, 0]])
+    @numba.jit
+    def _compute_max(tth, eta, result):
+        period = 2.0 * num.pi
+        hperiod = num.pi
+        for el in range(0, len(tth), 4):
+            max_tth = num.abs(tth[el + 0] - tth[el + 3])
+            eta_diff = eta[el + 0] - eta[el + 3]
+            max_eta = num.abs(num.remainder(eta_diff + hperiod, period) - hperiod) 
+            for i in range(3):
+                curr_tth = num.abs(tth[el + i] - tth[el + i + 1])
+                eta_diff = eta[el + i] - eta[el + i + 1]
+                curr_eta = num.abs(num.remainder(eta_diff + hperiod, period) - hperiod)
+                max_tth = num.maximum(curr_tth, max_tth)
+                max_eta = num.maximum(curr_eta, max_eta)
+            result[el//4, 0] = max_tth
+            result[el//4, 1] = max_eta
 
-    ang_pix = num.zeros((len(xy_det), 2))
+        return result
 
-    for ipt, xy in enumerate(xy_det):
-        xc = xp + xy[0]
-        yc = yp + xy[1]
+    def angularPixelSize(xy_det, xy_pixelPitch,
+                 rMat_d, rMat_s,
+                 tVec_d, tVec_s, tVec_c,
+                 distortion=(dFunc_ref, dParams_ref)):
+        """
+        * choices to beam vector and eta vector specs have been supressed
+        * assumes xy_det in UNWARPED configuration
+        """
+        xy_det = num.atleast_2d(xy_det)
+        if distortion is not None:
+            xy_det = distortion[0](xy_det, distortion[1])
 
-        tth_eta, gHat_l = xfcapi.detectorXYToGvec(num.vstack([xc, yc]).T,
-                                                  rMat_d, rMat_s,
-                                                  tVec_d, tVec_s, tVec_c)
+        xy_expanded = num.empty((len(xy_det) * 4, 2), dtype=xy_det.dtype)
+        xy_expanded = _expand_pixels(xy_det, xy_pixelPitch[0], xy_pixelPitch[1], xy_expanded)
+        gvec_space, _ = xfcapi.detectorXYToGvec(xy_expanded, rMat_d, rMat_s,
+                                                tVec_d, tVec_s, tVec_c)
+        result = num.empty_like(xy_det)
+        return _compute_max(gvec_space[0], gvec_space[1], result)
+else:
+    def angularPixelSize(xy_det, xy_pixelPitch,
+                         rMat_d, rMat_s,
+                         tVec_d, tVec_s, tVec_c,
+                         distortion=(dFunc_ref, dParams_ref)):
+        """
+        * choices to beam vector and eta vector specs have been supressed
+        * assumes xy_det in UNWARPED configuration
+        """
 
-        delta_tth = num.zeros(4)
-        delta_eta = num.zeros(4)
-        for j in range(4):
-            delta_tth[j] = abs(tth_eta[0][diffs[0, j]] - tth_eta[0][diffs[1, j]])
-            delta_eta[j] = xf.angularDifference(tth_eta[1][diffs[0, j]], tth_eta[1][diffs[1, j]])
+        xy_det = num.atleast_2d(xy_det)
+        if distortion is not None:
+            xy_det = distortion[0](xy_det, distortion[1])
 
-        ang_pix[ipt, 0] = num.amax(delta_tth)
-        ang_pix[ipt, 1] = num.amax(delta_eta)
-    return ang_pix
+        xp = num.r_[-0.5,  0.5,  0.5, -0.5] * xy_pixelPitch[0]
+        yp = num.r_[-0.5, -0.5,  0.5,  0.5] * xy_pixelPitch[1]
+
+        diffs = num.array([[3, 3, 2, 1],
+                           [2, 0, 1, 0]])
+
+        ang_pix = num.zeros((len(xy_det), 2))
+
+        for ipt, xy in enumerate(xy_det):
+            xc = xp + xy[0]
+            yc = yp + xy[1]
+
+            tth_eta, gHat_l = xfcapi.detectorXYToGvec(num.vstack([xc, yc]).T,
+                                                      rMat_d, rMat_s,
+                                                      tVec_d, tVec_s, tVec_c)
+
+            delta_tth = num.zeros(4)
+            delta_eta = num.zeros(4)
+            for j in range(4):
+                delta_tth[j] = abs(tth_eta[0][diffs[0, j]] - tth_eta[0][diffs[1, j]])
+                delta_eta[j] = xf.angularDifference(tth_eta[1][diffs[0, j]], tth_eta[1][diffs[1, j]])
+
+            ang_pix[ipt, 0] = num.amax(delta_tth)
+            ang_pix[ipt, 1] = num.amax(delta_eta)
+        return ang_pix
 
 
 
