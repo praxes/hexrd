@@ -5,10 +5,14 @@ class Config(object):
         self._rootcfg = rootcfg
 
 
-    def _get_nested_val(self, *args):
+    def _get_nested_val(self, *args, **kwargs):
         args, item = args[:-1], args[-1]
         temp = self._cfg
         for arg in args:
             temp = temp.get(arg, {})
             temp = {} if temp is None else temp
-        return temp[item]
+        try:
+            default = kwargs['default']
+            return temp.get(item, default)
+        except KeyError:
+            return temp[item]

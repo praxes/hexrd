@@ -10,9 +10,8 @@ material:
   active: ruby
 
 image_series:
-  path: /nfs/chess/aux/user/afrl/2014-3/multiruby/1/ff
   file:
-    stem: ff_%05d.ge2
+    stem: /nfs/chess/aux/user/afrl/2014-3/multiruby/1/ff/ff_%05d.ge2
     ids: [24, 25, 26, 27, 28, 29]
   images:
     start: 0

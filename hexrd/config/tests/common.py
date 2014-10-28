@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 
 from hexrd import config
@@ -10,9 +11,10 @@ test_data = {
     'nonexistent_path': 'an_unlikely_name_for_a_directory',
     'existing_file': __file__,
     'nonexistent_file': 'an_unlikely_name_for_a_file.dat',
-    'file_stem': 'test_%%05d.dat'
+    'file_stem': 'test_%%05d.dat',
+    'tempdir': tempfile.gettempdir(),
+    'pathsep': os.path.sep
     }
-
 
 
 class TestConfig(testing.TestCase):

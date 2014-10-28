@@ -1,3 +1,4 @@
+import glob
 import os
 
 from .config import Config
@@ -28,49 +29,67 @@ class ImageSeriesConfig(Config):
 
     @property
     def file_ids(self):
-        pass
+        try:
+            temp = self._get_nested_val('file', 'ids')
+            return temp if isinstance(temp, list) else [temp]
+        except KeyError:
+            raise RuntimeError(
+                'image_series:file:ids must be specified in the config file'
+                )
+
+
+    @property
+    def files(self):
+        res = []
+        for id in self.file_ids:
+            id = self.file_stem % id
+            res.extend(glob.glob(id))
+        return res
 
 
     @property
     def flip(self):
-        pass
+        temp = self._cfg.get('flip')
+        if temp is None:
+            return
+        temp = temp.lower()
+        if temp not in ['h', 'v', 'hv', 'vh', 'cw', 'ccw']:
+            raise RuntimeError(
+                'image_series:flip setting "%s" is not valid' % temp
+                )
+        return temp
 
 
     @property
     def im_start(self):
-        pass
+        return self._get_nested_val('images', 'start', default=0)
 
 
     @property
     def im_step(self):
-        pass
+        return self._get_nested_val('images', 'step', default=1)
 
 
     @property
     def im_stop(self):
-        pass
+        return self._get_nested_val('images', 'stop', default=None)
 
 
     @property
     def ome_start(self):
-        pass
+        try:
+            return self._get_nested_val('ome', 'start')
+        except KeyError:
+            raise RuntimeError(
+                'image_series:ome:start must be specified not found'
+                )
 
 
     @property
     def ome_step(self):
-        pass
-
-
-    @property
-    def path(self):
         try:
-            temp = self._cfg['path']
-            if not os.path.isdir(temp):
-                raise IOError(
-                    'image_series:path specified as "%s" does not exist' % temp
-                    )
-            return temp
+            return self._get_nested_val('ome', 'step')
         except KeyError:
             raise RuntimeError(
-                'image_series:path must be specified in the config file'
+                'image_series:ome:start must be specified not found'
                 )
