@@ -4,12 +4,16 @@ from __future__ import print_function, division, absolute_import
 descr = 'Process diffraction data to find grain orientations'
 example = """
 examples:
-    hexrd indexing configuration.yml
+    hexrd find-orientations configuration.yml
 """
 
 
 def configure_parser(sub_parsers):
-    p = sub_parsers.add_parser('indexing', description = descr, help = descr)
+    p = sub_parsers.add_parser(
+        'find-orientations',
+        description = descr,
+        help = descr
+        )
     p.add_argument(
         'yml', type=str,
         help='YAML configuration file'
@@ -32,9 +36,12 @@ if None, defaults to list specified in the yml file"""
 
 
 def execute(args, parser):
+    import os
+    import logging
+
     import yaml
 
-    from hexrd.indexing.orientations import find_orientations
+    from hexrd.findorientations import find_orientations
 
 
     if args.hkls is not None:
@@ -42,6 +49,19 @@ def execute(args, parser):
 
     with open(args.yml) as f:
         cfg = [cfg for cfg in yaml.load_all(f)][0]
+
+    # now we know where to save the log file
+    logger = logging.getLogger('hexrd')
+    fh = logging.FileHandler(
+        os.path.join(
+            cfg['working_dir'],
+            cfg['analysis_name'],
+            'find-orientations.log'
+            )
+        )
+    log_level = logging.DEBUG if args.debug else logging.INFO
+    fh.setLevel(log_level)
+
     find_orientations(
         cfg, verbose=not args.quiet, hkls=args.hkls, force=args.force
         )

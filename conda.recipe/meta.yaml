@@ -9,9 +9,7 @@ source:
 build:
   osx_is_app: yes
   entry_points:
-    - find_orientations = hexrd.indexing.cli:main_find_orientations
-    - fit_grains = hexrd.fitgrains.cli:main_fit_grains
-    - hexrd = hexrd.wx.mainapp:execute
+    - hexrd = hexrd.cli:main
 
 app:
   entry: hexrd
@@ -43,8 +41,15 @@ test:
   imports:
     - hexrd
   commands:
-    - extract_gvecs -h
-    - find_orientations -h
+    - echo $PATH
+    - hexrd -h
+    - hexrd help
+    - hexrd find-orientations -h
+    - hexrd help find-orientations
+    - hexrd fit-grains -h
+    - hexrd help fit-grains
+    - hexrd gui -h
+    - hexrd help gui
 
 about:
   license: LGPL

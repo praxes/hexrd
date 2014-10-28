@@ -4,10 +4,11 @@ import argparse
 import logging
 import sys
 
-from . import grains
+from . import fitgrains
 from . import gui
 from . import help
-from . import indexing
+from . import findorientations
+
 
 def main():
     if len(sys.argv) == 1:
@@ -27,7 +28,7 @@ def main():
     p.add_argument(
         "--debug",
         action = "store_true",
-        help = argparse.SUPPRESS,
+        help = 'verbose reporting',
     )
     sub_parsers = p.add_subparsers(
         metavar = 'command',
@@ -36,8 +37,8 @@ def main():
 
     help.configure_parser(sub_parsers)
     gui.configure_parser(sub_parsers)
-    indexing.configure_parser(sub_parsers)
-    grains.configure_parser(sub_parsers)
+    findorientations.configure_parser(sub_parsers)
+    fitgrains.configure_parser(sub_parsers)
 
     try:
         import argcomplete
@@ -47,8 +48,9 @@ def main():
 
     args = p.parse_args()
 
-    if args.debug:
-        logging.disable(logging.NOTSET)
-        logging.basicConfig(level=logging.DEBUG)
+    log_level = logging.DEBUG if args.debug else logging.INFO
+    logger = logging.getLogger('hexrd')
+    ch = logging.StreamHandler()
+    ch.setLevel(log_level)
 
     args.func(args, p)

@@ -9,7 +9,7 @@ examples:
 
 
 def configure_parser(sub_parsers):
-    p = sub_parsers.add_parser('grains', description = descr, help = descr)
+    p = sub_parsers.add_parser('fit-grains', description = descr, help = descr)
     p.add_argument(
         'yml', type=str,
         help='YAML configuration file'
@@ -26,10 +26,26 @@ def configure_parser(sub_parsers):
 
 
 def execute(args, parser):
+    import logging
+
     import yaml
 
     from hexrd.coreutil import iter_cfg_sections
     from hexrd.fitgrains import fit_grains
 
     for cfg in iter_cfg_sections(args.yml):
+        # now we know where to save the log file
+        logger = logging.getLogger('hexrd')
+        fh = logging.FileHandler(
+            os.path.join(
+                cfg['working_dir'],
+                cfg['analysis_name'],
+                'find-orientations.log'
+                )
+            )
+        log_level = logging.DEBUG if args.debug else logging.INFO
+        fh.setLevel(log_level)
+
         fit_grains(cfg, verbose=not args.quiet, force=args.force)
+
+        fh.close()
