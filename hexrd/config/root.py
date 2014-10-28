@@ -3,7 +3,7 @@ import logging
 import multiprocessing as mp
 
 from .config import Config
-#from .detector import DetectorConfig
+from .detector import DetectorConfig
 #from .findorientations import FindOrientationsConfig
 #from .fitgrains import FitGrainsConfig
 from .imageseries import ImageSeriesConfig
@@ -17,7 +17,7 @@ class RootConfig(Config):
 
 
     __config_map = {
-        #'detector': DetectorConfig,
+        'detector': DetectorConfig,
         #'find_orientations': FindOrientationsConfig,
         #'fit_grains': FitGrainsConfig,
         'image_series': ImageSeriesConfig,

@@ -26,7 +26,7 @@ image_series:
 detector:
   parameters_old: CeO2.par # the old detector spec, produced by the GUI
   parameters: CeO2.yml
-  pixels:
+  pixels: # this section required to convert from old detector spec
     rows: 2048
     columns: 2048
     size: [0.200, 0.200] # [row height, col widt] mm
