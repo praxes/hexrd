@@ -12,7 +12,8 @@ class Config(object):
             temp = temp.get(arg, {})
             temp = {} if temp is None else temp
         try:
-            default = kwargs['default']
-            return temp.get(item, default)
-        except KeyError:
             return temp[item]
+        except KeyError:
+            if 'default' in kwargs:
+                return temp.get(item, kwargs['default'])
+            raise
