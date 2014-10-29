@@ -13,25 +13,14 @@ class DetectorConfig(Config):
 
     @property
     def parameters_old(self):
-        temp = self._cfg.get('detector:parameters_old', default=None)
-        if temp is None:
-            return
-        if not os.path.isfile(temp):
-            raise IOError(
-                'detector:parameters_old specified at "%s" do not exist' % temp
-                )
-        return temp
+        return self._cfg.get(
+            'detector:parameters_old', default=None, path_exists=True
+            )
 
 
     @property
     def parameters(self):
-        temp = self._cfg.get('detector:parameters')
-        if not os.path.isfile(temp) and self.parameters_old is None:
-            raise IOError(
-                'detector:parameters specified at "%s" do not exist'
-                % temp
-                )
-        return temp
+        return self._cfg.get('detector:parameters', path_exists=True)
 
 
     @property
