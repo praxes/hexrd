@@ -403,7 +403,7 @@ def find_orientations(
 
     # determine number of processes to run in parallel
     multiproc = cfg.get('multiprocessing', -1)
-    ncpus = multiprocessing.cpu_count()
+    ncpus = mp.cpu_count()
     if multiproc == 'all':
         pass
     elif multiproc == -1:

@@ -77,6 +77,7 @@ transforms_mod = Extension('hexrd.xrd._transforms_CAPI', sources=srclist,
 # all modules
 ext_modules = [sglite_mod, transforms_mod]
 
+
 packages = []
 for dirpath, dirnames, filenames in os.walk('hexrd'):
     if '__init__.py' in filenames:
@@ -84,7 +85,8 @@ for dirpath, dirnames, filenames in os.walk('hexrd'):
     else:
         del(dirnames[:])
 
-scripts = ['scripts/find_orientations', 'scripts/fit_grains']
+
+scripts = []
 if sys.platform.startswith('win'):
     # scripts calling multiprocessing must be importable
     import shutil
@@ -95,9 +97,11 @@ else:
 if ('bdist_wininst' in sys.argv) or ('bdist_msi' in sys.argv):
     scripts.append('scripts/hexrd_win_post_install.py')
 
+
 # release.py contains version, authors, license, url, keywords, etc.
 repo_root = os.path.dirname(os.path.abspath(__file__))
 execfile(os.path.join(repo_root, 'hexrd','release.py'), globals())
+
 
 package_data = [
     'COPYING',
@@ -107,10 +111,14 @@ package_data = [
     'data/all_materials.cfg',
     ]
 
+
 data_files = [
     'share/example_config.yml',
     'share/calibrate_from_single_crystal.ipynb'
     ]
+
+
+description = "hexrd diffraction data analysis"
 
 
 setup(
