@@ -38,12 +38,10 @@ class TestConfig(testing.TestCase):
 
     def setUp(self):
         self.cfgs = config.open(self.file_name)
-        self.cfg = self.cfgs[0]
 
 
     def tearDown(self):
         del(self.cfgs)
-        del(self.cfg)
 
 
     @classmethod

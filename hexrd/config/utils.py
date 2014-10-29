@@ -21,3 +21,8 @@ def _merge_dicts(a, b):
             else:
                 a[k] = v
     return a
+
+
+class Null():
+    pass
+null = Null()

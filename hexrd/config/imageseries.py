@@ -9,33 +9,20 @@ class ImageSeriesConfig(Config):
 
     @property
     def dark(self):
-        temp = self._cfg.get('dark')
-        if temp and not os.path.isfile(temp):
-            raise IOError(
-                'image_series:dark file "%s" not found' % temp
-                )
-        return temp
+        return self._cfg.get(
+            'image_series:dark', default=None, path_exists=True
+            )
 
 
     @property
     def file_stem(self):
-        try:
-            return self._get_nested_val('file', 'stem')
-        except KeyError:
-            raise RuntimeError(
-                'image_series:file:stem must be specified in the config file'
-                )
+        return self._cfg.get('image_series:file:stem')
 
 
     @property
     def file_ids(self):
-        try:
-            temp = self._get_nested_val('file', 'ids')
-            return temp if isinstance(temp, list) else [temp]
-        except KeyError:
-            raise RuntimeError(
-                'image_series:file:ids must be specified in the config file'
-                )
+        temp = self._cfg.get('image_series:file:ids')
+        return temp if isinstance(temp, list) else [temp]
 
 
     @property
@@ -49,7 +36,7 @@ class ImageSeriesConfig(Config):
 
     @property
     def flip(self):
-        temp = self._cfg.get('flip')
+        temp = self._cfg.get('image_series:flip', default=None)
         if temp is None:
             return
         temp = temp.lower()
@@ -62,34 +49,24 @@ class ImageSeriesConfig(Config):
 
     @property
     def im_start(self):
-        return self._get_nested_val('images', 'start', default=0)
+        return self._cfg.get('image_series:images:start', default=0)
 
 
     @property
     def im_step(self):
-        return self._get_nested_val('images', 'step', default=1)
+        return self._cfg.get('image_series:images:step', default=1)
 
 
     @property
     def im_stop(self):
-        return self._get_nested_val('images', 'stop', default=None)
+        return self._cfg.get('image_series:images:stop', default=None)
 
 
     @property
     def ome_start(self):
-        try:
-            return self._get_nested_val('ome', 'start')
-        except KeyError:
-            raise RuntimeError(
-                'image_series:ome:start must be specified not found'
-                )
+        return self._cfg.get('image_series:ome:start')
 
 
     @property
     def ome_step(self):
-        try:
-            return self._get_nested_val('ome', 'step')
-        except KeyError:
-            raise RuntimeError(
-                'image_series:ome:start must be specified not found'
-                )
+        return self._cfg.get('image_series:ome:step')
