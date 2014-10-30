@@ -18,15 +18,6 @@ logger = logging.getLogger('hexrd.config')
 class RootConfig(Config):
 
 
-    __config_map = {
-        'detector': DetectorConfig,
-        'find_orientations': FindOrientationsConfig,
-        #'fit_grains': FitGrainsConfig,
-        'image_series': ImageSeriesConfig,
-        'material': MaterialConfig,
-        }
-
-
     def get(self, key, default=null, path_exists=False):
         args = key.split(':')
         args, item = args[:-1], args[-1]
@@ -54,13 +45,6 @@ class RootConfig(Config):
         return res
 
 
-
-    def _get_config(self, ctype):
-        temp = self._cfg.get(ctype, None)
-        temp = temp if temp is not None else {}
-        return self.__config_map[ctype](self)
-
-
     @property
     def analysis_name(self):
         return str(self.get('analysis_name', default='analysis'))
@@ -68,27 +52,27 @@ class RootConfig(Config):
 
     @property
     def detector(self):
-        return self._get_config('detector')
+        return DetectorConfig(self)
 
 
     @property
     def find_orientations(self):
-        return self._get_config('find_orientations')
+        return FindOrientationsConfig(self)
 
 
     @property
     def fit_grains(self):
-        return self._get_config('fit_grains')
+        return FitGrainsConfig(self)
 
 
     @property
     def image_series(self):
-        return self._get_config('image_series')
+        return ImageSeriesConfig(self)
 
 
     @property
     def material(self):
-        return self._get_config('material')
+        return MaterialConfig(self)
 
 
     @property
