@@ -36,8 +36,9 @@ if None, defaults to list specified in the yml file"""
 
 
 def execute(args, parser):
-    import os
     import logging
+
+    import os
 
     import yaml
 
@@ -48,27 +49,33 @@ def execute(args, parser):
     if args.hkls is not None:
         args.hkls = [int(i) for i in args.hkls.split(',') if i]
 
-    cfg = config.open(args.yml)[0]
-
-    # now we know where to save the log file
     log_level = logging.DEBUG if args.debug else logging.INFO
     logger = logging.getLogger('hexrd')
     logger.setLevel(log_level)
+    ch = logging.StreamHandler()
+    ch.setLevel(log_level)
+    ch.setFormatter(
+        logging.Formatter('%(asctime)s - %(message)s', '%y-%m-%d %H:%M:%S')
+        )
+    logger.addHandler(ch)
 
-    fn = os.path.join(
+    cfg = config.open(args.yml)[0]
+
+    # now we know where to save the log file
+    logfile = os.path.join(
         cfg.working_dir,
         cfg.analysis_name,
         'find-orientations.log'
         )
-    fh = logging.FileHandler(fn)
+    fh = logging.FileHandler(logfile, mode='w')
     fh.setLevel(log_level)
-    fh.setFormatter(logging.Formatter())
-
-    ch = logging.StreamHandler()
-    ch.setLevel(log_level)
-    ch.setFormatter(logging.Formatter())
-    logger.addHandler(ch)
-    logger.info("logging to %s", fn)
+    fh.setFormatter(
+        logging.Formatter(
+            '%(asctime)s - %(name)s - %(message)s',
+            '%m-%d %H:%M:%S'
+            )
+        )
+    logger.info("logging to %s", logfile)
     logger.addHandler(fh)
 
     find_orientations(

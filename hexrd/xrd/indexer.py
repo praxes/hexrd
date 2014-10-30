@@ -31,6 +31,7 @@ import copy
 import ctypes
 import tempfile
 import glob
+import logging
 import time
 import pdb
 
@@ -52,6 +53,10 @@ from hexrd.xrd import transforms_CAPI as xfcapi
 
 if xrdbase.haveMultiProc:
     multiprocessing = xrdbase.multiprocessing # formerly import
+
+
+logger = logging.getLogger(__name__)
+
 
 # module vars
 piby2 = num.pi * 0.5
@@ -636,8 +641,8 @@ def pgRefine(x, etaOmeMaps, omegaRange, threshold):
 def paintGrid(quats, etaOmeMaps,
               threshold=None, bMat=None,
               omegaRange=None, etaRange=None,
-              omeTol=d2r, etaTol=d2r, 
-              omePeriod=(-num.pi, num.pi), 
+              omeTol=d2r, etaTol=d2r,
+              omePeriod=(-num.pi, num.pi),
               progressBar=False, doMultiProc=False,
               nCPUs=None, debug=False):
     """
@@ -704,7 +709,7 @@ def paintGrid(quats, etaOmeMaps,
     # omeIndices = i_ome.flatten()
     etaIndices = num.r_[range(numEtas)]
     omeIndices = num.r_[range(numOmes)]
-    
+
     omeMin = None
     omeMax = None
     if omegaRange is None:              # this NEEDS TO BE FIXED!
@@ -727,12 +732,14 @@ def paintGrid(quats, etaOmeMaps,
     if multiProcMode:
         nCPUs = nCPUs or xrdbase.dfltNCPU
         chunksize = min(quats.shape[1] // nCPUs, 10)
-        print "INFO: using multiprocessing with %d processes " % (nCPUs) + \
-              "and a chunksize of %d" % (chunksize)
+        logger.info(
+            "using multiprocessing with %d processes and a chunk size of %d",
+            nCPUs, chunksize
+            )
     else:
-        print "INFO: running in serial mode\n"
+        logger.info("running in serial mode")
         nCPUs = 1
-        
+
     # assign the globals for paintGridThis
     global symHKLs_MP, wavelength_MP
     global omeMin_MP, omeMax_MP, omeTol_MP, omePeriod_MP
@@ -761,7 +768,7 @@ def paintGrid(quats, etaOmeMaps,
     etaOmeMaps_MP = etaOmeMaps.dataStore
     bMat_MP       = bMat
     threshold_MP  = threshold
-    
+
     # do the mapping
     start = time.time()                      # time this
     retval = None
@@ -771,7 +778,7 @@ def paintGrid(quats, etaOmeMaps,
     else:
         retval = map(paintGridThis, quats.T)
     elapsed = (time.time() - start)
-    print "paintGrid took %.3f seconds" % (elapsed)
+    logger.info("paintGrid took %.3f seconds", elapsed)
 
     symHKLs_MP    = None
     wavelength_MP = None
@@ -831,19 +838,19 @@ def paintGridThis(quat):
 
     omegas = [omeEdges[0] + (i+0.5)*(omeEdges[1] - omeEdges[0]) for i in range(len(omeEdges) - 1)]
     etas   = [etaEdges[0] + (i+0.5)*(etaEdges[1] - etaEdges[0]) for i in range(len(etaEdges) - 1)]
-    
+
     delOmeSign = num.sign(omegas[1] - omegas[0])
-    
+
     del_ome = abs(omegas[1] - omegas[0])
     del_eta = abs(etas[1] - etas[0])
-    
+
     dpix_ome = round(omeTol / del_ome)
     dpix_eta = round(etaTol / del_eta)
-    
+
     debug = False
     if debug:
         print "using ome, eta dilitations of (%d, %d) pixels" % (dpix_ome, dpix_eta)
-    
+
     nHKLs = len(hklIDs)
 
     rMat = rotMatOfQuat(quat)
@@ -858,7 +865,7 @@ def paintGridThis(quat):
     for iHKL in range(nHKLs):
         # select and C-ify symmetric HKLs
         these_hkls = num.array(symHKLs[hklIDs[iHKL]].T, dtype=float, order='C')
-        
+
         # oscillation angle arrays
         oangs   = xfcapi.oscillAnglesOfHKLs(these_hkls, 0., rMat, bMat, wavelength)
         angList = num.vstack(oangs)
@@ -874,21 +881,21 @@ def paintGridThis(quat):
             if etaMin is None:
                 etaMin = [-num.pi, ]
                 etaMax = [ num.pi, ]
-                
+
             angMask = num.logical_and(
                 xf.validateAngleRanges(angList[:, 1], etaMin, etaMax),
                 xf.validateAngleRanges(angList[:, 2], omeMin, omeMax))
-            
+
             allAngs_m = angList[angMask, :]
-            
+
             # not output # # duplicate HKLs
             # not output # allHKLs_m = num.vstack([these_hkls, these_hkls])[angMask, :]
-            
+
             culledTTh  = allAngs_m[:, 0]
             culledEta  = allAngs_m[:, 1]
             culledOme  = allAngs_m[:, 2]
             # not output # culledHKLs = allHKLs_m.T
-            
+
             nThisPredRefl = len(culledTTh)
             hklCounterP += nThisPredRefl
             for iTTh in range(nThisPredRefl):
@@ -909,18 +916,18 @@ def paintGridThis(quat):
                         culledOmeIdx = None
                 else:
                     culledOmeIdx = None
-                
+
                 if culledEtaIdx is not None and culledOmeIdx is not None:
                     if dpix_ome > 0 or dpix_eta > 0:
                         i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
                                                     num.arange(-dpix_eta, dpix_eta + 1))
                         i_sup = omeIndices[culledOmeIdx] + num.array([i_dil.flatten()], dtype=int)
                         j_sup = etaIndices[culledEtaIdx] + num.array([j_dil.flatten()], dtype=int)
-                        # catch shit that falls off detector... 
+                        # catch shit that falls off detector...
                         # ...maybe make this fancy enough to wrap at 2pi?
                         i_max, j_max = etaOmeMaps[iHKL].shape
                         idx_mask = num.logical_and(num.logical_and(i_sup >= 0, i_sup < i_max),
-                                                   num.logical_and(j_sup >= 0, j_sup < j_max))                    
+                                                   num.logical_and(j_sup >= 0, j_sup < j_max))
                         pixelVal = etaOmeMaps[iHKL][i_sup[idx_mask], j_sup[idx_mask]]
                     else:
                         pixelVal = etaOmeMaps[iHKL][omeIndices[culledOmeIdx], etaIndices[culledEtaIdx] ]

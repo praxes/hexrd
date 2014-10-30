@@ -33,19 +33,36 @@ def execute(args, parser):
     from hexrd.coreutil import iter_cfg_sections
     from hexrd.fitgrains import fit_grains
 
+
+    log_level = logging.DEBUG if args.debug else logging.INFO
+    logger = logging.getLogger('hexrd')
+    logger.setLevel(log_level)
+    ch = logging.StreamHandler()
+    ch.setLevel(log_level)
+    ch.setFormatter(
+        logging.Formatter('%(asctime)s - %(message)s', '%y-%m-%d %H:%M:%S')
+        )
+    logger.addHandler(ch)
+
     for cfg in iter_cfg_sections(args.yml):
         # now we know where to save the log file
-        logger = logging.getLogger('hexrd')
-        fh = logging.FileHandler(
-            os.path.join(
-                cfg['working_dir'],
-                cfg['analysis_name'],
-                'find-orientations.log'
+        logfile = os.path.join(
+            cfg.working_dir,
+            cfg.analysis_name,
+            'fit-grains.log'
+            )
+        fh = logging.FileHandler(logfile, mode='w')
+        fh.setLevel(log_level)
+        fh.setFormatter(
+            logging.Formatter(
+                '%(asctime)s - %(name)s - %(message)s',
+                '%m-%d %H:%M:%S'
                 )
             )
-        log_level = logging.DEBUG if args.debug else logging.INFO
-        fh.setLevel(log_level)
+        logger.info("logging to %s", logfile)
+        logger.addHandler(fh)
 
         fit_grains(cfg, verbose=not args.quiet, force=args.force)
 
+        logger.removeHandler(fh)
         fh.close()
