@@ -1,11 +1,6 @@
-<<<<<<< HEAD:scripts/multiruby.yml
 ## working directory defaults to current working directory in terminal
 working_dir: /home/jbernier/gao-56-1
-analysis_name: val001
-=======
-
 analysis_name: multiruby
->>>>>>> praxes_master:share/example_config.yml
 
 ## working directory defaults to current working directory
 working_dir: /nfs/chess/aux/user/afrl/2014-3/multiruby

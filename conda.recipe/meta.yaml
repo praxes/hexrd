@@ -31,7 +31,7 @@ requirements:
 #    - numba
 #    - numbapro
     - numpy #>=1.4.0
-    - progressbar
+#    - progressbar
     - python
     - python.app # [osx]
     - pyyaml
@@ -43,8 +43,8 @@ test:
   imports:
     - hexrd
   commands:
-    - extract_gvecs -h
-    - find_orientations -h
+    - hexrd indexing -h
+    - hexrd grains -h
 
 about:
   license: LGPL

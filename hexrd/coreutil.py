@@ -177,8 +177,8 @@ def initialize_experiment(cfg, verbose=False):
         file_info.append(
             (os.path.join(image_dir, file_stem % fid), image_start)
             )
-    ome_start = cfg['image_series']['ome']['start'] * d2r
-    ome_delta = cfg['image_series']['ome']['step'] * d2r
+    ome_start = np.radians(cfg['image_series']['ome']['start'])
+    ome_delta = np.radians(cfg['image_series']['ome']['step'])
     dark = cfg['image_series'].get('dark', None)
     flip = cfg['image_series'].get('flip', None)
 

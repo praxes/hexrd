@@ -142,13 +142,13 @@ def generate_orientation_fibers(
 
 
 def paintgrid(pd, eta_ome, quats, threshold,
-                  omeTol=None, etaTol=None,
-                  omeRange=None, etaRange=None,
-                  omePeriod=(-np.pi, np.pi),
-                  qTol=1e-7,
-                  ncpus=mp.cpu_count(),
-                  verbose=False
-                  ):
+              omeTol=None, etaTol=None,
+              omeRange=None, etaRange=None,
+              omePeriod=(-np.pi, np.pi),
+              qTol=1e-7,
+              ncpus=mp.cpu_count(),
+              verbose=False
+              ):
     """
     wrapper for indexer.paintGrid
     """
@@ -243,7 +243,7 @@ def run_cluster(compl, qfib, qsym, cfg, verbose=False):
             npts = sum(cl == i + 1)
             qbar[:, i] = rot.quatAverage(qfib_r[:, cl == i + 1].reshape(4, npts),
                                          qsym).flatten()
-        elapsed = (time.clock() - start)
+    elapsed = (time.clock() - start)
 
     if verbose:
         print "clustering took %f seconds" % (elapsed)
@@ -403,7 +403,7 @@ def find_orientations(
 
     # determine number of processes to run in parallel
     multiproc = cfg.get('multiprocessing', -1)
-    ncpus = multiprocessing.cpu_count()
+    ncpus = mp.cpu_count()
     if multiproc == 'all':
         pass
     elif multiproc == -1:
@@ -425,21 +425,21 @@ def find_orientations(
     # are we searching the full grid of orientation space, or a seeded search:
     seeded = False
     try:
-        qgrid_f = pgcfg.get('use_quaternian_grid', None)
+        qgrid_f = pgcfg.get('use_quaternion_grid', None)
         quats = np.loadtxt(qgrid_f)
         if verbose:
-            print "Using %s for full quaternian search" % qgrid_f
+            print "Using %s for full quaternion search" % qgrid_f
     except (IOError, ValueError):
         seeded = True
         if verbose:
-            print "Could not open quaternian grid file %s" % qgrid_f
+            print "Could not open quaternion grid file %s" % qgrid_f
             print "Defaulting to seeded search"
         try:
             seed_hkl_ids = pgcfg['seed_search'].get('hkl_seeds', [0])
             fiber_step = pgcfg.get('fiber_step', None)
         except KeyError:
             raise RuntimeError(
-                "if use_quaternian_grid is undefined, you must specify"
+                "if use_quaternion_grid is undefined, you must specify"
                 " seed_search:hkl_seeds"
                 )
         if fiber_step is None:
@@ -478,7 +478,7 @@ def find_orientations(
         np.savetxt(testq_f, quats.T, fmt="%.18e", delimiter="\t")
     # raw completeness
     np.savetxt(os.path.join(analysis_root, 'compl.out'), compl)
-    # main output, the list of quaternian orientation clusters
+    # main output, the list of quaternion orientation clusters
     # the result of cluster analysis on the thresholded completion map
     quats_f = os.path.join(analysis_root, 'quats.out')
     np.savetxt(quats_f, qbar.T, fmt="%.18e", delimiter="\t")
