@@ -267,11 +267,10 @@ def load_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
         res = cPickle.load(open(fn, 'r'))
         pd = res.planeData
         available_hkls = pd.hkls.T
-        active_hkls = range(available_hkls.shape[0])
         if verbose:
             print "loaded eta/ome orientation maps from %s" % fn
             print "hkls used to generate orientation maps:"
-            for i in available_hkls[active_hkls]:
+            for i in available_hkls[res.iHKLList]:
                 print i
         return res
     except (AttributeError, IOError):
@@ -290,7 +289,6 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
     active_hkls = omcfg.get('active_hkls', active_hkls)
     # override with hkls from command line, if specified
     active_hkls = hkls if hkls is not None else active_hkls
-
     if verbose:
         print "using hkls to generate orientation maps:"
         for i in available_hkls[active_hkls]:
@@ -304,7 +302,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
     eta_ome = xrdutil.CollapseOmeEta(
         reader,
         pd,
-        active_hkls,
+        pd.hkls[:, active_hkls],
         detector,
         nframesLump=bin_frames,
         nEtaBins=eta_bins,
@@ -379,7 +377,7 @@ def find_orientations(
     ome_period = np.radians(ome_period)
     try:
         eta_tol = pgcfg['eta'].get('tolerance', None)
-        eta_mask = abs(pgcfg.get('mask', 5))
+        eta_mask = abs(pgcfg['eta'].get('mask', 5))
     except (KeyError, AttributeError):
         eta_tol = None
         eta_mask = 5

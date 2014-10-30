@@ -1,4 +1,4 @@
-#!/bin/bash /Users/bernier2/miniconda/bin/python.app
+#!/bin/env python
 import sys
 from hexrd.cli import main
 
