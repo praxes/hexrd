@@ -63,45 +63,6 @@ class TestImageSeriesConfig(TestConfig):
             getattr, self.cfgs[2].image_series, 'dark'
             )
 
-
-    def test_file_stem(self):
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[0].image_series, 'file_stem'
-            )
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[1].image_series, 'file_stem'
-            )
-        self.assertEqual(
-            self.cfgs[2].image_series.file_stem,
-            test_data['file_stem']
-            )
-
-
-    def test_file_ids(self):
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[0].image_series, 'file_ids'
-            )
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[1].image_series, 'file_ids'
-            )
-        self.assertEqual(
-            self.cfgs[2].image_series.file_ids,
-            [1]
-            )
-        self.assertEqual(
-            self.cfgs[3].image_series.file_ids,
-            [2]
-            )
-        self.assertEqual(
-            self.cfgs[4].image_series.file_ids,
-            [1, 2]
-            )
-
-
     def test_files(self):
         files = []
         for i in ['00011.dat', '00012.dat', '00021.dat']:
@@ -117,7 +78,6 @@ class TestImageSeriesConfig(TestConfig):
             for f in files:
                 os.remove(f)
 
-
     def test_flip(self):
         self.assertEqual(self.cfgs[0].image_series.flip, None)
         self.assertEqual(self.cfgs[1].image_series.flip, 'v')
@@ -127,36 +87,101 @@ class TestImageSeriesConfig(TestConfig):
             )
 
 
-    def test_im_start(self):
-        self.assertEqual(self.cfgs[0].image_series.im_start, 0)
-        self.assertEqual(self.cfgs[1].image_series.im_start, 0)
-        self.assertEqual(self.cfgs[2].image_series.im_start, 1)
+
+class TestFileConfig(TestConfig):
 
 
-    def test_im_step(self):
-        self.assertEqual(self.cfgs[0].image_series.im_step, 1)
-        self.assertEqual(self.cfgs[1].image_series.im_step, 1)
-        self.assertEqual(self.cfgs[2].image_series.im_step, 2)
+    @classmethod
+    def get_reference_data(cls):
+        return reference_data
 
 
-    def test_im_stop(self):
-        self.assertEqual(self.cfgs[0].image_series.im_stop, None)
-        self.assertEqual(self.cfgs[1].image_series.im_stop, None)
-        self.assertEqual(self.cfgs[2].image_series.im_stop, -1)
-
-
-    def test_ome_start(self):
+    def test_stem(self):
         self.assertRaises(
             RuntimeError,
-            getattr, self.cfgs[0].image_series, 'ome_start'
+            getattr, self.cfgs[0].image_series.file, 'stem'
             )
-        self.assertEqual(self.cfgs[2].image_series.ome_start, 0)
-
-
-
-    def test_ome_step(self):
         self.assertRaises(
             RuntimeError,
-            getattr, self.cfgs[0].image_series, 'ome_start'
+            getattr, self.cfgs[1].image_series.file, 'stem'
             )
-        self.assertEqual(self.cfgs[2].image_series.ome_step, 0.25)
+        self.assertEqual(
+            self.cfgs[2].image_series.file.stem,
+            test_data['file_stem']
+            )
+
+
+    def test_ids(self):
+        self.assertRaises(
+            RuntimeError,
+            getattr, self.cfgs[0].image_series.file, 'ids'
+            )
+        self.assertRaises(
+            RuntimeError,
+            getattr, self.cfgs[1].image_series.file, 'ids'
+            )
+        self.assertEqual(
+            self.cfgs[2].image_series.file.ids,
+            [1]
+            )
+        self.assertEqual(
+            self.cfgs[3].image_series.file.ids,
+            [2]
+            )
+        self.assertEqual(
+            self.cfgs[4].image_series.file.ids,
+            [1, 2]
+            )
+
+
+
+class TestImagesConfig(TestConfig):
+
+
+    @classmethod
+    def get_reference_data(cls):
+        return reference_data
+
+
+    def test_start(self):
+        self.assertEqual(self.cfgs[0].image_series.images.start, 0)
+        self.assertEqual(self.cfgs[1].image_series.images.start, 0)
+        self.assertEqual(self.cfgs[2].image_series.images.start, 1)
+
+
+    def test_step(self):
+        self.assertEqual(self.cfgs[0].image_series.images.step, 1)
+        self.assertEqual(self.cfgs[1].image_series.images.step, 1)
+        self.assertEqual(self.cfgs[2].image_series.images.step, 2)
+
+
+    def test_stop(self):
+        self.assertEqual(self.cfgs[0].image_series.images.stop, None)
+        self.assertEqual(self.cfgs[1].image_series.images.stop, None)
+        self.assertEqual(self.cfgs[2].image_series.images.stop, -1)
+
+
+
+class TestOmegaConfig(TestConfig):
+
+
+    @classmethod
+    def get_reference_data(cls):
+        return reference_data
+
+
+    def test_start(self):
+        self.assertRaises(
+            RuntimeError,
+            getattr, self.cfgs[0].image_series.omega, 'start'
+            )
+        self.assertEqual(self.cfgs[2].image_series.omega.start, 0)
+
+
+
+    def test_step(self):
+        self.assertRaises(
+            RuntimeError,
+            getattr, self.cfgs[0].image_series.omega, 'step'
+            )
+        self.assertEqual(self.cfgs[2].image_series.omega.step, 0.25)

@@ -37,22 +37,6 @@ class TestDetectorConfig(TestConfig):
         return reference_data
 
 
-    def test_columns(self):
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[0].detector, 'columns'
-            )
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[1].detector, 'columns'
-            )
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[2].detector, 'columns'
-            )
-        self.assertEqual(self.cfgs[3].detector.columns, 2048)
-
-
     def test_parameters(self):
         self.assertRaises(
             RuntimeError,
@@ -77,7 +61,7 @@ class TestDetectorConfig(TestConfig):
             )
 
 
-    def test_parameters(self):
+    def test_parameters_old(self):
         self.assertEqual(self.cfgs[0].detector.parameters_old, None)
         self.assertEqual(self.cfgs[1].detector.parameters_old, None)
         self.assertRaises(
@@ -90,34 +74,60 @@ class TestDetectorConfig(TestConfig):
             )
 
 
-    def test_pixel_size(self):
+
+class TestDetectorPixelsConfig(TestConfig):
+
+
+    @classmethod
+    def get_reference_data(cls):
+        return reference_data
+
+
+    def test_columns(self):
         self.assertRaises(
             RuntimeError,
-            getattr, self.cfgs[0].detector, 'pixel_size'
+            getattr, self.cfgs[0].detector.pixels, 'columns'
             )
         self.assertRaises(
             RuntimeError,
-            getattr, self.cfgs[1].detector, 'pixel_size'
+            getattr, self.cfgs[1].detector.pixels, 'columns'
             )
         self.assertRaises(
             RuntimeError,
-            getattr, self.cfgs[2].detector, 'pixel_size'
+            getattr, self.cfgs[2].detector.pixels, 'columns'
             )
-        self.assertEqual(self.cfgs[3].detector.pixel_size, [1, 1])
-        self.assertEqual(self.cfgs[4].detector.pixel_size, [1, 2])
+        self.assertEqual(self.cfgs[3].detector.pixels.columns, 2048)
+
+
+
+    def test_size(self):
+        self.assertRaises(
+            RuntimeError,
+            getattr, self.cfgs[0].detector.pixels, 'size'
+            )
+        self.assertRaises(
+            RuntimeError,
+            getattr, self.cfgs[1].detector.pixels, 'size'
+            )
+        self.assertRaises(
+            RuntimeError,
+            getattr, self.cfgs[2].detector.pixels, 'size'
+            )
+        self.assertEqual(self.cfgs[3].detector.pixels.size, [1, 1])
+        self.assertEqual(self.cfgs[4].detector.pixels.size, [1, 2])
 
 
     def test_rows(self):
         self.assertRaises(
             RuntimeError,
-            getattr, self.cfgs[0].detector, 'rows'
+            getattr, self.cfgs[0].detector.pixels, 'rows'
             )
         self.assertRaises(
             RuntimeError,
-            getattr, self.cfgs[1].detector, 'rows'
+            getattr, self.cfgs[1].detector.pixels, 'rows'
             )
         self.assertRaises(
             RuntimeError,
-            getattr, self.cfgs[2].detector, 'rows'
+            getattr, self.cfgs[2].detector.pixels, 'rows'
             )
-        self.assertEqual(self.cfgs[3].detector.rows, 1024)
+        self.assertEqual(self.cfgs[3].detector.pixels.rows, 1024)

@@ -3,7 +3,8 @@ import os
 from .config import Config
 
 
-class DetectorConfig(Config):
+
+class PixelsConfig(Config):
 
 
     @property
@@ -12,19 +13,7 @@ class DetectorConfig(Config):
 
 
     @property
-    def parameters_old(self):
-        return self._cfg.get(
-            'detector:parameters_old', default=None, path_exists=True
-            )
-
-
-    @property
-    def parameters(self):
-        return self._cfg.get('detector:parameters', path_exists=True)
-
-
-    @property
-    def pixel_size(self):
+    def size(self):
         temp = self._cfg.get('detector:pixels:size')
         if isinstance(temp, (int, float)):
             temp = [temp, temp]
@@ -34,3 +23,36 @@ class DetectorConfig(Config):
     @property
     def rows(self):
         return self._cfg.get('detector:pixels:rows')
+
+
+
+class DetectorConfig(Config):
+
+
+    @property
+    def parameters_old(self):
+        temp = self._cfg.get('detector:parameters_old', default=None)
+        if temp is None or os.path.exists(temp):
+            return temp
+        raise IOError(
+            '"detector:parameters_old": "%s" does not exist' % temp
+            )
+
+
+    @property
+    def parameters(self):
+        temp = self._cfg.get('detector:parameters')
+        if os.path.exists(temp):
+            return temp
+        if self.parameters_old is not None:
+            # converting old parameter file
+            return temp
+        raise IOError(
+            '"detector:parameters": "%s" does not exist' % temp
+            )
+
+
+
+    @property
+    def pixels(self):
+        return PixelsConfig(self._cfg)

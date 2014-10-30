@@ -18,7 +18,7 @@ logger = logging.getLogger('hexrd.config')
 class RootConfig(Config):
 
 
-    def get(self, key, default=null, path_exists=False):
+    def get(self, key, default=null):
         args = key.split(':')
         args, item = args[:-1], args[-1]
         temp = self._cfg
@@ -38,10 +38,6 @@ class RootConfig(Config):
                 raise RuntimeError(
                     '%s must be specified in configuration file' % key
                     )
-        if path_exists and res and not os.path.exists(res):
-            raise IOError(
-                '%s "%s" not found' % (key, res)
-                )
         return res
 
 
@@ -116,5 +112,9 @@ class RootConfig(Config):
 
     @property
     def working_dir(self):
-        return self.get(
-            'working_dir', default=os.getcwd(), path_exists=True)
+        temp = self.get('working_dir', default=os.getcwd())
+        if os.path.exists(temp):
+            return temp
+        raise IOError(
+            '"working_dir": "%s" does not exist'
+            )

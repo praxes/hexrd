@@ -8,7 +8,12 @@ class MaterialConfig(Config):
 
     @property
     def definitions(self):
-        return self._cfg.get('material:definitions', path_exists=True)
+        temp = self._cfg.get('material:definitions')
+        if os.path.exists(temp):
+            return temp
+        raise IOError(
+            '"material:definitions": "%s" does not exist'
+            )
 
 
     @property
