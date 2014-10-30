@@ -50,6 +50,8 @@ def execute(args, parser):
         args.hkls = [int(i) for i in args.hkls.split(',') if i]
 
     log_level = logging.DEBUG if args.debug else logging.INFO
+    if args.quiet:
+        log_level = logging.ERROR
     logger = logging.getLogger('hexrd')
     logger.setLevel(log_level)
     ch = logging.StreamHandler()
@@ -78,6 +80,4 @@ def execute(args, parser):
     logger.info("logging to %s", logfile)
     logger.addHandler(fh)
 
-    find_orientations(
-        cfg, hkls=args.hkls, force=args.force
-        )
+    find_orientations(cfg, hkls=args.hkls, force=args.force)

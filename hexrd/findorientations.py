@@ -224,8 +224,10 @@ def run_cluster(compl, qfib, qsym, cfg):
 
 
 def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
-    cwd = cfg.working_dir
-    fn = os.path.join(cwd, cfg.find_orientations.orientation_maps.file)
+    fn = os.path.join(
+        cfg.working_dir,
+        cfg.find_orientations.orientation_maps.file
+        )
     try:
         res = cPickle.load(open(fn, 'r'))
         pd = res.planeData
@@ -288,18 +290,15 @@ def find_orientations(
     # a goofy call, could be replaced with two more targeted calls
     pd, reader, detector = initialize_experiment(cfg)
 
-    cwd = cfg.working_dir
-    analysis_name = cfg.analysis_name
-    analysis_root = os.path.join(cwd, analysis_name)
-    if os.path.exists(analysis_root) and not force:
+    if os.path.exists(cfg.analysis_dir) and not force:
         logger.error(
             'analysis "%s" already exists, change yml file or specify "force"',
-            analysis_name
+            cfg.analysis_name
             )
         sys.exit()
-    if not os.path.exists(analysis_root):
-        os.makedirs(analysis_root)
-    logger.info("beginning analysis '%s'", analysis_name)
+    if not os.path.exists(cfg.analysis_dir):
+        os.makedirs(cfg.analysis_dir)
+    logger.info("beginning analysis '%s'", cfg.analysis_name)
 
     # load the eta_ome orientation maps
     eta_ome = load_eta_ome_maps(cfg, pd, reader, detector, hkls)
@@ -328,7 +327,7 @@ def find_orientations(
             cfg.find_orientations.seed_search.fiber_ndiv
             )
         np.savetxt(
-            os.path.join(analysis_root, 'testq.out'),
+            os.path.join(cfg.analysis_dir, 'testq.out'),
             quats.T,
             fmt="%.18e",
             delimiter="\t"
@@ -348,12 +347,12 @@ def find_orientations(
         doMultiProc=ncpus > 1,
         nCPUs=ncpus
         )
-    np.savetxt(os.path.join(analysis_root, 'compl.out'), compl)
+    np.savetxt(os.path.join(cfg.analysis_dir, 'compl.out'), compl)
 
     # cluster analysis to identify orientation blobs, the final output:
     qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg)
     np.savetxt(
-        os.path.join(analysis_root, 'quats.out'),
+        os.path.join(cfg.analysis_dir, 'quats.out'),
         qbar.T,
         fmt="%.18e",
         delimiter="\t"

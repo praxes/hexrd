@@ -27,14 +27,17 @@ def configure_parser(sub_parsers):
 
 def execute(args, parser):
     import logging
+    import os
 
     import yaml
 
-    from hexrd.coreutil import iter_cfg_sections
+    from hexrd import config
     from hexrd.fitgrains import fit_grains
 
 
     log_level = logging.DEBUG if args.debug else logging.INFO
+    if args.quiet:
+        log_level = logging.ERROR
     logger = logging.getLogger('hexrd')
     logger.setLevel(log_level)
     ch = logging.StreamHandler()
@@ -44,7 +47,7 @@ def execute(args, parser):
         )
     logger.addHandler(ch)
 
-    for cfg in iter_cfg_sections(args.yml):
+    for i, cfg in enumerate(config.open(args.yml)):
         # now we know where to save the log file
         logfile = os.path.join(
             cfg.working_dir,
@@ -62,7 +65,7 @@ def execute(args, parser):
         logger.info("logging to %s", logfile)
         logger.addHandler(fh)
 
-        fit_grains(cfg, verbose=not args.quiet, force=args.force)
+        fit_grains(cfg, force=args.force, iteration=i)
 
         logger.removeHandler(fh)
         fh.close()

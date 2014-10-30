@@ -36,6 +36,12 @@ class TestRootConfig(TestConfig):
     def get_reference_data(cls):
         return reference_data
 
+    def test_analysis_dir(self):
+        self.assertEqual(
+            self.cfgs[0].analysis_dir,
+            os.path.join(os.getcwd(), 'analysis')
+            )
+
     def test_analysis_name(self):
         self.assertEqual(self.cfgs[0].analysis_name, 'analysis')
         self.assertEqual(self.cfgs[1].analysis_name, 'analysis_2')

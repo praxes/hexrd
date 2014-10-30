@@ -47,6 +47,11 @@ class RootConfig(Config):
 
 
     @property
+    def analysis_dir(self):
+        return os.path.join(self.working_dir, self.analysis_name)
+
+
+    @property
     def detector(self):
         return DetectorConfig(self)
 
