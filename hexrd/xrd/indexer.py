@@ -863,7 +863,7 @@ def paintGridThis(quat):
         oangs   = xfcapi.oscillAnglesOfHKLs(these_hkls, 0., rMat, bMat, wavelength)
         angList = num.vstack(oangs)
         if not num.all(num.isnan(angList)):
-            idx = -num.isnan(angList[:, 0])
+            idx = ~num.isnan(angList[:, 0])
             angList = angList[idx, :]
             angList[:, 1] = xf.mapAngle(angList[:, 1])
             angList[:, 2] = xf.mapAngle(angList[:, 2], omePeriod)
