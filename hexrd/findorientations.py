@@ -1,4 +1,7 @@
+from __future__ import print_function
+
 import cPickle
+import logging
 import multiprocessing as mp
 import os
 import shelve
@@ -20,7 +23,7 @@ from hexrd.xrd import indexer as idx
 from hexrd.xrd import rotations as rot
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
-from hexrd.coreutil import initialize_experiment, make_eta_ranges, merge_dicts
+from hexrd.coreutil import initialize_experiment
 
 from hexrd.xrd import xrdutil
 from hexrd.xrd.detector import ReadGE
@@ -34,6 +37,10 @@ try:
 except:
     pass
 
+
+logger = logging.getLogger(__name__)
+
+
 # TODO: just require scikit-learn?
 have_sklearn = False
 try:
@@ -43,15 +50,11 @@ try:
         from sklearn.cluster import dbscan
         from sklearn.metrics.pairwise import pairwise_distances
         have_sklearn = True
-    else:
-        print "Installed scikit-learn is too old (<0.14), using scipy fallback"
-except:
-    print "System does not have SciKit installed, using scipy fallback"
+except ImportError:
+    pass
 
 
-def generate_orientation_fibers(
-    eta_ome, threshold, seed_hkl_ids, fiber_ndiv, verbose=False
-    ):
+def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
     """ From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
 
@@ -78,8 +81,6 @@ def generate_orientation_fibers(
     ##    Labeling of spots from seed hkls    ##
     ############################################
 
-    if verbose:
-        print "labeling maps..."
     ii       = 0
     jj       = fiber_ndiv
     qfib     = []
@@ -106,9 +107,6 @@ def generate_orientation_fibers(
     ############################################
     ##  Generate discrete fibers from labels  ##
     ############################################
-
-    if verbose:
-        print "generating quaternions..."
 
     qfib_tmp = np.empty((4, fiber_ndiv*sum(numSpots)))
 
@@ -141,44 +139,12 @@ def generate_orientation_fibers(
     return np.hstack(qfib)
 
 
-def paintgrid(pd, eta_ome, quats, threshold,
-                  omeTol=None, etaTol=None,
-                  omeRange=None, etaRange=None,
-                  omePeriod=(-np.pi, np.pi),
-                  qTol=1e-7,
-                  ncpus=mp.cpu_count(),
-                  verbose=False
-                  ):
-    """
-    wrapper for indexer.paintGrid
-    """
-
-    # tolerances in degrees...  I know, pathological
-    if omeTol is None:
-        omeTol = 360. / float(fiber_ndiv)
-    if etaTol is None:
-        etaTol = 360. / float(fiber_ndiv)
-
-    if verbose:
-        print "Running paintgrid on %d trial orientations" % (quats.shape[1])
-    complPG = idx.paintGrid(
-        quats,
-        eta_ome,
-        omegaRange=omeRange, etaRange=etaRange,
-        omeTol=np.radians(omeTol), etaTol=np.radians(etaTol),
-        omePeriod=omePeriod, threshold=threshold,
-        doMultiProc=ncpus>1,
-        nCPUs=ncpus)
-    return complPG
-
-
-def run_cluster(compl, qfib, qsym, cfg, verbose=False):
+def run_cluster(compl, qfib, qsym, cfg):
     """
     """
-    clcfg = cfg['find_orientations']['clustering']
-    cl_radius = clcfg['radius']
-    min_compl = clcfg['completeness']
-    algorithm = clcfg.get('algorithm', 'dbscan')
+    cl_radius = cfg.find_orientations.clustering.radius
+    min_compl = cfg.find_orientations.clustering.completeness
+    algorithm = cfg.find_orientations.clustering.algorithm
 
     start = time.clock() # time this
 
@@ -202,17 +168,16 @@ def run_cluster(compl, qfib, qsym, cfg, verbose=False):
 
         qfib_r = qfib[:, np.array(compl) > min_compl]
 
-        if verbose:
-            print (
-                "Feeding %d orientations above %.1f%% to clustering"
-                % (qfib_r.shape[1], 100*min_compl)
-                )
+        logger.info(
+            "Feeding %d orientations above %.1f%% to clustering",
+            qfib_r.shape[1], 100*min_compl
+            )
 
         if algorithm == 'dbscan' and not have_sklearn:
             algorithm = 'fclusterdata'
-            if verbose:
-                print "sklearn >= 0.14 required for dbscan"
-                print "falling back to fclusterdata"
+            logger.warning(
+                "sklearn >= 0.14 required for dbscan, using fclusterdata"
+                )
         if algorithm == 'dbscan':
             pdist = pairwise_distances(
                 qfib_r.T, metric=quat_distance, n_jobs=-1
@@ -241,47 +206,40 @@ def run_cluster(compl, qfib, qsym, cfg, verbose=False):
         qbar = np.zeros((4, nblobs))
         for i in range(nblobs):
             npts = sum(cl == i + 1)
-            qbar[:, i] = rot.quatAverage(qfib_r[:, cl == i + 1].reshape(4, npts),
-                                         qsym).flatten()
+            qbar[:, i] = rot.quatAverage(
+                qfib_r[:, cl == i + 1].reshape(4, npts), qsym
+                ).flatten()
         elapsed = (time.clock() - start)
 
-    if verbose:
-        print "clustering took %f seconds" % (elapsed)
-
-    if verbose:
-        print (
-            "Found %d orientation clusters"
-            " with >=%.1f%% completeness"
-            " and %2f misorientation"
-            % (qbar.size/4, 100.*min_compl, cl_radius)
-            )
+    logger.info("clustering took %f seconds", elapsed)
+    logger.info(
+        "Found %d orientation clusters with >=%.1f%% completeness"
+        " and %2f misorientation",
+        qbar.size/4,
+        100.*min_compl,
+        cl_radius
+        )
 
     return np.atleast_2d(qbar), cl
 
 
-def load_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
-    cwd = cfg.get('working_dir', os.getcwd())
-    fn = cfg['find_orientations']['orientation_maps'].get('file', None)
+def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
+    cwd = cfg.working_dir
+    fn = os.path.join(cwd, cfg.find_orientations.orientation_maps.file)
     try:
-        fn = os.path.join(cwd, fn)
         res = cPickle.load(open(fn, 'r'))
         pd = res.planeData
         available_hkls = pd.hkls.T
-        active_hkls = range(available_hkls.shape[0])
-        if verbose:
-            print "loaded eta/ome orientation maps from %s" % fn
-            print "hkls used to generate orientation maps:"
-            for i in available_hkls[active_hkls]:
-                print i
+        logger.info('loaded eta/ome orientation maps from %s', fn)
+        hkls = [str(i) for i in available_hkls[res.iHKLList]]
+        logger.info(
+            'hkls used to generate orientation maps: %s', hkls)
         return res
     except (AttributeError, IOError):
-        return generate_eta_ome_maps(cfg, pd, reader, detector, verbose, hkls)
+        return generate_eta_ome_maps(cfg, pd, reader, detector, hkls)
 
 
-def generate_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
-    omcfg = cfg['find_orientations']['orientation_maps']
-    threshold = omcfg['threshold']
-    bin_frames = omcfg.get('bin_frames', 1)
+def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
 
     available_hkls = pd.hkls.T
     # default to all hkls defined for material
@@ -291,218 +249,117 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
     # override with hkls from command line, if specified
     active_hkls = hkls if hkls is not None else active_hkls
 
-    if verbose:
-        print "using hkls to generate orientation maps:"
-        for i in available_hkls[active_hkls]:
-            print i
+    logger.info(
+        "using hkls to generate orientation maps: %s",
+        ', '.join([str(i) for i in available_hkls[active_hkls]])
+        )
 
     eta_bins = np.int(2*np.pi / abs(reader.getDeltaOmega())) / bin_frames
-    if verbose:
-        print "Using %d eta bins" % (eta_bins)
-        print "loading data...",
-    #import pdb; pdb.set_trace()
     eta_ome = xrdutil.CollapseOmeEta(
         reader,
         pd,
         active_hkls,
         detector,
-        nframesLump=bin_frames,
+        nframesLump=cfg.find_orientations.orientation_maps.bin_frames,
         nEtaBins=eta_bins,
         debug=False,
-        threshold=threshold
+        threshold=cfg.find_orientations.orientation_maps.threshold
         )
-    if verbose:
-        print "done"
 
-    cwd = cfg.get('working_dir', os.getcwd())
-    outfile = omcfg.get('file', None)
+    fn = os.path.join(
+        cfg.working_dir,
+        cfg.find_orientations.orientation_maps.file
+        )
     if outfile is not None:
-        fn = os.path.join(cwd, outfile)
         fd = os.path.split(fn)[0]
         if not os.path.isdir(fd):
             os.makedirs(fd)
         with open(fn, 'w') as f:
             cPickle.dump(eta_ome, f)
-        if verbose:
-            print "saved eta/ome orientation maps to %s" % fn
+        logger.info("saved eta/ome orientation maps to %s", fn)
     return eta_ome
 
 
 def find_orientations(
-    cfg, verbose=False, hkls=None, force=False
+    cfg, hkls=None, force=False
     ):
     """Takes a config dict as input, generally a yml document"""
 
     # a goofy call, could be replaced with two more targeted calls
-    pd, reader, detector = initialize_experiment(cfg, verbose)
+    pd, reader, detector = initialize_experiment(cfg)
 
-    cwd = cfg.get('working_dir', os.getcwd())
-    analysis_name = cfg['analysis_name']
+    cwd = cfg.working_dir
+    analysis_name = cfg.analysis_name
     analysis_root = os.path.join(cwd, analysis_name)
     if os.path.exists(analysis_root) and not force:
-        print (
-            'analysis "%s" already exists, change yml file or specify "force"'
-            % analysis_name
+        logger.error(
+            'analysis "%s" already exists, change yml file or specify "force"',
+            analysis_name
             )
         sys.exit()
     if not os.path.exists(analysis_root):
         os.makedirs(analysis_root)
-    if verbose:
-        print "beginning analysis '%s'" % analysis_name
+    logger.info("beginning analysis '%s'", analysis_name)
 
     # load the eta_ome orientation maps
-    eta_ome = load_eta_ome_maps(cfg, pd, reader, detector, verbose, hkls)
-
-    ############################################
-    ## load parameters required by paint grid ##
-    ############################################
-
-    pgcfg = cfg['find_orientations']
+    eta_ome = load_eta_ome_maps(cfg, pd, reader, detector, hkls)
 
     try:
-        ome_tol = pgcfg['ome'].get('tolerance', None)
-        ome_period = pgcfg['ome'].get('period', None)
-    except (KeyError, AttributeError):
-        ome_tol = None
-        ome_period = None
-    if ome_tol is None:
-        ome_tol = abs(cfg['image_series']['ome']['step'])
-    if ome_period is None:
-        temp = cfg['image_series']['ome']['start']
-        if cfg['image_series']['ome']['step'] > 0:
-            ome_period = [temp, temp + 360]
-        else:
-            ome_period = [temp, temp - 360]
-        if verbose:
-            print "Omega tolerance: %g" % ome_tol
-            print "Omega period: %s" % ome_period
-    ome_period = np.radians(ome_period)
-    try:
-        eta_tol = pgcfg['eta'].get('tolerance', None)
-        eta_mask = abs(pgcfg.get('mask', 5))
-    except (KeyError, AttributeError):
-        eta_tol = None
-        eta_mask = 5
-    if eta_tol is None:
-        eta_tol = 2*ome_tol     # ome tol is half, eta is full
-    if verbose:
-        print "Eta tolerance: %g" % eta_tol
-    eta_range = None
-    if eta_mask:
-        eta_range = make_eta_ranges(eta_mask)
-        if verbose:
-            print (
-                "Masking eta angles within %g of ome rotation axis"
-                % eta_mask
-                )
-    else:
-        if verbose:
-            print "Using full eta range"
-
-    threshold = pgcfg.get('threshold', 1)
-
-    # determine number of processes to run in parallel
-    multiproc = cfg.get('multiprocessing', -1)
-    ncpus = mp.cpu_count()
-    if multiproc == 'all':
-        pass
-    elif multiproc == -1:
-        ncpus -= 1
-    elif int(ncpus) == 'half':
-        ncpus /= 2
-    elif isinstance(multiproc, int):
-        if multiproc < ncpus:
-            ncpus = multiproc
-    else:
-        ncpus -= 1
-        if verbose:
-            print (
-                "Invalid value %s for find_orientations:multiprocessing"
-                % multiproc
-                )
-    ncpus = ncpus if ncpus else 1
-
-    # are we searching the full grid of orientation space, or a seeded search:
-    seeded = False
-    try:
-        qgrid_f = pgcfg.get('use_quaternian_grid', None)
+        # are we searching the full grid of orientation space?
+        qgrid_f = cfg.find_orientations.use_quaternion_grid
         quats = np.loadtxt(qgrid_f)
-        if verbose:
-            print "Using %s for full quaternian search" % qgrid_f
+        logger.info("Using %s for full quaternian search", qgrid_f)
     except (IOError, ValueError):
-        seeded = True
-        if verbose:
-            print "Could not open quaternian grid file %s" % qgrid_f
-            print "Defaulting to seeded search"
-        try:
-            seed_hkl_ids = pgcfg['seed_search'].get('hkl_seeds', [0])
-            fiber_step = pgcfg.get('fiber_step', None)
-        except KeyError:
-            raise RuntimeError(
-                "if use_quaternian_grid is undefined, you must specify"
-                " seed_search:hkl_seeds"
-                )
-        if fiber_step is None:
-            fiber_step = ome_tol
-        fiber_ndiv = int(360.0 / fiber_step)
-        if verbose:
-            print (
-                "Seeding search using hkls from %s:"
-                % pgcfg['orientation_maps']['file']
-                )
-            print eta_ome.planeData.hkls.T[seed_hkl_ids]
+        # or doing a seeded search?
+        logger.info("Defaulting to seeded search")
+        hkl_seeds = cfg.find_orientations.seed_search.hkl_seeds
+        hklseedstr = ', '.join(
+            [str(i) for i in eta_ome.planeData.hkls.T[hkl_seeds]]
+            )
+        logger.info(
+            "Seeding search using hkls from %s: %s",
+            cfg.find_orientations.orientation_maps.file,
+            hklseedstr
+            )
         quats = generate_orientation_fibers(
-            eta_ome, threshold, seed_hkl_ids, fiber_ndiv, verbose
+            eta_ome,
+            cfg.find_orientations.threshold,
+            cfg.find_orientations.seed_search.hkl_seeds,
+            cfg.find_orientations.seed_search.fiber_ndiv
+            )
+        np.savetxt(
+            os.path.join(analysis_root, 'testq.out'),
+            quats.T,
+            fmt="%.18e",
+            delimiter="\t"
             )
 
-    # run paintgrid
-    compl = paintgrid(
-        pd, eta_ome, quats, threshold,
-        omeTol=ome_tol, etaTol=eta_tol, etaRange=eta_range,
-        omePeriod=ome_period,
-        qTol=1e-7,
-        ncpus=ncpus,
-        verbose=verbose
+    # generate the completion maps
+    logger.info("Running paintgrid on %d trial orientations", (quats.shape[1]))
+    ncpus = cfg.multiprocessing
+    compl = idx.paintGrid(
+        quats,
+        eta_ome,
+        etaRange=np.radians(cfg.find_orientations.eta.range),
+        omeTol=np.radians(cfg.find_orientations.omega.tolerance),
+        etaTol=np.radians(cfg.find_orientations.eta.tolerance),
+        omePeriod=np.radians(cfg.find_orientations.omega.period),
+        threshold=cfg.find_orientations.threshold,
+        doMultiProc=ncpus > 1,
+        nCPUs=ncpus
+        )
+    np.savetxt(os.path.join(analysis_root, 'compl.out'), compl)
+
+    # cluster analysis to identify orientation blobs, the final output:
+    qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg)
+    np.savetxt(
+        os.path.join(analysis_root, 'quats.out'),
+        qbar.T,
+        fmt="%.18e",
+        delimiter="\t"
         )
 
-    # cluster analysis to identify orientation blobs
-    qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, verbose)
-
-    #################
-    ## save output ##
-    #################
-
-    if seeded:
-        # all of the orientations tested
-        testq_f = os.path.join(analysis_root, 'testq.out')
-        np.savetxt(testq_f, quats.T, fmt="%.18e", delimiter="\t")
-    # raw completeness
-    np.savetxt(os.path.join(analysis_root, 'compl.out'), compl)
-    # main output, the list of quaternian orientation clusters
-    # the result of cluster analysis on the thresholded completion map
-    quats_f = os.path.join(analysis_root, 'quats.out')
-    np.savetxt(quats_f, qbar.T, fmt="%.18e", delimiter="\t")
-
-    # import matplotlib.pyplot as plt
-    # from mpl_toolkits.mplot3d import Axes3D
-    # from hexrd.xrd import rotations as rot
-    #
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
-    # phis, ns = rot.angleAxisOfRotMat(rot.rotMatOfQuat(quats[:, np.r_[compl] > min_compl]))
-    # rod = np.tile(np.tan(0.5*phis), (3, 1)) * ns
-    # ax.scatter(rod[0, :], rod[1, :], rod[2, :], c='r', marker='o')
-    #
-    # phis, ns = rot.angleAxisOfRotMat(rot.rotMatOfQuat(qbar))
-    # rod = np.tile(np.tan(0.5*phis), (3, 1)) * ns
-    # ax.scatter(rod[0, :], rod[1, :], rod[2, :], c='b', marker='*')
-    #
-    # plt.show()
-
-    ########################
-    ## do extraction now? ##
-    ########################
-
-    if pgcfg.get('extract_measured_g_vectors', False):
+    # do the peak extraction now?
+    if cfg.find_orientations.extract_measured_g_vectors:
         raise ImplementationError('TODO: implement extract gvecs')
-        #extract_measured_g_vectors(cfg, verbose)
+        #extract_measured_g_vectors(cfg)

@@ -41,27 +41,36 @@ def execute(args, parser):
 
     import yaml
 
+    from hexrd import config
     from hexrd.findorientations import find_orientations
 
 
     if args.hkls is not None:
         args.hkls = [int(i) for i in args.hkls.split(',') if i]
 
-    with open(args.yml) as f:
-        cfg = [cfg for cfg in yaml.load_all(f)][0]
+    cfg = config.open(args.yml)[0]
 
     # now we know where to save the log file
-    logger = logging.getLogger('hexrd')
-    fh = logging.FileHandler(
-        os.path.join(
-            cfg['working_dir'],
-            cfg['analysis_name'],
-            'find-orientations.log'
-            )
-        )
     log_level = logging.DEBUG if args.debug else logging.INFO
+    logger = logging.getLogger('hexrd')
+    logger.setLevel(log_level)
+
+    fn = os.path.join(
+        cfg.working_dir,
+        cfg.analysis_name,
+        'find-orientations.log'
+        )
+    fh = logging.FileHandler(fn)
     fh.setLevel(log_level)
+    fh.setFormatter(logging.Formatter())
+
+    ch = logging.StreamHandler()
+    ch.setLevel(log_level)
+    ch.setFormatter(logging.Formatter())
+    logger.addHandler(ch)
+    logger.info("logging to %s", fn)
+    logger.addHandler(fh)
 
     find_orientations(
-        cfg, verbose=not args.quiet, hkls=args.hkls, force=args.force
+        cfg, hkls=args.hkls, force=args.force
         )

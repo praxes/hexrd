@@ -1,9 +1,12 @@
+import os
+
 from .common import TestConfig, test_data
 
 
 reference_data = \
 """
 analysis_name: analysis
+working_dir: %(tempdir)s
 image_series:
   omega:
     start: -180
@@ -29,6 +32,10 @@ find_orientations:
     completeness: 0.35
     radius: 1
 ---
+image_series:
+  omega:
+    start: 0
+    step: -0.25 # needed to check omega.period defaults
 find_orientations:
   orientation_maps:
     active_hkls: [1, 2]
@@ -39,6 +46,8 @@ find_orientations:
     fiber_step: 2.0
   omega:
     tolerance: 3.0
+  eta:
+    mask: ~
   clustering:
     algorithm: fclusterdata
 ---
@@ -170,6 +179,10 @@ class TestOmegaConfig(TestConfig):
             self.cfgs[1].find_orientations.omega.period,
             [0, 360]
             )
+        self.assertEqual(
+            self.cfgs[2].find_orientations.omega.period,
+            [0, -360]
+            )
 
 
     def test_tolerance(self):
@@ -215,6 +228,25 @@ class TestEtaConfig(TestConfig):
         self.assertEqual(
             self.cfgs[1].find_orientations.eta.mask,
             10
+            )
+        self.assertEqual(
+            self.cfgs[2].find_orientations.eta.mask,
+            None
+            )
+
+
+    def test_range(self):
+        self.assertEqual(
+            self.cfgs[0].find_orientations.eta.range,
+            [[-85, 85], [95, 265]]
+            )
+        self.assertEqual(
+            self.cfgs[1].find_orientations.eta.range,
+            [[-80, 80], [100, 260]]
+            )
+        self.assertEqual(
+            self.cfgs[2].find_orientations.eta.range,
+            None
             )
 
 
@@ -300,7 +332,7 @@ class TestOrientationMapsConfig(TestConfig):
             )
         self.assertEqual(
             self.cfgs[1].find_orientations.orientation_maps.file,
-            test_data['nonexistent_file']
+            os.path.join(test_data['tempdir'], test_data['nonexistent_file'])
             )
         self.assertEqual(
             self.cfgs[2].find_orientations.orientation_maps.file,

@@ -32,7 +32,11 @@ class DetectorConfig(Config):
     @property
     def parameters_old(self):
         temp = self._cfg.get('detector:parameters_old', default=None)
-        if temp is None or os.path.exists(temp):
+        if temp is None:
+            return temp
+        if not os.path.isabs(temp):
+            temp = os.path.join(self._cfg.working_dir, temp)
+        if os.path.exists(temp):
             return temp
         raise IOError(
             '"detector:parameters_old": "%s" does not exist' % temp
@@ -42,6 +46,8 @@ class DetectorConfig(Config):
     @property
     def parameters(self):
         temp = self._cfg.get('detector:parameters')
+        if not os.path.isabs(temp):
+            temp = os.path.join(self._cfg.working_dir, temp)
         if os.path.exists(temp):
             return temp
         if self.parameters_old is not None:

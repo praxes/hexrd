@@ -6,6 +6,7 @@ from .common import TestConfig, test_data
 reference_data = \
 """
 analysis_name: foo
+working_dir: %(tempdir)s
 ---
 detector:
 ---
@@ -57,7 +58,7 @@ class TestDetectorConfig(TestConfig):
         # next test should succeed, converting from old parameters
         self.assertEqual(
             self.cfgs[4].detector.parameters,
-            test_data['nonexistent_file']
+            os.path.join(test_data['tempdir'], test_data['nonexistent_file'])
             )
 
 
@@ -70,7 +71,7 @@ class TestDetectorConfig(TestConfig):
             )
         self.assertEqual(
             self.cfgs[4].detector.parameters_old,
-            test_data['existing_file']
+            os.path.join(test_data['tempdir'], test_data['existing_file'])
             )
 
 

@@ -69,17 +69,17 @@ find_orientations:
   #extract_measured_g_vectors: true # defaults to false
 
 fit_grains:
-  threshold: 1850
-
-  tth_max: 15 # true, false, or a non-negative value, defaults to true
-
-  panel_buffer: 10 # don't fit spots within this many pixels from edge
+  #do_fit: false # if false, extracts grains but doesn't fit. defaults to true
 
   #npdiv: 1 # number of polar pixel grid subdivisions, defaults to 2
 
-  #do_fit: false # if false, extracts grains but doesn't fit. defaults to true
+  panel_buffer: 10 # don't fit spots within this many pixels from edge
+
+  threshold: 1850
 
   tolerance:
     tth: [0.2, 0.1] # tolerance lists must be identical length
     eta: [2.0, 2.0]
     omega: [1.0, 1.0]
+
+  tth_max: 15 # true, false, or a non-negative value, defaults to true

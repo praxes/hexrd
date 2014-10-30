@@ -1,6 +1,7 @@
 import collections
 from ConfigParser import SafeConfigParser
 import copy
+import logging
 import os
 import sys
 import time
@@ -14,20 +15,14 @@ from scipy.linalg import solve
 import yaml
 
 from hexrd.xrd import experiment as expt
-from hexrd.xrd import transforms as xf
+from hexrd.xrd.transforms import makeDetectorRotMat, unitVector, vInv_ref
 from hexrd.xrd import transforms_CAPI as xfcapi
 
 from hexrd.xrd.detector import ReadGE
 
 
-# #################################################
-# PARAMETERS
-d2r = np.pi/180.
-r2d = 180./np.pi
+logger = logging.getLogger('hexrd')
 
-bVec_ref = xf.bVec_ref
-vInv_ref = xf.vInv_ref
-# #################################################
 
 # #################################################
 # LEGACY FUCTIONS FOR WORKING WITH OLD HEXRD PAR
@@ -37,7 +32,7 @@ def tVec_d_from_old_detector_params(old_par, det_origin):
 
     as loaded the params have 2 columns: [val, bool]
     """
-    rMat_d = xf.makeDetectorRotMat(old_par[3:6, 0])
+    rMat_d = makeDetectorRotMat(old_par[3:6, 0])
     #
     P2_d   = np.c_[ old_par[0, 0] - det_origin[0],
                     old_par[1, 0] - det_origin[1],
@@ -53,7 +48,7 @@ def old_detector_params_from_new(new_par, det_origin):
 
     *) may need to consider distortion...
     """
-    rMat_d = xf.makeDetectorRotMat(new_par[:3])
+    rMat_d = makeDetectorRotMat(new_par[:3])
     tVec_d = new_par[3:6].reshape(3, 1)
     #
     A = np.eye(3); A[:, :2] = rMat_d[:, :2]
@@ -62,7 +57,7 @@ def old_detector_params_from_new(new_par, det_origin):
 
 def make_old_detector_parfile(results, det_origin=(204.8, 204.8), filename=None):
     tiltAngles = np.array(results['tiltAngles'])
-    rMat_d     = xf.makeDetectorRotMat(tiltAngles)
+    rMat_d     = makeDetectorRotMat(tiltAngles)
     tVec_d     = results['tVec_d'] - results['tVec_s']
     #
     beamXYD = old_detector_params_from_new(np.hstack([tiltAngles.flatten(), tVec_d.flatten()]), det_origin)
@@ -121,7 +116,7 @@ def migrate_detector_config(old_par, nrows, ncols, pixel_size,
 
 def make_grain_params(quat, tVec_c=np.zeros(3), vInv=vInv_ref, filename=None):
     phi      = 2*np.arccos(quat[0])
-    n        = xf.unitVector(quat[1:, :])
+    n        = unitVector(quat[1:, :])
     expMap_c = phi*n
     if filename is not None:
         if isinstance(filename, file):
@@ -148,49 +143,39 @@ def make_grain_params(quat, tVec_c=np.zeros(3), vInv=vInv_ref, filename=None):
 # #################################################
 
 
-def initialize_experiment(cfg, verbose=False):
+def initialize_experiment(cfg):
     """takes a yml configuration file as input"""
     # make experiment
     ws = expt.Experiment()
 
-    cwd = cfg.get('working_dir', os.getcwd())
+    cwd = cfg.working_dir
 
-    materials_fname = cfg['material']['definitions']
-    material_name = cfg['material']['active']
-    detector_fname = cfg['detector']['parameters_old']
+    materials_fname = cfg.material.definitions
+    material_name = cfg.material.active
+    detector_fname = cfg.detector.parameters_old
 
-    # MATERIALS
+    # load materials
     ws.loadMaterialList(os.path.join(cwd, materials_fname))
     ws.activeMaterial = material_name
-    if verbose:
-        print "setting active material to '%s'" % (material_name)
+    logger.info("setting active material to '%s'", material_name)
 
     pd = ws.activeMaterial.planeData
 
-    # assemble the image series
-    image_dir = cfg['image_series']['directory']
-    file_stem = cfg['image_series']['file']['stem']
-    file_ids = cfg['image_series']['file']['ids']
-    image_start = cfg['image_series']['images']['start']
-    file_info = []
-    for fid in file_ids:
-        file_info.append(
-            (os.path.join(image_dir, file_stem % fid), image_start)
-            )
-    ome_start = cfg['image_series']['ome']['start'] * d2r
-    ome_delta = cfg['image_series']['ome']['step'] * d2r
-    dark = cfg['image_series'].get('dark', None)
-    flip = cfg['image_series'].get('flip', None)
+    image_start = cfg.image_series.images.start
+    dark = cfg.image_series.dark
+    flip = cfg.image_series.flip
 
-    # make frame reader
-    reader = ReadGE(file_info, ome_start, ome_delta,
-                    subtractDark=dark is not None, # TODO: get rid of this
-                    dark=dark,
-                    doFlip=flip is not None,
-                    flipArg=flip, # TODO: flip=flip
-                    )
+    # detector data
+    reader = ReadGE(
+        [(f, image_start) for f in cfg.image_series.files],
+        np.radians(cfg.image_series.omega.start),
+        np.radians(cfg.image_series.omega.step),
+        subtractDark=dark is not None, # TODO: get rid of this
+        dark=dark,
+        doFlip=flip is not None,
+        flipArg=flip, # TODO: flip=flip
+        )
 
-    # DETECTOR
     ws.loadDetector(os.path.join(cwd, detector_fname))
 
     return pd, reader, ws.detector

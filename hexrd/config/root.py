@@ -77,37 +77,39 @@ class RootConfig(Config):
         multiproc = self.get('multiprocessing', default=-1)
         ncpus = mp.cpu_count()
         if multiproc == 'all':
-            return ncpus
+            res = ncpus
         elif multiproc == 'half':
             temp = ncpus / 2
-            return temp if temp else 1
+            res = temp if temp else 1
         elif isinstance(multiproc, int):
             if multiproc >= 0:
                 if multiproc > ncpus:
                     logger.warning(
-                        'Resuested %s processes, %d available, using %d',
+                        'Resuested %s processes, %d available',
                         multiproc, ncpus, ncpus
                         )
-                    return ncpus
-                return multiproc if multiproc else 1
+                    res = ncpus
+                else:
+                    res = multiproc if multiproc else 1
             else:
                 temp = ncpus + multiproc
                 if temp < 1:
                     logger.warning(
-                        'Cannot use less than 1 process, requested %d of %d'
-                        ' available. Defaulting to 1',
+                        'Cannot use less than 1 process, requested %d of %d',
                         temp, ncpus
                         )
-                    return 1
-                return temp
+                    res = 1
+                else:
+                    res = temp
         else:
             temp = ncpus - 1
             logger.warning(
-                "Invalid value %s for multiprocessing, defaulting to %d"
-                " of %d available",
-                multiproc, temp, ncpus
+                "Invalid value %s for multiprocessing",
+                multiproc
                 )
-            return temp
+            res = temp
+        logger.info("Using %d of %d available processors", res, ncpus)
+        return res
 
 
     @property

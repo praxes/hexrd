@@ -10,7 +10,10 @@ class FileConfig(Config):
 
     @property
     def stem(self):
-        return self._cfg.get('image_series:file:stem')
+        temp = self._cfg.get('image_series:file:stem')
+        if not os.path.isabs(temp):
+            temp = os.path.join(self._cfg.working_dir, temp)
+        return temp
 
 
     @property

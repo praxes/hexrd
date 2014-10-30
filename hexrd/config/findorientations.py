@@ -1,6 +1,8 @@
 import logging
 import os
 
+import numpy as np
+
 from .config import Config
 
 
@@ -50,7 +52,11 @@ class FindOrientationsConfig(Config):
     def use_quaternion_grid(self):
         key = 'find_orientations:use_quaternion_grid'
         temp = self._cfg.get(key, None)
-        if temp is None or os.path.isfile(temp):
+        if temp is None:
+            return temp
+        if not os.path.isabs(temp):
+            temp = os.path.join(self._cfg.working_dir, temp)
+        if os.path.isfile(temp):
             return temp
         raise IOError(
             '"%s": "%s" does not exist' % (key, temp)
@@ -104,7 +110,8 @@ class OmegaConfig(Config):
         temp = self._cfg.get('find_orientations:omega:period', None)
         if temp is None:
             temp = self._cfg.image_series.omega.start
-            temp = [temp, temp+360]
+            range = 360 if self._cfg.image_series.omega.step > 0 else -360
+            temp = [temp, temp + range]
         return temp
 
 
@@ -130,6 +137,15 @@ class EtaConfig(Config):
     @property
     def mask(self):
         return self._cfg.get('find_orientations:eta:mask', 5)
+
+
+    @property
+    def range(self):
+        mask = self.mask
+        if mask is None:
+            return mask
+        return [[-90 + mask, 90 - mask],
+                [ 90 + mask, 270 - mask]]
 
 
 
@@ -159,6 +175,11 @@ class SeedSearchConfig(Config):
             )
 
 
+    @property
+    def fiber_ndiv(self):
+        return int(360.0 / self.fiber_step)
+
+
 
 class OrientationMapsConfig(Config):
 
@@ -180,7 +201,10 @@ class OrientationMapsConfig(Config):
 
     @property
     def file(self):
-        return self._cfg.get('find_orientations:orientation_maps:file')
+        temp = self._cfg.get('find_orientations:orientation_maps:file')
+        if not os.path.isabs(temp):
+            temp = os.path.join(self._cfg.working_dir, temp)
+        return temp
 
 
     @property

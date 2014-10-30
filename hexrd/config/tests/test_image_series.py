@@ -6,6 +6,7 @@ from .common import TestConfig, test_data
 
 reference_data = \
 """
+working_dir: %(tempdir)s
 image_series:
 #  dark: # not specified to test default is None
 ---
@@ -107,7 +108,7 @@ class TestFileConfig(TestConfig):
             )
         self.assertEqual(
             self.cfgs[2].image_series.file.stem,
-            test_data['file_stem']
+            os.path.join(test_data['tempdir'], test_data['file_stem'])
             )
 
 
