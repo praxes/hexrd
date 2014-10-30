@@ -27,6 +27,7 @@ find_orientations:
   clustering:
     algorithm: dbscan
     completeness: 0.35
+    radius: 1
 ---
 find_orientations:
   orientation_maps:
@@ -127,6 +128,7 @@ class TestClusteringConfig(TestConfig):
             getattr, self.cfgs[3].find_orientations.clustering, 'algorithm',
             )
 
+
     def test_completeness(self):
         self.assertRaises(
             RuntimeError,
@@ -135,6 +137,17 @@ class TestClusteringConfig(TestConfig):
         self.assertEqual(
             self.cfgs[1].find_orientations.clustering.completeness,
             0.35
+            )
+
+
+    def test_radius(self):
+        self.assertRaises(
+            RuntimeError,
+            getattr, self.cfgs[0].find_orientations.clustering, 'radius',
+            )
+        self.assertEqual(
+            self.cfgs[1].find_orientations.clustering.radius,
+            1.0
             )
 
 

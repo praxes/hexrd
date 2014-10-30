@@ -82,4 +82,4 @@ fit_grains:
   tolerance:
     tth: [0.2, 0.1] # tolerance lists must be identical length
     eta: [2.0, 2.0]
-    ome: [1.0, 1.0]
+    omega: [1.0, 1.0]

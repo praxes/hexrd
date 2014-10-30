@@ -6,7 +6,7 @@ import sys
 from .config import Config
 from .detector import DetectorConfig
 from .findorientations import FindOrientationsConfig
-#from .fitgrains import FitGrainsConfig
+from .fitgrains import FitGrainsConfig
 from .imageseries import ImageSeriesConfig
 from .material import MaterialConfig
 from utils import null
