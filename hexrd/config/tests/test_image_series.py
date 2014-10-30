@@ -25,7 +25,7 @@ image_series:
     start: 1
     step: 2
     stop: -1
-  ome:
+  omega:
     start: 0
     step: 0.25
 ---

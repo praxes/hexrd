@@ -53,7 +53,7 @@ find_orientations:
 
   #threshold: 10 # defaults to 1
 
-  #ome:
+  #omega:
   #  tolerance: 0.5 # in degrees, defaults to 2x ome step
   #  period: [0, 360] # in degrees, defaults to full 360 starting at "ome start"
 

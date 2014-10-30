@@ -44,12 +44,12 @@ class OmegaConfig(Config):
 
     @property
     def start(self):
-        return self._cfg.get('image_series:ome:start')
+        return self._cfg.get('image_series:omega:start')
 
 
     @property
     def step(self):
-        return self._cfg.get('image_series:ome:step')
+        return self._cfg.get('image_series:omega:step')
 
 
 
