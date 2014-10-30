@@ -1,4 +1,5 @@
 import cPickle
+import multiprocessing as mp
 import os
 import shelve
 import sys
@@ -19,10 +20,9 @@ from hexrd.xrd import indexer as idx
 from hexrd.xrd import rotations as rot
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
-from hexrd.coreutil import initialize_experiment, merge_dicts
+from hexrd.coreutil import initialize_experiment, make_eta_ranges, merge_dicts
 
 from hexrd.xrd import xrdutil
-from hexrd.xrd.xrdbase import multiprocessing
 from hexrd.xrd.detector import ReadGE
 
 from hexrd.xrd import distortion as dFuncs
@@ -142,13 +142,13 @@ def generate_orientation_fibers(
 
 
 def paintgrid(pd, eta_ome, quats, threshold,
-                  omeTol=None, etaTol=None,
-                  omeRange=None, etaRange=None,
-                  omePeriod=(-np.pi, np.pi),
-                  qTol=1e-7,
-                  ncpus=multiprocessing.cpu_count(),
-                  verbose=False
-                  ):
+              omeTol=None, etaTol=None,
+              omeRange=None, etaRange=None,
+              omePeriod=(-np.pi, np.pi),
+              qTol=1e-7,
+              ncpus=mp.cpu_count(),
+              verbose=False
+              ):
     """
     wrapper for indexer.paintGrid
     """
@@ -243,7 +243,7 @@ def run_cluster(compl, qfib, qsym, cfg, verbose=False):
             npts = sum(cl == i + 1)
             qbar[:, i] = rot.quatAverage(qfib_r[:, cl == i + 1].reshape(4, npts),
                                          qsym).flatten()
-        elapsed = (time.clock() - start)
+    elapsed = (time.clock() - start)
 
     if verbose:
         print "clustering took %f seconds" % (elapsed)
@@ -267,11 +267,10 @@ def load_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
         res = cPickle.load(open(fn, 'r'))
         pd = res.planeData
         available_hkls = pd.hkls.T
-        active_hkls = range(available_hkls.shape[0])
         if verbose:
             print "loaded eta/ome orientation maps from %s" % fn
             print "hkls used to generate orientation maps:"
-            for i in available_hkls[active_hkls]:
+            for i in available_hkls[res.iHKLList]:
                 print i
         return res
     except (AttributeError, IOError):
@@ -290,7 +289,6 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
     active_hkls = omcfg.get('active_hkls', active_hkls)
     # override with hkls from command line, if specified
     active_hkls = hkls if hkls is not None else active_hkls
-
     if verbose:
         print "using hkls to generate orientation maps:"
         for i in available_hkls[active_hkls]:
@@ -304,7 +302,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
     eta_ome = xrdutil.CollapseOmeEta(
         reader,
         pd,
-        active_hkls,
+        pd.hkls[:, active_hkls],
         detector,
         nframesLump=bin_frames,
         nEtaBins=eta_bins,
@@ -329,15 +327,10 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, verbose=False, hkls=None):
 
 
 def find_orientations(
-    yml_file, verbose=False, hkls=None, force=False
+    cfg, verbose=False, hkls=None, force=False
     ):
+    """Takes a config dict as input, generally a yml document"""
 
-    if verbose:
-        print "Using configuration file '%s'" % yml_file
-    # need to iterate her
-    # for cfg in cfgs
-    with open(yml_file, 'r') as f:
-        cfg = [cfg for cfg in yaml.load_all(f)][0]
     # a goofy call, could be replaced with two more targeted calls
     pd, reader, detector = initialize_experiment(cfg, verbose)
 
@@ -366,7 +359,7 @@ def find_orientations(
 
     try:
         ome_tol = pgcfg['ome'].get('tolerance', None)
-        ome_period = omecfg.get('period', None)
+        ome_period = pgcfg['ome'].get('period', None)
     except (KeyError, AttributeError):
         ome_tol = None
         ome_period = None
@@ -384,23 +377,21 @@ def find_orientations(
     ome_period = np.radians(ome_period)
     try:
         eta_tol = pgcfg['eta'].get('tolerance', None)
-        eta_mask = np.radians(abs(etacfg.get('mask', 5)))
+        eta_mask = abs(pgcfg['eta'].get('mask', 5))
     except (KeyError, AttributeError):
         eta_tol = None
         eta_mask = 5
-    eta_mask = np.radians(eta_mask)
     if eta_tol is None:
-        eta_tol = ome_tol
+        eta_tol = 2*ome_tol     # ome tol is half, eta is full
     if verbose:
         print "Eta tolerance: %g" % eta_tol
     eta_range = None
     if eta_mask:
-        eta_range = [[-0.5*np.pi + eta_mask, 0.5*np.pi - eta_mask],
-                    [ 0.5*np.pi + eta_mask, 1.5*np.pi - eta_mask]]
+        eta_range = make_eta_ranges(eta_mask)
         if verbose:
             print (
                 "Masking eta angles within %g of ome rotation axis"
-                % np.degrees(eta_mask)
+                % eta_mask
                 )
     else:
         if verbose:
@@ -409,8 +400,8 @@ def find_orientations(
     threshold = pgcfg.get('threshold', 1)
 
     # determine number of processes to run in parallel
-    multiproc = pgcfg.get('multiprocessing', -1)
-    ncpus = multiprocessing.cpu_count()
+    multiproc = cfg.get('multiprocessing', -1)
+    ncpus = mp.cpu_count()
     if multiproc == 'all':
         pass
     elif multiproc == -1:
@@ -432,21 +423,21 @@ def find_orientations(
     # are we searching the full grid of orientation space, or a seeded search:
     seeded = False
     try:
-        qgrid_f = pgcfg.get('use_quaternian_grid', None)
+        qgrid_f = pgcfg.get('use_quaternion_grid', None)
         quats = np.loadtxt(qgrid_f)
         if verbose:
-            print "Using %s for full quaternian search" % qgrid_f
+            print "Using %s for full quaternion search" % qgrid_f
     except (IOError, ValueError):
         seeded = True
         if verbose:
-            print "Could not open quaternian grid file %s" % qgrid_f
+            print "Could not open quaternion grid file %s" % qgrid_f
             print "Defaulting to seeded search"
         try:
             seed_hkl_ids = pgcfg['seed_search'].get('hkl_seeds', [0])
             fiber_step = pgcfg.get('fiber_step', None)
         except KeyError:
             raise RuntimeError(
-                "if use_quaternian_grid is undefined, you must specify"
+                "if use_quaternion_grid is undefined, you must specify"
                 " seed_search:hkl_seeds"
                 )
         if fiber_step is None:
@@ -485,7 +476,7 @@ def find_orientations(
         np.savetxt(testq_f, quats.T, fmt="%.18e", delimiter="\t")
     # raw completeness
     np.savetxt(os.path.join(analysis_root, 'compl.out'), compl)
-    # main output, the list of quaternian orientation clusters
+    # main output, the list of quaternion orientation clusters
     # the result of cluster analysis on the thresholded completion map
     quats_f = os.path.join(analysis_root, 'quats.out')
     np.savetxt(quats_f, qbar.T, fmt="%.18e", delimiter="\t")
