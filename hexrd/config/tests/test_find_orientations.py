@@ -21,6 +21,12 @@ find_orientations:
   omega:
     period: [0, 360]
     tolerance: 1.0
+  eta:
+    mask: 10
+    tolerance: 2
+  clustering:
+    algorithm: dbscan
+    completeness: 0.35
 ---
 find_orientations:
   orientation_maps:
@@ -32,10 +38,14 @@ find_orientations:
     fiber_step: 2.0
   omega:
     tolerance: 3.0
+  clustering:
+    algorithm: fclusterdata
 ---
 find_orientations:
   seed_search:
     hkl_seeds: [1, 2]
+  clustering:
+    algorithm: foo
 """ % test_data
 
 
@@ -91,6 +101,45 @@ class TestFindOrientationsConfig(TestConfig):
 
 
 
+class TestClusteringConfig(TestConfig):
+
+
+    @classmethod
+    def get_reference_data(cls):
+        return reference_data
+
+
+    def test_algorithm(self):
+        self.assertEqual(
+            self.cfgs[0].find_orientations.clustering.algorithm,
+            'dbscan'
+            )
+        self.assertEqual(
+            self.cfgs[1].find_orientations.clustering.algorithm,
+            'dbscan'
+            )
+        self.assertEqual(
+            self.cfgs[2].find_orientations.clustering.algorithm,
+            'fclusterdata'
+            )
+        self.assertRaises(
+            RuntimeError,
+            getattr, self.cfgs[3].find_orientations.clustering, 'algorithm',
+            )
+
+    def test_completeness(self):
+        self.assertRaises(
+            RuntimeError,
+            getattr, self.cfgs[0].find_orientations.clustering, 'completeness',
+            )
+        self.assertEqual(
+            self.cfgs[1].find_orientations.clustering.completeness,
+            0.35
+            )
+
+
+
+
 class TestOmegaConfig(TestConfig):
 
 
@@ -122,6 +171,37 @@ class TestOmegaConfig(TestConfig):
         self.assertEqual(
             self.cfgs[2].find_orientations.omega.tolerance,
             3.0
+            )
+
+
+
+class TestEtaConfig(TestConfig):
+
+
+    @classmethod
+    def get_reference_data(cls):
+        return reference_data
+
+
+    def test_tolerance(self):
+        self.assertEqual(
+            self.cfgs[0].find_orientations.eta.tolerance,
+            0.5
+            )
+        self.assertEqual(
+            self.cfgs[1].find_orientations.eta.tolerance,
+            2.0
+            )
+
+
+    def test_mask(self):
+        self.assertEqual(
+            self.cfgs[0].find_orientations.eta.mask,
+            5
+            )
+        self.assertEqual(
+            self.cfgs[1].find_orientations.eta.mask,
+            10
             )
 
 

@@ -9,6 +9,16 @@ class FindOrientationsConfig(Config):
 
 
     @property
+    def clustering(self):
+        return ClusteringConfig(self._cfg)
+
+
+    @property
+    def eta(self):
+        return EtaConfig(self._cfg)
+
+
+    @property
     def extract_measured_g_vectors(self):
         return self._cfg.get(
             'find_orientations:extract_measured_g_vectors',
@@ -47,6 +57,45 @@ class FindOrientationsConfig(Config):
             )
 
 
+class ClusteringConfig(Config):
+
+
+    @property
+    def algorithm(self):
+        key = 'find_orientations:clustering:algorithm'
+        choices = ['dbscan', 'fclusterdata']
+        temp = self._cfg.get(key, 'dbscan').lower()
+        if temp in choices:
+            return temp
+        raise RuntimeError(
+            '"%s": "%s" not recognized, must be one of %s'
+            % (key, temp, choices)
+            )
+
+
+    @property
+    def completeness(self):
+        key = 'find_orientations:clustering:completeness'
+        temp = self._cfg.get(key, None)
+        if temp is not None:
+            return temp
+        raise RuntimeError(
+            '"%s" must be specified' % key
+            )
+
+
+    @property
+    def radius(self):
+        key = 'find_orientations:clustering:radius'
+        temp = self._cfg.get(key, None)
+        if temp is not None:
+            return temp
+        raise RuntimeError(
+            '"%s" must be specified' % key
+            )
+
+
+
 class OmegaConfig(Config):
 
 
@@ -65,6 +114,22 @@ class OmegaConfig(Config):
             'find_orientations:omega:tolerance',
             2 * self._cfg.image_series.omega.step
             )
+
+
+class EtaConfig(Config):
+
+
+    @property
+    def tolerance(self):
+        return self._cfg.get(
+            'find_orientations:eta:tolerance',
+            2 * self._cfg.image_series.omega.step
+            )
+
+
+    @property
+    def mask(self):
+        return self._cfg.get('find_orientations:eta:mask', 5)
 
 
 
