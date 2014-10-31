@@ -3,7 +3,7 @@ import logging
 import multiprocessing as mp
 import sys
 
-from hexrd.coreutil import memoized
+from hexrd.decorators import memoized
 
 from .config import Config
 from .detector import DetectorConfig

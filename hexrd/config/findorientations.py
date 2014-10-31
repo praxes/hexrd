@@ -107,11 +107,18 @@ class OmegaConfig(Config):
 
     @property
     def period(self):
-        temp = self._cfg.get('find_orientations:omega:period', None)
+        key = 'find_orientations:omega:period'
+        temp = self._cfg.get(key, None)
         if temp is None:
             temp = self._cfg.image_series.omega.start
             range = 360 if self._cfg.image_series.omega.step > 0 else -360
             temp = [temp, temp + range]
+        range = np.abs(temp[1]-temp[0])
+        if range != 360:
+            raise RuntimeError(
+                '"%s": range must be 360 degrees, range of %s is %g'
+                % (key, temp, range)
+                )
         return temp
 
 

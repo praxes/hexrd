@@ -56,6 +56,8 @@ find_orientations:
     hkl_seeds: [1, 2]
   clustering:
     algorithm: foo
+  omega:
+    period: [-60, 60]
 """ % test_data
 
 
@@ -182,6 +184,10 @@ class TestOmegaConfig(TestConfig):
         self.assertEqual(
             self.cfgs[2].find_orientations.omega.period,
             [0, -360]
+            )
+        self.assertRaises(
+            RuntimeError,
+            getattr, self.cfgs[3].find_orientations.omega, 'period'
             )
 
 
