@@ -57,6 +57,10 @@ find_orientations:
 
   #omega:
   #  tolerance: 0.5 # in degrees, defaults to 2x ome step
+
+  ## specify the branch cut, in degrees
+  ## defaults to ["image_series:omega:start", "image_series:omega:start"+-360]
+  ## depending on sign of "image_series:omega:step"
   #  period: [0, 360] # in degrees, defaults to full 360 starting at "ome start"
 
   #eta:
