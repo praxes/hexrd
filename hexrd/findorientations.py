@@ -209,9 +209,8 @@ def run_cluster(compl, qfib, qsym, cfg):
             qbar[:, i] = rot.quatAverage(
                 qfib_r[:, cl == i + 1].reshape(4, npts), qsym
                 ).flatten()
-        elapsed = (time.clock() - start)
 
-    logger.info("clustering took %f seconds", elapsed)
+    logger.info("clustering took %f seconds", time.clock() - start)
     logger.info(
         "Found %d orientation clusters with >=%.1f%% completeness"
         " and %2f misorientation",
