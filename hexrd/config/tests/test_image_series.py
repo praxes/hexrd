@@ -42,6 +42,11 @@ image_series:
   file:
     stem: %(tempdir)s%(pathsep)s%%s.dat
     ids: ["*001*"]
+---
+image_series:
+  file:
+    stem: %(tempdir)s%(pathsep)s%%05d.dat
+    ids: [0, 1]
 """ % test_data
 
 
@@ -74,6 +79,10 @@ class TestImageSeriesConfig(TestConfig):
             self.assertEqual(
                 sorted(self.cfgs[5].image_series.files),
                 sorted(files[:2])
+                )
+            self.assertRaises(
+                IOError,
+                getattr, self.cfgs[6].image_series, 'files'
                 )
         finally:
             for f in files:

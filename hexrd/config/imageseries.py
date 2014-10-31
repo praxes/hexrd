@@ -79,9 +79,18 @@ class ImageSeriesConfig(Config):
     @property
     def files(self):
         res = []
+        missing = []
         for id in self._cfg.image_series.file.ids:
             id = self._cfg.image_series.file.stem % id
-            res.extend(glob.glob(id))
+            temp = glob.glob(id)
+            if temp:
+                res.extend(glob.glob(id))
+            else:
+                missing.append(id)
+        if missing:
+            raise IOError(
+                'Image files not found: %s' % (', '.join(missing))
+                )
         return res
 
 
