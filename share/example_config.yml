@@ -1,18 +1,20 @@
 analysis_name: multiruby # defaults to analysis
 
 ## working directory defaults to current working directory
+## all relative paths specified herein are assumed to be in the working_dir
+## any files not in working_dir should be specified with an absolute path
 working_dir: /nfs/chess/aux/user/afrl/2014-3/multiruby
 
 #multiprocessing: 1 # "all", or "half", or -1 means all but one, defaults to -1
 
 material:
-  definitions: /nfs/chess/aux/user/afrl/2014-3/multiruby/materials.cpl
+  definitions: materials.cpl
   active: ruby
 
 image_series:
   file:
-    stem: /nfs/chess/aux/user/afrl/2014-3/multiruby/1/ff/ff_%05d.ge2
-    ids: [24, 25, 26, 27, 28, 29]
+    stem: 1/ff/ff_%05d.ge2 # can include relative or absolute path
+    ids: [24, 25, 26, 27, 28, 29] # or can use globs: ["*2[4-9]"]
   images:
     start: 0
     #stop: -1
@@ -29,12 +31,12 @@ detector:
   pixels: # this section required to convert from old detector spec
     rows: 2048
     columns: 2048
-    size: [0.200, 0.200] # [row height, col widt] mm
+    size: [0.200, 0.200] # [row height, col width] mm
 
 find_orientations:
   orientation_maps:
     # A file name must be specified. If it doesn't exist, one will be created
-    file: some/file/name.cpl
+    file: eta-omega.cpl
 
     threshold: 1850
 
