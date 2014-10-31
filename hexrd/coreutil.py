@@ -185,14 +185,3 @@ def initialize_experiment(cfg):
     ws.loadDetector(os.path.join(cwd, detector_fname))
 
     return pd, reader, ws.detector
-
-
-def make_eta_ranges(eta_mask, units='degrees'):
-    """
-    take spec from yaml input and export to list of ranges (radians)
-    """
-    if units.strip().lower() == 'degrees':
-        eta_mask = np.radians(eta_mask)
-    eta_range = [[-0.5*np.pi + eta_mask, 0.5*np.pi - eta_mask],
-                 [ 0.5*np.pi + eta_mask, 1.5*np.pi - eta_mask]]
-    return eta_range
