@@ -23,21 +23,13 @@ from hexrd.coreutil import initialize_experiment, migrate_detector_config
 
 from hexrd.xrd import distortion as dFuncs
 from hexrd.xrd import rotations as rot
-from hexrd.xrd.xrdutil import pullSpots as pull_spots
+from hexrd.xrd.xrdutil import pullSpots
 
 
 logger = logging.getLogger(__name__)
 
 
 def fit_grains(cfg, force=False):
-    for i in range(len(cfg.fit_grains.tolerance.tth)):
-        _fit_grains_loop(cfg, force=force, iteration=i)
-
-
-def _fit_grains_loop(
-    cfg, force=False, iteration=0
-    ):
-    """ takes a cfg dict, not a file """
 
     pd, reader, detector = initialize_experiment(cfg)
 
@@ -129,9 +121,9 @@ def _fit_grains_loop(
     # don't query these in the loop, will spam the logger:
     eta_range = np.radians(cfg.find_orientations.eta.range)
     omega_period = np.radians(cfg.find_orientations.omega.period)
-    tth_tol = cfg.fit_grains.tolerance.tth[iteration]
-    eta_tol = cfg.fit_grains.tolerance.eta[iteration]
-    omega_tol = cfg.fit_grains.tolerance.omega[iteration]
+    tth_tol = cfg.fit_grains.tolerance.tth
+    eta_tol = cfg.fit_grains.tolerance.eta
+    omega_tol = cfg.fit_grains.tolerance.omega
     panel_buffer = cfg.fit_grains.panel_buffer
     npdiv = cfg.fit_grains.npdiv
     threshold = cfg.fit_grains.threshold
@@ -196,27 +188,40 @@ class PullSpotsWorker(mp.Process):
         self._spots_f = spots_f
 
 
+    def pull_spots(self, grain_id, grain_params, iteration):
+        return pullSpots(
+            self._plane_data,
+            self._detector_params,
+            grain_params,
+            self._reader,
+            distortion=self._distortion,
+            eta_range=self._eta_range,
+            ome_period=self._ome_period,
+            tth_tol=self._tth_tol[iteration],
+            eta_tol=self._eta_tol[iteration],
+            ome_tol=self._ome_tol[iteration],
+            panel_buff=self._panel_buff,
+            npdiv=self._npdiv,
+            threshold=self._pthresh,
+            filename=self._spots_f % grain_id,
+            )
+
+
+    def fit_grains(self):
+        pass
+
+
     def run(self):
         while True:
             try:
-                i, grain_params = self._jobs.get(False)
-                res = pull_spots(
-                    self._plane_data,
-                    self._detector_params,
-                    grain_params,
-                    self._reader,
-                    distortion=self._distortion,
-                    eta_range=self._eta_range,
-                    ome_period=self._ome_period,
-                    tth_tol=self._tth_tol,
-                    eta_tol=self._eta_tol,
-                    ome_tol=self._ome_tol,
-                    panel_buff=self._panel_buff,
-                    npdiv=self._npdiv,
-                    threshold=self._pthresh,
-                    filename=self._spots_f % i,
-                    )
-                self._results.append((i, res))
+                grain_id, grain_params = self._jobs.get(False)
+
+                for iteration in range(1):
+                    res = self.pull_spots(grain_id, grain_params, iteration)
+                    # self.fit_grains()
+
+
+                self._results.append((grain_id, res))
                 self._jobs.task_done()
             except Empty:
                 break
