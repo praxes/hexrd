@@ -247,7 +247,8 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
     # default to all hkls defined for material
     active_hkls = range(available_hkls.shape[0])
     # override with hkls from config, if specified
-    active_hkls = omcfg.get('active_hkls', active_hkls)
+    temp = cfg.find_orientations.orientation_maps.active_hkls
+    active_hkls = active_hkls if temp == 'all' else temp
     # override with hkls from command line, if specified
     active_hkls = hkls if hkls is not None else active_hkls
 
@@ -256,13 +257,14 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
         ', '.join([str(i) for i in available_hkls[active_hkls]])
         )
 
+    bin_frames = cfg.find_orientations.orientation_maps.bin_frames
     eta_bins = np.int(2*np.pi / abs(reader.getDeltaOmega())) / bin_frames
     eta_ome = xrdutil.CollapseOmeEta(
         reader,
         pd,
         active_hkls,
         detector,
-        nframesLump=cfg.find_orientations.orientation_maps.bin_frames,
+        nframesLump=bin_frames,
         nEtaBins=eta_bins,
         debug=False,
         threshold=cfg.find_orientations.orientation_maps.threshold
@@ -272,13 +274,12 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
         cfg.working_dir,
         cfg.find_orientations.orientation_maps.file
         )
-    if outfile is not None:
-        fd = os.path.split(fn)[0]
-        if not os.path.isdir(fd):
-            os.makedirs(fd)
-        with open(fn, 'w') as f:
-            cPickle.dump(eta_ome, f)
-        logger.info("saved eta/ome orientation maps to %s", fn)
+    fd = os.path.split(fn)[0]
+    if not os.path.isdir(fd):
+        os.makedirs(fd)
+    with open(fn, 'w') as f:
+        cPickle.dump(eta_ome, f)
+    logger.info("saved eta/ome orientation maps to %s", fn)
     return eta_ome
 
 
