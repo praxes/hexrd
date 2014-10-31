@@ -47,7 +47,7 @@ def execute(args, parser):
         )
     logger.addHandler(ch)
 
-    for i, cfg in enumerate(config.open(args.yml)):
+    for cfg in config.open(args.yml):
         # now we know where to save the log file
         logfile = os.path.join(
             cfg.working_dir,
@@ -65,7 +65,7 @@ def execute(args, parser):
         logger.info("logging to %s", logfile)
         logger.addHandler(fh)
 
-        fit_grains(cfg, force=args.force, iteration=i)
+        fit_grains(cfg, force=args.force)
 
         logger.removeHandler(fh)
         fh.close()

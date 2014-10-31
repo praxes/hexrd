@@ -29,7 +29,12 @@ from hexrd.xrd.xrdutil import pullSpots as pull_spots
 logger = logging.getLogger(__name__)
 
 
-def extract_g_vectors(
+def fit_grains(cfg, force=False):
+    for i in range(len(cfg.fit_grains.tolerance.tth)):
+        _fit_grains_loop(cfg, force=force, iteration=i)
+
+
+def _fit_grains_loop(
     cfg, force=False, iteration=0
     ):
     """ takes a cfg dict, not a file """
@@ -82,10 +87,6 @@ def extract_g_vectors(
     n_quats = len(quats)
     quats = quats.T
 
-    job_queue = mp.JoinableQueue()
-    manager = mp.Manager()
-    results = manager.list()
-
     n_frames = reader.getNFrames()
     logger.info("reading %d frames of data", n_frames)
     if have_progBar:
@@ -111,6 +112,12 @@ def extract_g_vectors(
         widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
         pbar = ProgressBar(widgets=widgets, maxval=n_quats).start()
 
+    # create the job queue
+    job_queue = mp.JoinableQueue()
+    manager = mp.Manager()
+    results = manager.list()
+
+    # load the queue
     phi, n = rot.angleAxisOfRotMat(rot.rotMatOfQuat(quats))
     for i, quat in enumerate(quats.T):
         exp_map = phi[i]*n[:, i]
