@@ -39,7 +39,6 @@ find_orientations:
     file: eta-omega.cpl
 
     threshold: 1850
-
     #bin_frames: 1 # defaults to 1
 
     ## "all", or a list of hkl orders used to find orientations
@@ -69,7 +68,7 @@ find_orientations:
 
   clustering:
     radius: 1.0
-    completeness: 0.35 # completeness threshold
+    completeness: 0.90 # completeness threshold
     #algorithm: fclusterdata # defaults to dbscan
 
   #extract_measured_g_vectors: true # defaults to false

@@ -261,7 +261,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
     eta_ome = xrdutil.CollapseOmeEta(
         reader,
         pd,
-        active_hkls,
+        pd.hkls[:, active_hkls],
         detector,
         nframesLump=bin_frames,
         nEtaBins=eta_bins,

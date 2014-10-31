@@ -50,18 +50,22 @@ def old_detector_params_from_new(new_par, det_origin):
     """
     rMat_d = makeDetectorRotMat(new_par[:3])
     tVec_d = new_par[3:6].reshape(3, 1)
-    #
+
     A = np.eye(3); A[:, :2] = rMat_d[:, :2]
-    #
+
     return solve(A, -tVec_d) + np.vstack([det_origin[0], det_origin[1], 0])
 
-def make_old_detector_parfile(results, det_origin=(204.8, 204.8), filename=None):
+def make_old_detector_parfile(
+    results, det_origin=(204.8, 204.8), filename=None
+    ):
     tiltAngles = np.array(results['tiltAngles'])
     rMat_d     = makeDetectorRotMat(tiltAngles)
     tVec_d     = results['tVec_d'] - results['tVec_s']
-    #
-    beamXYD = old_detector_params_from_new(np.hstack([tiltAngles.flatten(), tVec_d.flatten()]), det_origin)
-    #
+
+    beamXYD = old_detector_params_from_new(
+        np.hstack([tiltAngles.flatten(), tVec_d.flatten()]), det_origin
+        )
+
     det_plist = np.zeros(12)
     det_plist[:3]  = beamXYD.flatten()
     det_plist[3:6] = tiltAngles
@@ -91,7 +95,9 @@ def migrate_detector_config(old_par, nrows, ncols, pixel_size,
     det_origin = 0.5 * np.r_[ncols, nrows] * np.array(pixel_size).flatten()
 
     tVec_d = tVec_d_from_old_detector_params(old_par, det_origin)
-    detector_params = np.hstack([old_par[3:6, 0], tVec_d.flatten(), chi, tVec_s.flatten()])
+    detector_params = np.hstack(
+        [old_par[3:6, 0], tVec_d.flatten(), chi, tVec_s.flatten()]
+        )
     if filename is not None:
         if isinstance(filename, file):
             fid = filename
@@ -99,7 +105,7 @@ def migrate_detector_config(old_par, nrows, ncols, pixel_size,
             fid = open(filename, 'w')
         print >> fid, "oscillation_stage:"
         print >> fid, "  chi:     %1.8e # radians" %detector_params[6]
-        print >> fid, "  t_vec_s: [%1.8e, %1.8e, %1.8e] # mm\n" %tuple(detector_params[7:10])
+        print >> fid, "  t_vec_s: [%1.8e, %1.8e, %1.8e] # mm\n"  %tuple(detector_params[7:10])
         print >> fid, "detector:\n  id: '%s'" %detID
         print >> fid, "  pixels:"
         print >> fid, "    rows:    %d" %nrows
