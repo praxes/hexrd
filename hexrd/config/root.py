@@ -3,13 +3,15 @@ import logging
 import multiprocessing as mp
 import sys
 
+from hexrd.coreutil import memoized
+
 from .config import Config
 from .detector import DetectorConfig
 from .findorientations import FindOrientationsConfig
 from .fitgrains import FitGrainsConfig
 from .imageseries import ImageSeriesConfig
 from .material import MaterialConfig
-from utils import null
+from .utils import null
 
 
 logger = logging.getLogger('hexrd.config')
@@ -118,6 +120,7 @@ class RootConfig(Config):
 
 
     @property
+    @memoized
     def working_dir(self):
         temp = self.get('working_dir', default=os.getcwd())
         if os.path.exists(temp):
