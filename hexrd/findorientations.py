@@ -290,14 +290,6 @@ def find_orientations(
     # a goofy call, could be replaced with two more targeted calls
     pd, reader, detector = initialize_experiment(cfg)
 
-    if os.path.exists(cfg.analysis_dir) and not force:
-        logger.error(
-            'analysis "%s" already exists, change yml file or specify "force"',
-            cfg.analysis_name
-            )
-        sys.exit()
-    if not os.path.exists(cfg.analysis_dir):
-        os.makedirs(cfg.analysis_dir)
     logger.info("beginning analysis '%s'", cfg.analysis_name)
 
     # load the eta_ome orientation maps

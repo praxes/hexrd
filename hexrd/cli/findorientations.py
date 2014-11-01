@@ -37,8 +37,8 @@ if None, defaults to list specified in the yml file"""
 
 def execute(args, parser):
     import logging
-
     import os
+    import sys
 
     import yaml
 
@@ -63,10 +63,19 @@ def execute(args, parser):
 
     cfg = config.open(args.yml)[0]
 
+    if os.path.exists(cfg.analysis_dir) and not args.force:
+        logger.error(
+            'Analysis "%s" at %s already exists.'
+            ' Change yml file or specify "force"',
+            cfg.analysis_name, cfg.analysis_dir
+            )
+        sys.exit()
+
     # now we know where to save the log file
+    if not os.path.exists(cfg.analysis_dir):
+        os.makedirs(cfg.analysis_dir)
     logfile = os.path.join(
-        cfg.working_dir,
-        cfg.analysis_name,
+        cfg.analysis_dir,
         'find-orientations.log'
         )
     fh = logging.FileHandler(logfile, mode='w')

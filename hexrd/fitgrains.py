@@ -12,15 +12,18 @@ import yaml
 
 import numpy as np
 from scipy.sparse import coo_matrix
+from scipy.linalg.matfuncs import logm
 
 from hexrd.coreutil import initialize_experiment, migrate_detector_config
+from hexrd.matrixutil import vecMVToSymm
 from hexrd.utils.progressbar import (
     Bar, ETA, Percentage, ProgressBar, ReverseBar
     )
 
 from hexrd.xrd import distortion as dFuncs
-from hexrd.xrd.transforms import bVec_ref, eta_ref, vInv_ref
-from hexrd.xrd import rotations as rot
+from hexrd.xrd.fitting import fitGrain, objFuncFitGrain
+from hexrd.xrd.rotations import angleAxisOfRotMat, rotMatOfQuat
+from hexrd.xrd.transforms import bVec_ref, eta_ref, mapAngle, vInv_ref
 from hexrd.xrd.xrdutil import pullSpots
 
 
@@ -56,7 +59,6 @@ def read_frames(reader, cfg):
     omega_step = np.radians(cfg.image_series.omega.step)
     reader = [frame_list, [omega_start, omega_step]]
     pbar.finish()
-    logger.info('read %d frames in %.2f seconds', n_frames, time.time()-start)
     return reader
 
 
@@ -115,9 +117,10 @@ def fit_grains(cfg, force=False):
     n_quats = len(quats)
     quats = quats.T
 
+    # load the data
     reader = read_frames(reader, cfg)
 
-    logger.info("pulling spots for %d orientations", n_quats)
+    logger.info("fitting grains for %d orientations", n_quats)
     pbar = ProgressBar(
         widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
         maxval=n_quats
@@ -129,7 +132,7 @@ def fit_grains(cfg, force=False):
     results = manager.list()
 
     # load the queue
-    phi, n = rot.angleAxisOfRotMat(rot.rotMatOfQuat(quats))
+    phi, n = angleAxisOfRotMat(rotMatOfQuat(quats))
     for i, quat in enumerate(quats.T):
         exp_map = phi[i]*n[:, i]
         grain_params = np.hstack(
@@ -137,27 +140,32 @@ def fit_grains(cfg, force=False):
             )
         job_queue.put((i, grain_params))
 
-    # don't query these in the loop, will spam the logger:
+    # don't query these in the loop, it will spam the logger:
     pkwargs = {
         'distortion': distortion,
+        'omega_start': cfg.image_series.omega.start,
+        'omega_step': cfg.image_series.omega.step,
+        'omega_stop': cfg.image_series.omega.start \
+            + len(reader[0]) * cfg.image_series.omega.step,
         'eta_range': np.radians(cfg.find_orientations.eta.range),
-        'ome_period': np.radians(cfg.find_orientations.omega.period),
+        'omega_period': np.radians(cfg.find_orientations.omega.period),
         'tth_tol': cfg.fit_grains.tolerance.tth,
         'eta_tol': cfg.fit_grains.tolerance.eta,
-        'ome_tol': cfg.fit_grains.tolerance.omega,
-        'panel_buff': cfg.fit_grains.panel_buffer,
+        'omega_tol': cfg.fit_grains.tolerance.omega,
+        'panel_buffer': cfg.fit_grains.panel_buffer,
         'npdiv': cfg.fit_grains.npdiv,
         'threshold': cfg.fit_grains.threshold,
+        'spots_stem': os.path.join(cfg.analysis_dir, 'spots_%05d.out'),
+        'plane_data': pd,
+        'detector_params': detector_params,
         }
-    spots_stem = os.path.join(cfg.analysis_dir, 'spots_%05d.out')
 
+    # finally start processing data
     ncpus = cfg.multiprocessing
     logging.info('running pullspots with %d processors')
     for i in range(ncpus):
-        w = PullSpotsWorker(
-            job_queue, results, reader, pd, detector_params, spots_stem,
-            copy.copy(pkwargs)
-            )
+        # lets make a deep copy of the pkwargs, just in case:
+        w = FitGrainsWorker(job_queue, results, reader, copy.deepcopy(pkwargs))
         w.daemon = True
         w.start()
     while True:
@@ -167,117 +175,144 @@ def fit_grains(cfg, force=False):
             break
     job_queue.join()
 
+    # record the results to file
+    f = open(os.path.join(cfg.analysis_dir, 'grains.out'), 'w')
+    # going to some length to make the header line up with the data
+    # while also keeping the width of the lines to a minimum, settled
+    # on %14.7g representation.
+    header_items = (
+        'grain ID', 'completeness', 'sum(resd**2)/nrefl',
+        'xi[0]', 'xi[1]', 'xi[2]', 'tVec_c[0]', 'tVec_c[1]', 'tVec_c[2]',
+        'vInv_s[0]', 'vInv_s[1]', 'vInv_s[2]', 'vInv_s[4]*sqrt(2)',
+        'vInv_s[5]*sqrt(2)', 'vInv_s[6]*sqrt(2)', 'ln(V[0,0])',
+        'ln(V[1,1])', 'ln(V[2,2])', 'ln(V[1,2])', 'ln(V[0,2])', 'ln(V[0,1])',
+        )
+    len_items = []
+    for i in header_items[1:]:
+        temp = len(i)
+        len_items.append(temp if temp > 14 else 14) # for %14.7g
+    fmtstr = '#%8s  ' + '  '.join(['%%%ds' % i for i in len_items]) + '\n'
+    f.write(fmtstr % header_items)
+    for (id, g_refined, compl, eMat, resd) in sorted(results):
+        res_items = (
+            id, compl, resd, g_refined[0], g_refined[1], g_refined[2],
+            g_refined[3], g_refined[4], g_refined[5], g_refined[6],
+            g_refined[7], g_refined[8], g_refined[9], g_refined[10],
+            g_refined[11], eMat[0, 0], eMat[1, 1], eMat[2, 2], eMat[1, 2],
+            eMat[0, 2], eMat[0, 1],
+            )
+        fmtstr = '%9d  ' + '  '.join(['%%%d.7g' % i for i in len_items]) + '\n'
+        f.write(fmtstr % res_items)
+
     pbar.finish()
 
-    # bMat = pd.latVecOps['B']
-    # wlen = pd.wavelength
-
-    #print >> grains_file, \
-    #  "%d\t%1.7e\t%1.7e\t"                         % (grainID, sum(idx)/float(len(idx)), sum(resd_f2**2)) + \
-    #  "%1.7e\t%1.7e\t%1.7e\t"                      % tuple(g_refined[:3]) + \
-    #  "%1.7e\t%1.7e\t%1.7e\t"                      % tuple(g_refined[3:6]) + \
-    #  "%1.7e\t%1.7e\t%1.7e\t%1.7e\t%1.7e\t%1.7e\t" % tuple(g_refined[6:]) + \
-    #  "%1.7e\t%1.7e\t%1.7e\t%1.7e\t%1.7e\t%1.7e"   % (eMat[0, 0], eMat[1, 1], eMat[2, 2], eMat[1, 2], eMat[0, 2], eMat[0, 1])
-    #elapsed = (time.clock() - start)
-    #print "grain %d took %.2f seconds" %(grainID, elapsed)
 
 
+class FitGrainsWorker(mp.Process):
 
 
-class PullSpotsWorker(mp.Process):
-
-
-    def __init__(
-        self, jobs, results, reader, plane_data, det_pars, spots_stem, pkwargs
-        ):
-        super(PullSpotsWorker, self).__init__()
+    def __init__(self, jobs, results, reader, pkwargs):
+        super(FitGrainsWorker, self).__init__()
         self._jobs = jobs
         self._results = results
         self._reader = reader
-        self._plane_data = plane_data
-        self._det_pars = det_pars
-        self._spots_stem = spots_stem
-        self._eta_tol = pkwargs.pop('eta_tol')
-        self._ome_tol = pkwargs.pop('ome_tol')
-        self._tth_tol = pkwargs.pop('tth_tol')
-        # a dict containing the pullSpots kwargs
-        self._pkwargs = pkwargs
+        # a dict containing the rest of the parameters
+        self._p = pkwargs
+
+        # lets make a couple shortcuts:
+        self._p['bMat'] = self._p['plane_data'].latVecOps['B']
+        self._p['wlen'] = self._p['plane_data'].wavelength
 
 
     def pull_spots(self, grain_id, grain_params, iteration):
         return pullSpots(
-            self._plane_data,
-            self._det_pars,
+            self._p['plane_data'],
+            self._p['detector_params'],
             grain_params,
             self._reader,
-            filename=self._spots_stem % grain_id,
-            eta_tol=self._eta_tol[iteration],
-            ome_tol=self._ome_tol[iteration],
-            tth_tol=self._tth_tol[iteration],
-            **self._pkwargs
+            distortion=self._p['distortion'],
+            eta_range=self._p['eta_range'],
+            ome_period=self._p['omega_period'],
+            eta_tol=self._p['eta_tol'][iteration],
+            ome_tol=self._p['omega_tol'][iteration],
+            tth_tol=self._p['tth_tol'][iteration],
+            panel_buff=self._p['panel_buffer'],
+            npdiv=self._p['npdiv'],
+            threshold=self._p['threshold'],
+            doClipping=False,
+            filename=self._p['spots_stem'] % grain_id,
             )
 
 
     def fit_grains(self, grain_id, grain_params):
-        gtable = np.loadtxt(self._spots_f % grain_id)
+        ome_start = self._p['omega_start']
+        ome_step = self._p['omega_step']
+        ome_stop =  self._p['omega_stop']
+        gtable = np.loadtxt(self._p['spots_stem'] % grain_id)
         valid_refl_ids = gtable[:, 0] >= 0
         pred_ome = gtable[:, 6]
-        if np.sign(ome_delta) < 0:
+        if np.sign(ome_step) < 0:
             idx_ome = np.logical_and(
-                pred_ome < d2r*(ome_start + 2*ome_delta),
-                pred_ome > d2r*(ome_stop  - 2*ome_delta)
+                pred_ome < np.radians(ome_start + 2*ome_step),
+                pred_ome > np.radians(ome_stop - 2*ome_step)
                 )
         else:
             idx_ome = np.logical_and(
-                pred_ome > d2r*(ome_start + 2*ome_delta),
-                pred_ome < d2r*(ome_stop  - 2*ome_delta)
+                pred_ome > np.radians(ome_start + 2*ome_step),
+                pred_ome < np.radians(ome_stop - 2*ome_step)
                 )
 
-        idx = np.logical_and(idx0, idx_ome)
+        idx = np.logical_and(valid_refl_ids, idx_ome)
         hkls = gtable[idx, 1:4].T # must be column vectors
+        self._p['hkls'] = hkls
         xyo_det = gtable[idx, -3:] # these are the cartesian centroids + ome
-        xyo_det[:, 2] = xf.mapAngle(xyo_det[:, 2], ome_period)
+        xyo_det[:, 2] = mapAngle(xyo_det[:, 2], self._p['omega_period'])
+        self._p['xyo_det'] = xyo_det
         if sum(idx) <= 12:
-            return grain_params
-        return fitting.fitGrain(
-            xyo_det, hkls, bMat, wlen,
-            detector_params,
+            return grain_params, 0
+        grain_params = fitGrain(
+            xyo_det, hkls, self._p['bMat'], self._p['wlen'],
+            self._p['detector_params'],
             grain_params[:3], grain_params[3:6], grain_params[6:],
             beamVec=bVec_ref, etaVec=eta_ref,
-            distortion=(dFunc, dParams),
+            distortion=self._p['distortion'],
             gFlag=gFlag, gScl=gScl,
-            omePeriod=ome_period
+            omePeriod=self._p['omega_period']
             )
+        completeness = sum(idx)/float(len(idx))
+        return grain_params, completeness
+
+
+    def loop(self):
+        id, grain_params = self._jobs.get(False)
+
+        for iteration in range(2):
+            self.pull_spots(id, grain_params, iteration)
+            grain_params, compl = self.fit_grains(id, grain_params)
+            if compl == 0:
+                break
+
+        eMat = logm(np.linalg.inv(vecMVToSymm(grain_params[6:])))
+
+        dFunc, dParams = self._p['distortion']
+        resd = objFuncFitGrain(
+            grain_params[gFlag], grain_params, gFlag,
+            self._p['detector_params'],
+            self._p['xyo_det'], self._p['hkls'],
+            self._p['bMat'], self._p['wlen'],
+            bVec_ref, eta_ref,
+            dFunc, dParams,
+            self._p['omega_period'],
+            simOnly=False
+            )
+
+        self._results.append((id, grain_params, compl, eMat, sum(resd**2)))
+        self._jobs.task_done()
 
 
     def run(self):
         while True:
             try:
-                grain_id, grain_params = self._jobs.get(False)
-
-                for iteration in range(1): # TODO: change to 2
-                    self.pull_spots(grain_id, grain_params, iteration)
-                    #temp = self.fit_grains()
-                    #if temp is grain_params:
-                    #    break
-                    #grain_params = temp
-
-#                eMat = logm(
-#                    np.linalg.inv(mutil.vecMVToSymm(refined_grain_params[6:]))
-#                    )
-#
-#                resd_f2 = fitting.objFuncFitGrain(
-#                    grain_params[gFlag], grain_params, gFlag,
-#                    detector_params,
-#                    xyo_det, hkls, bMat, wlen,
-#                    bVec_ref, eta_ref,
-#                    dFunc, dParams,
-#                    ome_period,
-#                    simOnly=False
-#                    )
-
-
-                self._results.append((grain_id, res))
-                self._jobs.task_done()
+                self.loop()
             except Empty:
                 break

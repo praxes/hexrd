@@ -28,6 +28,7 @@ def configure_parser(sub_parsers):
 def execute(args, parser):
     import logging
     import os
+    import sys
 
     import yaml
 
@@ -48,7 +49,16 @@ def execute(args, parser):
     logger.addHandler(ch)
 
     for cfg in config.open(args.yml):
+        if os.path.exists(cfg.analysis_dir) and not args.force:
+            logger.error(
+                'Analysis "%s" at %s already exists.'
+                ' Change yml file or specify "force"',
+                cfg.analysis_name, cfg.analysis_dir
+                )
+            sys.exit()
         # now we know where to save the log file
+        if not os.path.exists(cfg.analysis_dir):
+            os.makedirs(cfg.analysis_dir)
         logfile = os.path.join(
             cfg.working_dir,
             cfg.analysis_name,
