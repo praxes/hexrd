@@ -282,9 +282,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
     return eta_ome
 
 
-def find_orientations(
-    cfg, hkls=None, force=False
-    ):
+def find_orientations(cfg, hkls=None):
     """Takes a config dict as input, generally a yml document"""
 
     # a goofy call, could be replaced with two more targeted calls
@@ -319,7 +317,7 @@ def find_orientations(
             cfg.find_orientations.seed_search.fiber_ndiv
             )
         np.savetxt(
-            os.path.join(cfg.analysis_dir, 'testq.out'),
+            os.path.join(cfg.working_dir, 'trial_orientations.dat'),
             quats.T,
             fmt="%.18e",
             delimiter="\t"
@@ -339,12 +337,12 @@ def find_orientations(
         doMultiProc=ncpus > 1,
         nCPUs=ncpus
         )
-    np.savetxt(os.path.join(cfg.analysis_dir, 'compl.out'), compl)
+    np.savetxt(os.path.join(cfg.working_dir, 'completeness.dat'), compl)
 
     # cluster analysis to identify orientation blobs, the final output:
     qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg)
     np.savetxt(
-        os.path.join(cfg.analysis_dir, 'quats.out'),
+        os.path.join(cfg.working_dir, 'accepted_orientations.dat'),
         qbar.T,
         fmt="%.18e",
         delimiter="\t"

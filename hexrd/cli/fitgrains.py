@@ -36,6 +36,16 @@ def execute(args, parser):
     from hexrd.fitgrains import fit_grains
 
 
+    # load the configuration settings
+    cfgs = config.open(args.yml)
+
+    # if find-orientations has not already been run, do so:
+    quats_f = os.path.join(cfgs[0].working_dir, 'accepted_orientations.dat')
+    if not os.path.exists(quats_f):
+        from . import findorientations
+        findorientations.execute(args, parser)
+
+    # configure logging to the console:
     log_level = logging.DEBUG if args.debug else logging.INFO
     if args.quiet:
         log_level = logging.ERROR
@@ -47,8 +57,10 @@ def execute(args, parser):
         logging.Formatter('%(asctime)s - %(message)s', '%y-%m-%d %H:%M:%S')
         )
     logger.addHandler(ch)
+    logger.info('=== begin fit-grains ===')
 
     for cfg in config.open(args.yml):
+        # prepare the analysis directory
         if os.path.exists(cfg.analysis_dir) and not args.force:
             logger.error(
                 'Analysis "%s" at %s already exists.'
@@ -56,9 +68,12 @@ def execute(args, parser):
                 cfg.analysis_name, cfg.analysis_dir
                 )
             sys.exit()
-        # now we know where to save the log file
         if not os.path.exists(cfg.analysis_dir):
             os.makedirs(cfg.analysis_dir)
+
+        logger.info('--- begin analysis "%s" ---', cfg.analysis_name)
+
+        # configure logging to file for this particular analysis
         logfile = os.path.join(
             cfg.working_dir,
             cfg.analysis_name,
@@ -75,7 +90,16 @@ def execute(args, parser):
         logger.info("logging to %s", logfile)
         logger.addHandler(fh)
 
+        # process the data
         fit_grains(cfg, force=args.force)
 
+        # stop logging for this particular analysis
         logger.removeHandler(fh)
         fh.close()
+
+        logger.info('--- end analysis "%s"---', cfg.analysis_name)
+
+    logger.info('=== end fit-grains ===')
+    # stop logging to the console
+    logger.removeHandler(ch)
+    ch.close()

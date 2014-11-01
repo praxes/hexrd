@@ -46,9 +46,15 @@ def execute(args, parser):
     from hexrd.findorientations import find_orientations
 
 
-    if args.hkls is not None:
-        args.hkls = [int(i) for i in args.hkls.split(',') if i]
+    # make sure hkls are passed in as a list of ints
+    try:
+        if args.hkls is not None:
+            args.hkls = [int(i) for i in args.hkls.split(',') if i]
+    except AttributeError:
+        # called from fit-grains, hkls not passed
+        args.hkls = None
 
+    # configure logging to the console
     log_level = logging.DEBUG if args.debug else logging.INFO
     if args.quiet:
         log_level = logging.ERROR
@@ -60,22 +66,24 @@ def execute(args, parser):
         logging.Formatter('%(asctime)s - %(message)s', '%y-%m-%d %H:%M:%S')
         )
     logger.addHandler(ch)
+    logger.info('=== begin find-orientations ===')
 
+    # load the configuration settings
     cfg = config.open(args.yml)[0]
 
-    if os.path.exists(cfg.analysis_dir) and not args.force:
+    # prepare the analysis directory
+    quats_f = os.path.join(cfg.working_dir, 'accepted_orientations.dat')
+    if os.path.exists(quats_f) and not args.force:
         logger.error(
-            'Analysis "%s" at %s already exists.'
-            ' Change yml file or specify "force"',
-            cfg.analysis_name, cfg.analysis_dir
+            '%s already exists. Change yml file or specify "force"', quats_f
             )
         sys.exit()
+    if not os.path.exists(cfg.working_dir):
+        os.makedirs(cfg.working_dir)
 
-    # now we know where to save the log file
-    if not os.path.exists(cfg.analysis_dir):
-        os.makedirs(cfg.analysis_dir)
+    # configure logging to file
     logfile = os.path.join(
-        cfg.analysis_dir,
+        cfg.working_dir,
         'find-orientations.log'
         )
     fh = logging.FileHandler(logfile, mode='w')
@@ -89,4 +97,12 @@ def execute(args, parser):
     logger.info("logging to %s", logfile)
     logger.addHandler(fh)
 
-    find_orientations(cfg, hkls=args.hkls, force=args.force)
+    # process the data
+    find_orientations(cfg, hkls=args.hkls)
+
+    # clean up the logging
+    logger.removeHandler(fh)
+    fh.close()
+    logger.info('=== end find-orientations ===')
+    logger.removeHandler(ch)
+    ch.close()
