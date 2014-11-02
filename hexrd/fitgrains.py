@@ -110,24 +110,10 @@ def fit_grains(cfg, force=False, show_progress=False):
         pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
         pd.exclusions = pd.getTTh() >= np.radians(tth_max)
 
-    # load quaternion file
-    quats = np.atleast_2d(
-        np.loadtxt(os.path.join(cfg.analysis_dir, 'quats.out'))
-        )
-    n_quats = len(quats)
-    quats = quats.T
-
     # load the data
     reader = read_frames(reader, cfg, show_progress)
 
     start = time.time()
-
-    logger.info("fitting grains for %d orientations", n_quats)
-    if show_progress:
-        pbar = ProgressBar(
-            widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
-            maxval=n_quats
-            ).start()
 
     # create the job queue
     job_queue = mp.JoinableQueue()
@@ -135,13 +121,41 @@ def fit_grains(cfg, force=False, show_progress=False):
     results = manager.list()
 
     # load the queue
-    phi, n = angleAxisOfRotMat(rotMatOfQuat(quats))
-    for i, quat in enumerate(quats.T):
-        exp_map = phi[i]*n[:, i]
-        grain_params = np.hstack(
-            [exp_map.flatten(), 0., 0., 0., 1., 1., 1., 0., 0., 0.]
+    try:
+        estimate_f = cfg.fit_grains.estimate
+        grain_params_list = np.loadtxt(estimate_f)
+        n_quats = len(grain_params_list)
+        for grain_params in grain_params_list:
+            grain_id = grain_params[0]
+            job_queue.put((grain_id, grain_params[3:15]))
+        have_estimate = True
+        logger.info(
+            'fitting grains using "%s" for the initial estimate',
+            estimate_f
             )
-        job_queue.put((i, grain_params))
+    except (ValueError, IOError):
+        have_estimate = False
+        logger.info('fitting grains using default initial estimate')
+        # load quaternion file
+        quats = np.atleast_2d(
+            np.loadtxt(os.path.join(cfg.analysis_dir, 'quats.out'))
+            )
+        n_quats = len(quats)
+        quats = quats.T
+        phi, n = angleAxisOfRotMat(rotMatOfQuat(quats))
+        for i, quat in enumerate(quats.T):
+            exp_map = phi[i]*n[:, i]
+            grain_params = np.hstack(
+                [exp_map.flatten(), 0., 0., 0., 1., 1., 1., 0., 0., 0.]
+                )
+            job_queue.put((i, grain_params))
+
+    logger.info("fitting grains for %d orientations", n_quats)
+    if show_progress:
+        pbar = ProgressBar(
+            widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
+            maxval=n_quats
+            ).start()
 
     # don't query these in the loop, it will spam the logger:
     pkwargs = {
@@ -161,6 +175,7 @@ def fit_grains(cfg, force=False, show_progress=False):
         'spots_stem': os.path.join(cfg.analysis_dir, 'spots_%05d.out'),
         'plane_data': pd,
         'detector_params': detector_params,
+        'have_estimate': have_estimate,
         }
 
     # finally start processing data
@@ -294,7 +309,9 @@ class FitGrainsWorker(mp.Process):
     def loop(self):
         id, grain_params = self._jobs.get(False)
 
-        for iteration in range(2):
+        # skips the first loop if have_estimate is True
+        iterations = self._p['have_estimate'], len(self._p['eta_tol'])
+        for iteration in range(*iterations):
             self.pull_spots(id, grain_params, iteration)
             grain_params, compl = self.fit_grains(id, grain_params)
             if compl == 0:

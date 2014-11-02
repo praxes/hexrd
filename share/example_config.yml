@@ -76,6 +76,8 @@ find_orientations:
 fit_grains:
   #do_fit: false # if false, extracts grains but doesn't fit. defaults to true
 
+  #estimate: multiruby/grains.out # defaults to None
+
   #npdiv: 1 # number of polar pixel grid subdivisions, defaults to 2
 
   panel_buffer: 10 # don't fit spots within this many pixels from edge

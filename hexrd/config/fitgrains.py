@@ -1,7 +1,10 @@
+import logging
 import os
 
 from .config import Config
 
+
+logger = logging.getLogger('hexrd.config')
 
 
 class ToleranceConfig(Config):
@@ -38,6 +41,22 @@ class FitGrainsConfig(Config):
     @property
     def do_fit(self):
         return self._cfg.get('fit_grains:do_fit', True)
+
+
+    @property
+    def estimate(self):
+        key = 'fit_grains:estimate'
+        temp = self._cfg.get(key, None)
+        if temp is None:
+            return temp
+        if not os.path.isabs(temp):
+            temp = os.path.join(self._cfg.working_dir, temp)
+        if os.path.isfile(temp):
+            return temp
+        logger.warning('"%s": "%s" does not exist', key, temp)
+        raise IOError(
+            '"%s": "%s" does not exist' % (key, temp)
+            )
 
 
     @property
