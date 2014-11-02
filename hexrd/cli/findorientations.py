@@ -101,8 +101,10 @@ def execute(args, parser):
     find_orientations(cfg, hkls=args.hkls)
 
     # clean up the logging
-    logger.removeHandler(fh)
+    fh.flush()
     fh.close()
+    logger.removeHandler(fh)
     logger.info('=== end find-orientations ===')
-    logger.removeHandler(ch)
+    ch.flush()
     ch.close()
+    logger.removeHandler(ch)

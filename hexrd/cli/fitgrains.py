@@ -100,5 +100,6 @@ def execute(args, parser):
 
     logger.info('=== end fit-grains ===')
     # stop logging to the console
+    ch.flush()
     ch.close()
     logger.removeHandler(ch)
