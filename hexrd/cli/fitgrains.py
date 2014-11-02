@@ -53,9 +53,8 @@ def execute(args, parser):
     logger.setLevel(log_level)
     ch = logging.StreamHandler()
     ch.setLevel(log_level)
-    ch.setFormatter(
-        logging.Formatter('%(asctime)s - %(message)s', '%y-%m-%d %H:%M:%S')
-        )
+    cf = logging.Formatter('%(asctime)s - %(message)s', '%y-%m-%d %H:%M:%S')
+    ch.setFormatter(cf)
     logger.addHandler(ch)
     logger.info('=== begin fit-grains ===')
 
@@ -71,7 +70,7 @@ def execute(args, parser):
         if not os.path.exists(cfg.analysis_dir):
             os.makedirs(cfg.analysis_dir)
 
-        logger.info('--- begin analysis "%s" ---', cfg.analysis_name)
+        logger.info('*** begin analysis "%s" ***', cfg.analysis_name)
 
         # configure logging to file for this particular analysis
         logfile = os.path.join(
@@ -81,25 +80,25 @@ def execute(args, parser):
             )
         fh = logging.FileHandler(logfile, mode='w')
         fh.setLevel(log_level)
-        fh.setFormatter(
-            logging.Formatter(
+        ff = logging.Formatter(
                 '%(asctime)s - %(name)s - %(message)s',
                 '%m-%d %H:%M:%S'
                 )
-            )
+        fh.setFormatter(ff)
         logger.info("logging to %s", logfile)
         logger.addHandler(fh)
 
         # process the data
-        fit_grains(cfg, force=args.force)
+        fit_grains(cfg, force=args.force, show_progress=True)
 
         # stop logging for this particular analysis
-        logger.removeHandler(fh)
+        fh.flush()
         fh.close()
+        logger.removeHandler(fh)
 
-        logger.info('--- end analysis "%s"---', cfg.analysis_name)
+        logger.info('*** end analysis "%s" ***', cfg.analysis_name)
 
     logger.info('=== end fit-grains ===')
     # stop logging to the console
-    logger.removeHandler(ch)
     ch.close()
+    logger.removeHandler(ch)

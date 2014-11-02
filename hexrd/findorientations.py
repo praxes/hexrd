@@ -30,13 +30,6 @@ from hexrd.xrd.detector import ReadGE
 
 from hexrd.xrd import distortion as dFuncs
 
-have_progBar = False
-try:
-    from progressbar import ProgressBar, Bar, ETA, ReverseBar
-    have_progBar = True
-except:
-    pass
-
 
 logger = logging.getLogger(__name__)
 

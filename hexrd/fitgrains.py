@@ -40,34 +40,34 @@ gScl  = np.array([1., 1., 1.,
                   1., 1., 1., 0.01, 0.01, 0.01])
 
 
-def read_frames(reader, cfg):
+def read_frames(reader, cfg, show_progress=False):
     start = time.time()
 
     n_frames = reader.getNFrames()
     logger.info("reading %d frames of data", n_frames)
-    widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
-    pbar = ProgressBar(widgets=widgets, maxval=n_frames).start()
+    if show_progress:
+        widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
+        pbar = ProgressBar(widgets=widgets, maxval=n_frames).start()
 
     frame_list = []
     for i in range(n_frames):
         frame = reader.read()
         frame[frame <= cfg.fit_grains.threshold] = 0
         frame_list.append(coo_matrix(frame))
-        pbar.update(i)
+        if show_progress:
+            pbar.update(i)
     frame_list = np.array(frame_list)
     omega_start = np.radians(cfg.image_series.omega.start)
     omega_step = np.radians(cfg.image_series.omega.step)
     reader = [frame_list, [omega_start, omega_step]]
-    pbar.finish()
+    if show_progress:
+        pbar.finish()
+    elapsed = time.time()-start
+    logger.info('read %d frames in %g seconds', n_frames, elapsed)
     return reader
 
 
-def fit_grain():
-    pass
-
-
-
-def fit_grains(cfg, force=False):
+def fit_grains(cfg, force=False, show_progress=False):
 
     pd, reader, detector = initialize_experiment(cfg)
 
@@ -118,13 +118,16 @@ def fit_grains(cfg, force=False):
     quats = quats.T
 
     # load the data
-    reader = read_frames(reader, cfg)
+    reader = read_frames(reader, cfg, show_progress)
+
+    start = time.time()
 
     logger.info("fitting grains for %d orientations", n_quats)
-    pbar = ProgressBar(
-        widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
-        maxval=n_quats
-        ).start()
+    if show_progress:
+        pbar = ProgressBar(
+            widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
+            maxval=n_quats
+            ).start()
 
     # create the job queue
     job_queue = mp.JoinableQueue()
@@ -162,7 +165,7 @@ def fit_grains(cfg, force=False):
 
     # finally start processing data
     ncpus = cfg.multiprocessing
-    logging.info('running pullspots with %d processors')
+    logger.info('running pullspots with %d processors', ncpus)
     for i in range(ncpus):
         # lets make a deep copy of the pkwargs, just in case:
         w = FitGrainsWorker(job_queue, results, reader, copy.deepcopy(pkwargs))
@@ -170,9 +173,11 @@ def fit_grains(cfg, force=False):
         w.start()
     while True:
         n_res = len(results)
-        pbar.update(n_res)
+        if show_progress:
+            pbar.update(n_res)
         if n_res == n_quats:
             break
+        time.sleep(0.1)
     job_queue.join()
 
     # record the results to file
@@ -204,7 +209,10 @@ def fit_grains(cfg, force=False):
         fmtstr = '%9d  ' + '  '.join(['%%%d.7g' % i for i in len_items]) + '\n'
         f.write(fmtstr % res_items)
 
-    pbar.finish()
+    if show_progress:
+        pbar.finish()
+    elapsed = time.time() - start
+    logger.info('processed %d grains in %g minutes', n_res, elapsed/60)
 
 
 
