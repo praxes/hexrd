@@ -52,7 +52,7 @@ def execute(args, parser):
     logger = logging.getLogger('hexrd')
     logger.setLevel(log_level)
     ch = logging.StreamHandler()
-    ch.setLevel(log_level)
+    ch.setLevel(logging.CRITICAL if args.quiet else log_level)
     cf = logging.Formatter('%(asctime)s - %(message)s', '%y-%m-%d %H:%M:%S')
     ch.setFormatter(cf)
     logger.addHandler(ch)
@@ -89,7 +89,7 @@ def execute(args, parser):
         logger.addHandler(fh)
 
         # process the data
-        fit_grains(cfg, force=args.force, show_progress=True)
+        fit_grains(cfg, force=args.force, show_progress=not args.quiet)
 
         # stop logging for this particular analysis
         fh.flush()

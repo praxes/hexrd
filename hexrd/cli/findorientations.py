@@ -61,7 +61,7 @@ def execute(args, parser):
     logger = logging.getLogger('hexrd')
     logger.setLevel(log_level)
     ch = logging.StreamHandler()
-    ch.setLevel(log_level)
+    ch.setLevel(logging.CRITICAL if args.quiet else log_level)
     ch.setFormatter(
         logging.Formatter('%(asctime)s - %(message)s', '%y-%m-%d %H:%M:%S')
         )
