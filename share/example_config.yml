@@ -24,7 +24,7 @@ image_series:
     step: 0.25
     stop: 360
   #dark: ~
-  flip: h # ~, v, h, etc.
+  flip: h # ~, v, h, hv, vh, cw, ccw
 
 detector:
   parameters_old: CeO2.par # the old detector spec, produced by the GUI
