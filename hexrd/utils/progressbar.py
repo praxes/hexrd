@@ -11,7 +11,7 @@ try:
             self.finished = True
             self.update(self.maxval)
             # clear the progress bar:
-            self.fd.write('\r\033[K')
+            self.fd.write('\r'+' '*self.term_width+'\r')
             if self.signal_set:
                 signal.signal(signal.SIGWINCH, signal.SIG_DFL)
 
