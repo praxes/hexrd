@@ -9,6 +9,7 @@ analysis_name: analysis
 ---
 fit_grains:
   do_fit: false
+  estimate: %(nonexistent_file)s
   npdiv: 1
   panel_buffer: 10
   threshold: 1850
@@ -19,6 +20,7 @@ fit_grains:
   tth_max: false
 ---
 fit_grains:
+  estimate: %(existing_file)s
   panel_buffer: [20, 30]
   tolerance:
     eta: [1, 2]
@@ -42,6 +44,18 @@ class TestFitGrainsConfig(TestConfig):
     def test_do_fit(self):
         self.assertTrue(self.cfgs[0].fit_grains.do_fit)
         self.assertFalse(self.cfgs[1].fit_grains.do_fit)
+
+
+    def test_estimate(self):
+        self.assertEqual(self.cfgs[0].fit_grains.estimate, None)
+        self.assertRaises(
+            IOError,
+            getattr, self.cfgs[1].fit_grains, 'estimate'
+            )
+        self.assertEqual(
+            self.cfgs[2].fit_grains.estimate,
+            test_data['existing_file']
+            )
 
 
     def test_npdiv(self):

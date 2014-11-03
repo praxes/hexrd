@@ -29,6 +29,7 @@ image_series:
   omega:
     start: 0
     step: 0.25
+    stop: 360
 ---
 image_series:
   file:
@@ -195,3 +196,12 @@ class TestOmegaConfig(TestConfig):
             getattr, self.cfgs[0].image_series.omega, 'step'
             )
         self.assertEqual(self.cfgs[2].image_series.omega.step, 0.25)
+
+
+
+    def test_stop(self):
+        self.assertRaises(
+            RuntimeError,
+            getattr, self.cfgs[0].image_series.omega, 'stop'
+            )
+        self.assertEqual(self.cfgs[2].image_series.omega.stop, 360)
