@@ -17,7 +17,7 @@ image_series:
     ids: [24, 25, 26, 27, 28, 29] # or can use globs: ["*2[4-9]"]
   images:
     start: 0
-    #stop: -1
+    #stop: 1440
     #step: 1
   omega:
     start: 0.0
