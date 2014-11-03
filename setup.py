@@ -58,21 +58,29 @@ class test(Command):
 
 
 # for SgLite
-srclist = ['sgglobal.c','sgcb.c','sgcharmx.c','sgfile.c',
-           'sggen.c','sghall.c','sghkl.c','sgltr.c','sgmath.c','sgmetric.c',
-           'sgnorm.c','sgprop.c','sgss.c','sgstr.c','sgsymbols.c',
-           'sgtidy.c','sgtype.c','sgutil.c','runtests.c','sglitemodule.c']
+srclist = [
+    'sgglobal.c', 'sgcb.c', 'sgcharmx.c', 'sgfile.c', 'sggen.c', 'sghall.c',
+    'sghkl.c', 'sgltr.c', 'sgmath.c', 'sgmetric.c', 'sgnorm.c', 'sgprop.c',
+    'sgss.c', 'sgstr.c', 'sgsymbols.c', 'sgtidy.c', 'sgtype.c', 'sgutil.c',
+    'runtests.c', 'sglitemodule.c'
+    ]
 srclist = [os.path.join('hexrd/sglite', f) for f in srclist]
+sglite_mod = Extension(
+    'hexrd.xrd.sglite',
+    sources=srclist,
+    define_macros=[('PythonTypes', 1)]
+    )
 
-sglite_mod = Extension('hexrd.xrd.sglite', sources=srclist,
-                   define_macros=[('PythonTypes', 1)])
 
 # for transforms
 srclist = ['transforms_CAPI.c', 'transforms_CFUNC.c']
 srclist = [os.path.join('hexrd/transforms', f) for f in srclist]
+transforms_mod = Extension(
+    'hexrd.xrd._transforms_CAPI',
+    sources=srclist,
+    include_dirs=[np_include_dir]
+    )
 
-transforms_mod = Extension('hexrd.xrd._transforms_CAPI', sources=srclist,
-                           include_dirs=[np_include_dir])
 
 # all modules
 ext_modules = [sglite_mod, transforms_mod]

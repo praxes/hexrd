@@ -55,6 +55,11 @@ class OmegaConfig(Config):
         return self._cfg.get('image_series:omega:step')
 
 
+    @property
+    def stop(self):
+        return self._cfg.get('image_series:omega:stop')
+
+
 
 class ImageSeriesConfig(Config):
 

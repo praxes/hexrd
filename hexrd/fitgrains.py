@@ -40,7 +40,9 @@ gScl  = np.array([1., 1., 1.,
                   1., 1., 1., 0.01, 0.01, 0.01])
 
 
-def read_frames(reader, cfg, show_progress=False):
+def get_frames(reader, cfg, show_progress=False):
+    # TODO: this should be updated to read only the frames requested in cfg
+    # either the images start, step, stop, or based on omega start, step, stop
     start = time.time()
 
     n_frames = reader.getNFrames()
@@ -67,10 +69,14 @@ def read_frames(reader, cfg, show_progress=False):
     return reader
 
 
-def fit_grains(cfg, force=False, show_progress=False):
+def get_instrument_parameters(cfg):
+    with open(cfg.detector.parameters, 'r') as f:
+        # only one panel for now
+        # TODO: configurize this
+        return [cfg for cfg in yaml.load_all(f)][0]
 
-    pd, reader, detector = initialize_experiment(cfg)
 
+def get_detector_parameters(cfg, instr_cfg):
     # attempt to load the new detector parameter file
     det_p = cfg.detector.parameters
     if not os.path.exists(det_p):
@@ -85,23 +91,25 @@ def fit_grains(cfg, force=False, show_progress=False):
             filename=cfg.detector.parameters
             )
 
-    with open(det_p, 'r') as f:
-        # only one panel for now
-        # TODO: configurize this
-        instr_cfg = [instr_cfg for instr_cfg in yaml.load_all(f)][0]
-    detector_params = np.hstack([
+    return np.hstack([
         instr_cfg['detector']['transform']['tilt_angles'],
         instr_cfg['detector']['transform']['t_vec_d'],
         instr_cfg['oscillation_stage']['chi'],
         instr_cfg['oscillation_stage']['t_vec_s'],
         ])
+
+
+def get_distortion_correction(instrument_cfg):
     # ***FIX***
     # at this point we know we have a GE and hardwire the distortion func;
     # need to pull name from yml file in general case
-    distortion = (
-        dFuncs.GE_41RT, instr_cfg['detector']['distortion']['parameters']
+    return (
+        dFuncs.GE_41RT,
+        instrument_cfg['detector']['distortion']['parameters']
         )
 
+
+def set_planedata_exclusions(cfg, pd):
     tth_max = cfg.fit_grains.tth_max
     if tth_max is True:
         pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
@@ -110,16 +118,9 @@ def fit_grains(cfg, force=False, show_progress=False):
         pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
         pd.exclusions = pd.getTTh() >= np.radians(tth_max)
 
-    # load the data
-    reader = read_frames(reader, cfg, show_progress)
 
-    start = time.time()
-
-    # create the job queue
+def get_job_queue(cfg):
     job_queue = mp.JoinableQueue()
-    manager = mp.Manager()
-    results = manager.list()
-
     # load the queue
     try:
         estimate_f = cfg.fit_grains.estimate
@@ -128,13 +129,11 @@ def fit_grains(cfg, force=False, show_progress=False):
         for grain_params in grain_params_list:
             grain_id = grain_params[0]
             job_queue.put((grain_id, grain_params[3:15]))
-        have_estimate = True
         logger.info(
             'fitting grains using "%s" for the initial estimate',
             estimate_f
             )
     except (ValueError, IOError):
-        have_estimate = False
         logger.info('fitting grains using default initial estimate')
         # load quaternion file
         quats = np.atleast_2d(
@@ -149,21 +148,25 @@ def fit_grains(cfg, force=False, show_progress=False):
                 [exp_map.flatten(), 0., 0., 0., 1., 1., 1., 0., 0., 0.]
                 )
             job_queue.put((i, grain_params))
-
     logger.info("fitting grains for %d orientations", n_quats)
-    if show_progress:
-        pbar = ProgressBar(
-            widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
-            maxval=n_quats
-            ).start()
+    return job_queue
 
-    # don't query these in the loop, it will spam the logger:
+
+def get_data(cfg, show_progress=False):
+    # TODO: this should be refactored somehow to avoid initialize_experiment
+    # and avoid using the old reader. Also, the detector is not used here.
+    pd, reader, detector = initialize_experiment(cfg)
+    reader = get_frames(reader, cfg, show_progress)
+
+    instrument_cfg = get_instrument_parameters(cfg)
+    detector_params = get_detector_parameters(cfg, instrument_cfg)
+    distortion = get_distortion_correction(instrument_cfg)
+    set_planedata_exclusions(cfg, pd)
     pkwargs = {
         'distortion': distortion,
         'omega_start': cfg.image_series.omega.start,
         'omega_step': cfg.image_series.omega.step,
-        'omega_stop': cfg.image_series.omega.start \
-            + len(reader[0]) * cfg.image_series.omega.step,
+        'omega_stop': cfg.image_series.omega.stop,
         'eta_range': np.radians(cfg.find_orientations.eta.range),
         'omega_period': np.radians(cfg.find_orientations.omega.period),
         'tth_tol': cfg.fit_grains.tolerance.tth,
@@ -175,12 +178,29 @@ def fit_grains(cfg, force=False, show_progress=False):
         'spots_stem': os.path.join(cfg.analysis_dir, 'spots_%05d.out'),
         'plane_data': pd,
         'detector_params': detector_params,
-        'have_estimate': have_estimate,
         }
+    return reader, pkwargs
 
-    # finally start processing data
+
+def fit_grains(cfg, force=False, show_progress=False):
+    # load the data
+    reader, pkwargs = get_data(cfg, show_progress)
+    job_queue = get_job_queue(cfg)
+    njobs = job_queue.qsize()
+
     ncpus = cfg.multiprocessing
     logger.info('running pullspots with %d processors', ncpus)
+    if show_progress:
+        pbar = ProgressBar(
+            widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
+            maxval=njobs
+            ).start()
+
+    # prepare the list to collect processed data
+    manager = mp.Manager()
+    results = manager.list()
+    # finally start processing data
+    start = time.time()
     for i in range(ncpus):
         # lets make a deep copy of the pkwargs, just in case:
         w = FitGrainsWorker(job_queue, results, reader, copy.deepcopy(pkwargs))
@@ -190,11 +210,20 @@ def fit_grains(cfg, force=False, show_progress=False):
         n_res = len(results)
         if show_progress:
             pbar.update(n_res)
-        if n_res == n_quats:
+        if n_res == njobs:
             break
         time.sleep(0.1)
     job_queue.join()
 
+    write_grains_file(cfg, results)
+
+    if show_progress:
+        pbar.finish()
+    elapsed = time.time() - start
+    logger.info('processed %d grains in %g minutes', n_res, elapsed/60)
+
+
+def write_grains_file(cfg, results):
     # record the results to file
     f = open(os.path.join(cfg.analysis_dir, 'grains.out'), 'w')
     # going to some length to make the header line up with the data
@@ -223,11 +252,6 @@ def fit_grains(cfg, force=False, show_progress=False):
             )
         fmtstr = '%9d  ' + '  '.join(['%%%d.7g' % i for i in len_items]) + '\n'
         f.write(fmtstr % res_items)
-
-    if show_progress:
-        pbar.finish()
-    elapsed = time.time() - start
-    logger.info('processed %d grains in %g minutes', n_res, elapsed/60)
 
 
 
@@ -310,7 +334,8 @@ class FitGrainsWorker(mp.Process):
         id, grain_params = self._jobs.get(False)
 
         # skips the first loop if have_estimate is True
-        iterations = self._p['have_estimate'], len(self._p['eta_tol'])
+        have_estimate = not np.all(grain_params[-9] == [0,0,0,1,1,1,0,0,0])
+        iterations = (have_estimate, len(self._p['eta_tol']))
         for iteration in range(*iterations):
             self.pull_spots(id, grain_params, iteration)
             grain_params, compl = self.fit_grains(id, grain_params)
