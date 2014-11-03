@@ -14,19 +14,80 @@ static double Zl[3] = {0.0,0.0,1.0};
 /******************************************************************************/
 /* Funtions */
 
+void gvecToDetectorXYOne_cfunc(double * gVec_c, double * rMat_d,
+                               double * rMat_sc, double * tVec_d,
+                               double * bHat_l,
+                               double * nVec_l, double num, double * P0_l,
+                               double * result)
+{
+  int j, k;
+  double bDot, ztol, denom, u;
+  double gHat_c[3], gVec_l[3], dVec_l[3], P2_l[3], P2_d[3];
+  double brMat[9];
+
+  ztol = epsf;
+
+  /* Compute unit reciprocal lattice vector in crystal frame w/o translation */
+  unitRowVector_cfunc(3,gVec_c,gHat_c);
+
+  /* Compute unit reciprocal lattice vector in lab frame and dot with beam vector */
+  bDot = 0.0;
+  for (j=0; j<3; j++) {
+    gVec_l[j] = 0.0;
+    for (k=0; k<3; k++)
+      gVec_l[j] += rMat_sc[3*j+k]*gHat_c[k];
+
+    bDot -= bHat_l[j]*gVec_l[j];
+  }
+
+  if ( bDot >= ztol && bDot <= 1.0-ztol ) {
+    /* If we are here diffraction is possible so increment the number of admissable vectors */
+    makeBinaryRotMat_cfunc(gVec_l,brMat);
+
+    denom = 0.0;
+    for (j=0; j<3; j++) {
+      dVec_l[j] = 0.0;
+      for (k=0; k<3; k++)
+        dVec_l[j] -= brMat[3*j+k]*bHat_l[k];
+
+      denom += nVec_l[j]*dVec_l[j];
+    }
+
+    if ( denom < -ztol ) {
+
+      u = num/denom;
+
+      for (j=0; j<3; j++)
+        P2_l[j] = P0_l[j]+u*dVec_l[j];
+
+      for (j=0; j<2; j++) {
+        P2_d[j] = 0.0;
+        for (k=0; k<3; k++)
+          P2_d[j] += rMat_d[3*k+j]*(P2_l[k]-tVec_d[k]);
+        result[j] = P2_d[j];
+      }
+    } else {
+      result[0] = NAN;
+      result[1] = NAN;
+    }
+
+  } else {
+    result[0] = NAN;
+    result[1] = NAN;
+  }
+}
+
 void gvecToDetectorXY_cfunc(long int npts, double * gVec_c,
-			    double * rMat_d, double * rMat_s, double * rMat_c,
-			    double * tVec_d, double * tVec_s, double * tVec_c,
-			    double * beamVec, double * result)
+                            double * rMat_d, double * rMat_s, double * rMat_c,
+                            double * tVec_d, double * tVec_s, double * tVec_c,
+                            double * beamVec, double * result)
 {
   long int i;
   int j, k, l;
 
-  double ztol, bDot, denom, u, num;
-  double nVec_l[3], bHat_l[3], P0_l[3], P2_l[3], P2_d[3], P3_l[3], gHat_c[3], gVec_l[3], dVec_l[3];
-  double rMat_sc[9], brMat[9];
-
-  ztol = epsf;
+  double num;
+  double nVec_l[3], bHat_l[3], P0_l[3], P3_l[3];
+  double rMat_sc[9];
 
   /* Normalize the beam vector */
   unitRowVector_cfunc(3,beamVec,bHat_l);
@@ -52,70 +113,76 @@ void gvecToDetectorXY_cfunc(long int npts, double * gVec_c,
     for (k=0; k<3; k++) {
       rMat_sc[3*j+k] = 0.0;
       for (l=0; l<3; l++) {
-	rMat_sc[3*j+k] += rMat_s[3*j+l]*rMat_c[3*l+k];
+        rMat_sc[3*j+k] += rMat_s[3*j+l]*rMat_c[3*l+k];
       }
     }
   }
 
   for (i=0L; i<npts; i++) {
-
-    /* Compute unit reciprocal lattice vector in crystal frame w/o translation */
-    unitRowVector_cfunc(3,&gVec_c[3*i],gHat_c);
-
-    /* Compute unit reciprocal lattice vector in lab frame and dot with beam vector */
-    bDot = 0.0;
-    for (j=0; j<3; j++) {
-      gVec_l[j] = 0.0;
-      for (k=0; k<3; k++)
-	gVec_l[j] += rMat_sc[3*j+k]*gHat_c[k];
-
-      bDot -= bHat_l[j]*gVec_l[j];
-    }
-
-    if ( bDot >= ztol && bDot <= 1.0-ztol ) {
-      /* If we are here diffraction is possible so increment the number of admissable vectors */
-      makeBinaryRotMat_cfunc(gVec_l,brMat);
-
-      denom = 0.0;
-      for (j=0; j<3; j++) {
-	dVec_l[j] = 0.0;
-	for (k=0; k<3; k++)
-	  dVec_l[j] -= brMat[3*j+k]*bHat_l[k];
-
-	denom += nVec_l[j]*dVec_l[j];
-      }
-
-      if ( denom < -ztol ) {
-
-	u = num/denom;
-
-	for (j=0; j<3; j++)
-	  P2_l[j] = P0_l[j]+u*dVec_l[j];
-
-	for (j=0; j<2; j++) {
-	  P2_d[j] = 0.0;
-	  for (k=0; k<3; k++)
-	    P2_d[j] += rMat_d[3*k+j]*(P2_l[k]-tVec_d[k]);
-	  result[2*i+j] = P2_d[j];
-	}
-      } else {
-	result[2*i+0] = NAN;
-	result[2*i+1] = NAN;
-      }
-
-    } else {
-      result[2*i+0] = NAN;
-      result[2*i+1] = NAN;
-    }
+    gvecToDetectorXYOne_cfunc(&gVec_c[3*i], rMat_d, rMat_sc, tVec_d,
+                              bHat_l, nVec_l, num,
+                              P0_l, &result[2*i]);
   }
+}
 
+/*
+ * The only difference between this and the non-Array version
+ * is that rMat_s is an array of matrices of length npts instead
+ * of a single matrix.
+ */
+void gvecToDetectorXYArray_cfunc(long int npts, double * gVec_c,
+                            double * rMat_d, double * rMat_s, double * rMat_c,
+                            double * tVec_d, double * tVec_s, double * tVec_c,
+                            double * beamVec, double * result)
+{
+  long int i;
+  int j, k, l;
+
+  double num;
+  double nVec_l[3], bHat_l[3], P0_l[3], P3_l[3];
+  double rMat_sc[9];
+
+  /* Normalize the beam vector */
+  unitRowVector_cfunc(3,beamVec,bHat_l);
+
+  for (i=0L; i<npts; i++) {
+      /* Initialize the detector normal and frame origins */
+      num = 0.0;
+      for (j=0; j<3; j++) {
+        nVec_l[j] = 0.0;
+        P0_l[j]   = tVec_s[j];
+
+        for (k=0; k<3; k++) {
+          nVec_l[j] += rMat_d[3*j+k]*Zl[k];
+          P0_l[j]   += rMat_s[9*i + 3*j+k]*tVec_c[k];
+        }
+
+        P3_l[j] = tVec_d[j];
+
+        num += nVec_l[j]*(P3_l[j]-P0_l[j]);
+      }
+
+    /* Compute the matrix product of rMat_s and rMat_c */
+    for (j=0; j<3; j++) {
+      for (k=0; k<3; k++) {
+        rMat_sc[3*j+k] = 0.0;
+        for (l=0; l<3; l++) {
+          rMat_sc[3*j+k] += rMat_s[9*i + 3*j+l]*rMat_c[3*l+k];
+        }
+      }
+    }
+
+    gvecToDetectorXYOne_cfunc(&gVec_c[3*i], rMat_d, rMat_sc, tVec_d,
+                              bHat_l, nVec_l, num,
+                              P0_l, &result[2*i]);
+  }
 }
 
 void detectorXYToGvec_cfunc(long int npts, double * xy,
-			    double * rMat_d, double * rMat_s,
-			    double * tVec_d, double * tVec_s, double * tVec_c,
-			    double * beamVec, double * etaVec,
-			    double * tTh, double * eta, double * gVec_l)
+                            double * rMat_d, double * rMat_s,
+                            double * tVec_d, double * tVec_s, double * tVec_c,
+                            double * beamVec, double * etaVec,
+                            double * tTh, double * eta, double * gVec_l)
 {
   long int i;
   int j, k;
@@ -153,13 +220,13 @@ void detectorXYToGvec_cfunc(long int npts, double * xy,
     for (j=0; j<3; j++) {
       dHat_l[j] = tVec1[j];
       for (k=0; k<2; k++) {
-	dHat_l[j] += rMat_d[3*j+k]*xy[2*i+k];
+        dHat_l[j] += rMat_d[3*j+k]*xy[2*i+k];
       }
       nrm += dHat_l[j]*dHat_l[j];
     }
     if ( nrm > epsf ) {
       for (j=0; j<3; j++) {
-	dHat_l[j] /= sqrt(nrm);
+        dHat_l[j] /= sqrt(nrm);
       }
     }
 
@@ -174,7 +241,7 @@ void detectorXYToGvec_cfunc(long int npts, double * xy,
     for (j=0; j<2; j++) {
       tVec2[j] = 0.0;
       for (k=0; k<3; k++) {
-	tVec2[j] += rMat_e[3*k+j]*dHat_l[k];
+        tVec2[j] += rMat_e[3*k+j]*dHat_l[k];
       }
     }
     eta[i] = atan2(tVec2[1],tVec2[0]);
@@ -198,9 +265,9 @@ void detectorXYToGvec_cfunc(long int npts, double * xy,
 }
 
 void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
-			      double * rMat_c, double * bMat, double wavelength,
-			      double * vInv_s, double * beamVec, double * etaVec,
-			      double * oangs0, double * oangs1)
+                              double * rMat_c, double * bMat, double wavelength,
+                              double * vInv_s, double * beamVec, double * etaVec,
+                              double * oangs0, double * oangs1)
 {
   long int i;
   int j, k;
@@ -258,7 +325,7 @@ void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
     for (j=0; j<3; j++) {
       gHat_c[j] = 0.0;
       for (k=0; k<3; k++) {
-	gHat_c[j] += bMat[3*j+k]*hkls[3L*i+k];
+        gHat_c[j] += bMat[3*j+k]*hkls[3L*i+k];
       }
     }
 
@@ -266,7 +333,7 @@ void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
     for (j=0; j<3; j++) {
       gHat_s[j] = 0.0;
       for (k=0; k<3; k++) {
-	gHat_s[j] += rMat_c[3*j+k]*gHat_c[k];
+        gHat_s[j] += rMat_c[3*j+k]*gHat_c[k];
       }
     }
 
@@ -280,7 +347,7 @@ void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
     for (j=0; j<3; j++) {
       gHat_c[j] = 0.0;
       for (k=0; k<3; k++) {
-	gHat_c[j] += rMat_c[j+3*k]*tmpVec[k];
+        gHat_c[j] += rMat_c[j+3*k]*tmpVec[k];
       }
       nrm0 += gHat_c[j]*gHat_c[j];
     }
@@ -289,8 +356,8 @@ void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
     /* Normalize both gHat_c and gHat_s */
     if ( nrm0 > epsf ) {
       for (j=0; j<3; j++) {
-	gHat_c[j] /= nrm0;
-	gHat_s[j]  = tmpVec[j]/nrm0;
+        gHat_c[j] /= nrm0;
+        gHat_s[j]  = tmpVec[j]/nrm0;
       }
     }
 
@@ -309,9 +376,9 @@ void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
 
     if ( fabs(rhs) > 1.0 ) {
       for (j=0; j<3; j++)
-	oangs0[3L*i+j] = NAN;
+        oangs0[3L*i+j] = NAN;
       for (j=0; j<3; j++)
-	oangs1[3L*i+j] = NAN;
+        oangs1[3L*i+j] = NAN;
       continue;
     }
 
@@ -327,36 +394,36 @@ void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
       oVec[0] = chi;
 
       oVec[1] = oangs0[3L*i+2];
-      makeOscillRotMat_cfunc(oVec,rMat_s);
+      makeOscillRotMat_cfunc(oVec[0], oVec[1], rMat_s);
 
       for (j=0; j<3; j++) {
-	tVec0[j] = 0.0;
-	for (k=0; k<3; k++) {
-	  tVec0[j] += rMat_s[3*j+k]*gHat_s[k];
-	}
+        tVec0[j] = 0.0;
+        for (k=0; k<3; k++) {
+          tVec0[j] += rMat_s[3*j+k]*gHat_s[k];
+        }
       }
       for (j=0; j<2; j++) {
-	gVec_e[j] = 0.0;
-	for (k=0; k<3; k++) {
-	  gVec_e[j] += rMat_e[3*k+j]*tVec0[k];
-	}
+        gVec_e[j] = 0.0;
+        for (k=0; k<3; k++) {
+          gVec_e[j] += rMat_e[3*k+j]*tVec0[k];
+        }
       }
       oangs0[3L*i+1] = atan2(gVec_e[1],gVec_e[0]);
 
       oVec[1] = oangs1[3L*i+2];
-      makeOscillRotMat_cfunc(oVec,rMat_s);
+      makeOscillRotMat_cfunc(oVec[0], oVec[1], rMat_s);
 
       for (j=0; j<3; j++) {
-	tVec0[j] = 0.0;
-	for (k=0; k<3; k++) {
-	  tVec0[j] += rMat_s[3*j+k]*gHat_s[k];
-	}
+        tVec0[j] = 0.0;
+        for (k=0; k<3; k++) {
+          tVec0[j] += rMat_s[3*j+k]*gHat_s[k];
+        }
       }
       for (j=0; j<2; j++) {
-	gVec_e[j] = 0.0;
-	for (k=0; k<3; k++) {
-	  gVec_e[j] += rMat_e[3*k+j]*tVec0[k];
-	}
+        gVec_e[j] = 0.0;
+        for (k=0; k<3; k++) {
+          gVec_e[j] += rMat_e[3*k+j]*tVec0[k];
+        }
       }
       oangs1[3L*i+1] = atan2(gVec_e[1],gVec_e[0]);
 
@@ -403,11 +470,11 @@ void unitRowVectors_cfunc(int m, int n, double * cIn, double * cOut)
     nrm = sqrt(nrm);
     if ( nrm > epsf ) {
       for (j=0; j<n; j++) {
-	cOut[n*i+j] = cIn[n*i+j]/nrm;
+        cOut[n*i+j] = cIn[n*i+j]/nrm;
       }
     } else {
       for (j=0; j<n; j++) {
-	cOut[n*i+j] = cIn[n*i+j];
+        cOut[n*i+j] = cIn[n*i+j];
       }
     }
   }
@@ -434,15 +501,14 @@ void makeDetectorRotMat_cfunc(double * tPtr, double * rPtr)
   rPtr[8] =  c[0]*c[1];
 }
 
-void makeOscillRotMat_cfunc(double * oPtr, double * rPtr)
+void makeOscillRotMat_cfunc(double chi, double ome, double * rPtr)
 {
-  int i;
   double c[2],s[2];
 
-  for (i=0; i<2; i++) {
-    c[i] = cos(oPtr[i]);
-    s[i] = sin(oPtr[i]);
-  }
+  c[0] = cos(chi);
+  s[0] = sin(chi);
+  c[1] = cos(ome);
+  s[1] = sin(ome);
 
   rPtr[0] =  c[1];
   rPtr[1] =  0.0;
@@ -521,10 +587,10 @@ void makeRotMatOfQuat_cfunc(int nq, double * qPtr, double * rPtr)
     }
     else {
       for (j=0; j<9; i++) {
-	if ( j%4 == 0 )
-	  rPtr[9*i+j] = 1.0;
-	else
-	  rPtr[9*i+j] = 0.0;
+        if ( j%4 == 0 )
+          rPtr[9*i+j] = 1.0;
+        else
+          rPtr[9*i+j] = 0.0;
       }
     }
   }
@@ -570,7 +636,7 @@ void makeEtaFrameRotMat_cfunc(double * bPtr, double * ePtr, double * rPtr)
   /* Assign Y column */
   for (i=0; i<3; i++)
     rPtr[3*i+1] = rPtr[3*((i+1)%3)+2]*rPtr[3*((i+2)%3)+0] -
-		  rPtr[3*((i+2)%3)+2]*rPtr[3*((i+1)%3)+0];
+                  rPtr[3*((i+2)%3)+2]*rPtr[3*((i+1)%3)+0];
 }
 
 void validateAngleRanges_old_cfunc(int na, double * aPtr, int nr, double * minPtr, double * maxPtr, bool * rPtr)
@@ -587,37 +653,37 @@ void validateAngleRanges_old_cfunc(int na, double * aPtr, int nr, double * minPt
     for (j=0; j<nr; j++) {
 
       /* Since the angle values themselves are unimportant we will
-	 redefine them so that the start of the range is zero.  The
-	 end of the range will then be between zero and two pi.  It
-	 will then be quite easy to determine if the angle of interest
-	 is in the range or not. */
+         redefine them so that the start of the range is zero.  The
+         end of the range will then be between zero and two pi.  It
+         will then be quite easy to determine if the angle of interest
+         is in the range or not. */
 
       thetaMax = maxPtr[j] - minPtr[j];
       theta    = aPtr[i] - minPtr[j];
 
       while ( thetaMax < 0.0 )
-	thetaMax += 2.0*M_PI;
+        thetaMax += 2.0*M_PI;
       while ( thetaMax > 2.0*M_PI )
-	thetaMax -= 2.0*M_PI;
+        thetaMax -= 2.0*M_PI;
 
       while ( theta < 0.0 )
-	theta += 2.0*M_PI;
+        theta += 2.0*M_PI;
       while ( theta > 2.0*M_PI )
-	theta -= 2.0*M_PI;
+        theta -= 2.0*M_PI;
 
       if ( theta > -sqrt_epsf && theta < thetaMax + sqrt_epsf ) {
-	rPtr[i] = true;
+        rPtr[i] = true;
 
-	/* No need to check other ranges */
-	break;
+        /* No need to check other ranges */
+        break;
       }
     }
   }
 }
 
 void validateAngleRanges_cfunc(int na, double * aPtr, int nr,
-			       double * minPtr, double * maxPtr,
-			       bool * rPtr, int ccw)
+                               double * minPtr, double * maxPtr,
+                               bool * rPtr, int ccw)
 {
   int i, j;
   double thetaMax, theta;
@@ -640,49 +706,49 @@ void validateAngleRanges_cfunc(int na, double * aPtr, int nr,
     for (j=0; j<nr; j++) {
 
       /* Since the angle values themselves are unimportant we will
-	 redefine them so that the start of the range is zero.  The
-	 end of the range will then be between zero and two pi.  It
-	 will then be quite easy to determine if the angle of interest
-	 is in the range or not. */
+         redefine them so that the start of the range is zero.  The
+         end of the range will then be between zero and two pi.  It
+         will then be quite easy to determine if the angle of interest
+         is in the range or not. */
 
       thetaMax = stopPtr[j] - startPtr[j];
       theta    = aPtr[i] - startPtr[j];
 
       while ( thetaMax < 0.0 )
-	thetaMax += 2.0*M_PI;
+        thetaMax += 2.0*M_PI;
       while ( thetaMax > 2.0*M_PI )
-	thetaMax -= 2.0*M_PI;
+        thetaMax -= 2.0*M_PI;
 
       /* Check for an empty range */
       if ( fabs(thetaMax) < sqrt_epsf ) {
-	rPtr[i] = true;
+        rPtr[i] = true;
 
-	/* No need to check other ranges */
-	break;
+        /* No need to check other ranges */
+        break;
       }
 
       /* Check for a range which spans a full circle */
       if ( fabs(thetaMax-2.0*M_PI) < sqrt_epsf ) {
 
-	/* Double check the initial range */
-	if ( (ccw && maxPtr[j] > minPtr[j]) || ((!ccw) && maxPtr[j] < minPtr[j]) ) {
-	  rPtr[i] = true;
+        /* Double check the initial range */
+        if ( (ccw && maxPtr[j] > minPtr[j]) || ((!ccw) && maxPtr[j] < minPtr[j]) ) {
+          rPtr[i] = true;
 
-	  /* No need to check other ranges */
-	  break;
-	}
+          /* No need to check other ranges */
+          break;
+        }
       }
 
       while ( theta < 0.0 )
-	theta += 2.0*M_PI;
+        theta += 2.0*M_PI;
       while ( theta > 2.0*M_PI )
-	theta -= 2.0*M_PI;
+        theta -= 2.0*M_PI;
 
       if ( theta >= -sqrt_epsf && theta <= thetaMax+sqrt_epsf ) {
-	rPtr[i] = true;
+        rPtr[i] = true;
 
-	/* No need to check other ranges */
-	break;
+        /* No need to check other ranges */
+        break;
       }
     }
   }
@@ -722,9 +788,9 @@ void rotateVectorAboutAxis_cfunc(double tTh, double * n_g, double * dHat_l, doub
 }
 */
 void rotate_vecs_about_axis_cfunc(long int na, double * angles,
-				  long int nax, double * axes,
-				  long int nv, double * vecs,
-				  double * rVecs)
+                                  long int nax, double * axes,
+                                  long int nv, double * vecs,
+                                  double * rVecs)
 {
   int i, j, sa, sax;
   double c, s, nrm, proj, aCrossV[3];
@@ -749,7 +815,7 @@ void rotate_vecs_about_axis_cfunc(long int na, double * angles,
     if ( nax > 1 || i == 0 ) {
       nrm = 0.0;
       for (j=0; j<3; j++)
-	nrm += axes[sax*i+j]*axes[sax*i+j];
+        nrm += axes[sax*i+j]*axes[sax*i+j];
       nrm = sqrt(nrm);
     }
 

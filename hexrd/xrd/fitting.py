@@ -32,7 +32,7 @@ import numpy as np
 #     from scipy.optimize import basinhopping
 # except:
 #     from scipy.optimize import leastsq
-from scipy.optimize import leastsq
+from scipy import optimize
 returnScalarValue = False
 
 from hexrd import matrixutil as mutil
@@ -215,8 +215,9 @@ def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
     fitArgs    = (pFull, pFlag, dFunc, dFlag, xyo_det, hkls_idx,
                   bMat, vInv, wavelength, beamVec, etaVec, omePeriod)
 
-    results = leastsq(objFuncSX, pFit, args=fitArgs, diag=1./scl[refineFlag].flatten(),
-                      factor=factor, xtol=xtol, ftol=ftol)
+    results = optimize.leastsq(objFuncSX, pFit, args=fitArgs, 
+                               diag=1./scl[refineFlag].flatten(),
+                               factor=factor, xtol=xtol, ftol=ftol)
 
     pFit_opt = results[0]
 
@@ -320,8 +321,9 @@ def fitGrain(xyo_det, hkls_idx, bMat, wavelength,
                dFunc, dParams,
                omePeriod)
 
-    results = leastsq(objFuncFitGrain, gFit, args=fitArgs, diag=1./gScl[gFlag].flatten(),
-                      factor=0.1, xtol=xtol, ftol=ftol)
+    results = optimize.leastsq(objFuncFitGrain, gFit, args=fitArgs,
+                               diag=1./gScl[gFlag].flatten(),
+                               factor=0.1, xtol=xtol, ftol=ftol)
 
     gFit_opt = results[0]
 
@@ -386,14 +388,12 @@ def objFuncFitGrain(gFit, gFull, gFlag,
                                         vInv=vInv_s, beamVec=bVec, etaVec=eVec,
                                         omePeriod=omePeriod)
 
-    calc_xy = np.zeros((npts, 2))
-    for i in range(npts):
-        rMat_s = xfcapi.makeOscillRotMat([chi, calc_omes[i]])
-        calc_xy[i, :] = xfcapi.gvecToDetectorXY(gHat_c[:, i],
-                                                rMat_d, rMat_s, rMat_c,
-                                                tVec_d, tVec_s, tVec_c,
-                                                beamVec=bVec).flatten()
-        pass
+    rMat_s = xfcapi.makeOscillRotMatArray(chi, calc_omes)
+    calc_xy = xfcapi.gvecToDetectorXYArray(gHat_c.T,
+                                            rMat_d, rMat_s, rMat_c,
+                                            tVec_d, tVec_s, tVec_c,
+                                            beamVec=bVec)
+
     if np.any(np.isnan(calc_xy)):
         print "infeasible pFull"
 

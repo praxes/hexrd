@@ -115,6 +115,41 @@ def gvecToDetectorXY(gVec_c,
                                              tVec_d, tVec_s, tVec_c,
                                              beamVec)
 
+def gvecToDetectorXYArray(gVec_c,
+                     rMat_d, rMat_s, rMat_c,
+                     tVec_d, tVec_s, tVec_c,
+                     beamVec=bVec_ref):
+    """
+    Takes a list of unit reciprocal lattice vectors in crystal frame to the
+    specified detector-relative frame, subject to the conditions:
+
+    1) the reciprocal lattice vector must be able to satisfy a bragg condition
+    2) the associated diffracted beam must intersect the detector plane
+
+    Required Arguments:
+    gVec_c -- (n, 3) ndarray of n reciprocal lattice vectors in the CRYSTAL FRAME
+    rMat_d -- (3, 3) ndarray, the COB taking DETECTOR FRAME components to LAB FRAME
+    rMat_s -- (n, 3, 3) ndarray of n COB taking SAMPLE FRAME components to LAB FRAME
+    rMat_c -- (3, 3) ndarray, the COB taking CRYSTAL FRAME components to SAMPLE FRAME
+    tVec_d -- (3, 1) ndarray, the translation vector connecting LAB to DETECTOR
+    tVec_s -- (3, 1) ndarray, the translation vector connecting LAB to SAMPLE
+    tVec_c -- (3, 1) ndarray, the translation vector connecting SAMPLE to CRYSTAL
+
+    Outputs:
+    (m, 2) ndarray containing the intersections of m <= n diffracted beams
+    associated with gVecs
+    """
+    gVec_c  = np.ascontiguousarray( gVec_c )
+    rMat_s  = np.ascontiguousarray( rMat_s )
+    tVec_d  = np.ascontiguousarray( tVec_d.flatten()  )
+    tVec_s  = np.ascontiguousarray( tVec_s.flatten()  )
+    tVec_c  = np.ascontiguousarray( tVec_c.flatten()  )
+    beamVec = np.ascontiguousarray( beamVec.flatten() )
+    return _transforms_CAPI.gvecToDetectorXYArray(gVec_c,
+                                             rMat_d, rMat_s, rMat_c,
+                                             tVec_d, tVec_s, tVec_c,
+                                             beamVec)
+
 def detectorXYToGvec(xy_det,
                      rMat_d, rMat_s,
                      tVec_d, tVec_s, tVec_c,
@@ -370,6 +405,14 @@ def makeOscillRotMat(oscillAngles):
     """
     arg = np.ascontiguousarray(np.r_[oscillAngles].flatten())
     return _transforms_CAPI.makeOscillRotMat(arg)
+
+def makeOscillRotMatArray(chi, omeArray):
+    """
+    Applies makeOscillAngles multiple times, for one
+    chi value and an array of omega values.
+    """
+    arg = np.ascontiguousarray(omeArray)
+    return _transforms_CAPI.makeOscillRotMatArray(chi, omeArray)
 
 def makeRotMatOfExpMap(expMap):
     """

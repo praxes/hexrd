@@ -33,6 +33,7 @@ from math import pi
 import shelve
 
 import numpy as num
+import numba
 from scipy import sparse
 from scipy.linalg import svd
 from scipy import ndimage
@@ -3250,6 +3251,22 @@ def angularPixelSize(xy_det, xy_pixelPitch,
         ang_pix[ipt, 1] = num.amax(delta_eta)
     return ang_pix
 
+
+
+#@numba.jit("void (intptr[:], intptr[:], int16[:], int, int, int, int, int16[:])")
+#@numba.jit("void (int64[:], int64[:], int16[:], int32, int32, int32, int32, int16[:])")
+@numba.njit
+def _coo_build_window(frame_row, frame_col, frame_data,
+                      min_row, max_row, min_col, max_col,
+                      result):
+    n = len(frame_row)
+    for i in range(n):
+        if ((min_row <= frame_row[i] <= max_row) and
+                (min_col <= frame_col[i] <= max_col)):
+            new_row = frame_row[i] - min_row
+            new_col = frame_col[i] - min_col
+            result[new_row, new_col] = frame_data[i]
+
 def pullSpots(pd, detector_params, grain_params, reader,
               ome_period=(-num.pi, num.pi),
               eta_range=[(-num.pi, num.pi), ],
@@ -3480,13 +3497,28 @@ def pullSpots(pd, detector_params, grain_params, reader,
         spot_data = num.zeros(sdims)
         if not doClipping:
             # ...normalize my bin area ratio?
-            for i in range(sdims[0]):
-                if reader_as_list:
+            if reader_as_list:
+                min_row, max_row = num.min(row_indices), num.max(row_indices)
+                min_col, max_col = num.min(col_indices), num.max(col_indices)
+                for i in range(sdims[0]):
                     # complains for older scipy...
                     # spot_data[i, :, :] = frames[i][row_indices, col_indices].todense().reshape(sdims[1], sdims[2])
-                    spot_data[i, :, :] = frames[i].todense()[row_indices, col_indices].reshape(sdims[1], sdims[2])
-                else:
-                    spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])    
+                    #spot_data[i, :, :] = frames[i].todense()[row_indices, col_indices].reshape(sdims[1], sdims[2])
+                    # Extract the window into the matrix we need, then just do the fancy indexing to
+                    # grab the spot_data there.
+                    frame_i = frames[i]
+                    if sparse.isspmatrix_coo(frame_i):
+                        # coo_matrix doesn't support slicing, so do it manually
+                        window = num.zeros(((max_row - min_row + 1), (max_col - min_col + 1)), dtype=num.int16)
+                        _coo_build_window(frame_i.row, frame_i.col, frame_i.data,
+                                          min_row, max_row, min_col, max_col,
+                                          window)
+                    else:
+                        window = frame_i[min_row:max_row+1, min_col:max_col+1].todense()
+                    spot_data[i, :, :] = window[row_indices - min_row, col_indices - min_col].reshape(sdims[1], sdims[2])
+            else:
+                    for i in range(sdims[0]):
+                        spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])
         else:
             for iPix in range(len(conn)):
                 clipVertices = xy_eval[conn[iPix], :]

@@ -31,6 +31,12 @@ void gvecToDetectorXY_cfunc(long int npts, double * gVec_c_Ptr,
 			    double * beamVec_Ptr,
 			    double * result_Ptr);
 
+void gvecToDetectorXYArray_cfunc(long int npts, double * gVec_c_Ptr,
+			    double * rMat_d_Ptr, double * rMat_s_Ptr, double * rMat_c_Ptr,
+			    double * tVec_d_Ptr, double * tVec_s_Ptr, double * tVec_c_Ptr,
+			    double * beamVec_Ptr,
+			    double * result_Ptr);
+
 void detectorXYToGvec_cfunc(long int npts, double * xy,
 			    double * rMat_d, double * rMat_s,
 			    double * tVec_d, double * tVec_s, double * tVec_c,
@@ -51,7 +57,7 @@ void unitRowVectors_cfunc(int m, int n, double * cIn, double * cOut);
 
 void makeDetectorRotMat_cfunc(double * tPtr, double * rPtr);
 
-void makeOscillRotMat_cfunc(double * oPtr, double * rPtr);
+void makeOscillRotMat_cfunc(double chi, double ome, double * rPtr);
 
 void makeRotMatOfExpMap_cfunc(double * ePtr, double * rPtr);
 
