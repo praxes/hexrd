@@ -97,6 +97,13 @@ class TestImageSeriesConfig(TestConfig):
             getattr, self.cfgs[2].image_series, 'flip'
             )
 
+    def test_n_frames(self):
+        self.assertRaises(
+            RuntimeError,
+            getattr, self.cfgs[0].image_series, 'n_frames'
+            )
+        self.assertEqual(self.cfgs[2].image_series.n_frames, 1440)
+
 
 
 class TestFileConfig(TestConfig):

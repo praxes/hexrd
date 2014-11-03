@@ -120,3 +120,8 @@ class ImageSeriesConfig(Config):
     @property
     def omega(self):
         return OmegaConfig(self._cfg)
+
+
+    @property
+    def n_frames(self):
+        return (self.omega.stop - self.omega.start)/self.omega.step
