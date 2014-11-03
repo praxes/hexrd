@@ -1,5 +1,3 @@
-#mkdir src
-#cd src
-#cp -r $RECIPE_DIR/../* .
+rm -rf build
 
 $PYTHON setup.py install

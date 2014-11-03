@@ -1,6 +1,4 @@
-mkdir src
-cd src
-xcopy %RECIPE_DIR%\..\* . /e
+rmdir build /s
 
 %PYTHON% setup.py install
 if errorlevel 1 exit 1
