@@ -28,7 +28,7 @@
 
 import os, sys, warnings
 import numpy as np
-np.seterr(invalid='ignore')
+#np.seterr(invalid='ignore')
 
 import scipy.sparse as sparse
 

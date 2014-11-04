@@ -265,7 +265,7 @@ class Experiment(object):
         nGrains    = self.rMats.shape[0]
         grainList = []
         for iG in range(nGrains):
-            indexer.progress_bar(float(iG) / nGrains)
+            #indexer.progress_bar(float(iG) / nGrains)
             grain = G.Grain(self.spots_for_indexing,
                                 rMat=self.rMats[iG, :, :],
                                 etaTol=etaTol,

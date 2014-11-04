@@ -22,8 +22,8 @@ elapsed0 = (time.clock() - start0)
 # for i in range(n_quats):
 #     rMats1[i, :, :] = xfcapi.makeRotMatOfQuat(quats[i, :])
 
-start1 = time.clock()                      # time this
+start1 = time.time()                      # time this
 rMats1 = xfcapi.makeRotMatOfQuat(quats)
-elapsed1 = (time.clock() - start1)
+elapsed1 = (time.time() - start1)
 print "Time for %d quats:\t%g v. %g (%f)"%(n_quats, elapsed0/float(n_quats), elapsed1/float(n_quats), elapsed0/elapsed1)
 print "Maximum discrepancy:\t%f" % (np.amax(abs(rMats0 - rMats1)))

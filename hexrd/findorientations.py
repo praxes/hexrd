@@ -9,7 +9,7 @@ import sys
 import time
 
 import numpy as np
-np.seterr(over='ignore', invalid='ignore')
+#np.seterr(over='ignore', invalid='ignore')
 
 import scipy.cluster as cluster
 import scipy.optimize as opt
