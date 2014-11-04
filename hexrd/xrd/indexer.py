@@ -682,7 +682,7 @@ def pgRefine(x, etaOmeMaps, omegaRange, threshold):
         q = [num.r_[cphi2, sphi2*n[0], sphi2*n[1], sphi2*n[2]],]
     c = paintGrid(
         q, etaOmeMaps, threshold=threshold, bMat=None, omegaRange=omegaRange,
-        etaRange=None, debug=False, progressBar=False
+        etaRange=None, debug=False
         )
     f = abs(1. - c)
     return f
@@ -692,7 +692,7 @@ def paintGrid(quats, etaOmeMaps,
               omegaRange=None, etaRange=None,
               omeTol=d2r, etaTol=d2r,
               omePeriod=(-num.pi, num.pi),
-              progressBar=False, doMultiProc=False,
+              doMultiProc=False,
               nCPUs=None, debug=False):
     """
     do a direct search of omega-eta maps to paint each orientation in
