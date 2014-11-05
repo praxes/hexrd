@@ -109,7 +109,7 @@ def get_distortion_correction(instrument_cfg):
         )
 
 
-def set_planedata_exclusions(cfg, pd):
+def set_planedata_exclusions(cfg, detector, pd):
     tth_max = cfg.fit_grains.tth_max
     if tth_max is True:
         pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
@@ -137,7 +137,7 @@ def get_job_queue(cfg):
         logger.info('fitting grains using default initial estimate')
         # load quaternion file
         quats = np.atleast_2d(
-            np.loadtxt(os.path.join(cfg.analysis_dir, 'quats.out'))
+            np.loadtxt(os.path.join(cfg.working_dir, 'accepted_orientations.dat'))
             )
         n_quats = len(quats)
         quats = quats.T
@@ -161,7 +161,7 @@ def get_data(cfg, show_progress=False):
     instrument_cfg = get_instrument_parameters(cfg)
     detector_params = get_detector_parameters(cfg, instrument_cfg)
     distortion = get_distortion_correction(instrument_cfg)
-    set_planedata_exclusions(cfg, pd)
+    set_planedata_exclusions(cfg, detector, pd)
     pkwargs = {
         'distortion': distortion,
         'omega_start': cfg.image_series.omega.start,

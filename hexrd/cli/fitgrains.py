@@ -42,6 +42,7 @@ def execute(args, parser):
     # if find-orientations has not already been run, do so:
     quats_f = os.path.join(cfgs[0].working_dir, 'accepted_orientations.dat')
     if not os.path.exists(quats_f):
+        print("Missing %s, first running find-orientations" % quats_f, file=sys.stderr)
         from . import findorientations
         findorientations.execute(args, parser)
 
