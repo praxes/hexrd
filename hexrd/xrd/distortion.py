@@ -113,9 +113,9 @@ def GE_41RT(xy_in, params, invert=False):
         rhoMax = 204.8
         xy_out = np.empty_like(xy_in)
         if invert:
-            _ge_41rt_inverse_distortion(xy_out, xy_in, rhoMax, params)
+            _ge_41rt_inverse_distortion(xy_out, xy_in, float(rhoMax), np.asarray(params))
             #rhoOut = inverse_distortion_numpy(rhoOut, rho0, eta0, rhoMax, params)
         else:
-            _ge_41rt_distortion(xy_out, xy_in, rhoMax, params)
+            _ge_41rt_distortion(xy_out, xy_in, float(rhoMax), np.asarray(params))
 
         return xy_out
