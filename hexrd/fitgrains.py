@@ -54,8 +54,11 @@ def get_frames(reader, cfg, show_progress=False):
     frame_list = []
     for i in range(n_frames):
         frame = reader.read()
-        frame[frame <= cfg.fit_grains.threshold] = 0
-        frame_list.append(coo_matrix(frame))
+        mask = frame > cfg.fit_grains.threshold
+        sparse_frame = coo_matrix((frame[mask], mask.nonzero()),
+                                  shape=mask.shape)
+        frame_list.append(sparse_frame)
+
         if show_progress:
             pbar.update(i)
     frame_list = np.array(frame_list)
