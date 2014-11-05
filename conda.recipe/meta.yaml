@@ -21,22 +21,22 @@ requirements:
     - matplotlib
 #    - numba
 #    - numbapro
-    - numpy <1.8
+    - numpy
     - python
-    - scipy >=0.7.0
-    - wxpython >=2.8
+    - scipy
+    - wxpython
   run:
     - matplotlib
 #    - numba
 #    - numbapro
-    - numpy <1.8
-#    - progressbar
+    - numpy
+    - progressbar
     - python
     - python.app # [osx]
     - pyyaml
     - scikit-learn
-    - scipy >=0.7.0
-    - wxpython >=2.8
+    - scipy
+    - wxpython
 
 test:
   imports:
