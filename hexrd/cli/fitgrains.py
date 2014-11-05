@@ -39,13 +39,6 @@ def execute(args, parser):
     # load the configuration settings
     cfgs = config.open(args.yml)
 
-    # if find-orientations has not already been run, do so:
-    quats_f = os.path.join(cfgs[0].working_dir, 'accepted_orientations.dat')
-    if not os.path.exists(quats_f):
-        print("Missing %s, first running find-orientations" % quats_f, file=sys.stderr)
-        from . import findorientations
-        findorientations.execute(args, parser)
-
     # configure logging to the console:
     log_level = logging.DEBUG if args.debug else logging.INFO
     if args.quiet:
@@ -57,6 +50,16 @@ def execute(args, parser):
     cf = logging.Formatter('%(asctime)s - %(message)s', '%y-%m-%d %H:%M:%S')
     ch.setFormatter(cf)
     logger.addHandler(ch)
+
+    # if find-orientations has not already been run, do so:
+    quats_f = os.path.join(cfgs[0].working_dir, 'accepted_orientations.dat')
+    if not os.path.exists(quats_f):
+        logger.info("Missing %s, running find-orientations", quats_f)
+        logger.removeHandler(ch)
+        from . import findorientations
+        findorientations.execute(args, parser)
+        logger.addHandler(ch)
+
     logger.info('=== begin fit-grains ===')
 
     for cfg in config.open(args.yml):
