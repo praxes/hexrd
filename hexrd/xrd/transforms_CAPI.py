@@ -225,9 +225,9 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     beamVec = np.ascontiguousarray(beamVec.flatten())
     etaVec  = np.ascontiguousarray(etaVec.flatten())
     bMat = np.ascontiguousarray(bMat)
-    return _transforms_CAPI.oscillAnglesOfHKLs(hkls,
-                                               chi,rMat_c,bMat,wavelength,
-                                               vInv,beamVec,etaVec)
+    return _transforms_CAPI.oscillAnglesOfHKLs(
+        hkls, chi, rMat_c, bMat, wavelength, vInv, beamVec, etaVec
+        )
 
 """
 #######################################################################
