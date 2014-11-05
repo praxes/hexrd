@@ -52,23 +52,21 @@ from hexrd.valunits import toFloat
 
 import hexrd.orientations as ors
 
-from hexrd.xrd                 import crystallography
+from hexrd.xrd import crystallography
 from hexrd.xrd.crystallography import latticeParameters, latticeVectors
 
-from hexrd.xrd          import detector
-from hexrd.xrd.detector import Framer2DRC
-from hexrd.xrd.detector import getCMap
+from hexrd.xrd import detector
+from hexrd.xrd.detector import Framer2DRC, getCMap
 
-from hexrd.xrd         import xrdbase
-from hexrd.xrd.xrdbase import dataToFrame
-from hexrd.xrd.xrdbase import multiprocessing
+from hexrd.xrd import xrdbase
+from hexrd.xrd.xrdbase import dataToFrame, multiprocessing
 
-from hexrd.xrd           import rotations as rot
+from hexrd.xrd import rotations as rot
 from hexrd.xrd.rotations import mapAngle
 
 from hexrd.xrd import spotfinder
 
-from hexrd.xrd import transforms      as xf
+from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 
 from hexrd.xrd import distortion
@@ -78,11 +76,7 @@ try:
 except:
     havePfigPkg = False
 
-try:
-    from progressbar import ProgressBar, Bar, ETA, ReverseBar
-    have_progBar = True
-except:
-    have_progBar = False
+from hexrd.utils.progressbar import ProgressBar, Bar, ETA, ReverseBar
 
 'quadr1d of 8 is probably overkill, but we are in 1d so it is inexpensive'
 quadr1dDflt = 8
@@ -1498,12 +1492,12 @@ class CollapseOmeEta(object):
             sumImg = nframesLump > 1
             nFrames = reader.getNFrames()
             #
-            if have_progBar:
-                widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
-                pbar = ProgressBar(widgets=widgets, maxval=reader.getNFrames() / nframesLump).start()
+            pbar = ProgressBar(
+                widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
+                maxval=reader.getNFrames() / nframesLump
+                ).start()
             for iFrame in range(reader.getNFrames() / nframesLump): # for iFrame, omega in enumerate(omegas):
-                if have_progBar:
-                    pbar.update(iFrame+1)
+                pbar.update(iFrame+1)
                 if debug:
                     print location+' : working on frame %d' % (iFrame)
                     tic = time.time()
@@ -1577,8 +1571,7 @@ class CollapseOmeEta(object):
                     print location+' : frame %d took %g seconds' % (iFrameTot, elapsed)
                 iFrameTot += 1
             'done with frames'
-            if have_progBar:
-                pbar.finish()
+            pbar.finish()
         'done with readerList'
         self.omeEdges[nFramesTot] = omega+delta_omega*0.5
 
@@ -3259,7 +3252,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
               distortion=(dFunc_ref, dParams_ref),
               tth_tol=0.15, eta_tol=1., ome_tol=1.,
               npdiv=1, threshold=10,
-              doClipping=False, filename=None, 
+              doClipping=False, filename=None,
               save_spot_list=False, use_closest=False):
 
     # steal ref beam and eta from transforms.py
@@ -3298,11 +3291,11 @@ def pullSpots(pd, detector_params, grain_params, reader,
         frame_ncols = reader[0][0].shape[1]
         #
         row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
-        col_edges = num.arange(frame_ncols + 1)*pixel_pitch[0] + panel_dims[0][1]        
+        col_edges = num.arange(frame_ncols + 1)*pixel_pitch[0] + panel_dims[0][1]
     else:
         """
         HAVE OLD READER CLASS
-        """        
+        """
         nframes = reader.getNFrames()
         #
         del_ome   = reader.getDeltaOmega() # this one is in radians!
@@ -3315,7 +3308,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
         row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
         col_edges = num.arange(frame_ncols + 1)*pixel_pitch[0] + panel_dims[0][1]
         pass
-    
+
     iframe  = num.arange(0, nframes)
 
     full_range = xf.angularDifference(ome_range[0], ome_range[1])
@@ -3326,14 +3319,14 @@ def pullSpots(pd, detector_params, grain_params, reader,
     else:
         ome_tol  = num.ceil(ome_tol/r2d/abs(del_ome))*r2d*abs(del_ome)
         ndiv_ome = abs(int(ome_tol/r2d/del_ome))
-        ome_del  = (num.arange(0, 2*ndiv_ome+1) - ndiv_ome)*del_ome*r2d 
+        ome_del  = (num.arange(0, 2*ndiv_ome+1) - ndiv_ome)*del_ome*r2d
 
     # generate structuring element for connected component labeling
     if len(ome_del) == 1:
         labelStructure = ndimage.generate_binary_structure(2,2)
     else:
         labelStructure = ndimage.generate_binary_structure(3,3)
-    
+
     pixel_area = pixel_pitch[0]*pixel_pitch[1] # mm^2
     pdim_buffered = [(panel_dims[0][0] + panel_buff[0], panel_dims[0][1] + panel_buff[1]),
                      (panel_dims[1][0] - panel_buff[0], panel_dims[1][1] - panel_buff[1])]
@@ -3359,19 +3352,19 @@ def pullSpots(pd, detector_params, grain_params, reader,
     iRefl = 0
     spot_list = []
     for hkl, angs, xy, pix in zip(*sim_g):
-        
+
         ndiv_tth = npdiv*num.ceil( tth_tol/(pix[0]*r2d) )
         ndiv_eta = npdiv*num.ceil( eta_tol/(pix[1]*r2d) )
-        
+
         tth_del = num.arange(0, ndiv_tth+1)*tth_tol/float(ndiv_tth) - 0.5*tth_tol
         eta_del = num.arange(0, ndiv_eta+1)*eta_tol/float(ndiv_eta) - 0.5*eta_tol
-        
+
         tth_edges = angs[0] + d2r*tth_del
         eta_edges = angs[1] + d2r*eta_del
-        
+
         delta_tth = tth_edges[1] - tth_edges[0]
         delta_eta = eta_edges[1] - eta_edges[0]
-        
+
         ome_centers = angs[2] + d2r*ome_del
         delta_ome   = ome_centers[1] - ome_centers[0] # in radians... sanity check here?
 
@@ -3463,7 +3456,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 frames = np.hstack([f1, f2])
             else:
                 frames = reader[0][frame_indices[0]:sdims[0]+frame_indices[0]]
-            
+
         else:
             rdr = reader.makeNew()
             if split_reader:
@@ -3486,7 +3479,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                     # spot_data[i, :, :] = frames[i][row_indices, col_indices].todense().reshape(sdims[1], sdims[2])
                     spot_data[i, :, :] = frames[i].todense()[row_indices, col_indices].reshape(sdims[1], sdims[2])
                 else:
-                    spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])    
+                    spot_data[i, :, :] = frames[i][row_indices, col_indices].reshape(sdims[1], sdims[2])
         else:
             for iPix in range(len(conn)):
                 clipVertices = xy_eval[conn[iPix], :]
@@ -3557,10 +3550,10 @@ def pullSpots(pd, detector_params, grain_params, reader,
                         max_intensity  = num.nan
                     else:
                         peakId = iRefl
-                        coms   = ndimage.center_of_mass(spot_data, labels=labels, index=slabels[maxi_idx]) 
+                        coms   = ndimage.center_of_mass(spot_data, labels=labels, index=slabels[maxi_idx])
                         #
-                        spot_intensity = num.sum(spot_data[labels == slabels[maxi_idx]])  
-                        max_intensity  = num.max(spot_data[labels == slabels[maxi_idx]])                 
+                        spot_intensity = num.sum(spot_data[labels == slabels[maxi_idx]])
+                        max_intensity  = num.max(spot_data[labels == slabels[maxi_idx]])
             else:
                 peakId = iRefl
                 coms   = ndimage.center_of_mass(spot_data, labels=labels, index=1)
