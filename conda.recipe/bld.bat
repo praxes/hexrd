@@ -1,4 +1,4 @@
-rmdir build /s
+rmdir build /s /q
 
 %PYTHON% setup.py install
 if errorlevel 1 exit 1
