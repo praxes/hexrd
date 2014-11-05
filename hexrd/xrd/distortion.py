@@ -14,7 +14,6 @@ def newton(x0, f, fp, extra, prec=3e-16, maxiter=100):
             # print 'stopping at %d iters' % i
             return x
         x0 = x
-    print 'Newtons method got to maximum of %d iters, relerr was %g' % (maxiter, relerr)
     return x0
 
 
@@ -59,26 +58,8 @@ def GE_41RT(xy_in, params, invert=False):
                 p[1]*(ri/rx)**p[4] * np.cos(4.0 * ni) * (p[4] + 1) + \
                 p[2]*(ri/rx)**p[5] * (p[5] + 1) + 1
 
-            useNewton = False
-            if useNewton:
-                rhoOut = newton(rho0, rhoSclFuncInv, rhoSclFIprime,
-                                (eta0, rho0, rhoMax, params))
-            else:
-                rhoOut = np.zeros(npts, dtype=float)
-                for iRho in range(len(rho0)):
-                    rhoOut[iRho] = opt.fsolve(rhoSclFuncInv, rho0[iRho],
-                                              fprime=rhoSclFIprime,
-                                              args=(eta0[iRho], rho0[iRho], rhoMax, params) )
-                    pass
-            if False: # len(rho0) > 1:
-                # Save versions of this data!
-                np.save('rho0.npy', rho0)
-                np.save('rhoOut.npy', rhoOut)
-                np.save('eta0.npy', eta0)
-                np.save('rhoMax.npy', rhoMax)
-                np.save('params.npy', params)
-                import sys
-                sys.exit(1)
+            rhoOut = newton(rho0, rhoSclFuncInv, rhoSclFIprime,
+                            (eta0, rho0, rhoMax, params))
         else:
             # usual case: calculate scaling to take you from image to detector plane
             # 1 + p[0]*(ri/rx)**p[2] * np.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
