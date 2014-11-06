@@ -149,16 +149,14 @@ def get_job_queue(cfg, max_grains=None):
             np.loadtxt(os.path.join(cfg.working_dir, 'accepted_orientations.dat'))
             )
         n_quats = len(quats)
-        quats = quats.T
-        phi, n = angleAxisOfRotMat(rotMatOfQuat(quats))
-        if max_grains is None:
+        if max_grains is None or max_grains > n_quats:
             max_grains = n_quats
-        for i, quat in enumerate(quats.T):
-            if i == max_grains:
-                break
-            exp_map = phi[i]*n[:, i]
+        quats = quats[:max_grains]
+        phi, n = angleAxisOfRotMat(rotMatOfQuat(quats.T))
+        for i, (phi, n) in enumerate(zip(phi, n.T)):
+            exp_map = phi*n
             grain_params = np.hstack(
-                [exp_map.flatten(), 0., 0., 0., 1., 1., 1., 0., 0., 0.]
+                [exp_map, 0., 0., 0., 1., 1., 1., 0., 0., 0.]
                 )
             job_queue.put((i, grain_params))
     logger.info("fitting grains for %d of %d orientations", max_grains, n_quats)
