@@ -55,8 +55,10 @@ def get_frames(reader, cfg, show_progress=False):
     for i in range(n_frames):
         frame = reader.read()
         mask = frame > cfg.fit_grains.threshold
-        sparse_frame = coo_matrix((frame[mask], mask.nonzero()),
-                                  shape=mask.shape)
+        sparse_frame = coo_matrix(
+            (frame[mask], mask.nonzero()),
+            shape=mask.shape
+            )
         frame_list.append(sparse_frame)
 
         if show_progress:
@@ -122,15 +124,19 @@ def set_planedata_exclusions(cfg, detector, pd):
         pd.exclusions = pd.getTTh() >= np.radians(tth_max)
 
 
-def get_job_queue(cfg):
+def get_job_queue(cfg, max_grains=None):
     job_queue = mp.JoinableQueue()
     # load the queue
     try:
         estimate_f = cfg.fit_grains.estimate
         grain_params_list = np.loadtxt(estimate_f)
         n_quats = len(grain_params_list)
+        if max_grains is None:
+            max_grains = n_quats
         for grain_params in grain_params_list:
             grain_id = grain_params[0]
+            if grain_id == max_grains:
+                break
             job_queue.put((grain_id, grain_params[3:15]))
         logger.info(
             'fitting grains using "%s" for the initial estimate',
@@ -145,13 +151,17 @@ def get_job_queue(cfg):
         n_quats = len(quats)
         quats = quats.T
         phi, n = angleAxisOfRotMat(rotMatOfQuat(quats))
+        if max_grains is None:
+            max_grains = n_quats
         for i, quat in enumerate(quats.T):
+            if i == max_grains:
+                break
             exp_map = phi[i]*n[:, i]
             grain_params = np.hstack(
                 [exp_map.flatten(), 0., 0., 0., 1., 1., 1., 0., 0., 0.]
                 )
             job_queue.put((i, grain_params))
-    logger.info("fitting grains for %d orientations", n_quats)
+    logger.info("fitting grains for %d of %d orientations", max_grains, n_quats)
     return job_queue
 
 
@@ -185,30 +195,44 @@ def get_data(cfg, show_progress=False):
     return reader, pkwargs
 
 
-def fit_grains(cfg, force=False, show_progress=False):
+def fit_grains(cfg, force=False, show_progress=False, max_grains=None):
     # load the data
     reader, pkwargs = get_data(cfg, show_progress)
-    job_queue = get_job_queue(cfg)
+    job_queue = get_job_queue(cfg, max_grains)
     njobs = job_queue.qsize()
 
+    # log this before starting progress bar
     ncpus = cfg.multiprocessing
+    ncpus = ncpus if ncpus < njobs else njobs
     logger.info('running pullspots with %d processors', ncpus)
+    if ncpus == 1:
+        logger.info('multiprocessing disabled')
+
+    start = time.time()
     if show_progress:
         pbar = ProgressBar(
             widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
             maxval=njobs
             ).start()
 
-    # prepare the list to collect processed data
-    manager = mp.Manager()
-    results = manager.list()
     # finally start processing data
-    start = time.time()
-    for i in range(ncpus):
-        # lets make a deep copy of the pkwargs, just in case:
-        w = FitGrainsWorker(job_queue, results, reader, copy.deepcopy(pkwargs))
-        w.daemon = True
-        w.start()
+    if ncpus == 1:
+        # no multiprocessing
+        results = []
+        w = FitGrainsWorker(
+            job_queue, results, reader, copy.deepcopy(pkwargs),
+            progressbar=pbar
+            )
+        w.run()
+    else:
+        # multiprocessing
+        manager = mp.Manager()
+        results = manager.list()
+        for i in range(ncpus):
+            # lets make a deep copy of the pkwargs, just in case:
+            w = FitGrainsWorkerMP(job_queue, results, reader, copy.deepcopy(pkwargs))
+            w.daemon = True
+            w.start()
     while True:
         n_res = len(results)
         if show_progress:
@@ -258,11 +282,10 @@ def write_grains_file(cfg, results):
 
 
 
-class FitGrainsWorker(mp.Process):
+class FitGrainsWorker(object):
 
 
-    def __init__(self, jobs, results, reader, pkwargs):
-        super(FitGrainsWorker, self).__init__()
+    def __init__(self, jobs, results, reader, pkwargs, **kwargs):
         self._jobs = jobs
         self._results = results
         self._reader = reader
@@ -270,8 +293,11 @@ class FitGrainsWorker(mp.Process):
         self._p = pkwargs
 
         # lets make a couple shortcuts:
-        self._p['bMat'] = self._p['plane_data'].latVecOps['B']
+        self._p['bMat'] = np.ascontiguousarray(
+            self._p['plane_data'].latVecOps['B']
+            ) # is it still necessary to re-cast?
         self._p['wlen'] = self._p['plane_data'].wavelength
+        self._pbar = kwargs.get('progressbar', None)
 
 
     def pull_spots(self, grain_id, grain_params, iteration):
@@ -333,6 +359,25 @@ class FitGrainsWorker(mp.Process):
         return grain_params, completeness
 
 
+    def get_e_mat(self, grain_params):
+        # TODO: document what is this?
+        return logm(np.linalg.inv(vecMVToSymm(grain_params[6:])))
+
+
+    def get_residuals(self, grain_params):
+        dFunc, dParams = self._p['distortion']
+        return objFuncFitGrain(
+            grain_params[gFlag], grain_params, gFlag,
+            self._p['detector_params'],
+            self._p['xyo_det'], self._p['hkls'],
+            self._p['bMat'], self._p['wlen'],
+            bVec_ref, eta_ref,
+            dFunc, dParams,
+            self._p['omega_period'],
+            simOnly=False
+            )
+
+
     def loop(self):
         id, grain_params = self._jobs.get(False)
 
@@ -345,27 +390,28 @@ class FitGrainsWorker(mp.Process):
             if compl == 0:
                 break
 
-        eMat = logm(np.linalg.inv(vecMVToSymm(grain_params[6:])))
-
-        dFunc, dParams = self._p['distortion']
-        resd = objFuncFitGrain(
-            grain_params[gFlag], grain_params, gFlag,
-            self._p['detector_params'],
-            self._p['xyo_det'], self._p['hkls'],
-            self._p['bMat'], self._p['wlen'],
-            bVec_ref, eta_ref,
-            dFunc, dParams,
-            self._p['omega_period'],
-            simOnly=False
-            )
+        eMat = self.get_e_mat(grain_params)
+        resd = self.get_residuals(grain_params)
 
         self._results.append((id, grain_params, compl, eMat, sum(resd**2)))
         self._jobs.task_done()
 
 
     def run(self):
+        n_res = 0
         while True:
             try:
                 self.loop()
+                n_res += 1
+                if self._pbar is not None:
+                    self._pbar.update(n_res)
             except Empty:
                 break
+
+
+
+class FitGrainsWorkerMP(FitGrainsWorker, mp.Process):
+
+    def __init__(self, *args, **kwargs):
+        mp.Process.__init__(self)
+        FitGrainsWorker.__init__(self, *args, **kwargs)
