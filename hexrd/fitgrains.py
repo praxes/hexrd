@@ -209,6 +209,7 @@ def fit_grains(cfg, force=False, show_progress=False, max_grains=None):
         logger.info('multiprocessing disabled')
 
     start = time.time()
+    pbar = None
     if show_progress:
         pbar = ProgressBar(
             widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
