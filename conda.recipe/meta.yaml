@@ -1,6 +1,6 @@
 package:
   name: hexrd
-  version: 0.2.0.dev
+  version: 0.2.0
 
 source:
   #git_url: https://github.com/praxes/hexrd.git

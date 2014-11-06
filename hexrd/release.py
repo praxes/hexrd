@@ -21,7 +21,7 @@ name = 'hexrd'
 _version_major = 0
 _version_minor = 2
 _version_patch = 0
-_version_extra = '.dev' # uncomment this during development
+#_version_extra = '.dev' # uncomment this during development
 # _version_extra = 'rc1' # uncomment this for release candidates
 # _version_extra = ''  # Uncomment this for full releases
 
