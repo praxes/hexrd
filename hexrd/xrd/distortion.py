@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import optimize as opt
-from hexrd.config import USE_NUMBA
+from hexrd import USE_NUMBA
 if USE_NUMBA:
     import numba
 

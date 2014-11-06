@@ -39,7 +39,7 @@ from numpy import float_ as nFloat
 from numpy import int_ as nInt
 
 from hexrd.xrd import distortion as dFuncs
-from hexrd.config import USE_NUMBA
+from hexrd import USE_NUMBA
 
 if USE_NUMBA:
     import numba

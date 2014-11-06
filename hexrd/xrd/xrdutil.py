@@ -49,7 +49,7 @@ from hexrd import matrixutil as mutil
 from hexrd import pfigutil
 from hexrd import gridutil as gutil
 from hexrd.valunits import toFloat
-from hexrd.config import USE_NUMBA
+from hexrd import USE_NUMBA
 import hexrd.orientations as ors
 
 from hexrd.xrd import crystallography
