@@ -13,6 +13,7 @@ import yaml
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.linalg.matfuncs import logm
+import numba
 
 from hexrd.coreutil import initialize_experiment, migrate_detector_config
 from hexrd.matrixutil import vecMVToSymm
@@ -39,6 +40,21 @@ gScl  = np.array([1., 1., 1.,
                   1., 1., 1.,
                   1., 1., 1., 0.01, 0.01, 0.01])
 
+@numba.njit
+def extract_ijv(in_array, threshold, out_i, out_j, out_v):
+    n = 0
+    w, h = in_array.shape
+
+    for i in range(w):
+        for j in range(h):
+            v = in_array[i,j]
+            if v > threshold:
+                out_v[n] = v
+                out_i[n] = i
+                out_j[n] = j
+                n += 1
+
+    return n
 
 def get_frames(reader, cfg, show_progress=False):
     # TODO: this should be updated to read only the frames requested in cfg
@@ -52,13 +68,22 @@ def get_frames(reader, cfg, show_progress=False):
         pbar = ProgressBar(widgets=widgets, maxval=n_frames).start()
 
     frame_list = []
+    v_buff = np.empty((2048*2048,), dtype=np.int16)
+    i_buff = np.empty((2048*2048,), dtype=np.int16)
+    j_buff = np.empty((2048*2048,), dtype=np.int16)
     for i in range(n_frames):
         frame = reader.read()
-        mask = frame > cfg.fit_grains.threshold
+        count = extract_ijv(frame, cfg.fit_grains.threshold,
+                            i_buff, j_buff, v_buff)
         sparse_frame = coo_matrix(
-            (frame[mask], mask.nonzero()),
-            shape=mask.shape
-            )
+            (v_buff[0:count].copy(),
+             (i_buff[0:count].copy(), j_buff[0:count].copy())),
+              shape=frame.shape)
+        #mask = frame > cfg.fit_grains.threshold
+        #sparse_frame = coo_matrix(
+        #    (frame[mask], mask.nonzero()),
+        #    shape=mask.shape
+        #    )
         frame_list.append(sparse_frame)
 
         if show_progress:
