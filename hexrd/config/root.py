@@ -115,7 +115,7 @@ class RootConfig(Config):
                 multiproc
                 )
             res = temp
-        logger.info("Using %d of %d available processors", res, ncpus)
+        logger.info("%d of %d available processors requested", res, ncpus)
         return res
 
 

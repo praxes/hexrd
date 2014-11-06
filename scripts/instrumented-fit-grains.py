@@ -3,7 +3,8 @@
 # Runner of pulls_spots_mp instrumenting for profile
 #
 
-import pull_spots_mp as target
+import hexrd.fitgrains as target
+from hexrd import config
 
 import sys, os, time
 import functools
@@ -34,19 +35,19 @@ def add_nvtx_instrumentation(nvtx, refinement=1):
         return
 
     # This 3 show a bit of structure:
-    # target.Config.__init__ is initialization time that is outside of multiprocessing
-    # target.read_frames is the time taken by reading frame data *and* converting to sparse
-    # target.process_grain is the "per grain" process, which should be handled by multiproc
+    # config.open is initialization time that is outside of multiprocessing
+    # target.get_frames is the time taken by reading frame data *and* converting to sparse
+    # target.FitGrainsWorker.loop is the "per grain" process, which should be handled by multiproc
     PROFILE('dispatcher.Overloaded.compile', nvtx.colors.black)
-    PROFILE('target.Config.__init__', nvtx.colors.red)
-    PROFILE('target.process_grain', nvtx.colors.blue)
+    PROFILE('target.config.open', nvtx.colors.red)
+    PROFILE('target.FitGrainsWorker.loop', nvtx.colors.blue)
 
 
     if refinement < 1:
         return
 
     # This shows where numba is compiling the @jit decorated functions
-    PROFILE('target.read_frames', nvtx.colors.green)
+    PROFILE('target.get_frames', nvtx.colors.green)
     PROFILE('xrdutil.pullSpots', nvtx.colors.blue)
     PROFILE('fitting.fitGrain', nvtx.colors.yellow)
     PROFILE('target.extract_ijv', nvtx.colors.magenta)
@@ -116,10 +117,10 @@ def profiling(profile=False, use_nvtx=False):
 
     if use_nvtx:
         print_nvtx_profile(nvtx)
-    
+
 
 def usage():
-    print "USAGE: {0} [-p] [-n] [-c <max_grains>] <experiment_file> [<grain_file>]".format(sys.argv[0])
+    print "USAGE: {0} [-p] [-n] [-c <max_grains>] <experiment_file>".format(sys.argv[0])
 
 if __name__ == '__main__':
     import getopt
@@ -152,19 +153,14 @@ if __name__ == '__main__':
         usage()
         sys.exit(2)
     cfg_filename = args[0]
-    quats_filename = args[1] if len(args) >= 2 else None
 
     with profiling(**prof_dict):
         start = time.time()
         print "Using cfg file '%s'" % (cfg_filename)
-        config = target.Config(cfg_filename)
-        config.multiproc = False # force sequential run
-        quats_filename = quats_filename if quats_filename is not None else config.analysis_name+'-quats.out'
-    
-        quats = np.loadtxt(os.path.join(config.working_dir, quats_filename))
-        if max_grains is not None and len(quats) > max_grains:
-            quats = quats[:max_grains]
-        target.process_all_grains(config, quats)
+        config = config.open(cfg_filename)[0]
+        config._cfg['multiproc'] = 1 # force sequential run
+
+        target.fit_grains(config, force=True, max_grains=max_grains)
 
         elapsed = time.time() - start
         print "\nTotal processing time %.2f seconds" % elapsed
