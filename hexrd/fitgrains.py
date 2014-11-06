@@ -129,7 +129,7 @@ def get_job_queue(cfg, max_grains=None):
     # load the queue
     try:
         estimate_f = cfg.fit_grains.estimate
-        grain_params_list = np.loadtxt(estimate_f)
+        grain_params_list = np.atleast_2d(np.loadtxt(estimate_f))
         n_quats = len(grain_params_list)
         if max_grains is None:
             max_grains = n_quats
