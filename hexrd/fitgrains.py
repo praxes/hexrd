@@ -141,7 +141,7 @@ def get_job_queue(cfg):
             )
         n_quats = len(quats)
         phi, n = angleAxisOfRotMat(rotMatOfQuat(quats.T))
-        for i, quat in enumerate(quats):
+        for i in range(n_quats):
             exp_map = phi[i]*n[:, i]
             grain_params = np.hstack(
                 [exp_map.flatten(), 0., 0., 0., 1., 1., 1., 0., 0., 0.]
