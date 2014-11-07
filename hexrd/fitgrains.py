@@ -73,19 +73,19 @@ def get_frames(reader, cfg, show_progress=False):
 
 def get_instrument_parameters(cfg):
     # TODO: this needs to be
-    det_p = cfg.detector.parameters
+    det_p = cfg.instrument.parameters
     if not os.path.exists(det_p):
         migrate_detector_to_instrument_config(
-            np.loadtxt(cfg.detector.parameters_old),
-            cfg.detector.pixels.rows,
-            cfg.detector.pixels.columns,
-            cfg.detector.pixels.size,
+            np.loadtxt(cfg.instrument.detector.parameters_old),
+            cfg.instrument.detector.pixels.rows,
+            cfg.instrument.detector.pixels.columns,
+            cfg.instrument.detector.pixels.size,
             detID='GE',
             chi=0.,
             tVec_s=np.zeros(3),
-            filename=cfg.detector.parameters
+            filename=cfg.instrument.parameters
             )
-    with open(cfg.detector.parameters, 'r') as f:
+    with open(cfg.instrument.parameters, 'r') as f:
         # only one panel for now
         # TODO: configurize this
         return [cfg for cfg in yaml.load_all(f)][0]
