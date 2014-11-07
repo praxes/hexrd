@@ -82,9 +82,10 @@ def make_old_detector_parfile(
         fid.close()
     return det_plist
 
-def migrate_detector_config(old_par, nrows, ncols, pixel_size,
-                            detID='GE', chi=0., tVec_s=np.zeros(3),
-                            filename=None):
+def migrate_detector_to_instrument_config(
+    old_par, nrows, ncols, pixel_size, detID='GE', chi=0., tVec_s=np.zeros(3),
+    filename=None
+    ):
     """
     takes old ge detector parfile from hexrd and converts to the new 10
     parameter spec.
@@ -158,7 +159,7 @@ def initialize_experiment(cfg):
 
     materials_fname = cfg.material.definitions
     material_name = cfg.material.active
-    detector_fname = cfg.detector.parameters_old
+    detector_fname = cfg.instrument.detector.parameters_old
 
     # load materials
     ws.loadMaterialList(os.path.join(cwd, materials_fname))

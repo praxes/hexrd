@@ -26,13 +26,14 @@ image_series:
   #dark: ~
   flip: h # ~, v, h, hv, vh, cw, ccw
 
-detector:
-  parameters_old: CeO2.par # the old detector spec, produced by the GUI
+instrument:
   parameters: CeO2.yml
-  pixels: # this section required to convert from old detector spec
-    rows: 2048
-    columns: 2048
-    size: [0.200, 0.200] # [row height, col width] mm
+  detector: # this section is only needed to convert old files to the new spec
+    parameters_old: CeO2.par # the old detector spec, produced by the GUI
+    pixels: # this section required to convert from old detector spec
+      rows: 2048
+      columns: 2048
+      size: [0.200, 0.200] # [row height, col width] mm
 
 find_orientations:
   orientation_maps:
