@@ -10,6 +10,8 @@ import sys, os, time
 import functools
 from contextlib import contextmanager
 import numpy as np
+from hexrd import USE_NUMBA
+
 
 def add_nvtx_instrumentation(nvtx, refinement=1):
     from scipy import sparse
@@ -20,11 +22,12 @@ def add_nvtx_instrumentation(nvtx, refinement=1):
     from hexrd.xrd import xrdutil
     from hexrd.xrd import distortion
     from hexrd import gridutil
-    from numba import dispatcher
     from hexrd.xrd import transforms_CAPI as xfcapi
     from hexrd.xrd import transforms as xf
     from hexrd.xrd import detector
     import numpy
+    if USE_NUMBA:
+        from numba import dispatcher
 
     _locals = locals()
     def PROFILE(func_path, color):
@@ -38,7 +41,8 @@ def add_nvtx_instrumentation(nvtx, refinement=1):
     # config.open is initialization time that is outside of multiprocessing
     # target.get_frames is the time taken by reading frame data *and* converting to sparse
     # target.FitGrainsWorker.loop is the "per grain" process, which should be handled by multiproc
-    PROFILE('dispatcher.Overloaded.compile', nvtx.colors.black)
+    if USE_NUMBA:
+        PROFILE('dispatcher.Overloaded.compile', nvtx.colors.black)
     PROFILE('target.config.open', nvtx.colors.red)
     PROFILE('target.FitGrainsWorker.loop', nvtx.colors.blue)
 

@@ -25,7 +25,9 @@ from hexrd.xrd.fitting import fitGrain, objFuncFitGrain
 from hexrd.xrd.rotations import angleAxisOfRotMat, rotMatOfQuat
 from hexrd.xrd.transforms import bVec_ref, eta_ref, mapAngle, vInv_ref
 from hexrd.xrd.xrdutil import pullSpots
-
+from hexrd import USE_NUMBA
+if USE_NUMBA:
+    import numba
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,43 @@ gScl  = np.array([1., 1., 1.,
                   1., 1., 1.,
                   1., 1., 1., 0.01, 0.01, 0.01])
 
+if USE_NUMBA:
+    @numba.njit
+    def extract_ijv(in_array, threshold, out_i, out_j, out_v):
+        n = 0
+        w, h = in_array.shape
+
+        for i in range(w):
+            for j in range(h):
+                v = in_array[i,j]
+                if v > threshold:
+                    out_v[n] = v
+                    out_i[n] = i
+                    out_j[n] = j
+                    n += 1
+
+        return n
+
+    class CooMatrixBuilder(object):
+        def __init__(self):
+            self.v_buff = np.empty((2048*2048,), dtype=np.int16)
+            self.i_buff = np.empty((2048*2048,), dtype=np.int16)
+            self.j_buff = np.empty((2048*2048,), dtype=np.int16)
+
+        def build_matrix(self, frame, threshold):
+            count = extract_ijv(frame, threshold,
+                                self.i_buff, self.j_buff, self.v_buff)
+            return coo_matrix((self.v_buff[0:count].copy(),
+                               (self.i_buff[0:count].copy(),
+                                self.j_buff[0:count].copy())),
+                              shape=frame.shape)
+
+else: # not USE_NUMBA
+    class CooMatrixBuilder(object):
+        def build_matrix(self, frame, threshold):
+            mask = frame > threshold
+            return coo_matrix((frame[mask], mask.nonzero()),
+                              shape=frame.shape)
 
 def get_frames(reader, cfg, show_progress=False):
     # TODO: this should be updated to read only the frames requested in cfg
@@ -52,14 +91,10 @@ def get_frames(reader, cfg, show_progress=False):
         pbar = ProgressBar(widgets=widgets, maxval=n_frames).start()
 
     frame_list = []
+    coo_builder = CooMatrixBuilder()
     for i in range(n_frames):
         frame = reader.read()
-        mask = frame > cfg.fit_grains.threshold
-        sparse_frame = coo_matrix(
-            (frame[mask], mask.nonzero()),
-            shape=mask.shape
-            )
-        frame_list.append(sparse_frame)
+        frame_list.append(coo_builder.build_matrix(frame, cfg.fit_grains.threshold))
 
         if show_progress:
             pbar.update(i)

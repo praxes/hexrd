@@ -4,6 +4,10 @@ from numpy        import array, c_, r_, hstack, vstack, tile, \
                          ones, zeros
 from numpy        import sum as asum
 from numpy.linalg import det
+import numpy as np
+from hexrd import USE_NUMBA
+if USE_NUMBA:
+    import numba
 
 def cellIndices(edges, points_1d):
     """
@@ -59,6 +63,22 @@ def cellIndices(edges, points_1d):
     #     raise RuntimeWarning, "some input points are outside the grid"
     return array(idx, dtype=int)
 
+
+def _fill_connectivity(out, m, n, p):
+    i_con = 0
+    for k in range(p):
+        for j in range(m):
+            for i in range(n):
+                extra = k*(n+1)*(m+1)
+                out[i_con, 0] = i + j*(n + 1) + 1 + extra
+                out[i_con, 1] = i + j*(n + 1) + extra
+                out[i_con, 2] = i + j + n*(j+1) + 1 + extra
+                out[i_con, 3] = i + j + n*(j+1) + 2 + extra
+                i_con += 1
+
+if USE_NUMBA:
+    _fill_connectivity = numba.njit(_fill_connectivity)
+
 def cellConnectivity(m, n, p=1, origin='ul'):
     """
     p x m x n (layers x rows x cols)
@@ -68,16 +88,10 @@ def cellConnectivity(m, n, p=1, origin='ul'):
     choice will affect handedness (cw or ccw)
     """
     nele = p*m*n
-    con  = zeros((nele, 4), dtype=int)
-    i_con = 0
-    for k in range(p):
-        for j in range(m):
-            for i in range(n):
-                con[i_con, :] = array([ i + j*(n + 1) + 1, 
-                                        i + j*(n + 1), 
-                                        i + j + n*(j + 1) + 1,
-                                        i + j + n*(j + 1) + 2 ]) + k*(n + 1)*(m + 1)
-                i_con += 1
+    con  = np.empty((nele, 4), dtype=int)
+
+    _fill_connectivity(con, m, n, p)
+
     if p > 1:
         nele = m*n*(p-1)
         tmp_con3 = con.reshape(p, m*n, 4)
@@ -90,21 +104,38 @@ def cellConnectivity(m, n, p=1, origin='ul'):
         con = con[:, ::-1]
     return con
 
-def cellCentroids(crd, con):
-    """
-    con.shape = (nele, 4)
-    crd.shape = (ncrd, 2)
 
-    con.shape = (nele, 8)
-    crd.shape = (ncrd, 3)
-    """
-    nele = con.shape[0]
-    dim  = crd.shape[1]
-    centroid_xy = zeros((nele, dim))
-    for i in range(len(con)):
-        el_crds = crd[con[i, :], :] # (4, 2)
-        centroid_xy[i, :] = (el_crds).mean(axis=0)
-    return centroid_xy
+if USE_NUMBA:
+    @numba.jit # relies on loop extraction
+    def cellCentroids(crd, con):
+        nele, conn_count = con.shape
+        dim = crd.shape[1]
+        out = np.empty((nele, dim))
+        inv_conn = 1.0/conn_count
+        for i in range(nele):
+            for j in range(dim):
+                acc = 0.0
+                for k in range(conn_count):
+                    acc += crd[con[i,k], j]
+                out[i,j] = acc * inv_conn
+        return out
+else:
+    def cellCentroids(crd, con):
+        """
+        con.shape = (nele, 4)
+        crd.shape = (ncrd, 2)
+
+        con.shape = (nele, 8)
+        crd.shape = (ncrd, 3)
+        """
+        nele = con.shape[0]
+        dim  = crd.shape[1]
+        centroid_xy = zeros((nele, dim))
+        for i in range(len(con)):
+            el_crds = crd[con[i, :], :] # (4, 2)
+            centroid_xy[i, :] = (el_crds).mean(axis=0)
+        return centroid_xy
+
 
 def computeArea(polygon):
     """
