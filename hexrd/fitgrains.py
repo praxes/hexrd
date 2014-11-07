@@ -13,7 +13,6 @@ import yaml
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.linalg.matfuncs import logm
-import numba
 
 from hexrd.coreutil import initialize_experiment, migrate_detector_config
 from hexrd.matrixutil import vecMVToSymm
@@ -27,7 +26,8 @@ from hexrd.xrd.rotations import angleAxisOfRotMat, rotMatOfQuat
 from hexrd.xrd.transforms import bVec_ref, eta_ref, mapAngle, vInv_ref
 from hexrd.xrd.xrdutil import pullSpots
 from hexrd import USE_NUMBA
-
+if USE_NUMBA:
+    import numba
 
 logger = logging.getLogger(__name__)
 
