@@ -14,7 +14,9 @@ import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.linalg.matfuncs import logm
 
-from hexrd.coreutil import initialize_experiment, migrate_detector_config
+from hexrd.coreutil import (
+    initialize_experiment, migrate_detector_to_instrument_config
+    )
 from hexrd.matrixutil import vecMVToSymm
 from hexrd.utils.progressbar import (
     Bar, ETA, Percentage, ProgressBar, ReverseBar
@@ -70,9 +72,10 @@ def get_frames(reader, cfg, show_progress=False):
 
 
 def get_instrument_parameters(cfg):
+    # TODO: this needs to be
     det_p = cfg.detector.parameters
     if not os.path.exists(det_p):
-        migrate_detector_config(
+        migrate_detector_to_instrument_config(
             np.loadtxt(cfg.detector.parameters_old),
             cfg.detector.pixels.rows,
             cfg.detector.pixels.columns,

@@ -159,7 +159,7 @@ def initialize_experiment(cfg):
 
     materials_fname = cfg.material.definitions
     material_name = cfg.material.active
-    detector_fname = cfg.detector.parameters_old
+    detector_fname = cfg.instrument.detector.parameters_old
 
     # load materials
     ws.loadMaterialList(os.path.join(cwd, materials_fname))
