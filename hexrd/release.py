@@ -22,7 +22,7 @@ _version_major = 0
 _version_minor = 2
 _version_patch = 1
 _version_extra = ''
-_version_extra = '.dev' # uncomment this during development
+#_version_extra = '.dev' # uncomment this during development
 # _version_extra = 'rc1' # uncomment this for release candidates
 
 # Construct full version string from these.
