@@ -137,7 +137,7 @@ def get_job_queue(cfg):
         logger.info('fitting grains using default initial estimate')
         # load quaternion file
         quats = np.atleast_2d(
-            np.loadtxt(os.path.join(cfg.analysis_dir, 'quats.out'))
+            np.loadtxt(os.path.join(cfg.working_dir, 'accepted_orientations.dat'))
             )
         n_quats = len(quats)
         phi, n = angleAxisOfRotMat(rotMatOfQuat(quats.T))
