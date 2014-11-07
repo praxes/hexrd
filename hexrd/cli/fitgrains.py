@@ -58,7 +58,7 @@ def execute(args, parser):
     logger.addHandler(ch)
     logger.info('=== begin fit-grains ===')
 
-    for cfg in config.open(args.yml):
+    for cfg in cfgs:
         # prepare the analysis directory
         if os.path.exists(cfg.analysis_dir) and not args.force:
             logger.error(
