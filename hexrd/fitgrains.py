@@ -14,7 +14,9 @@ import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.linalg.matfuncs import logm
 
-from hexrd.coreutil import initialize_experiment, migrate_detector_config
+from hexrd.coreutil import (
+    initialize_experiment, migrate_detector_to_instrument_config
+    )
 from hexrd.matrixutil import vecMVToSymm
 from hexrd.utils.progressbar import (
     Bar, ETA, Percentage, ProgressBar, ReverseBar
@@ -110,27 +112,26 @@ def get_frames(reader, cfg, show_progress=False):
 
 
 def get_instrument_parameters(cfg):
-    with open(cfg.detector.parameters, 'r') as f:
+    # TODO: this needs to be
+    det_p = cfg.instrument.parameters
+    if not os.path.exists(det_p):
+        migrate_detector_to_instrument_config(
+            np.loadtxt(cfg.instrument.detector.parameters_old),
+            cfg.instrument.detector.pixels.rows,
+            cfg.instrument.detector.pixels.columns,
+            cfg.instrument.detector.pixels.size,
+            detID='GE',
+            chi=0.,
+            tVec_s=np.zeros(3),
+            filename=cfg.instrument.parameters
+            )
+    with open(cfg.instrument.parameters, 'r') as f:
         # only one panel for now
         # TODO: configurize this
         return [cfg for cfg in yaml.load_all(f)][0]
 
 
-def get_detector_parameters(cfg, instr_cfg):
-    # attempt to load the new detector parameter file
-    det_p = cfg.detector.parameters
-    if not os.path.exists(det_p):
-        migrate_detector_config(
-            np.loadtxt(cfg.detector.parameters_old),
-            cfg.detector.pixels.rows,
-            cfg.detector.pixels.columns,
-            cfg.detector.pixels.size,
-            detID='GE',
-            chi=0.,
-            tVec_s=np.zeros(3),
-            filename=cfg.detector.parameters
-            )
-
+def get_detector_parameters(instr_cfg):
     return np.hstack([
         instr_cfg['detector']['transform']['tilt_angles'],
         instr_cfg['detector']['transform']['t_vec_d'],
@@ -205,7 +206,7 @@ def get_data(cfg, show_progress=False):
     reader = get_frames(reader, cfg, show_progress)
 
     instrument_cfg = get_instrument_parameters(cfg)
-    detector_params = get_detector_parameters(cfg, instrument_cfg)
+    detector_params = get_detector_parameters(instrument_cfg)
     distortion = get_distortion_correction(instrument_cfg)
     set_planedata_exclusions(cfg, detector, pd)
     pkwargs = {

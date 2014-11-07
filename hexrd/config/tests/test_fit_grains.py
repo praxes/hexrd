@@ -48,9 +48,10 @@ class TestFitGrainsConfig(TestConfig):
 
     def test_estimate(self):
         self.assertEqual(self.cfgs[0].fit_grains.estimate, None)
-        self.assertRaises(
-            IOError,
-            getattr, self.cfgs[1].fit_grains, 'estimate'
+        # nonexistent file needs to return None
+        self.assertEqual(
+            self.cfgs[1].fit_grains.estimate,
+            None
             )
         self.assertEqual(
             self.cfgs[2].fit_grains.estimate,
