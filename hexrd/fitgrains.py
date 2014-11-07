@@ -123,6 +123,7 @@ def get_job_queue(cfg):
     job_queue = mp.JoinableQueue()
     # load the queue
     try:
+        # use an estimate of the grain parameters, if available
         estimate_f = cfg.fit_grains.estimate
         grain_params_list = np.loadtxt(estimate_f)
         n_quats = len(grain_params_list)
@@ -134,6 +135,7 @@ def get_job_queue(cfg):
             estimate_f
             )
     except (ValueError, IOError):
+        # no estimate available, use orientations and defaults
         logger.info('fitting grains using default initial estimate')
         # load quaternion file
         quats = np.atleast_2d(
@@ -141,10 +143,10 @@ def get_job_queue(cfg):
             )
         n_quats = len(quats)
         phi, n = angleAxisOfRotMat(rotMatOfQuat(quats.T))
-        for i in range(n_quats):
-            exp_map = phi[i]*n[:, i]
+        for i, (phi, n) in enumerate(zip(phi, n.T)):
+            exp_map = phi*n
             grain_params = np.hstack(
-                [exp_map.flatten(), 0., 0., 0., 1., 1., 1., 0., 0., 0.]
+                [exp_map, 0., 0., 0., 1., 1., 1., 0., 0., 0.]
                 )
             job_queue.put((i, grain_params))
     logger.info("fitting grains for %d orientations", n_quats)
