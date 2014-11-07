@@ -54,9 +54,6 @@ class FitGrainsConfig(Config):
         if os.path.isfile(temp):
             return temp
         logger.warning('"%s": "%s" does not exist', key, temp)
-        raise IOError(
-            '"%s": "%s" does not exist' % (key, temp)
-            )
 
 
     @property

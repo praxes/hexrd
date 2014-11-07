@@ -128,21 +128,21 @@ def get_job_queue(cfg, max_grains=None):
     job_queue = mp.JoinableQueue()
     # load the queue
     try:
+        # use an estimate of the grain parameters, if available
         estimate_f = cfg.fit_grains.estimate
         grain_params_list = np.atleast_2d(np.loadtxt(estimate_f))
         n_quats = len(grain_params_list)
-        if max_grains is None:
+        if max_grains is None or max_grains > n_quats:
             max_grains = n_quats
-        for grain_params in grain_params_list:
+        for grain_params in grain_params_list[:max_grains]:
             grain_id = grain_params[0]
-            if grain_id == max_grains:
-                break
             job_queue.put((grain_id, grain_params[3:15]))
         logger.info(
             'fitting grains using "%s" for the initial estimate',
             estimate_f
             )
     except (ValueError, IOError):
+        # no estimate available, use orientations and defaults
         logger.info('fitting grains using default initial estimate')
         # load quaternion file
         quats = np.atleast_2d(
