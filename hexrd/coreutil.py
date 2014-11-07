@@ -82,9 +82,10 @@ def make_old_detector_parfile(
         fid.close()
     return det_plist
 
-def migrate_detector_config(old_par, nrows, ncols, pixel_size,
-                            detID='GE', chi=0., tVec_s=np.zeros(3),
-                            filename=None):
+def migrate_detector_to_instrument_config(
+    old_par, nrows, ncols, pixel_size, detID='GE', chi=0., tVec_s=np.zeros(3),
+    filename=None
+    ):
     """
     takes old ge detector parfile from hexrd and converts to the new 10
     parameter spec.

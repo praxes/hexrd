@@ -6,7 +6,7 @@ import sys
 from hexrd.utils.decorators import memoized
 
 from .config import Config
-from .detector import DetectorConfig
+from .instrument import InstrumentConfig
 from .findorientations import FindOrientationsConfig
 from .fitgrains import FitGrainsConfig
 from .imageseries import ImageSeriesConfig
@@ -54,11 +54,6 @@ class RootConfig(Config):
 
 
     @property
-    def detector(self):
-        return DetectorConfig(self)
-
-
-    @property
     def find_orientations(self):
         return FindOrientationsConfig(self)
 
@@ -71,6 +66,11 @@ class RootConfig(Config):
     @property
     def image_series(self):
         return ImageSeriesConfig(self)
+
+
+    @property
+    def instrument(self):
+        return InstrumentConfig(self)
 
 
     @property

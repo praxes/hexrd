@@ -70,14 +70,6 @@ def get_frames(reader, cfg, show_progress=False):
 
 
 def get_instrument_parameters(cfg):
-    with open(cfg.detector.parameters, 'r') as f:
-        # only one panel for now
-        # TODO: configurize this
-        return [cfg for cfg in yaml.load_all(f)][0]
-
-
-def get_detector_parameters(cfg, instr_cfg):
-    # attempt to load the new detector parameter file
     det_p = cfg.detector.parameters
     if not os.path.exists(det_p):
         migrate_detector_config(
@@ -90,7 +82,13 @@ def get_detector_parameters(cfg, instr_cfg):
             tVec_s=np.zeros(3),
             filename=cfg.detector.parameters
             )
+    with open(cfg.detector.parameters, 'r') as f:
+        # only one panel for now
+        # TODO: configurize this
+        return [cfg for cfg in yaml.load_all(f)][0]
 
+
+def get_detector_parameters(instr_cfg):
     return np.hstack([
         instr_cfg['detector']['transform']['tilt_angles'],
         instr_cfg['detector']['transform']['t_vec_d'],
@@ -160,7 +158,7 @@ def get_data(cfg, show_progress=False):
     reader = get_frames(reader, cfg, show_progress)
 
     instrument_cfg = get_instrument_parameters(cfg)
-    detector_params = get_detector_parameters(cfg, instrument_cfg)
+    detector_params = get_detector_parameters(instrument_cfg)
     distortion = get_distortion_correction(instrument_cfg)
     set_planedata_exclusions(cfg, pd)
     pkwargs = {
