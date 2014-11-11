@@ -25,6 +25,7 @@ def add_nvtx_instrumentation(nvtx, refinement=1):
     from hexrd.xrd import transforms_CAPI as xfcapi
     from hexrd.xrd import transforms as xf
     from hexrd.xrd import detector
+    from hexrd.xrd import crystallography
     import numpy
     if USE_NUMBA:
         from numba import dispatcher
@@ -46,7 +47,6 @@ def add_nvtx_instrumentation(nvtx, refinement=1):
     PROFILE('target.config.open', nvtx.colors.red)
     PROFILE('target.FitGrainsWorker.loop', nvtx.colors.blue)
 
-
     if refinement < 1:
         return
 
@@ -54,9 +54,15 @@ def add_nvtx_instrumentation(nvtx, refinement=1):
     PROFILE('target.get_frames', nvtx.colors.green)
     PROFILE('xrdutil.pullSpots', nvtx.colors.blue)
     PROFILE('fitting.fitGrain', nvtx.colors.yellow)
-    PROFILE('target.extract_ijv', nvtx.colors.magenta)
-    PROFILE('numpy.nonzero', nvtx.colors.red)
-
+    PROFILE('target.CooMatrixBuilder.build_matrix', nvtx.colors.magenta)
+    PROFILE('xrdutil.simulateGVecs', nvtx.colors.yellow)
+    PROFILE('crystallography.PlaneData.getSymHKLs', nvtx.colors.yellow)
+    PROFILE('xf.validateAngleRanges', nvtx.colors.green)
+    PROFILE('xrdutil.angularPixelSize', nvtx.colors.yellow)
+    PROFILE('xrdutil._fetch_hkls_from_planedata', nvtx.colors.yellow)
+    PROFILE('xrdutil._filter_hkls_eta_ome', nvtx.colors.yellow)
+    PROFILE('xrdutil._project_on_detector_plane', nvtx.colors.yellow)
+    PROFILE('xrdutil._project_on_detector_plane_orig', nvtx.colors.yellow)
     if refinement < 2:
         return
 
@@ -64,9 +70,11 @@ def add_nvtx_instrumentation(nvtx, refinement=1):
     PROFILE('detector.ReadGE.read', nvtx.colors.cyan)
 
     # some key functions
-    PROFILE('numpy.meshgrid', nvtx.colors.red)
-    PROFILE('numpy.arange', nvtx.colors.red)
-    PROFILE('xrdutil.simulateGVecs', nvtx.colors.yellow)
+    PROFILE('numpy.meshgrid', nvtx.colors.cyan)
+    PROFILE('numpy.arange', nvtx.colors.cyan)
+    PROFILE('numpy.zeros', nvtx.colors.cyan)
+    PROFILE('numpy.nonzero', nvtx.colors.cyan)
+    PROFILE('numpy.vstack', nvtx.colors.cyan)
     PROFILE('xrdutil._coo_build_window', nvtx.colors.yellow)
     PROFILE('fitting.objFuncFitGrain', nvtx.colors.magenta)
     PROFILE('sparse.coo_matrix', nvtx.colors.yellow)
@@ -129,6 +137,7 @@ def usage():
 if __name__ == '__main__':
     import getopt
     max_grains = None
+
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'pnc:')

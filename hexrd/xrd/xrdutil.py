@@ -3140,6 +3140,70 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
                 pass # close conditional for valid angles
     return eta_ome
 
+
+
+_memo_hkls = {}
+def _fetch_hkls_from_planedata(pd):
+    if pd not in _memo_hkls:
+        _memo_hkls[pd] = num.ascontiguousarray(num.hstack(pd.getSymHKLs()).T, dtype=float)
+
+    return _memo_hkls[pd]
+
+
+def _filter_hkls_eta_ome(hkls, angles, eta_range, ome_range):
+    """
+    given a set of hkls and angles, filter them by the
+    eta and omega ranges
+    """
+    # do eta ranges
+    angMask_eta = num.zeros(len(angles), dtype=bool)
+    for etas in eta_range:
+        angMask_eta = num.logical_or(angMask_eta, xf.validateAngleRanges(angles[:, 1], etas[0], etas[1]))
+
+    # do omega ranges
+    ccw=True
+    angMask_ome = num.zeros(len(angles), dtype=bool)
+    for omes in ome_range:
+        if omes[1] - omes[0] < 0:
+            ccw=False
+        angMask_ome = num.logical_or(angMask_ome, xf.validateAngleRanges(angles[:, 2], omes[0], omes[1], ccw=ccw))
+
+    # mask angles list, hkls
+    angMask = num.logical_and(angMask_eta, angMask_ome)
+
+    allAngs = angles[angMask, :]
+    allHKLs = num.vstack([hkls, hkls])[angMask, :]
+
+    return allAngs, allHKLs
+
+
+def _project_on_detector_plane_orig(allHKLs, allAngs, bMat, rMat_d, rMat_c,
+                                    tVec_d, tVec_c, tVec_s, chi, distortion):
+    det_xy = []
+    for hkl, angs in zip(allHKLs, allAngs):
+        gVec_c = num.dot(bMat, hkl.reshape(3,1))
+        rMat_s = xfcapi.makeOscillRotMat( [chi, angs[2]] )
+        tmp_xy = xfcapi.gvecToDetectorXY(gVec_c.T, rMat_d, rMat_s, rMat_c,
+                                         tVec_d, tVec_s, tVec_c)
+        if (distortion is not None or len(distortion) == 0) and not num.any(num.isnan(tmp_xy)):
+            det_xy.append(distortion[0](tmp_xy, distortion[1], invert=True))
+    return num.vstack(det_xy), rMat_s
+
+def _project_on_detector_plane(allHKLs, allAngs, bMat, rMat_d, rMat_c,
+                               tVec_d, tVec_c, tVec_s, chi, distortion):
+    if distortion is None or len(distortion) < 2:
+        # no distortion present: return an empty array.
+        return num.zeros((0,2), dtype=num.float)
+
+    gVec_cs = num.dot(bMat, allHKLs.T)
+    rMat_ss = xfcapi.makeOscillRotMatArray(chi, num.ascontiguousarray(allAngs[:,2]))
+    tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs.T, rMat_d, rMat_ss, rMat_c,
+                                          tVec_d, tVec_s, tVec_c)
+    valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
+    det_xy = distortion[0](tmp_xys[valid_mask], distortion[1], invert=True)
+    return det_xy, rMat_ss[-1]
+
+
 def simulateGVecs(pd, detector_params, grain_params,
                   ome_range=[(-num.pi, num.pi), ], ome_period=(-num.pi, num.pi),
                   eta_range=[(-num.pi, num.pi), ],
@@ -3173,7 +3237,7 @@ def simulateGVecs(pd, detector_params, grain_params,
     """
     bMat      = pd.latVecOps['B']
     wlen      = pd.wavelength
-    full_hkls = num.ascontiguousarray(num.hstack(pd.getSymHKLs()).T, dtype=float)
+    full_hkls = _fetch_hkls_from_planedata(pd)
 
     # extract variables for convenience
     rMat_d = xfcapi.makeDetectorRotMat(detector_params[:3])
@@ -3186,37 +3250,18 @@ def simulateGVecs(pd, detector_params, grain_params,
 
     # first find valid G-vectors
     angList = num.vstack(xfcapi.oscillAnglesOfHKLs(full_hkls, chi, rMat_c, bMat, wlen, vInv=vInv_s))
-
-    # do eta ranges
-    angMask_eta = num.zeros(len(angList), dtype=bool)
-    for etas in eta_range:
-        angMask_eta = num.logical_or(angMask_eta, xf.validateAngleRanges(angList[:, 1], etas[0], etas[1]))
-
-    # do omega ranges
-    ccw=True
-    angMask_ome = num.zeros(len(angList), dtype=bool)
-    for omes in ome_range:
-        if omes[1] - omes[0] < 0:
-            ccw=False
-        angMask_ome = num.logical_or(angMask_ome, xf.validateAngleRanges(angList[:, 2], omes[0], omes[1], ccw=ccw))
-
-    # mask angles list, hkls
-    angMask = num.logical_and(angMask_eta, angMask_ome)
-
-    allAngs = angList[angMask, :]
-    allHKLs = num.vstack([full_hkls, full_hkls])[angMask, :]
+    allAngs, allHKLs = _filter_hkls_eta_ome(full_hkls, angList, eta_range, ome_range)
 
     #...preallocate for speed...?
-    det_xy = []
-    for hkl, angs in zip(allHKLs, allAngs):
-        gVec_c = num.dot(bMat, hkl.reshape(3, 1))
-        rMat_s = xfcapi.makeOscillRotMat( [chi, angs[2]] )
-        tmp_xy = xfcapi.gvecToDetectorXY(gVec_c.T, rMat_d, rMat_s, rMat_c,
-                                         tVec_d, tVec_s, tVec_c)
-        if (distortion is not None or len(distortion) == 0) and not num.any(num.isnan(tmp_xy)):
-            det_xy.append(distortion[0](tmp_xy, distortion[1], invert=True))
-        pass
-    det_xy = num.vstack(det_xy)
+    det_xy, rMat_s = _project_on_detector_plane(allHKLs, allAngs, 
+                                                bMat, rMat_d, rMat_c, 
+                                                tVec_d, tVec_c, tVec_s, chi, distortion)
+    #det_xy, rMat_s = _project_on_detector_plane_orig(allHKLs, allAngs, 
+    #                                                 bMat, rMat_d, rMat_c, 
+    #                                                 tVec_d, tVec_c, tVec_s, chi, distortion)
+
+    #num.testing.assert_array_equal(rMat_s, rMat_s_b)
+    #num.testing.assert_array_equal(det_xy_b, det_xy)
     #
     on_panel_x = num.logical_and(det_xy[:, 0] >= panel_dims[0][0], det_xy[:, 0] <= panel_dims[1][0])
     on_panel_y = num.logical_and(det_xy[:, 1] >= panel_dims[0][1], det_xy[:, 1] <= panel_dims[1][1])
