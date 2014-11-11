@@ -8,6 +8,7 @@ from . import fitgrains
 from . import gui
 from . import help
 from . import findorientations
+from . import cacheframes
 
 
 def main():
@@ -39,6 +40,7 @@ def main():
     gui.configure_parser(sub_parsers)
     findorientations.configure_parser(sub_parsers)
     fitgrains.configure_parser(sub_parsers)
+    cacheframes.configure_parser(sub_parsers)
 
     try:
         import argcomplete
