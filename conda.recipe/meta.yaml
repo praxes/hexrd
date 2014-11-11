@@ -30,7 +30,7 @@ requirements:
 #    - numba
 #    - numbapro
     - numpy
-    - progressbar
+#    - progressbar
     - python
     - python.app # [osx]
     - pyyaml
