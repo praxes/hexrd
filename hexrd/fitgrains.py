@@ -151,7 +151,7 @@ def get_job_queue(cfg):
                 )
             job_queue.put((i, grain_params))
     logger.info("fitting grains for %d orientations", n_quats)
-    return job_queue
+    return job_queue, n_quats
 
 
 def get_data(cfg, show_progress=False):
@@ -187,8 +187,8 @@ def get_data(cfg, show_progress=False):
 def fit_grains(cfg, force=False, show_progress=False):
     # load the data
     reader, pkwargs = get_data(cfg, show_progress)
-    job_queue = get_job_queue(cfg)
-    njobs = job_queue.qsize()
+    job_queue, njobs = get_job_queue(cfg)
+    #njobs = job_queue.qsize() # ...THIS CAUSES PROBLEMS ON MAC OS X
 
     ncpus = cfg.multiprocessing
     logger.info('running pullspots with %d processors', ncpus)
