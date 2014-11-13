@@ -3,15 +3,25 @@ from __future__ import print_function, absolute_import
 import argparse
 import logging
 import sys
+import multiprocessing
 
-from . import fitgrains
-from . import gui
-from . import help
-from . import findorientations
-from . import cacheframes
+# These can't be relative imports on Windows because of the hack
+# in main() for multiprocessing.freeze_support()
+from hexrd.cli import fitgrains
+from hexrd.cli import gui
+from hexrd.cli import help
+from hexrd.cli import findorientations
+from hexrd.cli import cacheframes
 
 
 def main():
+    if sys.platform.startswith('win'):
+        # Hack for multiprocessing.freeze_support() to work from a
+        # setuptools-generated entry point.
+        if __name__ != "__main__":
+            sys.modules["__main__"] = sys.modules[__name__]
+        multiprocessing.freeze_support()
+
     if len(sys.argv) == 1:
         sys.argv.append('-h')
 
