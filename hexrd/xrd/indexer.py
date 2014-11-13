@@ -69,18 +69,6 @@ Zl = num.c_[0, 0, 1].T
 
 fableSampCOB = num.dot(rotMatOfExpMap(piby2*Zl), rotMatOfExpMap(piby2*Yl))
 
-# global vars for multiproc paintGrid method
-planeData_MP  = None
-omeMin_MP     = None
-omeMax_MP     = None
-etaMin_MP     = None
-etaMax_MP     = None
-hklList_MP    = None
-hklIDs_MP     = None
-etaOmeMaps_MP = None
-bMat_MP       = None
-threshold_MP  = None
-
 class GrainSpotter:
     """
     Interface to grain spotter, which must be in the user's path
@@ -793,99 +781,68 @@ def paintGrid(quats, etaOmeMaps,
         logger.info("running in serial mode")
         nCPUs = 1
 
-    # assign the globals for paintGridThis
-    global symHKLs_MP, wavelength_MP
-    global omeMin_MP, omeMax_MP, omeTol_MP, omePeriod_MP
-    global etaMin_MP, etaMax_MP, etaTol_MP
-    global omeIndices_MP, etaIndices_MP
-    global omeEdges_MP, etaEdges_MP
-    global hklList_MP, hklIDs_MP
-    global etaOmeMaps_MP
-    global bMat_MP
-    global threshold_MP
-    symHKLs_MP    = planeData.getSymHKLs()
-    wavelength_MP = planeData.wavelength
-    hklIDs_MP     = hklIDs
-    hklList_MP    = hklList
-    omeMin_MP     = omeMin
-    omeMax_MP     = omeMax
-    omeTol_MP     = omeTol
-    omeIndices_MP = omeIndices
-    omePeriod_MP  = omePeriod
-    omeEdges_MP   = etaOmeMaps.omeEdges
-    etaMin_MP     = etaMin
-    etaMax_MP     = etaMax
-    etaTol_MP     = etaTol
-    etaIndices_MP = etaIndices
-    etaEdges_MP   = etaOmeMaps.etaEdges
-    etaOmeMaps_MP = etaOmeMaps.dataStore
-    bMat_MP       = bMat
-    threshold_MP  = threshold
+    # Pack together the common parameters for processing
+    paramMP = {
+        'symHKLs': planeData.getSymHKLs(),
+        'wavelength': planeData.wavelength,
+        'hklIDs': hklIDs,
+        'hklList': hklList,
+        'omeMin': omeMin,
+        'omeMax': omeMax,
+        'omeTol': omeTol,
+        'omeIndices': omeIndices,
+        'omePeriod': omePeriod,
+        'omeEdges': etaOmeMaps.omeEdges,
+        'etaMin': etaMin,
+        'etaMax': etaMax,
+        'etaTol': etaTol,
+        'etaIndices': etaIndices,
+        'etaEdges': etaOmeMaps.etaEdges,
+        'etaOmeMaps': etaOmeMaps.dataStore,
+        'bMat': bMat,
+        'threshold': threshold
+        }
 
     # do the mapping
     start = time.time()                      # time this
     retval = None
+    params = [(q, paramMP) for q in quats.T]
     if multiProcMode:
         pool = multiprocessing.Pool(nCPUs)
-        retval = pool.map(paintGridThis, quats.T, chunksize=chunksize)
+        retval = pool.map(paintGridThis, params, chunksize=chunksize)
     else:
-        retval = map(paintGridThis, quats.T)
+        retval = map(paintGridThis, params)
     elapsed = (time.time() - start)
     logger.info("paintGrid took %.3f seconds", elapsed)
-
-    symHKLs_MP    = None
-    wavelength_MP = None
-    hklIDs_MP     = None
-    hklList_MP    = None
-    omeMin_MP     = None
-    omeMax_MP     = None
-    omeIndices_MP = None
-    omePeriod_MP  = None
-    omeEdges_MP   = None
-    etaMin_MP     = None
-    etaMax_MP     = None
-    etaIndices_MP = None
-    etaEdges_MP   = None
-    etaOmeMaps_MP = None
-    bMat_MP       = None
-    threshold_MP  = None
 
     if multiProcMode:
         pool.close()
 
     return retval
 
-def paintGridThis(quat):
+def paintGridThis(param):
     """
     """
-    # pull local vars from globals set in paintGrid
-    global symHKLs_MP, wavelength_MP
-    global omeMin_MP, omeMax_MP, omeTol_MP, omePeriod_MP
-    global etaMin_MP, etaMax_MP, etaTol_MP
-    global omeIndices_MP, etaIndices_MP
-    global omeEdges_MP, etaEdges_MP
-    global hklList_MP, hklIDs_MP
-    global etaOmeMaps_MP
-    global bMat_MP
-    global threshold_MP
-    symHKLs    = symHKLs_MP
-    wavelength = wavelength_MP
-    hklIDs     = hklIDs_MP
-    hklList    = hklList_MP
-    omeMin     = omeMin_MP
-    omeMax     = omeMax_MP
-    omeTol     = omeTol_MP
-    omePeriod  = omePeriod_MP
-    omeIndices = omeIndices_MP
-    omeEdges   = omeEdges_MP
-    etaMin     = etaMin_MP
-    etaMax     = etaMax_MP
-    etaTol     = etaTol_MP
-    etaIndices = etaIndices_MP
-    etaEdges   = etaEdges_MP
-    etaOmeMaps = etaOmeMaps_MP
-    bMat       = bMat_MP
-    threshold  = threshold_MP
+    quat, paramMP = param
+    # Unpack common parameters into locals
+    symHKLs    = paramMP['symHKLs']
+    wavelength = paramMP['wavelength']
+    hklIDs     = paramMP['hklIDs']
+    hklList    = paramMP['hklList']
+    omeMin     = paramMP['omeMin']
+    omeMax     = paramMP['omeMax']
+    omeTol     = paramMP['omeTol']
+    omePeriod  = paramMP['omePeriod']
+    omeIndices = paramMP['omeIndices']
+    omeEdges   = paramMP['omeEdges']
+    etaMin     = paramMP['etaMin']
+    etaMax     = paramMP['etaMax']
+    etaTol     = paramMP['etaTol']
+    etaIndices = paramMP['etaIndices']
+    etaEdges   = paramMP['etaEdges']
+    etaOmeMaps = paramMP['etaOmeMaps']
+    bMat       = paramMP['bMat']
+    threshold  = paramMP['threshold']
 
     # need this for proper index generation
 
