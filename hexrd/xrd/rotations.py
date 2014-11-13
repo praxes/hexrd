@@ -69,9 +69,9 @@ def arccosSafe(temp):
 
     temp[gte1] =  1
     temp[lte1] = -1
-    
+
     ang = arccos(temp)
-    
+
     return ang
 #
 #  ==================== Quaternions
@@ -83,7 +83,7 @@ def fixQuat(q):
     qdims = q.ndim
     if qdims == 3:
         l, m, n = q.shape
-        assert m is 4, 'your 3-d quaternion array isn\'t the right shape'
+        assert m == 4, 'your 3-d quaternion array isn\'t the right shape'
         q = q.transpose(0, 2, 1).reshape(l*n, 4).T
 
     qfix = unitVector(q)
@@ -116,24 +116,24 @@ def misorientation(q1, q2, *args):
     if not isinstance(q1, ndarray) or not isinstance(q2, ndarray):
         raise RuntimeError, "quaternion args are not of type `numpy ndarray'"
 
-    if q1.ndim is not 2 or q2.ndim is not 2:
+    if q1.ndim != 2 or q2.ndim != 2:
         raise RuntimeError, "quaternion args are the wrong shape; must be 2-d (columns)"
 
-    if q1.shape[1] is not 1:
-        raise RuntimeError, "first argument should be a single quaternion"
+    if q1.shape[1] != 1:
+        raise RuntimeError("first argument should be a single quaternion, got shape %s" % (q1.shape,))
 
-    if len(args) is 0:
+    if len(args) == 0:
         # no symmetries; use identity
         sym = (c_[1., 0, 0, 0].T, c_[1., 0, 0, 0].T)
     else:
         sym = args[0]
-        if len(sym) is 1:
+        if len(sym) == 1:
             if not isinstance(sym[0], ndarray):
                 raise RuntimeError, "symmetry argument is not an numpy array"
             else:
                 # add triclinic sample symmetry (identity)
                 sym += (c_[1., 0, 0, 0].T,)
-        elif len(sym) is 2:
+        elif len(sym) == 2:
             if not isinstance(sym[0], ndarray) or not isinstance(sym[1], ndarray):
                 raise RuntimeError, "symmetry arguments are not an numpy arrays"
         elif len(sym) > 2:
@@ -423,19 +423,19 @@ def rotMatOfExpMap_orig(expMap):
     """Original rotMatOfExpMap, used for comparison to optimized version
     """
     if isinstance(expMap, ndarray):
-        if expMap.ndim is not 2:
-            if expMap.ndim is 1 and len(expMap) is 3:
+        if expMap.ndim != 2:
+            if expMap.ndim == 1 and len(expMap) == 3:
                 numObjs = 1
                 expMap = expMap.reshape(3, 1)
             else:
                 raise RuntimeError, "input is the wrong dimensionality"
-        elif expMap.shape[0] is not 3:
+        elif expMap.shape[0] != 3:
             raise RuntimeError("input is the wrong shape along the 0-axis.  Yours is %d when is should be 3" \
                                % (expMap.shape[0]) )
         else:
             numObjs = expMap.shape[1]
     elif isinstance(expMap, list) or isinstance(expMap, tuple):
-        if len(expMap) is not 3:
+        if len(expMap) != 3:
             raise RuntimeError, "for list/tuple input only one exponential map vector is allowed"
         else:
             if not isscalar(expMap[0]) or not isscalar(expMap[1]) or not isscalar(expMap[2]):
@@ -459,7 +459,7 @@ def rotMatOfExpMap_orig(expMap):
     C2 = (1 - cos(phi)) / phi**2
     C2[zeroIndex] = 1
 
-    if numObjs is 1:
+    if numObjs == 1:
         rmat = I3 + C1 * W + C2 * dot(W, W)
     else:
         rmat = zeros((numObjs, 3, 3))
@@ -537,10 +537,10 @@ def angleAxisOfRotMat(R):
         raise RuntimeError, 'Input must be a 2 or 3-d ndarray'
     else:
         rdim = R.ndim
-        if rdim is 2:
+        if rdim == 2:
             nrot = 1
             R = tile(R, (1, 1, 1))
-        elif rdim is 3:
+        elif rdim == 3:
             nrot = R.shape[0]
         else:
             raise RuntimeError, \
@@ -654,7 +654,7 @@ def discreteFiber(c, s, B=I3, ndiv=120, invert=False, csym=None, ssym=None):
             assert c.shape[0] == 3, \
                    'scattering vector must be 3-d; yours is %d-d' \
                    % (c.shape[0])
-            if len(c.shape) is 1:
+            if len(c.shape) == 1:
                 c = c.reshape(3, 1)
             elif len(c.shape) > 2:
                 raise RuntimeError, \
@@ -662,7 +662,7 @@ def discreteFiber(c, s, B=I3, ndiv=120, invert=False, csym=None, ssym=None):
                       % (len(c.shape))
         else:
             # convert list input to array and transpose
-            if len(c) is 3 and isscalar(c[0]):
+            if len(c) == 3 and isscalar(c[0]):
                 c = asarray(c).reshape(3, 1)
             else:
                 c = asarray(c).T
@@ -675,7 +675,7 @@ def discreteFiber(c, s, B=I3, ndiv=120, invert=False, csym=None, ssym=None):
             assert s.shape[0] == 3, \
                    'scattering vector must be 3-d; yours is %d-d' \
                    % (s.shape[0])
-            if len(s.shape) is 1:
+            if len(s.shape) == 1:
                 s = s.reshape(3, 1)
             elif len(s.shape) > 2:
                 raise RuntimeError, \
@@ -683,7 +683,7 @@ def discreteFiber(c, s, B=I3, ndiv=120, invert=False, csym=None, ssym=None):
                       % (len(s.shape))
         else:
             # convert list input to array and transpose
-            if len(s) is 3 and isscalar(s[0]):
+            if len(s) == 3 and isscalar(s[0]):
                 s = asarray(s).reshape(3, 1)
             else:
                 s = asarray(s).T
@@ -710,7 +710,7 @@ def discreteFiber(c, s, B=I3, ndiv=120, invert=False, csym=None, ssym=None):
         else:
             nspace = nullSpace(c[:, i_c].reshape(3, 1))
             hperp = nspace[:, 0].reshape(3, 1)
-            if nokay is 0:
+            if nokay == 0:
                 ax = tile(hperp, (1, npts))
             else:
                 ax[:,     okay] = ax[:, okay] / tile(anrm[okay], (3, 1))

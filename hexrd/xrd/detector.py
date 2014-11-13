@@ -3463,7 +3463,7 @@ class Detector2DRC(DetectorBase):
 
         # properly offset in case
         if ROI is not None:
-            assert len(ROI) is 2, 'wrong length for ROI; should be 2 integers representing the UL corner'
+            assert len(ROI) == 2, 'wrong length for ROI; should be 2 integers representing the UL corner'
             row = row + ROI[0]
             col = col + ROI[1]
 
@@ -3491,7 +3491,7 @@ class Detector2DRC(DetectorBase):
 
         # properly offset in case
         if ROI is not None:
-            assert len(ROI) is 2, 'wrong length for ROI; should be 2 integers representing the UL corner'
+            assert len(ROI) == 2, 'wrong length for ROI; should be 2 integers representing the UL corner'
             row = row - ROI[0]
             col = col - ROI[1]
 
@@ -3540,7 +3540,7 @@ class Detector2DRC(DetectorBase):
                         raise RuntimeError, 'Output units \'%s\'not understood!' % (str(kwargs[argkeys[i]]))
                 elif argkeys[i] is 'rhoRange':
                     tthRange = kwargs[argkeys[i]]
-                    assert len(tthRange) is 2, 'Radial range should have length 2'
+                    assert len(tthRange) == 2, 'Radial range should have length 2'
                 elif argkeys[i] is 'rdist':
                     if not isinstance(kwargs[argkeys[i]], bool):
                         raise RuntimeError, 'Expecting boolean for rdist kewyord argument; got' \
@@ -3613,7 +3613,7 @@ class Detector2DRC(DetectorBase):
             # note that the Z comps should all be zeros anyhow
             P4_d = num.vstack( [X_d, Y_d, nzeros] )
 
-        if len(rhoRange) is 2:
+        if len(rhoRange) == 2:
             rhoMin = min(rhoRange)
             rhoMax = max(rhoRange)
             #
@@ -3851,7 +3851,7 @@ class Detector2DRC(DetectorBase):
                         raise RuntimeError, 'Input units \'%s\' not understood!' % (str(kwargs[argkeys[i]]))
                 elif argkeys[i] is 'tthRange':
                     tthRange = kwargs[argkeys[i]]
-                    assert len(tthRange) is 2, 'Two-theta range should have length 2'
+                    assert len(tthRange) == 2, 'Two-theta range should have length 2'
                 elif argkeys[i] is 'rdist':
                     if not isinstance(kwargs[argkeys[i]], bool):
                         raise RuntimeError, 'Expecting boolean for rdist kewyord argument; got' \
@@ -3954,7 +3954,7 @@ class Detector2DRC(DetectorBase):
         # transform data
         tmpData = num.vstack( [measTTH, eta_l] )
 
-        if len(tthRange) is 2:
+        if len(tthRange) == 2:
             tthMin = min(tthRange)
             tthMax = max(tthRange)
 
