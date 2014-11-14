@@ -18,6 +18,7 @@ app:
 
 requirements:
   build:
+    - setuptools
     - matplotlib
 #    - numba
 #    - numbapro
