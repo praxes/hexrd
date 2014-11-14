@@ -223,7 +223,7 @@ def write_grains_file(cfg, results):
     f = open(os.path.join(cfg.analysis_dir, 'grains.out'), 'w')
     # going to some length to make the header line up with the data
     # while also keeping the width of the lines to a minimum, settled
-    # on %14.7g representation.
+    # on %19.12g representation.
     header_items = (
         'grain ID', 'completeness', 'sum(resd**2)/nrefl',
         'xi[0]', 'xi[1]', 'xi[2]', 'tVec_c[0]', 'tVec_c[1]', 'tVec_c[2]',
@@ -234,8 +234,8 @@ def write_grains_file(cfg, results):
     len_items = []
     for i in header_items[1:]:
         temp = len(i)
-        len_items.append(temp if temp > 14 else 14) # for %14.7g
-    fmtstr = '#%8s  ' + '  '.join(['%%%ds' % i for i in len_items]) + '\n'
+        len_items.append(temp if temp > 19 else 19) # for %19.12g
+    fmtstr = '#%13s  ' + '  '.join(['%%%ds' % i for i in len_items]) + '\n'
     f.write(fmtstr % header_items)
     for (id, g_refined, compl, eMat, resd) in sorted(results):
         res_items = (
@@ -245,7 +245,9 @@ def write_grains_file(cfg, results):
             g_refined[11], eMat[0, 0], eMat[1, 1], eMat[2, 2], eMat[1, 2],
             eMat[0, 2], eMat[0, 1],
             )
-        fmtstr = '%9d  ' + '  '.join(['%%%d.7g' % i for i in len_items]) + '\n'
+        fmtstr = (
+            '%14d  ' + '  '.join(['%%%d.12g' % i for i in len_items]) + '\n'
+            )
         f.write(fmtstr % res_items)
 
 
