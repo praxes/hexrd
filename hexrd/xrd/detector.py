@@ -38,12 +38,6 @@ try:
 except:
     haveImageModule = False
 
-haveThreading = True
-try:
-    import threading
-except:
-    haveThreading = False
-
 import numpy as num
 from scipy import sparse
 from scipy.optimize import fsolve
@@ -125,30 +119,6 @@ class FmtCoordIdeal:
                 return retval
         retval = 'off-detector'
         return retval
-
-class ThreadReadFrame(threading.Thread):
-    def __init__(self, img, readArgs, castArgs):
-        threading.Thread.__init__(self)
-
-        self.img   = img
-        # self.dtype = dtype
-        # self.count = count
-        self.readArgs = readArgs
-        self.castArgs = castArgs
-
-        self.data = None
-        # self.success  = None
-
-        return
-
-    def run(self):
-        try:
-            readData = num.fromfile(self.img, **self.readArgs)
-            self.data = num.array(readData, **self.castArgs)
-            self.success = True
-        except:
-            self.success = False
-        return
 
 # if readGE gets a base class, perhaps hang this there
 def getCentered(vmin, vmax):
@@ -797,7 +767,6 @@ class ReadGE(Framer2DRC):
     __frame_dtype_float = 'float64'
     __nbytes_frame     = num.nbytes[num.uint16]*__nrows*__ncols # = 2*__nrows*__ncols
     __debug = False
-    __useThreading = True and haveThreading
     __location = '  ReadGE'
     __readArgs = {
         'dtype' : __frame_dtype_read,
@@ -891,19 +860,6 @@ class ReadGE(Framer2DRC):
         if fileInfo is not None:
             self.__setupRead(fileInfo, self.subtractDark, self.mask, self.omegaStart, self.omegaDelta)
 
-        return
-
-    # property:  useThreading
-
-    @property
-    def useThreading(self):
-        """turn threading on or off"""
-        return self.__useThreading
-
-    @useThreading.setter
-    def useThreading(self, v):
-        """Set method for useThreading"""
-        self.__useThreading = haveThreading and v
         return
 
     @classmethod
@@ -1266,46 +1222,14 @@ class ReadGE(Framer2DRC):
         if self.__debug:
             print self.__location+' : '+message
         return
-    def __thWait(self):
-        if self.__useThreading:
-            if self.th is not None:
-                if self.th.isAlive():
-                    self.__log('wait for existing thread to finish')
-                    tic = time.time()
-                    self.th.join()
-                    toc = time.time(); dt = toc - tic;
-                    self.__log('--- existing thread has finished (%g seconds)' % (dt))
-                else:
-                    self.__log('existing thread already finished')
-            # if done:
-            #    self.th = None
-        return
-    def __thCheck(self):
-        data = None
-        if self.__useThreading:
-            self.__thWait()
-            if self.th is not None:
-                if not self.th.success:
-                    raise RuntimeError, 'failed to get image data'
-                data = self.th.data
-                self.nFramesRemain -= 1
-                self.th = None
-        return data
     def __readNext(self, nskip=0):
 
         if self.img is None:
             raise RuntimeError, 'no image file set'
 
         nHave = 0
-        if self.__useThreading:
-            data = self.__thCheck()
 
         nskipThis = nskip
-        if nskipThis > 0 and data is not None:
-            nskipThis = nskipThis - 1
-            data = None
-        if data is not None : nHave = 1
-        #
         while self.nFramesRemain+nHave - nskipThis < 1:
             'not enough frames left in this file'
             nskipThis = nskipThis - self.nFramesRemain
@@ -1316,31 +1240,16 @@ class ReadGE(Framer2DRC):
             self.img.seek(self.nbytesFrame*nskipThis, 1)
             self.nFramesRemain -= nskipThis
 
-        if data is None:
-            # grab current frame
-            data = num.fromfile(self.img, **self.__readArgs)
-            data = num.array(data, **self.__castArgs)
-            self.nFramesRemain -= 1
+        # grab current frame
+        data = num.fromfile(self.img, **self.__readArgs)
+        data = num.array(data, **self.__castArgs)
+        self.nFramesRemain -= 1
 
-        if self.__useThreading:
-            'try to get next frame'
-            if self.nFramesRemain < 1:
-                try:
-                    self.__nextFile()
-                except:
-                    'if len((self.fileListR) == 0 then at end of files'
-                    assert len(self.fileListR) == 0, \
-                        'problem opening next file'
-                    self.img = None
-            if self.img is not None:
-                self.th = ThreadReadFrame(self.img, self.__readArgs, self.__castArgs)
-                self.th.start()
         return data
     def __call__(self, *args, **kwargs):
         return self.read(*args, **kwargs)
     def close(self):
         # if already have a file going, close it out
-        self.__thWait()
         if self.img is not None:
             self.img.close()
         return
@@ -3554,7 +3463,7 @@ class Detector2DRC(DetectorBase):
 
         # properly offset in case
         if ROI is not None:
-            assert len(ROI) is 2, 'wrong length for ROI; should be 2 integers representing the UL corner'
+            assert len(ROI) == 2, 'wrong length for ROI; should be 2 integers representing the UL corner'
             row = row + ROI[0]
             col = col + ROI[1]
 
@@ -3582,7 +3491,7 @@ class Detector2DRC(DetectorBase):
 
         # properly offset in case
         if ROI is not None:
-            assert len(ROI) is 2, 'wrong length for ROI; should be 2 integers representing the UL corner'
+            assert len(ROI) == 2, 'wrong length for ROI; should be 2 integers representing the UL corner'
             row = row - ROI[0]
             col = col - ROI[1]
 
@@ -3631,7 +3540,7 @@ class Detector2DRC(DetectorBase):
                         raise RuntimeError, 'Output units \'%s\'not understood!' % (str(kwargs[argkeys[i]]))
                 elif argkeys[i] is 'rhoRange':
                     tthRange = kwargs[argkeys[i]]
-                    assert len(tthRange) is 2, 'Radial range should have length 2'
+                    assert len(tthRange) == 2, 'Radial range should have length 2'
                 elif argkeys[i] is 'rdist':
                     if not isinstance(kwargs[argkeys[i]], bool):
                         raise RuntimeError, 'Expecting boolean for rdist kewyord argument; got' \
@@ -3704,7 +3613,7 @@ class Detector2DRC(DetectorBase):
             # note that the Z comps should all be zeros anyhow
             P4_d = num.vstack( [X_d, Y_d, nzeros] )
 
-        if len(rhoRange) is 2:
+        if len(rhoRange) == 2:
             rhoMin = min(rhoRange)
             rhoMax = max(rhoRange)
             #
@@ -3942,7 +3851,7 @@ class Detector2DRC(DetectorBase):
                         raise RuntimeError, 'Input units \'%s\' not understood!' % (str(kwargs[argkeys[i]]))
                 elif argkeys[i] is 'tthRange':
                     tthRange = kwargs[argkeys[i]]
-                    assert len(tthRange) is 2, 'Two-theta range should have length 2'
+                    assert len(tthRange) == 2, 'Two-theta range should have length 2'
                 elif argkeys[i] is 'rdist':
                     if not isinstance(kwargs[argkeys[i]], bool):
                         raise RuntimeError, 'Expecting boolean for rdist kewyord argument; got' \
@@ -4045,7 +3954,7 @@ class Detector2DRC(DetectorBase):
         # transform data
         tmpData = num.vstack( [measTTH, eta_l] )
 
-        if len(tthRange) is 2:
+        if len(tthRange) == 2:
             tthMin = min(tthRange)
             tthMax = max(tthRange)
 

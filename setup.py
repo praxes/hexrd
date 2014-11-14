@@ -25,13 +25,23 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 
-from distutils.core import setup, Extension
-from distutils.cmd import Command
 import os
 import sys
 
 import numpy
 np_include_dir = os.path.join(numpy.get_include(), 'numpy')
+
+try:
+    from setuptools import setup, Extension
+    from setuptools import Command
+    using_setuptools = True
+except ImportError:
+    if sys.platform.startswith('win'):
+        # Require setuptools on Windows for installing the hexrd.exe entry point
+        raise
+    from distutils.core import setup, Extension
+    from distutils.cmd import Command
+    using_setuptools = False
 
 
 class test(Command):
@@ -94,16 +104,15 @@ for dirpath, dirnames, filenames in os.walk('hexrd'):
         del(dirnames[:])
 
 
-scripts = []
-if sys.platform.startswith('win'):
-    # scripts calling multiprocessing must be importable
-    import shutil
-    shutil.copy('scripts/hexrd', 'scripts/hexrd_app.py')
-    scripts.append('scripts/hexrd_app.py')
+kwds = {'scripts': []}
+if sys.platform.startswith('win') and using_setuptools:
+    kwds['entry_points'] = {'console_scripts':
+                                ["hexrd = hexrd.cli.main:main"]
+                           }
 else:
-    scripts.append('scripts/hexrd')
+    kwds['scripts'].append('scripts/hexrd')
 if ('bdist_wininst' in sys.argv) or ('bdist_msi' in sys.argv):
-    scripts.append('scripts/hexrd_win_post_install.py')
+    kwds['scripts'].append('scripts/hexrd_win_post_install.py')
 
 
 # release.py contains version, authors, license, url, keywords, etc.
@@ -144,8 +153,8 @@ setup(
         'scipy (>=0.7.0)',
         'wxpython (>= 2.8)',
         ),
-    scripts = scripts,
     package_data = {'hexrd': package_data},
     data_files = [('share/hexrd', data_files)],
-    cmdclass = {'test': test}
+    cmdclass = {'test': test},
+    **kwds
     )

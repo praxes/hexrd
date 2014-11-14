@@ -1,5 +1,8 @@
 #!/bin/env python
 import sys
+import multiprocessing
 from hexrd.cli import main
 
-sys.exit(main())
+if __name__ == '__main__':
+    multiprocessing.freeze_support()
+    sys.exit(main())

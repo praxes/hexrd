@@ -96,7 +96,7 @@ def nullSpace(A, tol=vTol):
     """
     computes the null space of the real matrix A
     """
-    assert A.ndim is 2, 'input must be 2-d; yours is %d-d' % (A.ndim)
+    assert A.ndim == 2, 'input must be 2-d; yours is %d-d' % (A.ndim)
     
     n, m = A.shape
 
@@ -473,7 +473,7 @@ def multMatArray(ma1, ma2):
     shp1 = ma1.shape
     shp2 = ma2.shape
     
-    if len(shp1) is not 3 or len(shp2) is not 3:
+    if len(shp1) != 3 or len(shp2) != 3:
         raise RuntimeError, 'input is incorrect shape; ' \
               + 'expecting len(ma1).shape = len(ma2).shape = 3'
 

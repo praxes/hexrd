@@ -27,6 +27,7 @@ from hexrd.xrd.fitting import fitGrain, objFuncFitGrain
 from hexrd.xrd.rotations import angleAxisOfRotMat, rotMatOfQuat
 from hexrd.xrd.transforms import bVec_ref, eta_ref, mapAngle, vInv_ref
 from hexrd.xrd.xrdutil import pullSpots
+from .cacheframes import get_frames
 from hexrd import USE_NUMBA
 if USE_NUMBA:
     import numba
@@ -42,74 +43,6 @@ gFlag = np.array([1, 1, 1,
 gScl  = np.array([1., 1., 1.,
                   1., 1., 1.,
                   1., 1., 1., 0.01, 0.01, 0.01])
-
-if USE_NUMBA:
-    @numba.njit
-    def extract_ijv(in_array, threshold, out_i, out_j, out_v):
-        n = 0
-        w, h = in_array.shape
-
-        for i in range(w):
-            for j in range(h):
-                v = in_array[i,j]
-                if v > threshold:
-                    out_v[n] = v
-                    out_i[n] = i
-                    out_j[n] = j
-                    n += 1
-
-        return n
-
-    class CooMatrixBuilder(object):
-        def __init__(self):
-            self.v_buff = np.empty((2048*2048,), dtype=np.int16)
-            self.i_buff = np.empty((2048*2048,), dtype=np.int16)
-            self.j_buff = np.empty((2048*2048,), dtype=np.int16)
-
-        def build_matrix(self, frame, threshold):
-            count = extract_ijv(frame, threshold,
-                                self.i_buff, self.j_buff, self.v_buff)
-            return coo_matrix((self.v_buff[0:count].copy(),
-                               (self.i_buff[0:count].copy(),
-                                self.j_buff[0:count].copy())),
-                              shape=frame.shape)
-
-else: # not USE_NUMBA
-    class CooMatrixBuilder(object):
-        def build_matrix(self, frame, threshold):
-            mask = frame > threshold
-            return coo_matrix((frame[mask], mask.nonzero()),
-                              shape=frame.shape)
-
-def get_frames(reader, cfg, show_progress=False):
-    # TODO: this should be updated to read only the frames requested in cfg
-    # either the images start, step, stop, or based on omega start, step, stop
-    start = time.time()
-
-    n_frames = reader.getNFrames()
-    logger.info("reading %d frames of data", n_frames)
-    if show_progress:
-        widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
-        pbar = ProgressBar(widgets=widgets, maxval=n_frames).start()
-
-    frame_list = []
-    coo_builder = CooMatrixBuilder()
-    for i in range(n_frames):
-        frame = reader.read()
-        frame_list.append(coo_builder.build_matrix(frame, cfg.fit_grains.threshold))
-
-        if show_progress:
-            pbar.update(i)
-    frame_list = np.array(frame_list)
-    omega_start = np.radians(cfg.image_series.omega.start)
-    omega_step = np.radians(cfg.image_series.omega.step)
-    reader = [frame_list, [omega_start, omega_step]]
-    if show_progress:
-        pbar.finish()
-    elapsed = time.time()-start
-    logger.info('read %d frames in %g seconds', n_frames, elapsed)
-    return reader
-
 
 def get_instrument_parameters(cfg):
     # TODO: this needs to be
