@@ -90,7 +90,7 @@ def load_frames(reader, cfg, show_progress=False):
     return reader
 
 def cache_frames(reader, cfg, show_progress=False, overwrite=True):
-    cache_file = os.path.join(cfg.working_dir, 'frame_cache.npz')
+    cache_file = os.path.join(cfg.analysis_dir, 'frame_cache.npz')
     # load the data
     reader = load_frames(reader, cfg, show_progress)
     # save all the data to a .npz file
@@ -108,7 +108,7 @@ def cache_frames(reader, cfg, show_progress=False, overwrite=True):
     return reader
 
 def get_frames(reader, cfg, show_progress=False, autocache=False):
-    cache_file = os.path.join(cfg.working_dir, 'frame_cache.npz')
+    cache_file = os.path.join(cfg.analysis_dir, 'frame_cache.npz')
     if not os.path.exists(cache_file):
         logger.info('no frame cache file %s found, generating cache' % cache_file)
         return cache_frames(reader, cfg, show_progress)
