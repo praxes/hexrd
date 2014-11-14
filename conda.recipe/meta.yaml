@@ -19,15 +19,16 @@ app:
 requirements:
   build:
     - matplotlib
-#    - numba
+    - numba
 #    - numbapro
     - numpy
     - python
     - scipy
+    - setuptools # [win]
     - wxpython
   run:
     - matplotlib
-#    - numba
+    - numba
 #    - numbapro
     - numpy
     - progressbar
