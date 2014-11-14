@@ -129,7 +129,7 @@ def get_job_queue(cfg, max_grains=None):
                 )
             job_queue.put((i, grain_params))
     logger.info("fitting grains for %d of %d orientations", max_grains, n_quats)
-    return job_queue
+    return job_queue, np.min([max_grains, n_quats])
 
 
 def get_data(cfg, show_progress=False):
@@ -165,8 +165,8 @@ def get_data(cfg, show_progress=False):
 def fit_grains(cfg, force=False, show_progress=False, max_grains=None):
     # load the data
     reader, pkwargs = get_data(cfg, show_progress)
-    job_queue = get_job_queue(cfg, max_grains)
-    njobs = job_queue.qsize()
+    job_queue, njobs = get_job_queue(cfg, max_grains)
+    #njobs = job_queue.qsize() # ...raises NotImplementedError on Mac OS
 
     # log this before starting progress bar
     ncpus = cfg.multiprocessing
