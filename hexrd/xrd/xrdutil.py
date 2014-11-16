@@ -1645,9 +1645,11 @@ class CollapseOmeEta(object):
                     **winKWArgs
                     )
 
-                pw.a.format_coord = FormatEtaOme(0.5*(self.etaEdges[1:]+self.etaEdges[:-1]),
-                                                 self.omegas,
-                                                 data)
+                pw.a.format_coord = FormatEtaOme(
+                    0.5*(self.etaEdges[1:]+self.etaEdges[:-1]),
+                    self.omegas,
+                    data
+                    )
             retval = pw
             if cmap is None:
                 cmap = getCMap(True)
@@ -1658,12 +1660,14 @@ class CollapseOmeEta(object):
 
                 wData = self.dataStore[iData,:,:]
                 vMM_w = self.readerList[0].getVMM(wData, range=rangeVV_w)
-                norm_w = matplotlib.colors.Normalize(vmin=vMM_w[0], vmax=vMM_w[1])
+                norm_w = matplotlib.colors.Normalize(
+                    vmin=vMM_w[0], vmax=vMM_w[1]
+                    )
 
                 cData[:,:,3] = norm_w(wData.T, clip=True)
 
                 pw(cData, ijAsXY=False)
-                'for colorbar, make a mappable so that the range shown is correct'
+                'for colorbar, make a mappable so range shown is correct'
                 mappable = cm.ScalarMappable(cmap=cmap, norm=norm)
                 mappable.set_array(data)
                 pw.colorbar(thing=mappable)
@@ -1674,6 +1678,8 @@ class CollapseOmeEta(object):
         'endif pfig'
 
         return retval
+
+
     def getNVecs(self, iData, edges=False):
         tThNominal = self.planeData.getTTh()[self.iHKLList[iData]]
         if edges:
@@ -1681,8 +1687,36 @@ class CollapseOmeEta(object):
         else:
             nVecs = omeEtaGridToNVecs(tThNominal, self.omegas, self.etas)
         return nVecs
+
+
     def getData(self, iData):
         return self.dataStore[iData,:,:]
+
+
+    def getEtaOmeMaps(self):
+        # this is a workaround, since CollapseOmeEta is not pickleable
+        return EtaOmeMaps(self)
+
+
+
+class EtaOmeMaps(object):
+
+    """
+    find-orientations loads pickled eta-ome data, but CollapseOmeEta is not
+    pickleable, because it holds a list of ReadGE, each of which holds a
+    reference to an open file object, which is not pickleable.
+    """
+
+    def __init__(self, ome_eta):
+        self.dataStore = ome_eta.dataStore
+        self.planeData = ome_eta.planeData
+        self.iHKLList = ome_eta.iHKLList
+        self.etaEdges = ome_eta.etaEdges
+        self.omeEdges = ome_eta.omeEdges
+        self.etas = ome_eta.etas
+        self.omegas = ome_eta.omegas
+
+
 
 def makeMeasuredScatteringVectors(tTh, eta, ome, convention='hexrd', frame='sample'):
     """

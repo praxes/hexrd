@@ -260,7 +260,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
         nEtaBins=eta_bins,
         debug=False,
         threshold=cfg.find_orientations.orientation_maps.threshold
-        )
+        ).getEtaOmeMaps()
 
     fn = os.path.join(
         cfg.working_dir,
