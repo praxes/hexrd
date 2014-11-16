@@ -8,6 +8,7 @@ source:
   path: ../
 
 build:
+  detect_binary_files_with_prefix: true
   osx_is_app: yes
   entry_points:
     - hexrd = hexrd.cli:main
@@ -18,14 +19,9 @@ app:
 
 requirements:
   build:
-    - matplotlib
-    - numba
-#    - numbapro
     - numpy
     - python
-    - scipy
     - setuptools # [win]
-    - wxpython
   run:
     - matplotlib
     - numba
