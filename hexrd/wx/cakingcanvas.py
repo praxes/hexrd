@@ -441,10 +441,10 @@ class imgOpts(wx.Panel):
         azimuth   = p.data['azimuth'] * 180. / numpy.pi
         if p.data['corrected']:
             radius = radius * 180. / numpy.pi
-        
+
         p.axes = p.figure.gca()
         p.axes.set_aspect('equal')
-        
+
         p.axes.images = []
         p.axes.set_title('Intensity Profile')
 
@@ -467,7 +467,7 @@ class imgOpts(wx.Panel):
             else:
                 p.axes.set_xlabel('radius [mm]')
             p.axes.set_ylabel('Azimuth (eta)')
-            
+
             # tick labels
             num_ticks = 6
             xmin = numpy.amin(radius); xmax = numpy.amax(radius)
@@ -507,12 +507,12 @@ class imgOpts(wx.Panel):
             radialDat = p.data['radius']
             azimuDat  = p.data['azimuth']
             corrected = p.data['corrected']
-            
+
             if corrected:
                 rad_str = 'two-theta'
             else:
                 rad_str = 'radius'
-            
+
             if isinstance(f, file):
                 fid = f
             elif isinstance(f, str) or isinstance(f, unicode):
@@ -589,7 +589,7 @@ class sphOpts(wx.Panel):
         self.idata = 0
         self.dispm = self.DISP_RAW
         self.coms  = None                 # centers of mass from optional labeling
-        
+
         self.exp_but  = wx.Button(self, wx.NewId(), 'Export')
         self.lab_but  = wx.Button(self, wx.NewId(), 'Label Spots')
         return
@@ -627,11 +627,11 @@ class sphOpts(wx.Panel):
         """Update canvas"""
         p = self.GetParent()
         exp = wx.GetApp().ws
-        
+
         ome_eta = p.data
 
         exp._ome_eta = ome_eta
-        
+
         # hkldata = ome_eta.getData(self.idata)
         hkldata = ome_eta.dataStore[self.idata]
 
@@ -645,7 +645,7 @@ class sphOpts(wx.Panel):
             p.axes.set_aspect('equal')
             p.axes.hold(True)
             p.axes.images = []
-            
+
             # show new image
             p.axes.imshow(hkldata, origin='upper',
                           interpolation='nearest',
@@ -657,7 +657,7 @@ class sphOpts(wx.Panel):
             p.axes.set_title('Intensity Profile')
             p.axes.set_xlabel('Azimuth (eta)')
             p.axes.set_ylabel('Oscillation Angle (omega)')
-            
+
             # tick labels
             num_ticks = 7
             xmin = numpy.amin(etas); xmax = numpy.amax(etas)
@@ -677,7 +677,7 @@ class sphOpts(wx.Panel):
             if self.coms is not None:
                 p.axes.plot(self.coms[:, 1], self.coms[:, 0], 'm+', ms=18)
                 pass
-            
+
             p.canvas.draw()
 
         elif self.dispm == self.DISP_QUICK:
@@ -857,21 +857,21 @@ class sphOpts(wx.Panel):
                 pass
             try:
                 p = self.GetParent()
-                cPickle.dump(p.data, fid)
+                cPickle.dump(p.data.getEtaOmeMaps(), fid)
             except:
                 wx.MessageBox('failed to save file:  %s' % f)
                 pass
             pass
 
         dlg.Destroy()
-        
+
         return
 
     def OnLabelSpots(self, e):
         """Run spots labeler"""
         self.idata = self.hkl_cho.GetSelection()
         p = self.GetParent()
-        
+
         this_map = p.data.getData(self.idata)
 
         threshold = self.cmPanel.cmin_val
@@ -879,10 +879,10 @@ class sphOpts(wx.Panel):
         structureNDI_label = numpy.array([[1,1,1],
                                           [1,1,1],
                                           [1,1,1]])
-        
+
         labels, numSpots   = ndimage.label(this_map > threshold, structureNDI_label)
         coms               = ndimage.measurements.center_of_mass(this_map, labels, numpy.arange(numpy.amax(labels)) + 1)
-        
+
         self.coms = numpy.array(coms)
 
         self.update()
