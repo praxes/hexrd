@@ -1,11 +1,11 @@
-analysis_name: multiruby # defaults to analysis
+analysis_name: sweep0 # defaults to analysis
 
 ## working directory defaults to current working directory
 ## all relative paths specified herein are assumed to be in the working_dir
 ## any files not in working_dir should be specified with an absolute path
-working_dir: /nfs/chess/aux/user/afrl/2014-3/multiruby
+#working_dir: 
 
-#multiprocessing: 1 # "all", or "half", or -1 means all but one, defaults to -1
+multiprocessing: all # "all", or "half", or -1 means all but one, defaults to -1
 
 material:
   definitions: materials.cpl
@@ -13,23 +13,23 @@ material:
 
 image_series:
   file:
-    stem: 1/ff/ff_%05d.ge2 # can include relative or absolute path
-    ids: [24, 25, 26, 27, 28, 29] # or can use globs: ["*2[4-9]"]
+    stem: RUBY_%04d # can include relative or absolute path
+    ids: [4537, 4538] # or can use globs: ["*2[4-9]"]
   images:
-    start: 0
+    start: 2
     #stop: 1440
     #step: 1
   omega:
-    start: 0.0
+    start: -60.0
     step: 0.25
-    stop: 360
-  #dark: ~
-  flip: h # ~, v, h, hv, vh, cw, ccw
+    stop: 60.0
+  dark: RUBY_4537_medianDark
+  flip: v # ~, v, h, hv, vh, cw, ccw
 
 instrument:
-  parameters: CeO2.yml
+  parameters: ge_detector.yml
   detector: # this section is only needed to convert old files to the new spec
-    parameters_old: CeO2.par # the old detector spec, produced by the GUI
+    parameters_old: ge_rad.par # the old detector spec, produced by the GUI
     pixels: # this section required to convert from old detector spec
       rows: 2048
       columns: 2048
@@ -40,7 +40,7 @@ find_orientations:
     # A file name must be specified. If it doesn't exist, one will be created
     file: eta-omega.cpl
 
-    threshold: 1850
+    threshold: 15
     #bin_frames: 1 # defaults to 1
 
     ## "all", or a list of hkl orders used to find orientations
@@ -51,32 +51,32 @@ find_orientations:
   ## orientation maps
   #use_quaternian_grid: some/file/name # defaults to seeded search
   seed_search: # this section is ignored if use_quaternian_grid is defined
-    hkl_seeds: [2] # hkls ids to use, must be defined for seeded search
+    hkl_seeds: [0,1] # hkls ids to use, must be defined for seeded search
   #  fiber_step: 0.5 # degrees, defaults to ome tolerance
 
-  #threshold: 10 # defaults to 1
+  threshold: 5 # defaults to 1
 
-  #omega:
-  #  tolerance: 0.5 # in degrees, defaults to 2x ome step
+  omega:
+    tolerance: 1.0 # in degrees, defaults to 2x ome step
 
   ## specify the branch cut, in degrees. The range must be 360 degrees.
   ## defaults to ["image_series:omega:start", "image_series:omega:start"+-360]
   ## depending on sign of "image_series:omega:step"
-  #  period: [0, 360] # in degrees, defaults to full 360 starting at "ome start"
+  period: [-180, 180] # in degrees, defaults to full 360 starting at "ome start"
 
-  #eta:
-  #  tolerance: 0.5 # in degrees, defaults to 2x ome step
-  #  mask: 5 # degrees, mask angles close to ome rotation axis, defaults to 5
+  eta:
+    tolerance: 1.0 # in degrees, defaults to 2x ome step
+    mask: 5 # degrees, mask angles close to ome rotation axis, defaults to 5
 
   clustering:
     radius: 1.0
-    completeness: 0.90 # completeness threshold
+    completeness: 0.51 # completeness threshold
     #algorithm: fclusterdata # defaults to dbscan
 
   #extract_measured_g_vectors: true # defaults to false
 
 fit_grains:
-  #do_fit: false # if false, extracts grains but doesn't fit. defaults to true
+  do_fit: true # if false, extracts grains but doesn't fit. defaults to true
 
   #estimate: multiruby/grains.out # defaults to None
 
@@ -84,7 +84,7 @@ fit_grains:
 
   panel_buffer: 10 # don't fit spots within this many pixels from edge
 
-  threshold: 1850
+  threshold: 15
 
   tolerance:
     tth: [0.2, 0.1] # tolerance lists must be identical length
