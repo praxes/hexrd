@@ -126,5 +126,5 @@ class RootConfig(Config):
         if os.path.exists(temp):
             return temp
         raise IOError(
-            '"working_dir": "%s" does not exist'
+            '"working_dir": "%s" does not exist', temp
             )
