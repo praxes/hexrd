@@ -1,0 +1,17 @@
+oscillation_stage:
+  chi:     0.00000000e+00 # radians
+  t_vec_s: [0.00000000e+00, 0.00000000e+00, 0.00000000e+00] # mm
+
+detector:
+  id: 'GE'
+  pixels:
+    rows:    2048
+    columns: 2048
+    size:    [0.200000, 0.200000] # [row height, col width] in mm
+  transform:
+    tilt_angles: [-2.88067120e-03, -9.36866780e-04, -2.14995340e-03] # radians
+    t_vec_d:     [3.93183629e-01, -6.24397182e-01, -7.53654002e+02] # mm
+
+  distortion:
+    function_name: GE_41RT
+    parameters:    [-1.05626124e-04, -4.72055748e-05, -4.05073337e-04, 2.00000000e+00, 2.00000000e+00, 2.00000000e+00]
