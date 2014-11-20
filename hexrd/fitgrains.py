@@ -120,15 +120,17 @@ def set_planedata_exclusions(cfg, pd):
         pd.exclusions = pd.getTTh() >= np.radians(tth_max)
 
 
-def get_job_queue(cfg):
+def get_job_queue(cfg, max_grains=None):
     job_queue = mp.JoinableQueue()
     # load the queue
     try:
         # use an estimate of the grain parameters, if available
         estimate_f = cfg.fit_grains.estimate
-        grain_params_list = np.loadtxt(estimate_f)
+        grain_params_list = np.atleast_2d(np.loadtxt(estimate_f))
         n_quats = len(grain_params_list)
-        for grain_params in grain_params_list:
+        if max_grains is None or max_grains > n_quats:
+            max_grains = n_quats
+        for grain_params in grain_params_list[:max_grains]:
             grain_id = grain_params[0]
             job_queue.put((grain_id, grain_params[3:15]))
         logger.info(
@@ -143,6 +145,9 @@ def get_job_queue(cfg):
             np.loadtxt(os.path.join(cfg.working_dir, 'accepted_orientations.dat'))
             )
         n_quats = len(quats)
+        if max_grains is None or max_grains > n_quats:
+            max_grains = n_quats
+        quats = quats[:max_grains]
         phi, n = angleAxisOfRotMat(rotMatOfQuat(quats.T))
         for i, (phi, n) in enumerate(zip(phi, n.T)):
             exp_map = phi*n
@@ -150,8 +155,8 @@ def get_job_queue(cfg):
                 [exp_map, 0., 0., 0., 1., 1., 1., 0., 0., 0.]
                 )
             job_queue.put((i, grain_params))
-    logger.info("fitting grains for %d orientations", n_quats)
-    return job_queue
+    logger.info("fitting grains for %d of %d orientations", max_grains, n_quats)
+    return job_queue, np.min([max_grains, n_quats])
 
 
 def get_data(cfg, show_progress=False):
@@ -184,11 +189,11 @@ def get_data(cfg, show_progress=False):
     return reader, pkwargs
 
 
-def fit_grains(cfg, force=False, show_progress=False):
+def fit_grains(cfg, force=False, show_progress=False, max_grains=None):
     # load the data
     reader, pkwargs = get_data(cfg, show_progress)
-    job_queue = get_job_queue(cfg)
-    njobs = job_queue.qsize()
+    job_queue, njobs = get_job_queue(cfg, max_grains)
+    #njobs = job_queue.qsize() # ...raises NotImplementedError on Mac OS
 
     ncpus = cfg.multiprocessing
     logger.info('running pullspots with %d processors', ncpus)

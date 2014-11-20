@@ -3627,9 +3627,10 @@ def pullSpots(pd, detector_params, grain_params, reader,
             else:
                 print >> fid, "%d\t"                     % (peakId)                   + \
                               "%d\t%d\t%d\t"             % tuple(hkl)                 + \
-                              "%f\t%f\t"                 % tuple(num.nan*num.ones(2)) + \
+                              "%f         \t%f         \t"                 % tuple(num.nan*num.ones(2)) + \
                               "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                + \
-                              "%f\t%f\t%f\t%f\t%f\t%f"   % tuple(num.nan*num.ones(6))
+                              "%f               \t%f               \t%f" % tuple(num.nan*num.ones(3)) + \
+                              "               \t%f               \t%f               \t%f"   % tuple(num.nan*num.ones(3))
                 pass
             pass
         iRefl += 1
