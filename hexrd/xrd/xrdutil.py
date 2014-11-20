@@ -3067,43 +3067,34 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
 
     bVec = num.array(bVec.flatten(), order='C')
     eVec = num.array(eVec.flatten(), order='C')
-    vInv = num.array(eVec.flatten(), order='C')
+    vInv = num.array(vInv.flatten(), order='C')
 
     eta_ome = num.zeros((nhkls, max(omeIndices), max(etaIndices)), order='C')
     for iHKL in range(nhkls):
-        these_hkls = num.array(sym_hkls[iHKL].T, order='C')
+        these_hkls = num.ascontiguousarray(sym_hkls[iHKL].T, dtype=float)
         for iOr in range(nOrs):
-            # rMat_c = xfcapi.makeRotMatOfExpMap(expMaps[iOr, :])
-            # oangs  = xfcapi.oscillAnglesOfHKLs(these_hkls, chi, rMat_c, bMat, wlen,
-            #                                    beamVec=bVec, etaVec=eVec)
-            # import pdb;pdb.set_trace()
-            # angList = num.vstack(oangs)                # stack two solutions (row vecs)
-            # angList[:, 1] = xf.mapAngle(angList[:, 1]) # map etas
-            # angList[:, 2] = xf.mapAngle(angList[:, 2]) # map omes
-            rMat_c = xf.makeRotMatOfExpMap(expMaps[iOr, :])
-            oangs  = xf.oscillAnglesOfHKLs(these_hkls.T, chi, rMat_c, bMat, wlen,
-                                           beamVec=bVec, etaVec=eVec)
-
-            angList = num.hstack(oangs)                # stack two solutions (col vecs)
+            rMat_c = xfcapi.makeRotMatOfExpMap(expMaps[iOr, :])
+            angList  = num.vstack(
+                xfcapi.oscillAnglesOfHKLs(these_hkls, chi, rMat_c, bMat, wlen,
+                                          beamVec=bVec, etaVec=eVec, vInv=vInv)
+                                  )
             if not num.all(num.isnan(angList)):
-                angList[1, :] = xf.mapAngle(angList[1, :]) # map etas
-                angList[2, :] = xf.mapAngle(angList[2, :]) # map omes
-                angList = angList.T
-
-                # mask eta angles
+                #
+                angList[:, 1:] = xf.mapAngle(angList[:, 1:])
+                # do eta ranges
                 angMask_eta = num.zeros(len(angList), dtype=bool)
-                for j in range(len(etaRanges)):
-                    angMask_eta = num.logical_or(
-                        angMask_eta, validateAngleRanges(angList[:, 1], etaRanges[j][0], etaRanges[j][1]))
-
-                # mask ome angles
+                for etas in etaRanges:
+                    angMask_eta = num.logical_or(angMask_eta, xf.validateAngleRanges(angList[:, 1], etas[0], etas[1]))
+            
+                # do omega ranges
+                ccw=True
                 angMask_ome = num.zeros(len(angList), dtype=bool)
-                for j in range(len(omeRanges)):
-                    angMask_ome = num.logical_or(
-                        angMask_ome, validateAngleRanges(angList[:, 2], omeRanges[j][0], omeRanges[j][1]))
-
-                # import pdb;pdb.set_trace()
-                # join them
+                for omes in omeRanges:
+                    if omes[1] - omes[0] < 0:
+                        ccw=False
+                    angMask_ome = num.logical_or(angMask_ome, xf.validateAngleRanges(angList[:, 2], omes[0], omes[1], ccw=ccw))
+            
+                # mask angles list, hkls
                 angMask = num.logical_and(angMask_eta, angMask_ome)
 
                 culledTTh  = angList[angMask, 0]
@@ -3421,9 +3412,9 @@ def pullSpots(pd, detector_params, grain_params, reader,
         print >> fid, "#\n# ID\t"                       + \
                       "H\tK\tL\t"                       + \
                       "sum(int)\tmax(int)\t"            + \
-                      "pred tth\tpred eta\t pred ome\t" + \
-                      "meas tth\tmeas eta\t meas ome\t" + \
-                      "meas X\tmeas Y\t meas ome\n#"
+                      "pred tth          \tpred eta          \t pred ome          \t" + \
+                      "meas tth          \tmeas eta          \t meas ome          \t" + \
+                      "meas X            \tmeas Y            \t meas ome\n#"
     iRefl = 0
     spot_list = []
     for hkl, angs, xy, pix in zip(*sim_g):
@@ -3708,9 +3699,10 @@ def pullSpots(pd, detector_params, grain_params, reader,
             else:
                 print >> fid, "%d\t"                     % (peakId)                   + \
                               "%d\t%d\t%d\t"             % tuple(hkl)                 + \
-                              "%f\t%f\t"                 % tuple(num.nan*num.ones(2)) + \
+                              "%f         \t%f         \t"                 % tuple(num.nan*num.ones(2)) + \
                               "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                + \
-                              "%f\t%f\t%f\t%f\t%f\t%f"   % tuple(num.nan*num.ones(6))
+                              "%f               \t%f               \t%f" % tuple(num.nan*num.ones(3)) + \
+                              "               \t%f               \t%f               \t%f"   % tuple(num.nan*num.ones(3))
                 pass
             pass
         iRefl += 1
