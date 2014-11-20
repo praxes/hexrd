@@ -24,7 +24,7 @@ from hexrd.utils.progressbar import (
 
 from hexrd.xrd import distortion as dFuncs
 from hexrd.xrd.fitting import fitGrain, objFuncFitGrain
-from hexrd.xrd.rotations import angleAxisOfRotMat, rotMatOfQuat
+from hexrd.xrd.rotations import angleAxisOfRotMat, rotMatOfQuat, angularDifference
 from hexrd.xrd.transforms import bVec_ref, eta_ref, mapAngle, vInv_ref
 from hexrd.xrd.xrdutil import pullSpots
 
@@ -110,6 +110,10 @@ def get_distortion_correction(instrument_cfg):
         )
 
 
+def get_saturation_level(instr_cfg):
+    return instr_cfg['detector']['saturation_level']
+
+
 def set_planedata_exclusions(cfg, detector, pd):
     tth_max = cfg.fit_grains.tth_max
     if tth_max is True:
@@ -167,6 +171,7 @@ def get_data(cfg, show_progress=False):
 
     instrument_cfg = get_instrument_parameters(cfg)
     detector_params = get_detector_parameters(instrument_cfg)
+    saturation_level = get_saturation_level(instrument_cfg)
     distortion = get_distortion_correction(instrument_cfg)
     set_planedata_exclusions(cfg, detector, pd)
     pkwargs = {
@@ -185,6 +190,7 @@ def get_data(cfg, show_progress=False):
         'spots_stem': os.path.join(cfg.analysis_dir, 'spots_%05d.out'),
         'plane_data': pd,
         'detector_params': detector_params,
+        'saturation_level': saturation_level
         }
     return reader, pkwargs
 
@@ -325,19 +331,29 @@ class FitGrainsWorker(object):
         ome_stop =  self._p['omega_stop']
         gtable = np.loadtxt(self._p['spots_stem'] % grain_id)
         valid_refl_ids = gtable[:, 0] >= 0
+        unsat_spots = gtable[:, 5] < self._p['saturation_level']
         pred_ome = gtable[:, 6]
-        if np.sign(ome_step) < 0:
-            idx_ome = np.logical_and(
-                pred_ome < np.radians(ome_start + 2*ome_step),
-                pred_ome > np.radians(ome_stop - 2*ome_step)
+        if angularDifference(ome_start, ome_stop, units='degrees') > 0:
+            # if here, incomplete have omega range and
+            # clip the refelctions very close to the edges to avoid
+            # problems with the least squares...
+            if np.sign(ome_step) < 0:
+                idx_ome = np.logical_and(
+                    pred_ome < np.radians(ome_start + 2*ome_step),
+                    pred_ome > np.radians(ome_stop - 2*ome_step)
+                    )
+            else:
+                idx_ome = np.logical_and(
+                    pred_ome > np.radians(ome_start + 2*ome_step),
+                    pred_ome < np.radians(ome_stop - 2*ome_step)
+                    )
+            idx = np.logical_and(
+                unsat_spots,
+                np.logical_and(valid_refl_ids, idx_ome)
                 )
         else:
-            idx_ome = np.logical_and(
-                pred_ome > np.radians(ome_start + 2*ome_step),
-                pred_ome < np.radians(ome_stop - 2*ome_step)
-                )
-
-        idx = np.logical_and(valid_refl_ids, idx_ome)
+            idx = np.logical_and(valid_refl_ids, unsat_spots)
+            
         hkls = gtable[idx, 1:4].T # must be column vectors
         self._p['hkls'] = hkls
         xyo_det = gtable[idx, -3:] # these are the cartesian centroids + ome
