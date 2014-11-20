@@ -66,7 +66,7 @@ def load_frames(reader, cfg, show_progress=False):
     start = time.time()
 
     n_frames = reader.getNFrames()
-    logger.info("reading %d frames of data", n_frames)
+    logger.info("reading %d frames of data, storing values > %.1f", n_frames, cfg.fit_grains.threshold)
     if show_progress:
         widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
         pbar = ProgressBar(widgets=widgets, maxval=n_frames).start()
