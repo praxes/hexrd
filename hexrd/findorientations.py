@@ -275,7 +275,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
     return eta_ome
 
 
-def find_orientations(cfg, hkls=None):
+def find_orientations(cfg, hkls=None, profile=False):
     """Takes a config dict as input, generally a yml document"""
 
     # a goofy call, could be replaced with two more targeted calls
@@ -318,7 +318,11 @@ def find_orientations(cfg, hkls=None):
 
     # generate the completion maps
     logger.info("Running paintgrid on %d trial orientations", (quats.shape[1]))
-    ncpus = cfg.multiprocessing
+    if profile:
+        logger.info("Profiling mode active, forcing ncpus to 1")
+        ncpus = 1
+    else:
+        ncpus = cfg.multiprocessing
     compl = idx.paintGrid(
         quats,
         eta_ome,
