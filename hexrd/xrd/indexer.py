@@ -820,6 +820,21 @@ def paintGrid(quats, etaOmeMaps,
 
     return retval
 
+def _meshgrid2d(x, y):
+    """
+    A special-cased implementation of np.meshgrid, for just
+    two arguments. Found to be about 3x faster on some simple
+    test arguments.
+    """
+    x, y = (num.asarray(x), num.asarray(y))
+    shape = (len(y), len(x))
+    dt = num.result_type(x, y)
+    r1, r2 = (num.empty(shape, dt), num.empty(shape, dt))
+    r1[...] = x[num.newaxis, :]
+    r2[...] = y[:, num.newaxis]
+    return (r1, r2)
+
+
 def paintGridThis(param):
     """
     """
@@ -939,7 +954,7 @@ def paintGridThis(param):
 
                 if culledEtaIdx is not None and culledOmeIdx is not None:
                     if dpix_ome > 0 or dpix_eta > 0:
-                        i_dil, j_dil = num.meshgrid(
+                        i_dil, j_dil = _meshgrid2d(
                             num.arange(-dpix_ome, dpix_ome + 1),
                             num.arange(-dpix_eta, dpix_eta + 1)
                             )
