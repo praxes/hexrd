@@ -932,9 +932,10 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     There is, of course, an ambigutiy if the start and stop angle are
     the same; we treat them as implying 2*pi having been mapped
     """
-    angList   = np.atleast_1d(angList).flatten()   # needs to have len
-    startAngs = np.atleast_1d(startAngs).flatten() # needs to have len
-    stopAngs  = np.atleast_1d(stopAngs).flatten()  # needs to have len
+    # Prefer ravel over flatten because flatten never skips the copy
+    angList   = np.asarray(angList).ravel()   # needs to have len
+    startAngs = np.asarray(startAngs).ravel() # needs to have len
+    stopAngs  = np.asarray(stopAngs).ravel()  # needs to have len
 
     n_ranges = len(startAngs)
     assert len(stopAngs) == n_ranges, "length of min and max angular limits must match!"

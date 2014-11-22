@@ -762,11 +762,22 @@ def paintGrid(quats, etaOmeMaps,
     else:
         omeMin = [omegaRange[i][0] for i in range(len(omegaRange))]
         omeMax = [omegaRange[i][1] for i in range(len(omegaRange))]
+    if omeMin is None:
+        omeMin = [-num.pi, ]
+        omeMax = [ num.pi, ]
+    omeMin = num.asarray(omeMin)
+    omeMax = num.asarray(omeMax)
+
     etaMin = None
     etaMax = None
     if etaRange is not None:
         etaMin = [etaRange[i][0] for i in range(len(etaRange))]
         etaMax = [etaRange[i][1] for i in range(len(etaRange))]
+    if etaMin is None:
+        etaMin = [-num.pi, ]
+        etaMax = [ num.pi, ]
+    etaMin = num.asarray(etaMin)
+    etaMax = num.asarray(etaMax)
 
     multiProcMode = xrdbase.haveMultiProc and doMultiProc
 
@@ -871,18 +882,10 @@ def paintGridThis(param):
 
     # need this for proper index generation
 
-    omegas = [
-        omeEdges[0] + (i+0.5)*(omeEdges[1] - omeEdges[0])
-        for i in range(len(omeEdges) - 1)
-        ]
-    etas   = [
-        etaEdges[0] + (i+0.5)*(etaEdges[1] - etaEdges[0])
-        for i in range(len(etaEdges) - 1)]
+    delOmeSign = num.sign(omeEdges[1] - omeEdges[0])
 
-    delOmeSign = num.sign(omegas[1] - omegas[0])
-
-    del_ome = abs(omegas[1] - omegas[0])
-    del_eta = abs(etas[1] - etas[0])
+    del_ome = abs(omeEdges[1] - omeEdges[0])
+    del_eta = abs(etaEdges[1] - etaEdges[0])
 
     dpix_ome = round(omeTol / del_ome)
     dpix_eta = round(etaTol / del_eta)
@@ -913,18 +916,11 @@ def paintGridThis(param):
         angList = (oangs[0][start:stop], oangs[1][start:stop])
         angList = num.vstack(angList)
 
-        if not num.all(num.isnan(angList)):
-            idx = ~num.isnan(angList[:, 0])
-            angList = angList[idx, :]
+        idx = ~num.isnan(angList[:, 0])
+        angList = angList[idx, :]
+        if len(angList) > 0:
             angList[:, 1] = xf.mapAngle(angList[:, 1])
             angList[:, 2] = xf.mapAngle(angList[:, 2], omePeriod)
-
-            if omeMin is None:
-                omeMin = [-num.pi, ]
-                omeMax = [ num.pi, ]
-            if etaMin is None:
-                etaMin = [-num.pi, ]
-                etaMax = [ num.pi, ]
 
             angMask = num.logical_and(
                 xf.validateAngleRanges(angList[:, 1], etaMin, etaMax),
