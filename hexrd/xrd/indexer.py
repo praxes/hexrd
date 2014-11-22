@@ -781,11 +781,21 @@ def paintGrid(quats, etaOmeMaps,
         logger.info("running in serial mode")
         nCPUs = 1
 
+    # Get the symHKLs for the selected hklIDs
+    symHKLs = planeData.getSymHKLs()
+    symHKLs = [symHKLs[id] for id in hklIDs]
+    # Restructure symHKLs into a flat NumPy HKL array with
+    # each HKL stored contiguously (C-order instead of F-order)
+    # symHKLs_ix provides the start/end index for each subarray
+    # of symHKLs.
+    symHKLs_ix = num.add.accumulate([0] + [s.shape[1] for s in symHKLs])
+    symHKLs = num.vstack(s.T for s in symHKLs)
+
     # Pack together the common parameters for processing
     paramMP = {
-        'symHKLs': planeData.getSymHKLs(),
+        'symHKLs': symHKLs,
+        'symHKLs_ix': symHKLs_ix,
         'wavelength': planeData.wavelength,
-        'hklIDs': hklIDs,
         'hklList': hklList,
         'omeMin': omeMin,
         'omeMax': omeMax,
@@ -841,8 +851,8 @@ def paintGridThis(param):
     quat, paramMP = param
     # Unpack common parameters into locals
     symHKLs    = paramMP['symHKLs']
+    symHKLs_ix = paramMP['symHKLs_ix']
     wavelength = paramMP['wavelength']
-    hklIDs     = paramMP['hklIDs']
     hklList    = paramMP['hklList']
     omeMin     = paramMP['omeMin']
     omeMax     = paramMP['omeMax']
@@ -882,7 +892,7 @@ def paintGridThis(param):
         print "using ome, eta dilitations of (%d, %d) pixels" \
               % (dpix_ome, dpix_eta)
 
-    nHKLs = len(hklIDs)
+    nHKLs = len(symHKLs_ix) - 1
 
     rMat = rotMatOfQuat(quat)
 
@@ -891,17 +901,18 @@ def paintGridThis(param):
     reflInfoList = []
     dummySpotInfo = num.nan * num.ones(3)
 
+    # Compute the oscillation angles of all the symHKLs at once
+    oangs = xfcapi.oscillAnglesOfHKLs(
+        symHKLs, 0., rMat, bMat, wavelength)
+
     hklCounterP = 0 # running count of excpected (predicted) HKLs
     hklCounterM = 0 # running count of "hit" HKLs
     for iHKL in range(nHKLs):
-        # select and C-ify symmetric HKLs
-        these_hkls = num.array(symHKLs[hklIDs[iHKL]].T, dtype=float, order='C')
+        start, stop = symHKLs_ix[iHKL:iHKL+2]
 
-        # oscillation angle arrays
-        oangs   = xfcapi.oscillAnglesOfHKLs(
-            these_hkls, 0., rMat, bMat, wavelength
-            )
-        angList = num.vstack(oangs)
+        angList = (oangs[0][start:stop], oangs[1][start:stop])
+        angList = num.vstack(angList)
+
         if not num.all(num.isnan(angList)):
             idx = ~num.isnan(angList[:, 0])
             angList = angList[idx, :]
