@@ -905,29 +905,35 @@ def paintGridThis(param):
     dummySpotInfo = num.nan * num.ones(3)
 
     # Compute the oscillation angles of all the symHKLs at once
-    oangs = xfcapi.oscillAnglesOfHKLs(
+    oangs_pair = xfcapi.oscillAnglesOfHKLs(
         symHKLs, 0., rMat, bMat, wavelength)
+    # Interleave the two produced oang solutions to simplify later processing
+    oangs = num.empty((len(symHKLs)*2, 3), dtype=oangs_pair[0].dtype)
+    oangs[0::2] = oangs_pair[0]
+    oangs[1::2] = oangs_pair[1]
+
+    # Map all of the angles at once
+    oangs[:, 1] = xf.mapAngle(oangs[:, 1])
+    oangs[:, 2] = xf.mapAngle(oangs[:, 2], omePeriod)
+
+    # Create a mask of the good ones
+    oangMask = num.logical_and(
+                ~num.isnan(oangs[:, 0]),
+            num.logical_and(
+                xf.validateAngleRanges(oangs[:, 1], etaMin, etaMax),
+                xf.validateAngleRanges(oangs[:, 2], omeMin, omeMax)))
 
     hklCounterP = 0 # running count of excpected (predicted) HKLs
     hklCounterM = 0 # running count of "hit" HKLs
     for iHKL in range(nHKLs):
         start, stop = symHKLs_ix[iHKL:iHKL+2]
+        start, stop = (2*start, 2*stop)
 
-        angList = (oangs[0][start:stop], oangs[1][start:stop])
-        angList = num.vstack(angList)
+        angList = oangs[start:stop]
+        angMask = oangMask[start:stop]
 
-        idx = ~num.isnan(angList[:, 0])
-        angList = angList[idx, :]
-        if len(angList) > 0:
-            angList[:, 1] = xf.mapAngle(angList[:, 1])
-            angList[:, 2] = xf.mapAngle(angList[:, 2], omePeriod)
-
-            angMask = num.logical_and(
-                xf.validateAngleRanges(angList[:, 1], etaMin, etaMax),
-                xf.validateAngleRanges(angList[:, 2], omeMin, omeMax))
-
-            allAngs_m = angList[angMask, :]
-
+        allAngs_m = angList[angMask, :]
+        if len(allAngs_m) > 0:
             # not output # # duplicate HKLs
             # not output # allHKLs_m = num.vstack(
             #     [these_hkls, these_hkls]
