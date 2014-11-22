@@ -762,11 +762,22 @@ def paintGrid(quats, etaOmeMaps,
     else:
         omeMin = [omegaRange[i][0] for i in range(len(omegaRange))]
         omeMax = [omegaRange[i][1] for i in range(len(omegaRange))]
+    if omeMin is None:
+        omeMin = [-num.pi, ]
+        omeMax = [ num.pi, ]
+    omeMin = num.asarray(omeMin)
+    omeMax = num.asarray(omeMax)
+
     etaMin = None
     etaMax = None
     if etaRange is not None:
         etaMin = [etaRange[i][0] for i in range(len(etaRange))]
         etaMax = [etaRange[i][1] for i in range(len(etaRange))]
+    if etaMin is None:
+        etaMin = [-num.pi, ]
+        etaMax = [ num.pi, ]
+    etaMin = num.asarray(etaMin)
+    etaMax = num.asarray(etaMax)
 
     multiProcMode = xrdbase.haveMultiProc and doMultiProc
 
@@ -781,11 +792,21 @@ def paintGrid(quats, etaOmeMaps,
         logger.info("running in serial mode")
         nCPUs = 1
 
+    # Get the symHKLs for the selected hklIDs
+    symHKLs = planeData.getSymHKLs()
+    symHKLs = [symHKLs[id] for id in hklIDs]
+    # Restructure symHKLs into a flat NumPy HKL array with
+    # each HKL stored contiguously (C-order instead of F-order)
+    # symHKLs_ix provides the start/end index for each subarray
+    # of symHKLs.
+    symHKLs_ix = num.add.accumulate([0] + [s.shape[1] for s in symHKLs])
+    symHKLs = num.vstack(s.T for s in symHKLs)
+
     # Pack together the common parameters for processing
     paramMP = {
-        'symHKLs': planeData.getSymHKLs(),
+        'symHKLs': symHKLs,
+        'symHKLs_ix': symHKLs_ix,
         'wavelength': planeData.wavelength,
-        'hklIDs': hklIDs,
         'hklList': hklList,
         'omeMin': omeMin,
         'omeMax': omeMax,
@@ -820,14 +841,29 @@ def paintGrid(quats, etaOmeMaps,
 
     return retval
 
+def _meshgrid2d(x, y):
+    """
+    A special-cased implementation of np.meshgrid, for just
+    two arguments. Found to be about 3x faster on some simple
+    test arguments.
+    """
+    x, y = (num.asarray(x), num.asarray(y))
+    shape = (len(y), len(x))
+    dt = num.result_type(x, y)
+    r1, r2 = (num.empty(shape, dt), num.empty(shape, dt))
+    r1[...] = x[num.newaxis, :]
+    r2[...] = y[:, num.newaxis]
+    return (r1, r2)
+
+
 def paintGridThis(param):
     """
     """
     quat, paramMP = param
     # Unpack common parameters into locals
     symHKLs    = paramMP['symHKLs']
+    symHKLs_ix = paramMP['symHKLs_ix']
     wavelength = paramMP['wavelength']
-    hklIDs     = paramMP['hklIDs']
     hklList    = paramMP['hklList']
     omeMin     = paramMP['omeMin']
     omeMax     = paramMP['omeMax']
@@ -846,18 +882,10 @@ def paintGridThis(param):
 
     # need this for proper index generation
 
-    omegas = [
-        omeEdges[0] + (i+0.5)*(omeEdges[1] - omeEdges[0])
-        for i in range(len(omeEdges) - 1)
-        ]
-    etas   = [
-        etaEdges[0] + (i+0.5)*(etaEdges[1] - etaEdges[0])
-        for i in range(len(etaEdges) - 1)]
+    delOmeSign = num.sign(omeEdges[1] - omeEdges[0])
 
-    delOmeSign = num.sign(omegas[1] - omegas[0])
-
-    del_ome = abs(omegas[1] - omegas[0])
-    del_eta = abs(etas[1] - etas[0])
+    del_ome = abs(omeEdges[1] - omeEdges[0])
+    del_eta = abs(etaEdges[1] - etaEdges[0])
 
     dpix_ome = round(omeTol / del_ome)
     dpix_eta = round(etaTol / del_eta)
@@ -867,7 +895,7 @@ def paintGridThis(param):
         print "using ome, eta dilitations of (%d, %d) pixels" \
               % (dpix_ome, dpix_eta)
 
-    nHKLs = len(hklIDs)
+    nHKLs = len(symHKLs_ix) - 1
 
     rMat = rotMatOfQuat(quat)
 
@@ -876,36 +904,36 @@ def paintGridThis(param):
     reflInfoList = []
     dummySpotInfo = num.nan * num.ones(3)
 
+    # Compute the oscillation angles of all the symHKLs at once
+    oangs_pair = xfcapi.oscillAnglesOfHKLs(
+        symHKLs, 0., rMat, bMat, wavelength)
+    # Interleave the two produced oang solutions to simplify later processing
+    oangs = num.empty((len(symHKLs)*2, 3), dtype=oangs_pair[0].dtype)
+    oangs[0::2] = oangs_pair[0]
+    oangs[1::2] = oangs_pair[1]
+
+    # Map all of the angles at once
+    oangs[:, 1] = xf.mapAngle(oangs[:, 1])
+    oangs[:, 2] = xf.mapAngle(oangs[:, 2], omePeriod)
+
+    # Create a mask of the good ones
+    oangMask = num.logical_and(
+                ~num.isnan(oangs[:, 0]),
+            num.logical_and(
+                xf.validateAngleRanges(oangs[:, 1], etaMin, etaMax),
+                xf.validateAngleRanges(oangs[:, 2], omeMin, omeMax)))
+
     hklCounterP = 0 # running count of excpected (predicted) HKLs
     hklCounterM = 0 # running count of "hit" HKLs
     for iHKL in range(nHKLs):
-        # select and C-ify symmetric HKLs
-        these_hkls = num.array(symHKLs[hklIDs[iHKL]].T, dtype=float, order='C')
+        start, stop = symHKLs_ix[iHKL:iHKL+2]
+        start, stop = (2*start, 2*stop)
 
-        # oscillation angle arrays
-        oangs   = xfcapi.oscillAnglesOfHKLs(
-            these_hkls, 0., rMat, bMat, wavelength
-            )
-        angList = num.vstack(oangs)
-        if not num.all(num.isnan(angList)):
-            idx = ~num.isnan(angList[:, 0])
-            angList = angList[idx, :]
-            angList[:, 1] = xf.mapAngle(angList[:, 1])
-            angList[:, 2] = xf.mapAngle(angList[:, 2], omePeriod)
+        angList = oangs[start:stop]
+        angMask = oangMask[start:stop]
 
-            if omeMin is None:
-                omeMin = [-num.pi, ]
-                omeMax = [ num.pi, ]
-            if etaMin is None:
-                etaMin = [-num.pi, ]
-                etaMax = [ num.pi, ]
-
-            angMask = num.logical_and(
-                xf.validateAngleRanges(angList[:, 1], etaMin, etaMax),
-                xf.validateAngleRanges(angList[:, 2], omeMin, omeMax))
-
-            allAngs_m = angList[angMask, :]
-
+        allAngs_m = angList[angMask, :]
+        if len(allAngs_m) > 0:
             # not output # # duplicate HKLs
             # not output # allHKLs_m = num.vstack(
             #     [these_hkls, these_hkls]
@@ -939,7 +967,7 @@ def paintGridThis(param):
 
                 if culledEtaIdx is not None and culledOmeIdx is not None:
                     if dpix_ome > 0 or dpix_eta > 0:
-                        i_dil, j_dil = num.meshgrid(
+                        i_dil, j_dil = _meshgrid2d(
                             num.arange(-dpix_ome, dpix_ome + 1),
                             num.arange(-dpix_eta, dpix_eta + 1)
                             )

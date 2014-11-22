@@ -3140,6 +3140,70 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
                 pass # close conditional for valid angles
     return eta_ome
 
+
+
+_memo_hkls = {}
+def _fetch_hkls_from_planedata(pd):
+    if pd not in _memo_hkls:
+        _memo_hkls[pd] = num.ascontiguousarray(num.hstack(pd.getSymHKLs()).T, dtype=float)
+
+    return _memo_hkls[pd]
+
+
+def _filter_hkls_eta_ome(hkls, angles, eta_range, ome_range):
+    """
+    given a set of hkls and angles, filter them by the
+    eta and omega ranges
+    """
+    # do eta ranges
+    angMask_eta = num.zeros(len(angles), dtype=bool)
+    for etas in eta_range:
+        angMask_eta = num.logical_or(angMask_eta, xf.validateAngleRanges(angles[:, 1], etas[0], etas[1]))
+
+    # do omega ranges
+    ccw=True
+    angMask_ome = num.zeros(len(angles), dtype=bool)
+    for omes in ome_range:
+        if omes[1] - omes[0] < 0:
+            ccw=False
+        angMask_ome = num.logical_or(angMask_ome, xf.validateAngleRanges(angles[:, 2], omes[0], omes[1], ccw=ccw))
+
+    # mask angles list, hkls
+    angMask = num.logical_and(angMask_eta, angMask_ome)
+
+    allAngs = angles[angMask, :]
+    allHKLs = num.vstack([hkls, hkls])[angMask, :]
+
+    return allAngs, allHKLs
+
+
+def _project_on_detector_plane_orig(allHKLs, allAngs, bMat, rMat_d, rMat_c,
+                                    tVec_d, tVec_c, tVec_s, chi, distortion):
+    det_xy = []
+    for hkl, angs in zip(allHKLs, allAngs):
+        gVec_c = num.dot(bMat, hkl.reshape(3,1))
+        rMat_s = xfcapi.makeOscillRotMat( [chi, angs[2]] )
+        tmp_xy = xfcapi.gvecToDetectorXY(gVec_c.T, rMat_d, rMat_s, rMat_c,
+                                         tVec_d, tVec_s, tVec_c)
+        if (distortion is not None or len(distortion) == 0) and not num.any(num.isnan(tmp_xy)):
+            det_xy.append(distortion[0](tmp_xy, distortion[1], invert=True))
+    return num.vstack(det_xy), rMat_s
+
+def _project_on_detector_plane(allHKLs, allAngs, bMat, rMat_d, rMat_c,
+                               tVec_d, tVec_c, tVec_s, chi, distortion):
+    if distortion is None or len(distortion) < 2:
+        # no distortion present: return an empty array.
+        return num.zeros((0,2), dtype=num.float)
+
+    gVec_cs = num.dot(bMat, allHKLs.T)
+    rMat_ss = xfcapi.makeOscillRotMatArray(chi, num.ascontiguousarray(allAngs[:,2]))
+    tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs.T, rMat_d, rMat_ss, rMat_c,
+                                          tVec_d, tVec_s, tVec_c)
+    valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
+    det_xy = distortion[0](tmp_xys[valid_mask], distortion[1], invert=True)
+    return det_xy, rMat_ss[-1]
+
+
 def simulateGVecs(pd, detector_params, grain_params,
                   ome_range=[(-num.pi, num.pi), ], ome_period=(-num.pi, num.pi),
                   eta_range=[(-num.pi, num.pi), ],
@@ -3173,7 +3237,7 @@ def simulateGVecs(pd, detector_params, grain_params,
     """
     bMat      = pd.latVecOps['B']
     wlen      = pd.wavelength
-    full_hkls = num.ascontiguousarray(num.hstack(pd.getSymHKLs()).T, dtype=float)
+    full_hkls = _fetch_hkls_from_planedata(pd)
 
     # extract variables for convenience
     rMat_d = xfcapi.makeDetectorRotMat(detector_params[:3])
@@ -3186,37 +3250,18 @@ def simulateGVecs(pd, detector_params, grain_params,
 
     # first find valid G-vectors
     angList = num.vstack(xfcapi.oscillAnglesOfHKLs(full_hkls, chi, rMat_c, bMat, wlen, vInv=vInv_s))
-
-    # do eta ranges
-    angMask_eta = num.zeros(len(angList), dtype=bool)
-    for etas in eta_range:
-        angMask_eta = num.logical_or(angMask_eta, xf.validateAngleRanges(angList[:, 1], etas[0], etas[1]))
-
-    # do omega ranges
-    ccw=True
-    angMask_ome = num.zeros(len(angList), dtype=bool)
-    for omes in ome_range:
-        if omes[1] - omes[0] < 0:
-            ccw=False
-        angMask_ome = num.logical_or(angMask_ome, xf.validateAngleRanges(angList[:, 2], omes[0], omes[1], ccw=ccw))
-
-    # mask angles list, hkls
-    angMask = num.logical_and(angMask_eta, angMask_ome)
-
-    allAngs = angList[angMask, :]
-    allHKLs = num.vstack([full_hkls, full_hkls])[angMask, :]
+    allAngs, allHKLs = _filter_hkls_eta_ome(full_hkls, angList, eta_range, ome_range)
 
     #...preallocate for speed...?
-    det_xy = []
-    for hkl, angs in zip(allHKLs, allAngs):
-        gVec_c = num.dot(bMat, hkl.reshape(3, 1))
-        rMat_s = xfcapi.makeOscillRotMat( [chi, angs[2]] )
-        tmp_xy = xfcapi.gvecToDetectorXY(gVec_c.T, rMat_d, rMat_s, rMat_c,
-                                         tVec_d, tVec_s, tVec_c)
-        if (distortion is not None or len(distortion) == 0) and not num.any(num.isnan(tmp_xy)):
-            det_xy.append(distortion[0](tmp_xy, distortion[1], invert=True))
-        pass
-    det_xy = num.vstack(det_xy)
+    det_xy, rMat_s = _project_on_detector_plane(allHKLs, allAngs, 
+                                                bMat, rMat_d, rMat_c, 
+                                                tVec_d, tVec_c, tVec_s, chi, distortion)
+    #det_xy, rMat_s = _project_on_detector_plane_orig(allHKLs, allAngs, 
+    #                                                 bMat, rMat_d, rMat_c, 
+    #                                                 tVec_d, tVec_c, tVec_s, chi, distortion)
+
+    #num.testing.assert_array_equal(rMat_s, rMat_s_b)
+    #num.testing.assert_array_equal(det_xy_b, det_xy)
     #
     on_panel_x = num.logical_and(det_xy[:, 0] >= panel_dims[0][0], det_xy[:, 0] <= panel_dims[1][0])
     on_panel_y = num.logical_and(det_xy[:, 1] >= panel_dims[0][1], det_xy[:, 1] <= panel_dims[1][1])
@@ -3232,44 +3277,101 @@ def simulateGVecs(pd, detector_params, grain_params,
     #
     return valid_hkl, valid_ang, valid_xy, ang_ps
 
-def angularPixelSize(xy_det, xy_pixelPitch,
-                     rMat_d, rMat_s,
-                     tVec_d, tVec_s, tVec_c,
-                     distortion=(dFunc_ref, dParams_ref)):
-    """
-    * choices to beam vector and eta vector specs have been supressed
-    * assumes xy_det in UNWARPED configuration
-    """
 
-    xy_det = num.atleast_2d(xy_det)
-    if distortion is not None:
-        xy_det = distortion[0](xy_det, distortion[1])
+if USE_NUMBA:
+    @numba.njit
+    def _expand_pixels(original, w, h, result):
+        hw = 0.5 * w
+        hh = 0.5 * h
+        for el in range(len(original)):
+            x, y = original[el, 0], original[el,1]
+            result[el*4 + 0, 0] = x - hw
+            result[el*4 + 0, 1] = y - hh
+            result[el*4 + 1, 0] = x + hw
+            result[el*4 + 1, 1] = y - hh
+            result[el*4 + 2, 0] = x + hw
+            result[el*4 + 2, 1] = y + hh
+            result[el*4 + 3, 0] = x - hw
+            result[el*4 + 3, 1] = y + hh
 
-    xp = num.r_[-0.5,  0.5,  0.5, -0.5] * xy_pixelPitch[0]
-    yp = num.r_[-0.5, -0.5,  0.5,  0.5] * xy_pixelPitch[1]
+        return result
 
-    diffs = num.array([[3, 3, 2, 1],
-                       [2, 0, 1, 0]])
+    @numba.jit
+    def _compute_max(tth, eta, result):
+        period = 2.0 * num.pi
+        hperiod = num.pi
+        for el in range(0, len(tth), 4):
+            max_tth = num.abs(tth[el + 0] - tth[el + 3])
+            eta_diff = eta[el + 0] - eta[el + 3]
+            max_eta = num.abs(num.remainder(eta_diff + hperiod, period) - hperiod) 
+            for i in range(3):
+                curr_tth = num.abs(tth[el + i] - tth[el + i + 1])
+                eta_diff = eta[el + i] - eta[el + i + 1]
+                curr_eta = num.abs(num.remainder(eta_diff + hperiod, period) - hperiod)
+                max_tth = num.maximum(curr_tth, max_tth)
+                max_eta = num.maximum(curr_eta, max_eta)
+            result[el//4, 0] = max_tth
+            result[el//4, 1] = max_eta
 
-    ang_pix = num.zeros((len(xy_det), 2))
+        return result
 
-    for ipt, xy in enumerate(xy_det):
-        xc = xp + xy[0]
-        yc = yp + xy[1]
+    def angularPixelSize(xy_det, xy_pixelPitch,
+                 rMat_d, rMat_s,
+                 tVec_d, tVec_s, tVec_c,
+                 distortion=(dFunc_ref, dParams_ref)):
+        """
+        * choices to beam vector and eta vector specs have been supressed
+        * assumes xy_det in UNWARPED configuration
+        """
+        xy_det = num.atleast_2d(xy_det)
+        if distortion is not None:
+            xy_det = distortion[0](xy_det, distortion[1])
 
-        tth_eta, gHat_l = xfcapi.detectorXYToGvec(num.vstack([xc, yc]).T,
-                                                  rMat_d, rMat_s,
-                                                  tVec_d, tVec_s, tVec_c)
+        xy_expanded = num.empty((len(xy_det) * 4, 2), dtype=xy_det.dtype)
+        xy_expanded = _expand_pixels(xy_det, xy_pixelPitch[0], xy_pixelPitch[1], xy_expanded)
+        gvec_space, _ = xfcapi.detectorXYToGvec(xy_expanded, rMat_d, rMat_s,
+                                                tVec_d, tVec_s, tVec_c)
+        result = num.empty_like(xy_det)
+        return _compute_max(gvec_space[0], gvec_space[1], result)
+else:
+    def angularPixelSize(xy_det, xy_pixelPitch,
+                         rMat_d, rMat_s,
+                         tVec_d, tVec_s, tVec_c,
+                         distortion=(dFunc_ref, dParams_ref)):
+        """
+        * choices to beam vector and eta vector specs have been supressed
+        * assumes xy_det in UNWARPED configuration
+        """
 
-        delta_tth = num.zeros(4)
-        delta_eta = num.zeros(4)
-        for j in range(4):
-            delta_tth[j] = abs(tth_eta[0][diffs[0, j]] - tth_eta[0][diffs[1, j]])
-            delta_eta[j] = xf.angularDifference(tth_eta[1][diffs[0, j]], tth_eta[1][diffs[1, j]])
+        xy_det = num.atleast_2d(xy_det)
+        if distortion is not None:
+            xy_det = distortion[0](xy_det, distortion[1])
 
-        ang_pix[ipt, 0] = num.amax(delta_tth)
-        ang_pix[ipt, 1] = num.amax(delta_eta)
-    return ang_pix
+        xp = num.r_[-0.5,  0.5,  0.5, -0.5] * xy_pixelPitch[0]
+        yp = num.r_[-0.5, -0.5,  0.5,  0.5] * xy_pixelPitch[1]
+
+        diffs = num.array([[3, 3, 2, 1],
+                           [2, 0, 1, 0]])
+
+        ang_pix = num.zeros((len(xy_det), 2))
+
+        for ipt, xy in enumerate(xy_det):
+            xc = xp + xy[0]
+            yc = yp + xy[1]
+
+            tth_eta, gHat_l = xfcapi.detectorXYToGvec(num.vstack([xc, yc]).T,
+                                                      rMat_d, rMat_s,
+                                                      tVec_d, tVec_s, tVec_c)
+
+            delta_tth = num.zeros(4)
+            delta_eta = num.zeros(4)
+            for j in range(4):
+                delta_tth[j] = abs(tth_eta[0][diffs[0, j]] - tth_eta[0][diffs[1, j]])
+                delta_eta[j] = xf.angularDifference(tth_eta[1][diffs[0, j]], tth_eta[1][diffs[1, j]])
+
+            ang_pix[ipt, 0] = num.amax(delta_tth)
+            ang_pix[ipt, 1] = num.amax(delta_eta)
+        return ang_pix
 
 
 

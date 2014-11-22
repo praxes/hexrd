@@ -32,6 +32,10 @@ def configure_parser(sub_parsers):
 list hkl entries in the materials file to use for fitting
 if None, defaults to list specified in the yml file"""
         )
+    p.add_argument(
+        '-p', '--profile', action='store_true',
+        help='runs the analysis with cProfile enabled',
+        )
     p.set_defaults(func=execute)
 
 
@@ -97,8 +101,20 @@ def execute(args, parser):
     logger.info("logging to %s", logfile)
     logger.addHandler(fh)
 
+    if args.profile:
+        import cProfile as profile, pstats, StringIO
+        pr = profile.Profile()
+        pr.enable()
+
     # process the data
-    find_orientations(cfg, hkls=args.hkls)
+    find_orientations(cfg, hkls=args.hkls, profile=args.profile)
+
+    if args.profile:
+        pr.disable()
+        s = StringIO.StringIO()
+        ps = pstats.Stats(pr, stream=s).sort_stats('cumulative')
+        ps.print_stats(50)
+        logger.info('%s', s.getvalue())
 
     # clean up the logging
     fh.flush()
