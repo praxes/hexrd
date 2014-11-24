@@ -124,6 +124,7 @@ package_data = [
     'COPYING',
     'LICENSE',
     'wx/hexrd.png',
+    'qt/*.ui',
     'data/materials.cfg',
     'data/all_materials.cfg',
     ]
