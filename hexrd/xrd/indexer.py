@@ -675,6 +675,7 @@ def pgRefine(x, etaOmeMaps, omegaRange, threshold):
     f = abs(1. - c)
     return f
 
+paramMP = None
 def paintGrid(quats, etaOmeMaps,
               threshold=None, bMat=None,
               omegaRange=None, etaRange=None,
@@ -700,6 +701,11 @@ def paintGrid(quats, etaOmeMaps,
     ...make a new function that gets called by grain to do the g-vec angle
     computation?
     """
+
+    # This global value is used to pass state directly to the multiprocessing
+    # workers. On Windows, where fork() is not used for multiprocessing, it
+    # is reconstructed on each worker via a saved pickle.
+    global paramMP
 
     quats = num.atleast_2d(quats)
     if quats.size == 4:
@@ -823,11 +829,21 @@ def paintGrid(quats, etaOmeMaps,
         'bMat': bMat,
         'threshold': threshold
         }
+    # On Windows, save this pack of parameters into a pickle for the
+    # workers to load
+    if sys.platform.startswith('win'):
+        import tempfile, cPickle
+        handle, paramMP_file = tempfile.mkstemp(suffix='.pickle')
+        f = os.fdopen(handle, 'wb')
+        cPickle.dump(paramMP, f)
+        f.close()
+    else:
+        paramMP_file = None
 
     # do the mapping
     start = time.time()                      # time this
     retval = None
-    params = [(q, paramMP) for q in quats.T]
+    params = [(q, paramMP_file) for q in quats.T]
     if multiProcMode:
         pool = multiprocessing.Pool(nCPUs)
         retval = pool.map(paintGridThis, params, chunksize=chunksize)
@@ -838,6 +854,12 @@ def paintGrid(quats, etaOmeMaps,
 
     if multiProcMode:
         pool.close()
+
+    # Clean up the temp parameter file
+    if paramMP_file is not None:
+        os.remove(paramMP_file)
+    # Free the parameter pack memory
+    paramMP = None
 
     return retval
 
@@ -859,7 +881,15 @@ def _meshgrid2d(x, y):
 def paintGridThis(param):
     """
     """
-    quat, paramMP = param
+    global paramMP
+    quat, paramMP_file = param
+    # If paramMP is not accessible as a global, because we're on the
+    # Windows platform, load it from the pickle file
+    if paramMP is None:
+        import cPickle
+        with open(paramMP_file, 'rb') as f:
+            paramMP = cPickle.load(f)
+
     # Unpack common parameters into locals
     symHKLs    = paramMP['symHKLs']
     symHKLs_ix = paramMP['symHKLs_ix']
