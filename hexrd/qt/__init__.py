@@ -18,7 +18,8 @@ class QLogStream(object):
         self._dest = dest
 
     def write(self, val):
-        self._dest.append(val)
+        # append adds its own line endings, need to rstrip
+        self._dest.append(val.rstrip())
 
 
 def execute(args):
