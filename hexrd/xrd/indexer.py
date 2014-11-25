@@ -829,36 +829,21 @@ def paintGrid(quats, etaOmeMaps,
         'bMat': bMat,
         'threshold': threshold
         }
-    # On Windows, save this pack of parameters into a pickle for the
-    # workers to load
-    if sys.platform.startswith('win'):
-        import tempfile, cPickle
-        handle, paramMP_file = tempfile.mkstemp(suffix='.pickle')
-        f = os.fdopen(handle, 'wb')
-        cPickle.dump(paramMP, f)
-        f.close()
-    else:
-        paramMP_file = None
 
     # do the mapping
-    start = time.time()                      # time this
+    start = time.time()
     retval = None
-    params = [(q, paramMP_file) for q in quats.T]
     if multiProcMode:
-        pool = multiprocessing.Pool(nCPUs)
-        retval = pool.map(paintGridThis, params, chunksize=chunksize)
+        pool = multiprocessing.Pool(nCPUs, paintgrid_init, (paramMP, ))
+        retval = pool.map(paintGridThis, quats.T, chunksize=chunksize)
     else:
-        retval = map(paintGridThis, params)
+        retval = map(paintGridThis, quats.T)
     elapsed = (time.time() - start)
     logger.info("paintGrid took %.3f seconds", elapsed)
 
     if multiProcMode:
         pool.close()
 
-    # Clean up the temp parameter file
-    if paramMP_file is not None:
-        os.remove(paramMP_file)
-    # Free the parameter pack memory
     paramMP = None
 
     return retval
@@ -878,37 +863,33 @@ def _meshgrid2d(x, y):
     return (r1, r2)
 
 
-def paintGridThis(param):
-    """
-    """
+def paintgrid_init(params):
     global paramMP
-    quat, paramMP_file = param
-    # If paramMP is not accessible as a global, because we're on the
-    # Windows platform, load it from the pickle file
-    if paramMP is None:
-        import cPickle
-        with open(paramMP_file, 'rb') as f:
-            paramMP = cPickle.load(f)
+    paramMP = params
 
+
+def paintGridThis(quat):
+    """
+    """
     # Unpack common parameters into locals
-    symHKLs    = paramMP['symHKLs']
+    symHKLs = paramMP['symHKLs']
     symHKLs_ix = paramMP['symHKLs_ix']
     wavelength = paramMP['wavelength']
-    hklList    = paramMP['hklList']
-    omeMin     = paramMP['omeMin']
-    omeMax     = paramMP['omeMax']
-    omeTol     = paramMP['omeTol']
-    omePeriod  = paramMP['omePeriod']
+    hklList = paramMP['hklList']
+    omeMin = paramMP['omeMin']
+    omeMax = paramMP['omeMax']
+    omeTol = paramMP['omeTol']
+    omePeriod = paramMP['omePeriod']
     omeIndices = paramMP['omeIndices']
-    omeEdges   = paramMP['omeEdges']
-    etaMin     = paramMP['etaMin']
-    etaMax     = paramMP['etaMax']
-    etaTol     = paramMP['etaTol']
+    omeEdges = paramMP['omeEdges']
+    etaMin = paramMP['etaMin']
+    etaMax = paramMP['etaMax']
+    etaTol = paramMP['etaTol']
     etaIndices = paramMP['etaIndices']
-    etaEdges   = paramMP['etaEdges']
+    etaEdges = paramMP['etaEdges']
     etaOmeMaps = paramMP['etaOmeMaps']
-    bMat       = paramMP['bMat']
-    threshold  = paramMP['threshold']
+    bMat = paramMP['bMat']
+    threshold = paramMP['threshold']
 
     # need this for proper index generation
 
