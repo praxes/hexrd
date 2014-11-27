@@ -6,3 +6,4 @@
 *.py diff=python
 *.c diff=cpp
 *.h diff=cpp
+hexrd/_version.py export-subst
