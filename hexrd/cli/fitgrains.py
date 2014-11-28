@@ -22,6 +22,10 @@ def configure_parser(sub_parsers):
         '-f', '--force', action='store_true',
         help='overwrites existing analysis'
         )
+    p.add_argument(
+        '-p', '--profile', action='store_true',
+        help='runs the analysis with cProfile enabled',
+        )
     p.set_defaults(func=execute)
 
 
@@ -92,8 +96,20 @@ def execute(args, parser):
         logger.info("logging to %s", logfile)
         logger.addHandler(fh)
 
+        if args.profile:
+            import cProfile as profile, pstats, StringIO
+            pr = profile.Profile()
+            pr.enable()
+
         # process the data
         fit_grains(cfg, force=args.force, show_progress=not args.quiet)
+
+        if args.profile:
+            pr.disable()
+            s = StringIO.StringIO()
+            ps = pstats.Stats(pr, stream=s).sort_stats('cumulative')
+            ps.print_stats(50)
+            logger.info('%s', s.getvalue())
 
         # stop logging for this particular analysis
         fh.flush()
