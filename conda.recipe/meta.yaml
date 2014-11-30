@@ -49,6 +49,7 @@ test:
     - hexrd help fit-grains
     - hexrd gui -h
     - hexrd help gui
+    - hexrd test
 
 about:
   license: LGPL
