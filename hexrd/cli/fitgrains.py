@@ -4,7 +4,7 @@ from __future__ import print_function, division, absolute_import
 descr = 'Extracts G vectors, grain position and strain'
 example = """
 examples:
-    hexrd grains configuration.yml
+    hexrd fit-grains configuration.yml
 """
 
 
