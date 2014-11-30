@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import time
 
 # use API v2 to prepare for migration to Py3/PyQt5:
 import sip
@@ -8,8 +9,11 @@ sip.setapi('QString', 2)
 sip.setapi('QTextStream', 2)
 sip.setapi('QVariant', 2)
 
-from PyQt4.QtGui import QApplication, QMainWindow
+from PyQt4.QtCore import Qt
+from PyQt4.QtGui import QApplication, QMainWindow, QPixmap, QSplashScreen
 from PyQt4.uic import loadUi
+
+from hexrd.qt.resources import image_files, ui_files
 
 
 class QLogStream(object):
@@ -24,7 +28,20 @@ class QLogStream(object):
 
 def execute(args):
     app = QApplication(sys.argv)
-    ui = loadUi(os.path.join(os.path.split(__file__)[0], 'mainwindow.ui'))
+    app.setApplicationName('HEXRD')
+
+    # Create and display the splash screen
+    splash_pix = QPixmap(image_files['splash'])
+    splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
+    splash.setMask(splash_pix.mask())
+    splash.show()
+    app.processEvents()
+
+    # give the splash screen a little time to breathe
+    time.sleep(2)
+
+    ui = loadUi(ui_files['main_window'])
+    ui.setWindowTitle('HEXRD')
 
     # configure logging to the log window
     # TODO: clean up
@@ -48,7 +65,8 @@ def execute(args):
             logging.Formatter('%(asctime)s - %(message)s', '%y-%m-%d %H:%M:%S')
             )
         logger.addHandler(ch)
-    logger.info("begin logging!")
 
     ui.show()
+    splash.finish(ui)
+    logger.debug("hexrd loaded")
     sys.exit(app.exec_())
