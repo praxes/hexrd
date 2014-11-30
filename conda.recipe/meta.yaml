@@ -21,14 +21,9 @@ app:
 
 requirements:
   build:
-    - matplotlib
     - numpy
     - python
-    - pyyaml
-    - scikit-learn
-    - scipy
     - setuptools # [win]
-    - wxpython
   run:
     - matplotlib
     - numba
