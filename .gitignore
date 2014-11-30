@@ -1,6 +1,8 @@
 build
 _build
+hexrd.egg-info
 *.pyc
+*.pyd
 *.pyo
 .DS_Store
 *.o
