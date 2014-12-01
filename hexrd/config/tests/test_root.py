@@ -56,6 +56,12 @@ class TestRootConfig(TestConfig):
         self.assertEqual(self.cfgs[0].working_dir, os.getcwd())
         self.assertEqual(self.cfgs[1].working_dir, test_data['existing_path'])
         self.assertRaises(IOError, getattr, self.cfgs[2], 'working_dir')
+        self.cfgs[7].working_dir = test_data['existing_path']
+        self.assertEqual(self.cfgs[7].working_dir, test_data['existing_path'])
+        self.assertRaises(
+            IOError, setattr, self.cfgs[7], 'working_dir',
+            test_data['nonexistent_path']
+            )
 
     @skipIf(mp.cpu_count() < 2, 'test requires at least two cores')
     def test_multiprocessing(self):

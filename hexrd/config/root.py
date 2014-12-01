@@ -144,4 +144,7 @@ class RootConfig(Config):
             )
     @working_dir.setter
     def working_dir(self, val):
+        val = os.path.abspath(val)
+        if not os.path.isdir(val):
+            raise IOError('"working_dir": "%s" does not exist' % val)
         self.set('working_dir', val)
