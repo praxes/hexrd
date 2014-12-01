@@ -113,6 +113,21 @@ class MainController(QMainWindow):
         webbrowser.open_new_tab('http://hexrd.readthedocs.org/en/latest')
 
 
+    @pyqtSlot()
+    def on_actionAbout_triggered(self):
+        dlg = QMessageBox.about(
+            self, 'About HEXRD',
+"""HEXRD provides a collection of resources for analysis of x-ray diffraction
+data, especially high-energy x-ray diffraction. HEXRD is comprised of a
+library and API for writing scripts, a command line interface, and an
+interactive graphical user interface.
+
+HEXRD is an open-source project originally conceived by Joel Bernier, and
+developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
+"""
+            )
+
+
     def on_analysisNameLineEdit_editingFinished(self):
         self.cfg.analysis_name = str(self.analysisNameLineEdit.text())
 
@@ -165,6 +180,26 @@ class MainController(QMainWindow):
 
         self.multiprocessingSpinBox.setMaximum(multiprocessing.cpu_count())
         self.multiprocessingSpinBox.setValue(self.cfg.multiprocessing)
+
+
+    @pyqtSlot(name='on_actionSaveCalibration_triggered')
+    @pyqtSlot(name='on_actionSaveMaterials_triggered')
+    @pyqtSlot(name='on_actionPowderBinnedFit_triggered')
+    @pyqtSlot(name='on_actionPowderDirectFit_triggered')
+    @pyqtSlot(name='on_actionSingleCrystalFit_triggered')
+    @pyqtSlot(name='on_actionCake_triggered')
+    @pyqtSlot(name='on_actionPolarRebin_triggered')
+    @pyqtSlot(name='on_actionFindOrientations_triggered')
+    @pyqtSlot(name='on_actionFitGrains_triggered')
+    def not_implemented(self):
+        dlg = QMessageBox.information(
+            self, 'Not Implemented',
+"""The requested feature has not been implemented.
+
+Please consider filing an issue report at
+http://github.com/praxes/hexrd/issues, if one does not already exist.""",
+            buttons=QMessageBox.Ok
+            )
 
 
     @pyqtSlot(name='on_actionSaveConfiguration_triggered')

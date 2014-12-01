@@ -184,8 +184,8 @@ intensity:</string>
       <string>Save...</string>
      </property>
      <addaction name="actionSaveConfiguration"/>
-     <addaction name="actionCalibration"/>
-     <addaction name="actionMaterials"/>
+     <addaction name="actionSaveCalibration"/>
+     <addaction name="actionSaveMaterials"/>
     </widget>
     <addaction name="menuSave"/>
     <addaction name="actionExit"/>
@@ -209,17 +209,17 @@ intensity:</string>
       <property name="title">
        <string>Powder</string>
       </property>
-      <addaction name="actionBinned_Fit"/>
-      <addaction name="actionDirect_Fit"/>
+      <addaction name="actionPowderBinnedFit"/>
+      <addaction name="actionPowderDirectFit"/>
      </widget>
      <addaction name="menuPowder"/>
-     <addaction name="actionSingle_Crystal"/>
+     <addaction name="actionSingleCrystalFit"/>
     </widget>
     <addaction name="menuCalibrate"/>
     <addaction name="actionCake"/>
-    <addaction name="actionPolar_rebin"/>
-    <addaction name="actionFind_orientations"/>
-    <addaction name="actionFit_grains"/>
+    <addaction name="actionPolarRebin"/>
+    <addaction name="actionFindOrientations"/>
+    <addaction name="actionFitGrains"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
@@ -1409,17 +1409,17 @@ p, li { white-space: pre-wrap; }
     <string>Cake</string>
    </property>
   </action>
-  <action name="actionPolar_rebin">
+  <action name="actionPolarRebin">
    <property name="text">
     <string>Polar rebin</string>
    </property>
   </action>
-  <action name="actionFind_orientations">
+  <action name="actionFindOrientations">
    <property name="text">
     <string>Find orientations</string>
    </property>
   </action>
-  <action name="actionFit_grains">
+  <action name="actionFitGrains">
    <property name="text">
     <string>Fit grains</string>
    </property>
@@ -1429,12 +1429,12 @@ p, li { white-space: pre-wrap; }
     <string>Configuration</string>
    </property>
   </action>
-  <action name="actionCalibration">
+  <action name="actionSaveCalibration">
    <property name="text">
     <string>Calibration</string>
    </property>
   </action>
-  <action name="actionMaterials">
+  <action name="actionSaveMaterials">
    <property name="text">
     <string>Materials</string>
    </property>
@@ -1444,17 +1444,17 @@ p, li { white-space: pre-wrap; }
     <string>Exit</string>
    </property>
   </action>
-  <action name="actionSingle_Crystal">
+  <action name="actionSingleCrystalFit">
    <property name="text">
     <string>Single Crystal</string>
    </property>
   </action>
-  <action name="actionBinned_Fit">
+  <action name="actionPowderBinnedFit">
    <property name="text">
     <string>Binned Fit</string>
    </property>
   </action>
-  <action name="actionDirect_Fit">
+  <action name="actionPowderDirectFit">
    <property name="text">
     <string>Direct Fit</string>
    </property>
