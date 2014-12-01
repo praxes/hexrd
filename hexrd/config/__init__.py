@@ -4,13 +4,16 @@ from . import root
 from . import utils
 
 
-def open(file_name):
+def open(file_name=None):
     """
     Reads configuration settings from a yaml file.
 
     Returns a list of configuration objects, one for each document section in
     the file.
     """
+    if file_name is None:
+        return [root.RootConfig({})]
+
     with file(file_name) as f:
         res = []
         for cfg in yaml.load_all(f):

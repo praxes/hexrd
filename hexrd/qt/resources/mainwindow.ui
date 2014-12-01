@@ -52,10 +52,27 @@
             </widget>
            </item>
            <item row="1" column="1">
-            <widget class="QSpinBox" name="maxSpinBox"/>
+            <widget class="QSpinBox" name="maxSpinBox">
+             <property name="minimum">
+              <number>0</number>
+             </property>
+             <property name="maximum">
+              <number>999999999</number>
+             </property>
+             <property name="value">
+              <number>16384</number>
+             </property>
+            </widget>
            </item>
            <item row="2" column="1">
-            <widget class="QSpinBox" name="minSpinBox"/>
+            <widget class="QSpinBox" name="minSpinBox">
+             <property name="minimum">
+              <number>-999999999</number>
+             </property>
+             <property name="maximum">
+              <number>16384</number>
+             </property>
+            </widget>
            </item>
            <item row="2" column="2">
             <widget class="QCheckBox" name="showUnderCheckBox">
@@ -94,6 +111,13 @@
              </property>
              <property name="text">
               <string>Minimum</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QCheckBox" name="cmapReverseCheckBox">
+             <property name="text">
+              <string>reverse</string>
              </property>
             </widget>
            </item>
@@ -230,8 +254,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>340</width>
-          <height>438</height>
+          <width>224</width>
+          <height>335</height>
          </rect>
         </property>
         <attribute name="label">
@@ -253,10 +277,10 @@ intensity:</string>
           </widget>
          </item>
          <item row="0" column="1">
-          <widget class="QLineEdit" name="lineEdit_2"/>
+          <widget class="QLineEdit" name="analysisNameLineEdit"/>
          </item>
          <item row="1" column="1">
-          <widget class="QLineEdit" name="lineEdit_3"/>
+          <widget class="QLineEdit" name="workingDirLineEdit"/>
          </item>
          <item row="2" column="0">
           <widget class="QLabel" name="label_3">
@@ -266,7 +290,7 @@ intensity:</string>
           </widget>
          </item>
          <item row="2" column="1">
-          <widget class="QSpinBox" name="spinBox_2">
+          <widget class="QSpinBox" name="multiprocessingSpinBox">
            <property name="minimum">
             <number>1</number>
            </property>
@@ -298,8 +322,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>340</width>
-          <height>438</height>
+          <width>224</width>
+          <height>335</height>
          </rect>
         </property>
         <attribute name="label">
@@ -447,8 +471,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>340</width>
-          <height>438</height>
+          <width>224</width>
+          <height>335</height>
          </rect>
         </property>
         <attribute name="label">
@@ -595,7 +619,7 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>325</width>
+          <width>316</width>
           <height>545</height>
          </rect>
         </property>
@@ -1280,8 +1304,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>340</width>
-          <height>438</height>
+          <width>224</width>
+          <height>335</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1293,8 +1317,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>340</width>
-          <height>438</height>
+          <width>224</width>
+          <height>335</height>
          </rect>
         </property>
         <attribute name="label">

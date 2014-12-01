@@ -16,6 +16,10 @@ def configure_parser(sub_parsers):
         '--qt', action='store_true',
         help='use the Qt user interface'
         )
+    p.add_argument(
+        'config', nargs='?', default=None,
+        help='yaml configuration file'
+        )
     p.set_defaults(func=execute)
 
 
