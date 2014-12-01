@@ -121,15 +121,20 @@ class RootConfig(Config):
 
     @property
     def working_dir(self):
-        temp = self.get('working_dir', default=None)
-        if temp is None:
+        try:
+            temp = self.get('working_dir')
+            if not os.path.exists(temp):
+                raise IOError(
+                    '"working_dir": "%s" does not exist', temp
+                    )
+            return temp
+        except RuntimeError:
             temp = os.getcwd()
             self.working_dir = temp
-        if os.path.exists(temp):
+            logger.info(
+                '"working_dir" not specified, defaulting to "%s"' % temp
+                )
             return temp
-        raise IOError(
-            '"working_dir": "%s" does not exist', temp
-            )
     @working_dir.setter
     def working_dir(self, val):
         val = os.path.abspath(val)
