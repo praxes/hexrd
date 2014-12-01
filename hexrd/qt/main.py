@@ -107,6 +107,12 @@ class MainController(QMainWindow):
         self.actionExit.triggered.connect(self.close)
 
 
+    @pyqtSlot()
+    def on_actionDocumentation_triggered(self):
+        import webbrowser
+        webbrowser.open_new_tab('http://hexrd.readthedocs.org/en/latest')
+
+
     def on_analysisNameLineEdit_editingFinished(self):
         self.cfg.analysis_name = str(self.analysisNameLineEdit.text())
 

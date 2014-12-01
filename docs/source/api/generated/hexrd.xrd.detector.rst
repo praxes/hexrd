@@ -6,16 +6,10 @@ Module: :mod:`xrd.detector`
 
 .. currentmodule:: hexrd.xrd.detector
 
-24 Classes
+23 Classes
 ----------
 
 .. autoclass:: FmtCoordIdeal
-  :members:
-  :show-inheritance:
-
-  .. automethod:: __init__
-
-.. autoclass:: ThreadReadFrame
   :members:
   :show-inheritance:
 

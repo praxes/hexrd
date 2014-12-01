@@ -6,7 +6,7 @@ Module: :mod:`xrd.xrdutil`
 
 .. currentmodule:: hexrd.xrd.xrdutil
 
-6 Classes
+7 Classes
 ---------
 
 .. autoclass:: FormatEtaOme
@@ -22,6 +22,12 @@ Module: :mod:`xrd.xrdutil`
   .. automethod:: __init__
 
 .. autoclass:: CollapseOmeEta
+  :members:
+  :show-inheritance:
+
+  .. automethod:: __init__
+
+.. autoclass:: EtaOmeMaps
   :members:
   :show-inheritance:
 
