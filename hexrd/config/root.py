@@ -21,38 +21,7 @@ logger = logging.getLogger('hexrd.config')
 class RootConfig(Config):
 
 
-    def get(self, key, default=null):
-        args = key.split(':')
-        args, item = args[:-1], args[-1]
-        temp = self._cfg
-        for arg in args:
-            temp = temp.get(arg, {})
-            # intermediate block may be None:
-            temp = {} if temp is None else temp
-        try:
-            res = temp[item]
-        except KeyError:
-            if default is not null:
-                logger.info(
-                    '%s not specified, defaulting to %s', key, default
-                    )
-                res = temp.get(item, default)
-            else:
-                raise RuntimeError(
-                    '%s must be specified in configuration file' % key
-                    )
-        return res
-
-
-    def set(self, key, val):
-        args = key.split(':')
-        args, item = args[:-1], args[-1]
-        temp = self._cfg
-        for arg in args:
-            temp = temp.get(arg, {})
-            # intermediate block may be None:
-            temp = {} if temp is None else temp
-        temp[item] = val
+    _dirty = False
 
 
     @property
@@ -66,6 +35,11 @@ class RootConfig(Config):
     @property
     def analysis_dir(self):
         return os.path.join(self.working_dir, self.analysis_name)
+
+
+    @property
+    def dirty(self):
+        return self._dirty
 
 
     @property
@@ -162,3 +136,47 @@ class RootConfig(Config):
         if not os.path.isdir(val):
             raise IOError('"working_dir": "%s" does not exist' % val)
         self.set('working_dir', val)
+
+
+    def dump(self, filename):
+        import yaml
+
+        with open(filename, 'w') as f:
+            yaml.dump(self._cfg, f)
+        self._dirty = False
+
+
+    def get(self, key, default=null):
+        args = key.split(':')
+        args, item = args[:-1], args[-1]
+        temp = self._cfg
+        for arg in args:
+            temp = temp.get(arg, {})
+            # intermediate block may be None:
+            temp = {} if temp is None else temp
+        try:
+            res = temp[item]
+        except KeyError:
+            if default is not null:
+                logger.info(
+                    '%s not specified, defaulting to %s', key, default
+                    )
+                res = temp.get(item, default)
+            else:
+                raise RuntimeError(
+                    '%s must be specified in configuration file' % key
+                    )
+        return res
+
+
+    def set(self, key, val):
+        args = key.split(':')
+        args, item = args[:-1], args[-1]
+        temp = self._cfg
+        for arg in args:
+            temp = temp.get(arg, {})
+            # intermediate block may be None:
+            temp = {} if temp is None else temp
+        if temp.get(item, null) != val:
+            temp[item] = val
+            self._dirty = True

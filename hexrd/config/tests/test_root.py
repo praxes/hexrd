@@ -1,8 +1,10 @@
 import multiprocessing as mp
 import os
+import tempfile
 from unittest import skipIf
 
 from .common import TestConfig, test_data
+from hexrd import config
 
 
 reference_data = \
@@ -99,3 +101,20 @@ class TestSingleConfig(TestConfig):
 
     def test_analysis_name(self):
         self.assertEqual(self.cfgs[0].analysis_name, 'foo')
+
+    def test_dirty(self):
+        self.assertEqual(self.cfgs[0].dirty, False)
+        self.cfgs[0].analysis_name = 'bar'
+        self.assertEqual(self.cfgs[0].analysis_name, 'bar')
+        self.assertEqual(self.cfgs[0].dirty, True)
+
+    def test_dump(self):
+        self.assertEqual(self.cfgs[0].dirty, False)
+        self.cfgs[0].analysis_name = 'baz'
+        self.assertEqual(self.cfgs[0].dirty, True)
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            pass
+        self.cfgs[0].dump(f.name)
+        self.assertEqual(self.cfgs[0].dirty, False)
+        cfg = config.open(f.name)[0]
+        self.assertEqual(self.cfgs[0].analysis_name, 'baz')
