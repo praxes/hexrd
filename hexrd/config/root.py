@@ -17,6 +17,7 @@ from .utils import null
 logger = logging.getLogger('hexrd.config')
 
 
+
 class RootConfig(Config):
 
 
@@ -41,6 +42,17 @@ class RootConfig(Config):
                     '%s must be specified in configuration file' % key
                     )
         return res
+
+
+    def set(self, key, val):
+        args = key.split(':')
+        args, item = args[:-1], args[-1]
+        temp = self._cfg
+        for arg in args:
+            temp = temp.get(arg, {})
+            # intermediate block may be None:
+            temp = {} if temp is None else temp
+        temp[item] = val
 
 
     @property
@@ -120,11 +132,16 @@ class RootConfig(Config):
 
 
     @property
-    @memoized
     def working_dir(self):
-        temp = self.get('working_dir', default=os.getcwd())
+        temp = self.get('working_dir', default=None)
+        if temp is None:
+            temp = os.getcwd()
+            self.working_dir = temp
         if os.path.exists(temp):
             return temp
         raise IOError(
             '"working_dir": "%s" does not exist', temp
             )
+    @working_dir.setter
+    def working_dir(self, val):
+        self.set('working_dir', val)

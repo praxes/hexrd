@@ -11,7 +11,9 @@ sip.setapi('QTextStream', 2)
 sip.setapi('QVariant', 2)
 
 from PyQt4.QtCore import Qt, QObject
-from PyQt4.QtGui import qApp, QApplication, QMainWindow, QPixmap, QSplashScreen
+from PyQt4.QtGui import (
+    qApp, QApplication, QFileDialog, QMainWindow, QPixmap, QSplashScreen
+    )
 from PyQt4.uic import loadUi
 
 from matplotlib import cm
@@ -83,6 +85,8 @@ class MainController(QObject):
 
         self.gc_ctlr = GraphicsCanvasController(ui)
 
+        ui.changeWorkingDirButton.clicked.connect(self.change_working_dir)
+
         ui.show()
         splash.finish(ui)
 
@@ -98,6 +102,16 @@ class MainController(QObject):
 
         ui.multiprocessingSpinBox.setMaximum(multiprocessing.cpu_count())
         ui.multiprocessingSpinBox.setValue(self.cfg.multiprocessing)
+
+
+    def change_working_dir(self):
+        temp = QFileDialog.getExistingDirectory(
+            parent=self.ui, caption='booya', directory=self.cfg.working_dir
+            )
+        if temp:
+            self.ui.workingDirLineEdit.setText(temp)
+            self.cfg.working_dir = temp
+            assert self.cfg.working_dir == temp
 
 
 
