@@ -18,5 +18,6 @@ class _ResourceManager(object):
 image_files = _ResourceManager()
 image_files['splash'] = 'hexrd.png'
 
+
 ui_files = _ResourceManager()
 ui_files['main_window'] = 'mainwindow.ui'

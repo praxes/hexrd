@@ -20,11 +20,16 @@ def configure_parser(sub_parsers):
 
 
 def execute(args, parser):
+    import logging
+
+    logger = logging.getLogger('hexrd')
+    logger.setLevel(logging.DEBUG)
+
     if args.qt:
         from hexrd.qt import execute
+
         execute(args)
     else:
         from hexrd.wx import mainapp
 
-        # TODO: this should be improved to not draw directly on sys.argv
         mainapp.execute(*sys.argv[2:])
