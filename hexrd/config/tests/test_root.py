@@ -45,6 +45,8 @@ class TestRootConfig(TestConfig):
     def test_analysis_name(self):
         self.assertEqual(self.cfgs[0].analysis_name, 'analysis')
         self.assertEqual(self.cfgs[1].analysis_name, 'analysis_2')
+        self.cfgs[3].analysis_name = 'analysis_3'
+        self.assertEqual(self.cfgs[3].analysis_name, 'analysis_3')
 
     def test_section_inheritance(self):
         self.assertEqual(self.cfgs[0].analysis_name, 'analysis')
@@ -74,6 +76,19 @@ class TestRootConfig(TestConfig):
         self.assertEqual(self.cfgs[5].multiprocessing, ncpus)
         self.assertEqual(self.cfgs[6].multiprocessing, 1)
         self.assertEqual(self.cfgs[7].multiprocessing, ncpus-1)
+        self.cfgs[7].multiprocessing = 1
+        self.assertEqual(self.cfgs[7].multiprocessing, 1)
+        self.cfgs[7].multiprocessing = 'all'
+        self.assertEqual(self.cfgs[7].multiprocessing, ncpus)
+        self.cfgs[7].multiprocessing = 2
+        self.assertEqual(self.cfgs[7].multiprocessing, 2)
+        self.assertRaises(
+            RuntimeError, setattr, self.cfgs[7], 'multiprocessing', 'foo'
+            )
+        self.assertRaises(
+            RuntimeError, setattr, self.cfgs[7], 'multiprocessing', -2
+            )
+
 
 
 class TestSingleConfig(TestConfig):

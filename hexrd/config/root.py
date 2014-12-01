@@ -58,6 +58,9 @@ class RootConfig(Config):
     @property
     def analysis_name(self):
         return str(self.get('analysis_name', default='analysis'))
+    @analysis_name.setter
+    def analysis_name(self, val):
+        self.set('analysis_name', val)
 
 
     @property
@@ -129,6 +132,17 @@ class RootConfig(Config):
             res = temp
         logger.info("%d of %d available processors requested", res, ncpus)
         return res
+    @multiprocessing.setter
+    def multiprocessing(self, val):
+        if val in ('half', 'all', -1):
+            self.set('multiprocessing', val)
+        elif (val >= 0 and val <= mp.cpu_count):
+            self.set('multiprocessing', int(val))
+        else:
+            raise RuntimeError(
+                '"multiprocessing": must be 1:%d, got %s'
+                % (mp.cpu_count(), val)
+                )
 
 
     @property
