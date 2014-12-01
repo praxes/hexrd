@@ -10,7 +10,7 @@ sip.setapi('QString', 2)
 sip.setapi('QTextStream', 2)
 sip.setapi('QVariant', 2)
 
-from PyQt4.QtCore import Qt, QObject
+from PyQt4.QtCore import Qt, QObject, QSettings
 from PyQt4.QtGui import (
     qApp, QApplication, QFileDialog, QMainWindow, QPixmap, QSplashScreen
     )
@@ -60,7 +60,7 @@ class GraphicsCanvasController(QObject):
             )
 
 
-class MainController(QObject):
+class MainController(QMainWindow):
 
 
     def __init__(self, log_level, cfg=None):
@@ -75,7 +75,7 @@ class MainController(QObject):
         # give the splash screen a little time to breathe
         time.sleep(2)
 
-        self.ui = ui = loadUi(ui_files['main_window'])
+        self.ui = ui = loadUi(ui_files['main_window'], self)
         ui.setWindowTitle('HEXRD')
 
         # now that we have the ui, configure the logging widget
@@ -85,13 +85,30 @@ class MainController(QObject):
 
         self.gc_ctlr = GraphicsCanvasController(ui)
 
+        ui.actionExit.triggered.connect(self.close)
         ui.changeWorkingDirButton.clicked.connect(self.change_working_dir)
         ui.multiprocessingSpinBox.valueChanged[int].connect(
             lambda val: setattr(self.cfg, 'multiprocessing', val)
             )
 
+        self.settings = QSettings('hexrd', 'hexrd')
+        try:
+            self.restoreGeometry(self.settings.value('geometry'))
+            self.restoreState(self.settings.value('state'))
+            self.cfgToolBox.setCurrentIndex(
+                self.settings.value('currentTool', type=int)
+                )
+        except TypeError:
+            raise
         ui.show()
         splash.finish(ui)
+
+
+    def closeEvent(self, event):
+        self.settings.setValue('geometry', self.saveGeometry())
+        self.settings.setValue('state', self.saveState())
+        self.settings.setValue('currentTool', self.cfgToolBox.currentIndex())
+        event.accept()
 
 
     def load_cfg(self, cfg):

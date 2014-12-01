@@ -242,7 +242,7 @@ intensity:</string>
       <number>0</number>
      </property>
      <item>
-      <widget class="QToolBox" name="configToolBox">
+      <widget class="QToolBox" name="cfgToolBox">
        <property name="currentIndex">
         <number>0</number>
        </property>
@@ -254,7 +254,7 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>224</width>
+          <width>210</width>
           <height>335</height>
          </rect>
         </property>
@@ -345,7 +345,7 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>224</width>
+          <width>210</width>
           <height>335</height>
          </rect>
         </property>
@@ -494,7 +494,7 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>224</width>
+          <width>210</width>
           <height>335</height>
          </rect>
         </property>
@@ -1327,7 +1327,7 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>224</width>
+          <width>210</width>
           <height>335</height>
          </rect>
         </property>
@@ -1340,7 +1340,7 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>224</width>
+          <width>210</width>
           <height>335</height>
          </rect>
         </property>
