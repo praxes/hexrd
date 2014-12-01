@@ -86,6 +86,9 @@ class MainController(QObject):
         self.gc_ctlr = GraphicsCanvasController(ui)
 
         ui.changeWorkingDirButton.clicked.connect(self.change_working_dir)
+        ui.multiprocessingSpinBox.valueChanged[int].connect(
+            lambda val: setattr(self.cfg, 'multiprocessing', val)
+            )
 
         ui.show()
         splash.finish(ui)
