@@ -104,7 +104,6 @@ class RootConfig(Config):
                 multiproc
                 )
             res = temp
-        logger.info("%d of %d available processors requested", res, ncpus)
         return res
     @multiprocessing.setter
     def multiprocessing(self, val):
@@ -130,7 +129,10 @@ class RootConfig(Config):
             return temp
         except RuntimeError:
             temp = os.getcwd()
+            was_dirty = self.dirty
             self.working_dir = temp
+            if not was_dirty:
+                self._dirty = False
             logger.info(
                 '"working_dir" not specified, defaulting to "%s"' % temp
                 )

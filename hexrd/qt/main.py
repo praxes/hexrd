@@ -10,9 +10,10 @@ sip.setapi('QString', 2)
 sip.setapi('QTextStream', 2)
 sip.setapi('QVariant', 2)
 
-from PyQt4.QtCore import Qt, QObject, QSettings
+from PyQt4.QtCore import Qt, QObject, QSettings, pyqtSlot
 from PyQt4.QtGui import (
-    qApp, QApplication, QFileDialog, QMainWindow, QPixmap, QSplashScreen
+    qApp, QApplication, QFileDialog, QMainWindow, QMessageBox, QPixmap,
+    QSplashScreen
     )
 from PyQt4.uic import loadUi
 
@@ -70,27 +71,25 @@ class MainController(QMainWindow):
         splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
         splash.setMask(splash_pix.mask())
         splash.show()
+        # sleep seems necessary on linux to render the image
+        time.sleep(0.01)
         qApp.processEvents()
 
         # give the splash screen a little time to breathe
         time.sleep(2)
 
-        self.ui = ui = loadUi(ui_files['main_window'], self)
-        ui.setWindowTitle('HEXRD')
+        loadUi(ui_files['main_window'], self)
 
         # now that we have the ui, configure the logging widget
-        add_handler(log_level, QLogStream(ui.loggerTextEdit))
+        add_handler(log_level, QLogStream(self.loggerTextEdit))
 
-        self.load_cfg(cfg)
+        self.gc_ctlr = GraphicsCanvasController(self)
 
-        self.gc_ctlr = GraphicsCanvasController(ui)
+        self._connect_signals()
 
-        ui.actionExit.triggered.connect(self.close)
-        ui.changeWorkingDirButton.clicked.connect(self.change_working_dir)
-        ui.multiprocessingSpinBox.valueChanged[int].connect(
-            lambda val: setattr(self.cfg, 'multiprocessing', val)
-            )
+        self.load_config(cfg)
 
+        self.setWindowTitle('HEXRD')
         self.settings = QSettings('hexrd', 'hexrd')
         try:
             self.restoreGeometry(self.settings.value('geometry'))
@@ -100,38 +99,78 @@ class MainController(QMainWindow):
                 )
         except TypeError:
             raise
-        ui.show()
-        splash.finish(ui)
+        self.show()
+        splash.finish(self)
+
+
+    def _connect_signals(self):
+        self.actionExit.triggered.connect(self.close)
+
+
+    def on_analysisNameLineEdit_editingFinished(self):
+        self.cfg.analysis_name = str(self.analysisNameLineEdit.text())
+
+
+    @pyqtSlot()
+    def on_changeWorkingDirButton_clicked(self):
+        temp = QFileDialog.getExistingDirectory(
+            parent=self, caption='booya', directory=self.cfg.working_dir
+            )
+        if temp:
+            self.workingDirLineEdit.setText(temp)
+            self.cfg.working_dir = temp
+
+
+    @pyqtSlot(int)
+    def on_multiprocessingSpinBox_valueChanged(self, val):
+        if self.cfg.multiprocessing != val:
+            self.cfg.multiprocessing = val
 
 
     def closeEvent(self, event):
+        if self.cfg.dirty:
+            confirm = QMessageBox()
+            confirm.setText('Configuration has been modified.')
+            confirm.setInformativeText('Do you want to save your changes?')
+            confirm.setStandardButtons(
+                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
+                )
+            confirm.setDefaultButton(QMessageBox.Cancel)
+            ret = confirm.exec_()
+            if ret == QMessageBox.Save:
+                if self.save_config() is False:
+                    event.ignore()
+                    return
+            elif ret == QMessageBox.Cancel:
+                return
         self.settings.setValue('geometry', self.saveGeometry())
         self.settings.setValue('state', self.saveState())
         self.settings.setValue('currentTool', self.cfgToolBox.currentIndex())
         event.accept()
 
 
-    def load_cfg(self, cfg):
+    def load_config(self, cfg):
         self.cfg = cfg
-        ui = self.ui
 
         # general
-        ui.analysisNameLineEdit.setText(self.cfg.analysis_name)
+        self.analysisNameLineEdit.setText(self.cfg.analysis_name)
 
-        ui.workingDirLineEdit.setText(self.cfg.working_dir)
+        self.workingDirLineEdit.setText(self.cfg.working_dir)
 
-        ui.multiprocessingSpinBox.setMaximum(multiprocessing.cpu_count())
-        ui.multiprocessingSpinBox.setValue(self.cfg.multiprocessing)
+        self.multiprocessingSpinBox.setMaximum(multiprocessing.cpu_count())
+        self.multiprocessingSpinBox.setValue(self.cfg.multiprocessing)
 
 
-    def change_working_dir(self):
-        temp = QFileDialog.getExistingDirectory(
-            parent=self.ui, caption='booya', directory=self.cfg.working_dir
+    @pyqtSlot(name='on_actionSaveConfiguration_triggered')
+    def save_config(self):
+        temp = QFileDialog.getSaveFileName(
+            parent=self, caption='Save Configuration',
+            directory=self.cfg.working_dir, filter='YAML files (*.yml)'
             )
         if temp:
-            self.ui.workingDirLineEdit.setText(temp)
-            self.cfg.working_dir = temp
-            assert self.cfg.working_dir == temp
+            self.cfg.dump(temp)
+            return True
+        return False
 
 
 

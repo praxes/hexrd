@@ -323,6 +323,9 @@ def find_orientations(cfg, hkls=None, profile=False):
         ncpus = 1
     else:
         ncpus = cfg.multiprocessing
+        logger.info(
+            "%d of %d available processors requested", ncpus, mp.cpu_count()
+            )
     compl = idx.paintGrid(
         quats,
         eta_ome,

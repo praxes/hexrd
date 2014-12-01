@@ -183,7 +183,7 @@ intensity:</string>
      <property name="title">
       <string>Save...</string>
      </property>
-     <addaction name="actionConfiguration"/>
+     <addaction name="actionSaveConfiguration"/>
      <addaction name="actionCalibration"/>
      <addaction name="actionMaterials"/>
     </widget>
@@ -1424,7 +1424,7 @@ p, li { white-space: pre-wrap; }
     <string>Fit grains</string>
    </property>
   </action>
-  <action name="actionConfiguration">
+  <action name="actionSaveConfiguration">
    <property name="text">
     <string>Configuration</string>
    </property>

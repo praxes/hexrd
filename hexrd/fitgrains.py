@@ -180,7 +180,9 @@ def fit_grains(cfg, force=False, show_progress=False, max_grains=None):
     # log this before starting progress bar
     ncpus = cfg.multiprocessing
     ncpus = ncpus if ncpus < njobs else njobs
-    logger.info('running pullspots with %d processors', ncpus)
+    logger.info(
+        'running pullspots with %d of %d processors', ncpus, mp.cpu_count()
+        )
     if ncpus == 1:
         logger.info('multiprocessing disabled')
 
@@ -327,7 +329,7 @@ class FitGrainsWorker(object):
                 )
         else:
             idx = np.logical_and(valid_refl_ids, unsat_spots)
-            
+
         hkls = gtable[idx, 1:4].T # must be column vectors
         self._p['hkls'] = hkls
         xyo_det = gtable[idx, -3:] # these are the cartesian centroids + ome
