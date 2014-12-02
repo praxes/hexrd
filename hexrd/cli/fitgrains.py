@@ -15,6 +15,10 @@ def configure_parser(sub_parsers):
         help='YAML configuration file'
         )
     p.add_argument(
+        '-g', '--grains', type=str, default=None,
+        help="comma-separated list of IDs to refine, defaults to all"
+        )
+    p.add_argument(
         '-q', '--quiet', action='store_true',
         help="don't report progress in terminal"
         )
@@ -102,7 +106,14 @@ def execute(args, parser):
             pr.enable()
 
         # process the data
-        fit_grains(cfg, force=args.force, show_progress=not args.quiet)
+        if args.grains is not None:
+            args.grains = [int(i) for i in args.grains.split(',')]
+        fit_grains(
+            cfg,
+            force=args.force,
+            show_progress=not args.quiet,
+            ids_to_refine=args.grains
+            )
 
         if args.profile:
             pr.disable()

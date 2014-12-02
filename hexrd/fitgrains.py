@@ -100,7 +100,7 @@ def set_planedata_exclusions(cfg, detector, pd):
         pd.exclusions = pd.getTTh() >= np.radians(tth_max)
 
 
-def get_job_queue(cfg, max_grains=None):
+def get_job_queue(cfg, ids_to_refine=None):
     job_queue = mp.JoinableQueue()
     # load the queue
     try:
@@ -108,11 +108,12 @@ def get_job_queue(cfg, max_grains=None):
         estimate_f = cfg.fit_grains.estimate
         grain_params_list = np.atleast_2d(np.loadtxt(estimate_f))
         n_quats = len(grain_params_list)
-        if max_grains is None or max_grains > n_quats:
-            max_grains = n_quats
-        for grain_params in grain_params_list[:max_grains]:
+        n_jobs = 0
+        for grain_params in grain_params_list:
             grain_id = grain_params[0]
-            job_queue.put((grain_id, grain_params[3:15]))
+            if ids_to_refine is None or grain_id in ids_to_refine:
+                job_queue.put((grain_id, grain_params[3:15]))
+                n_jobs += 1
         logger.info(
             'fitting grains using "%s" for the initial estimate',
             estimate_f
@@ -122,21 +123,23 @@ def get_job_queue(cfg, max_grains=None):
         logger.info('fitting grains using default initial estimate')
         # load quaternion file
         quats = np.atleast_2d(
-            np.loadtxt(os.path.join(cfg.working_dir, 'accepted_orientations.dat'))
+            np.loadtxt(
+                os.path.join(cfg.working_dir, 'accepted_orientations.dat')
+                )
             )
         n_quats = len(quats)
-        if max_grains is None or max_grains > n_quats:
-            max_grains = n_quats
-        quats = quats[:max_grains]
+        n_jobs = 0
         phi, n = angleAxisOfRotMat(rotMatOfQuat(quats.T))
         for i, (phi, n) in enumerate(zip(phi, n.T)):
-            exp_map = phi*n
-            grain_params = np.hstack(
-                [exp_map, 0., 0., 0., 1., 1., 1., 0., 0., 0.]
-                )
-            job_queue.put((i, grain_params))
-    logger.info("fitting grains for %d of %d orientations", max_grains, n_quats)
-    return job_queue, np.min([max_grains, n_quats])
+            if ids_to_refine is None or i in ids_to_refine:
+                exp_map = phi*n
+                grain_params = np.hstack(
+                    [exp_map, 0., 0., 0., 1., 1., 1., 0., 0., 0.]
+                    )
+                job_queue.put((i, grain_params))
+                n_jobs += 1
+    logger.info("fitting grains for %d of %d orientations", n_jobs, n_quats)
+    return job_queue, n_jobs
 
 
 def get_data(cfg, show_progress=False):
@@ -171,11 +174,10 @@ def get_data(cfg, show_progress=False):
     return reader, pkwargs
 
 
-def fit_grains(cfg, force=False, show_progress=False, max_grains=None):
+def fit_grains(cfg, force=False, show_progress=False, ids_to_refine=None):
     # load the data
     reader, pkwargs = get_data(cfg, show_progress)
-    job_queue, njobs = get_job_queue(cfg, max_grains)
-    #njobs = job_queue.qsize() # ...raises NotImplementedError on Mac OS
+    job_queue, njobs = get_job_queue(cfg, ids_to_refine)
 
     # log this before starting progress bar
     ncpus = cfg.multiprocessing
