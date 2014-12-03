@@ -307,10 +307,10 @@ class FitGrainsWorker(object):
         ome_start = self._p['omega_start']
         ome_step = self._p['omega_step']
         ome_stop =  self._p['omega_stop']
-        gtable = np.loadtxt(self._p['spots_stem'] % grain_id)
-        valid_refl_ids = gtable[:, 0] >= 0
-        unsat_spots = gtable[:, 5] < self._p['saturation_level']
-        pred_ome = gtable[:, 6]
+        refl_table = np.loadtxt(self._p['spots_stem'] % grain_id)
+        valid_refl_ids = refl_table[:, 0] >= 0
+        unsat_spots = refl_table[:, 5] < self._p['saturation_level']
+        pred_ome = refl_table[:, 8]
         if angularDifference(ome_start, ome_stop, units='degrees') > 0:
             # if here, incomplete have omega range and
             # clip the refelctions very close to the edges to avoid
@@ -332,9 +332,9 @@ class FitGrainsWorker(object):
         else:
             idx = np.logical_and(valid_refl_ids, unsat_spots)
 
-        hkls = gtable[idx, 1:4].T # must be column vectors
+        hkls = refl_table[idx, 1:4].T # must be column vectors
         self._p['hkls'] = hkls
-        xyo_det = gtable[idx, -3:] # these are the cartesian centroids + ome
+        xyo_det = refl_table[idx, -3:] # these are the cartesian centroids + ome
         xyo_det[:, 2] = mapAngle(xyo_det[:, 2], self._p['omega_period'])
         self._p['xyo_det'] = xyo_det
         if sum(idx) <= 12:
