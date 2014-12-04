@@ -268,7 +268,7 @@ intensity:</string>
      <item>
       <widget class="QToolBox" name="cfgToolBox">
        <property name="currentIndex">
-        <number>3</number>
+        <number>0</number>
        </property>
        <property name="tabSpacing">
         <number>5</number>
@@ -383,7 +383,7 @@ intensity:</string>
          <item>
           <widget class="QComboBox" name="comboBox">
            <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select &amp;quot;New Image Series&amp;quot; to open a &amp;quot;load image series&amp;quot; dialog&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select &amp;quot;New Image Series&amp;quot; to open a &amp;quot;load image series&amp;quot; dialog&lt;/p&gt;&lt;p&gt;right-click for a context menu to reload an existing image series (not implemented)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
            <item>
             <property name="text">
@@ -449,6 +449,9 @@ intensity:</string>
          </item>
          <item>
           <widget class="QGroupBox" name="groupBox_2">
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This should be moved into the load image series dialog&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
            <property name="title">
             <string>Orientation</string>
            </property>
@@ -535,7 +538,7 @@ intensity:</string>
             </sizepolicy>
            </property>
            <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Right click to modify or add material&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select new material to add a new material (not implemented)&lt;/p&gt;&lt;p&gt;Right click for a context menu to modify an existing material (not implemented)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
            <property name="editable">
             <bool>false</bool>
@@ -625,6 +628,9 @@ intensity:</string>
          </item>
          <item>
           <widget class="QCheckBox" name="showRingsCheckBox">
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;show powder rings for the selected HKLs for the active material&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
            <property name="text">
             <string>Show Rings</string>
            </property>
@@ -634,6 +640,9 @@ intensity:</string>
           <layout class="QHBoxLayout" name="horizontalLayout_3">
            <item>
             <widget class="QCheckBox" name="showRangesCheckBox">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;show 2θ ranges for the selected HKLs for the active material&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="text">
               <string>Show Ranges</string>
              </property>
@@ -641,6 +650,9 @@ intensity:</string>
            </item>
            <item>
             <widget class="QDoubleSpinBox" name="tthRangesSpinBox">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;±2θ range&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="alignment">
               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
              </property>
