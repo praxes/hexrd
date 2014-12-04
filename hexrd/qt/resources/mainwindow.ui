@@ -53,6 +53,9 @@
            </item>
            <item row="1" column="1">
             <widget class="QSpinBox" name="maxSpinBox">
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
              <property name="minimum">
               <number>0</number>
              </property>
@@ -66,6 +69,9 @@
            </item>
            <item row="2" column="1">
             <widget class="QSpinBox" name="minSpinBox">
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
              <property name="minimum">
               <number>-999999999</number>
              </property>
@@ -244,7 +250,7 @@ intensity:</string>
      <item>
       <widget class="QToolBox" name="cfgToolBox">
        <property name="currentIndex">
-        <number>0</number>
+        <number>3</number>
        </property>
        <property name="tabSpacing">
         <number>5</number>
@@ -312,6 +318,9 @@ intensity:</string>
            </item>
            <item>
             <widget class="QSpinBox" name="multiprocessingSpinBox">
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
              <property name="minimum">
               <number>1</number>
              </property>
@@ -451,19 +460,16 @@ intensity:</string>
               </item>
               <item>
                <widget class="QRadioButton" name="cwRotRadioButton">
-                <property name="enabled">
-                 <bool>false</bool>
-                </property>
                 <property name="text">
                  <string>CW</string>
+                </property>
+                <property name="checked">
+                 <bool>true</bool>
                 </property>
                </widget>
               </item>
               <item>
                <widget class="QRadioButton" name="ccwRotRadioButton">
-                <property name="enabled">
-                 <bool>false</bool>
-                </property>
                 <property name="text">
                  <string>CCW</string>
                 </property>
@@ -519,6 +525,26 @@ intensity:</string>
            <item>
             <property name="text">
              <string>CeO2</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Diamond</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>LaB6</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Ruby</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Silicon</string>
             </property>
            </item>
            <item>
@@ -580,7 +606,7 @@ intensity:</string>
           </widget>
          </item>
          <item>
-          <widget class="QCheckBox" name="showTthRingsCheckBox">
+          <widget class="QCheckBox" name="showRingsCheckBox">
            <property name="text">
             <string>Show Rings</string>
            </property>
@@ -589,14 +615,17 @@ intensity:</string>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_3">
            <item>
-            <widget class="QCheckBox" name="showTthRangesCheckBox">
+            <widget class="QCheckBox" name="showRangesCheckBox">
              <property name="text">
               <string>Show Ranges</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QDoubleSpinBox" name="tthRangeSpinBox">
+            <widget class="QDoubleSpinBox" name="tthRangesSpinBox">
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
              <property name="prefix">
               <string>±</string>
              </property>
@@ -610,7 +639,7 @@ intensity:</string>
               <double>0.005000000000000</double>
              </property>
              <property name="maximum">
-              <double>0.010000000000000</double>
+              <double>1.000000000000000</double>
              </property>
              <property name="singleStep">
               <double>0.005000000000000</double>
@@ -641,7 +670,7 @@ intensity:</string>
         <property name="geometry">
          <rect>
           <x>0</x>
-          <y>0</y>
+          <y>-225</y>
           <width>316</width>
           <height>545</height>
          </rect>
@@ -659,7 +688,7 @@ intensity:</string>
             <item row="0" column="1">
              <widget class="QDoubleSpinBox" name="energySpinBox">
               <property name="alignment">
-               <set>Qt::AlignCenter</set>
+               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
               </property>
               <property name="suffix">
                <string> keV</string>
@@ -672,7 +701,7 @@ intensity:</string>
             <item row="0" column="0">
              <widget class="QDoubleSpinBox" name="wavelengthSpinBox">
               <property name="alignment">
-               <set>Qt::AlignCenter</set>
+               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
               </property>
               <property name="suffix">
                <string> Å</string>
@@ -701,7 +730,7 @@ intensity:</string>
               </property>
               <layout class="QGridLayout" name="gridLayout_3">
                <item row="3" column="1">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_3">
+                <widget class="QDoubleSpinBox" name="detySpinBox">
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -723,7 +752,7 @@ intensity:</string>
                 </widget>
                </item>
                <item row="3" column="2">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_9">
+                <widget class="QDoubleSpinBox" name="detyStepSpinBox">
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -748,7 +777,7 @@ intensity:</string>
                 </widget>
                </item>
                <item row="6" column="2">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_14">
+                <widget class="QDoubleSpinBox" name="detzRotStepSpinBox">
                  <property name="enabled">
                   <bool>true</bool>
                  </property>
@@ -773,7 +802,7 @@ intensity:</string>
                 </widget>
                </item>
                <item row="4" column="2">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_10">
+                <widget class="QDoubleSpinBox" name="detxRotStepSpinBox">
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -795,7 +824,7 @@ intensity:</string>
                 </widget>
                </item>
                <item row="6" column="1">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_7">
+                <widget class="QDoubleSpinBox" name="detzRotSpinBox">
                  <property name="enabled">
                   <bool>true</bool>
                  </property>
@@ -814,7 +843,7 @@ intensity:</string>
                 </widget>
                </item>
                <item row="4" column="1">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_4">
+                <widget class="QDoubleSpinBox" name="detxRotSpinBox">
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -830,7 +859,7 @@ intensity:</string>
                 </widget>
                </item>
                <item row="2" column="1">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox">
+                <widget class="QDoubleSpinBox" name="detxSpinBox">
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -852,7 +881,7 @@ intensity:</string>
                 </widget>
                </item>
                <item row="2" column="2">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_8">
+                <widget class="QDoubleSpinBox" name="detxStepSpinBox">
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -903,7 +932,7 @@ intensity:</string>
                 </widget>
                </item>
                <item row="8" column="2">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_24">
+                <widget class="QDoubleSpinBox" name="detDistanceStepSpinBox">
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -935,7 +964,7 @@ intensity:</string>
                 </widget>
                </item>
                <item row="5" column="1">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_5">
+                <widget class="QDoubleSpinBox" name="detyRotSpinBox">
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -951,7 +980,7 @@ intensity:</string>
                 </widget>
                </item>
                <item row="5" column="2">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_12">
+                <widget class="QDoubleSpinBox" name="detyRotStepSpinBox">
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -973,7 +1002,7 @@ intensity:</string>
                 </widget>
                </item>
                <item row="8" column="1">
-                <widget class="QDoubleSpinBox" name="doubleSpinBox_25">
+                <widget class="QDoubleSpinBox" name="detDistanceSpinBox">
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -1051,7 +1080,7 @@ intensity:</string>
                <item>
                 <layout class="QGridLayout" name="gridLayout_8">
                  <item row="3" column="1">
-                  <widget class="QDoubleSpinBox" name="doubleSpinBox_29">
+                  <widget class="QDoubleSpinBox" name="p1DistortionSpinBox">
                    <property name="alignment">
                     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                    </property>
@@ -1073,7 +1102,7 @@ intensity:</string>
                   </widget>
                  </item>
                  <item row="3" column="2">
-                  <widget class="QDoubleSpinBox" name="doubleSpinBox_31">
+                  <widget class="QDoubleSpinBox" name="p1DistortionStepSpinBox">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                      <horstretch>0</horstretch>
@@ -1101,7 +1130,7 @@ intensity:</string>
                   </widget>
                  </item>
                  <item row="4" column="1">
-                  <widget class="QDoubleSpinBox" name="doubleSpinBox_28">
+                  <widget class="QDoubleSpinBox" name="p2DistortionSpinBox">
                    <property name="alignment">
                     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                    </property>
@@ -1123,7 +1152,7 @@ intensity:</string>
                   </widget>
                  </item>
                  <item row="0" column="1">
-                  <widget class="QDoubleSpinBox" name="doubleSpinBox_30">
+                  <widget class="QDoubleSpinBox" name="p0DistortionSpinBox">
                    <property name="alignment">
                     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                    </property>
@@ -1145,7 +1174,7 @@ intensity:</string>
                   </widget>
                  </item>
                  <item row="0" column="2">
-                  <widget class="QDoubleSpinBox" name="doubleSpinBox_26">
+                  <widget class="QDoubleSpinBox" name="p0DistortionStepSpinBox">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                      <horstretch>0</horstretch>
@@ -1173,7 +1202,7 @@ intensity:</string>
                   </widget>
                  </item>
                  <item row="4" column="2">
-                  <widget class="QDoubleSpinBox" name="doubleSpinBox_27">
+                  <widget class="QDoubleSpinBox" name="p2DistortionStepSpinBox">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                      <horstretch>0</horstretch>
@@ -1242,7 +1271,7 @@ intensity:</string>
            </property>
            <layout class="QGridLayout" name="gridLayout_5">
             <item row="0" column="1">
-             <widget class="QDoubleSpinBox" name="doubleSpinBox_6">
+             <widget class="QDoubleSpinBox" name="chiTiltSpinBox">
               <property name="enabled">
                <bool>true</bool>
               </property>
@@ -1267,7 +1296,7 @@ intensity:</string>
              </widget>
             </item>
             <item row="0" column="2">
-             <widget class="QDoubleSpinBox" name="doubleSpinBox_13">
+             <widget class="QDoubleSpinBox" name="chiTiltStepSpinBox">
               <property name="enabled">
                <bool>true</bool>
               </property>
@@ -1466,7 +1495,7 @@ p, li { white-space: pre-wrap; }
    <sender>rotateCheckBox</sender>
    <signal>toggled(bool)</signal>
    <receiver>ccwRotRadioButton</receiver>
-   <slot>setEnabled(bool)</slot>
+   <slot>setVisible(bool)</slot>
    <hints>
     <hint type="sourcelabel">
      <x>116</x>
@@ -1482,7 +1511,7 @@ p, li { white-space: pre-wrap; }
    <sender>rotateCheckBox</sender>
    <signal>toggled(bool)</signal>
    <receiver>cwRotRadioButton</receiver>
-   <slot>setEnabled(bool)</slot>
+   <slot>setVisible(bool)</slot>
    <hints>
     <hint type="sourcelabel">
      <x>116</x>
