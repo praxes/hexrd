@@ -231,10 +231,28 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
             self.cfg.working_dir = temp
 
 
+    @pyqtSlot(float)
+    def on_energySpinBox_valueChanged(self, val):
+        try:
+            self.wavelengthSpinBox.blockSignals(True)
+            self.wavelengthSpinBox.setValue(12.39842/val)
+        finally:
+            self.wavelengthSpinBox.blockSignals(False)
+
+
     @pyqtSlot(int)
     def on_multiprocessingSpinBox_valueChanged(self, val):
         if self.cfg.multiprocessing != val:
             self.cfg.multiprocessing = val
+
+
+    @pyqtSlot(float)
+    def on_wavelengthSpinBox_valueChanged(self, val):
+        try:
+            self.energySpinBox.blockSignals(True)
+            self.energySpinBox.setValue(12.39842/val)
+        finally:
+            self.energySpinBox.blockSignals(False)
 
 
     def closeEvent(self, event):
