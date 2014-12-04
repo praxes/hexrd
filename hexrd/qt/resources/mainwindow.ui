@@ -46,6 +46,9 @@
            </item>
            <item row="0" column="1">
             <widget class="QComboBox" name="colorMapComboBox">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;colormap used to render the image&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="whatsThis">
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;a href=&quot;www.google.com&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;documentation&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
@@ -53,6 +56,9 @@
            </item>
            <item row="1" column="1">
             <widget class="QSpinBox" name="maxSpinBox">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;scale images to maximum intensity&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="alignment">
               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
              </property>
@@ -69,6 +75,9 @@
            </item>
            <item row="2" column="1">
             <widget class="QSpinBox" name="minSpinBox">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;scale images to minimum intensity&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="alignment">
               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
              </property>
@@ -82,6 +91,9 @@
            </item>
            <item row="2" column="2">
             <widget class="QCheckBox" name="showUnderCheckBox">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;highlight pixels with less than minimum intensity&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="text">
               <string>show under</string>
              </property>
@@ -89,6 +101,9 @@
            </item>
            <item row="1" column="2">
             <widget class="QCheckBox" name="showOverCheckBox">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;highlight pixels with greater than the maximum intensity&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="text">
               <string>show over</string>
              </property>
@@ -122,6 +137,9 @@
            </item>
            <item row="0" column="2">
             <widget class="QCheckBox" name="cmapReverseCheckBox">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;reverse the colormap&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="text">
               <string>reverse</string>
              </property>
@@ -670,7 +688,7 @@ intensity:</string>
         <property name="geometry">
          <rect>
           <x>0</x>
-          <y>-225</y>
+          <y>0</y>
           <width>316</width>
           <height>545</height>
          </rect>
@@ -687,6 +705,9 @@ intensity:</string>
            <layout class="QGridLayout" name="gridLayout_6">
             <item row="0" column="1">
              <widget class="QDoubleSpinBox" name="energySpinBox">
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;x-ray energy&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
               <property name="alignment">
                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
               </property>
@@ -696,10 +717,25 @@ intensity:</string>
               <property name="decimals">
                <number>4</number>
               </property>
+              <property name="minimum">
+               <double>0.100000000000000</double>
+              </property>
+              <property name="maximum">
+               <double>1000.000000000000000</double>
+              </property>
+              <property name="singleStep">
+               <double>0.100000000000000</double>
+              </property>
+              <property name="value">
+               <double>55.618000000000002</double>
+              </property>
              </widget>
             </item>
             <item row="0" column="0">
              <widget class="QDoubleSpinBox" name="wavelengthSpinBox">
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;x-ray wavelength&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
               <property name="alignment">
                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
               </property>
@@ -708,6 +744,18 @@ intensity:</string>
               </property>
               <property name="decimals">
                <number>6</number>
+              </property>
+              <property name="minimum">
+               <double>0.012398000000000</double>
+              </property>
+              <property name="maximum">
+               <double>123.984200000000001</double>
+              </property>
+              <property name="singleStep">
+               <double>0.001000000000000</double>
+              </property>
+              <property name="value">
+               <double>0.222921000000000</double>
               </property>
              </widget>
             </item>
@@ -731,6 +779,9 @@ intensity:</string>
               <layout class="QGridLayout" name="gridLayout_3">
                <item row="3" column="1">
                 <widget class="QDoubleSpinBox" name="detySpinBox">
+                 <property name="toolTip">
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;reciprocal space origin (beam position) along the y axis with respect to the center of the detector&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                 </property>
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -828,6 +879,9 @@ intensity:</string>
                  <property name="enabled">
                   <bool>true</bool>
                  </property>
+                 <property name="toolTip">
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;rotation of detector about the z axis in the detector coordinate system&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                 </property>
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -844,6 +898,9 @@ intensity:</string>
                </item>
                <item row="4" column="1">
                 <widget class="QDoubleSpinBox" name="detxRotSpinBox">
+                 <property name="toolTip">
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;rotation of detector about the x axis in the detector coordinate system&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                 </property>
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -860,6 +917,9 @@ intensity:</string>
                </item>
                <item row="2" column="1">
                 <widget class="QDoubleSpinBox" name="detxSpinBox">
+                 <property name="toolTip">
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;reciprocal space origin (beam position) along the x axis with respect to the center of the detector&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                 </property>
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -965,6 +1025,9 @@ intensity:</string>
                </item>
                <item row="5" column="1">
                 <widget class="QDoubleSpinBox" name="detyRotSpinBox">
+                 <property name="toolTip">
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;rotation of the detector about the y axis in the detector coordinate system&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                 </property>
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -1003,6 +1066,9 @@ intensity:</string>
                </item>
                <item row="8" column="1">
                 <widget class="QDoubleSpinBox" name="detDistanceSpinBox">
+                 <property name="toolTip">
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;distance from sample to center of detector&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                 </property>
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -1274,6 +1340,9 @@ intensity:</string>
              <widget class="QDoubleSpinBox" name="chiTiltSpinBox">
               <property name="enabled">
                <bool>true</bool>
+              </property>
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;misalignment of the ω axis from perpendicular to beam&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
