@@ -347,8 +347,3 @@ def find_orientations(cfg, hkls=None, profile=False):
         fmt="%.18e",
         delimiter="\t"
         )
-
-    # do the peak extraction now?
-    if cfg.find_orientations.extract_measured_g_vectors:
-        raise NotImplementedError('TODO: implement extract gvecs')
-        #extract_measured_g_vectors(cfg)
