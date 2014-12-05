@@ -68,10 +68,10 @@ class MainController(QMainWindow):
 
     @property
     def cfg(self):
-        return self._cfgs[self._current_cfg_index]
+        return self._cfgs[0]
 
 
-    def __init__(self, log_level, cfg=None):
+    def __init__(self, log_level, cfg_file=None):
         super(MainController, self).__init__()
         # Create and display the splash screen
         splash_pix = QPixmap(image_files['splash'])
@@ -97,9 +97,7 @@ class MainController(QMainWindow):
         # connect signals before loading config or restoring state
         self._connect_signals()
 
-        self.configSectionSpinBox.setVisible(False)
-        self._current_cfg_index = 0
-        self.load_config(cfg)
+        self.load_config(cfg_file)
 
         self.settings = QSettings('hexrd', 'hexrd')
         self._restore_state()
@@ -302,7 +300,7 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
 
 
     def closeEvent(self, event):
-        if self.cfg.dirty:
+        if self._cfg_file is not None and self.cfg.dirty:
             confirm = QMessageBox()
             confirm.setText('Configuration has been modified.')
             confirm.setInformativeText('Do you want to save your changes?')
@@ -389,30 +387,13 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
         return QMainWindow.event(self, e)
 
 
-    def _set_current_cfg(self, i):
-        self._current_cfg_index = i
-        self.configSectionSpinBox.setValue(i)
-
-
     def load_config(self, filename):
+        self._cfg_file = filename
         self._cfgs = config.open(filename)
-        n_cfgs = len(self._cfgs)
-        self.configSectionSpinBox.setVisible(n_cfgs > 1)
-        self.configSectionSpinBox.setMaximum(n_cfgs - 1)
-        if n_cfgs > self._current_cfg_index:
-            self.configSectionSpinBox.setValue(0)
-        self._load_cfg_section(self._current_cfg_index)
-
-
-    @pyqtSlot(int, name='on_configSectionSpinBox_valueChanged')
-    def _load_cfg_section(self, section):
-        self._current_cfg_index = section
 
         # general
         self.analysisNameLineEdit.setText(self.cfg.analysis_name)
-
         self.workingDirLineEdit.setText(self.cfg.working_dir)
-
         self.multiprocessingSpinBox.setMaximum(multiprocessing.cpu_count())
         self.multiprocessingSpinBox.setValue(self.cfg.multiprocessing)
 
@@ -424,8 +405,7 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
             directory=self.cfg.working_dir, filter='YAML files (*.yml)'
             )
         if temp:
-            import yaml
-            yaml.dump_all(self.cfgs, temp)
+            config.save(self._cfgs, temp)
             return True
         return False
 

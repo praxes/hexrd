@@ -25,3 +25,13 @@ def open(file_name=None):
                 # this is the first config section
                 res.append(cfg)
         return [root.RootConfig(i) for i in res]
+
+
+def save(config_list, file_name):
+    res = [cfg._cfg for cfg in config_list]
+
+    with file(file_name, 'w') as f:
+        if len(res) > 1:
+            yaml.dump_all(res, f)
+        else:
+            yaml.dump(res, f)

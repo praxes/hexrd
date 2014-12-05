@@ -277,19 +277,6 @@ intensity:</string>
    <widget class="QWidget" name="configDockWidgets">
     <layout class="QVBoxLayout" name="verticalLayout_5">
      <item>
-      <widget class="QSpinBox" name="configSectionSpinBox">
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-       </property>
-       <property name="prefix">
-        <string>config file section: </string>
-       </property>
-       <property name="maximum">
-        <number>0</number>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QToolBox" name="cfgToolBox">
        <property name="currentIndex">
         <number>1</number>
@@ -396,8 +383,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>199</width>
-          <height>300</height>
+          <width>202</width>
+          <height>317</height>
          </rect>
         </property>
         <attribute name="label">
