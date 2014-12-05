@@ -234,7 +234,6 @@ class MainController(QMainWindow):
 
     @pyqtSlot()
     def on_actionDocumentation_triggered(self):
-        import webbrowser
         webbrowser.open_new_tab('http://hexrd.readthedocs.org/en/latest')
 
 
