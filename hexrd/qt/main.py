@@ -204,7 +204,7 @@ class MainController(QMainWindow):
 
 
     def _connect_signals(self):
-        self.actionExit.triggered.connect(self.close)
+        self.actionQuit.triggered.connect(self.close)
         self.rotateCheckBox.toggled.emit(False)
 
 
@@ -229,18 +229,45 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
             )
 
 
+    @pyqtSlot()
+    def on_actionLoadConfiguration_triggered(self):
+        if self.cfgs[0].dirty:
+            confirm = QMessageBox()
+            confirm.setText('Configuration has been modified.')
+            confirm.setInformativeText(
+"""Do you want to save your changes before loading a new configuration?"""
+                )
+            confirm.setStandardButtons(
+                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
+                )
+            confirm.button(QMessageBox.Discard).setText("Discard")
+            confirm.setDefaultButton(QMessageBox.Cancel)
+            ret = confirm.exec_()
+            if ret == QMessageBox.Save:
+                if self.save_config() is False:
+                    return
+            elif ret == QMessageBox.Cancel:
+                return
+        temp = QFileDialog.getOpenFileName(
+            self, 'Load Configuration', self.cfgs[0].working_dir,
+            'YAML files (*.yml)'
+            )
+        if temp:
+            self.load_config(temp)
+
+
     def on_analysisNameLineEdit_editingFinished(self):
-        self.cfg.analysis_name = str(self.analysisNameLineEdit.text())
+        self.cfgs[0].analysis_name = str(self.analysisNameLineEdit.text())
 
 
     @pyqtSlot()
     def on_changeWorkingDirButton_clicked(self):
         temp = QFileDialog.getExistingDirectory(
-            parent=self, caption='booya', directory=self.cfg.working_dir
+            parent=self, caption='booya', directory=self.cfgs[0].working_dir
             )
         if temp:
             self.workingDirLineEdit.setText(temp)
-            self.cfg.working_dir = temp
+            self.cfgs[0].working_dir = temp
 
 
     @pyqtSlot(float)
@@ -254,8 +281,8 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
 
     @pyqtSlot(int)
     def on_multiprocessingSpinBox_valueChanged(self, val):
-        if self.cfg.multiprocessing != val:
-            self.cfg.multiprocessing = val
+        if self.cfgs[0].multiprocessing != val:
+            self.cfgs[0].multiprocessing = val
 
 
     @pyqtSlot(float)
@@ -268,7 +295,7 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
 
 
     def closeEvent(self, event):
-        if self.cfg.dirty:
+        if self.cfgs[0].dirty:
             confirm = QMessageBox()
             confirm.setText('Configuration has been modified.')
             confirm.setInformativeText('Do you want to save your changes?')
@@ -343,18 +370,32 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
         event.accept()
 
 
-    def load_config(self, cfg):
-        self.cfg = cfg
+    def event(self, e):
+        # this is a placeholder, something I'm trying to support
+        # clickable hyperlinks in the whatsThis documentation
+        try:
+            href = e.href()
+            import webbrowser
+            webbrowser.open_new_tab(href)
+        except AttributeError:
+            pass
+        return QMainWindow.event(self, e)
+
+
+    def load_config(self, filename):
+        self.cfgs = config.open(filename)
 
         # general
-        self.analysisNameLineEdit.setText(self.cfg.analysis_name)
+        self.analysisNameLineEdit.setText(self.cfgs[0].analysis_name)
 
-        self.workingDirLineEdit.setText(self.cfg.working_dir)
+        self.workingDirLineEdit.setText(self.cfgs[0].working_dir)
 
         self.multiprocessingSpinBox.setMaximum(multiprocessing.cpu_count())
-        self.multiprocessingSpinBox.setValue(self.cfg.multiprocessing)
+        self.multiprocessingSpinBox.setValue(self.cfgs[0].multiprocessing)
 
 
+    @pyqtSlot(name='on_actionLoadCalibration_triggered')
+    @pyqtSlot(name='on_actionLoadMaterials_triggered')
     @pyqtSlot(name='on_actionLoadImageSeries_triggered')
     @pyqtSlot(name='on_actionModifyImageSeries_triggered')
     @pyqtSlot(name='on_actionDeleteImageSeries_triggered')
@@ -385,10 +426,11 @@ http://github.com/praxes/hexrd/issues, if one does not already exist.""",
     def save_config(self):
         temp = QFileDialog.getSaveFileName(
             parent=self, caption='Save Configuration',
-            directory=self.cfg.working_dir, filter='YAML files (*.yml)'
+            directory=self.cfgs[0].working_dir, filter='YAML files (*.yml)'
             )
         if temp:
-            self.cfg.dump(temp)
+            import yaml
+            yaml.dump_all(self.cfgs, temp)
             return True
         return False
 
@@ -405,8 +447,6 @@ def execute(args):
     else:
         log_level = logging.CRITICAL if args.quiet else logging.INFO
 
-    cfg = config.open(args.config)[0]
-
-    ctlr = MainController(log_level, cfg)
+    ctlr = MainController(log_level, args.config)
 
     sys.exit(app.exec_())
