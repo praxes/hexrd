@@ -107,10 +107,14 @@ def cache_frames(reader, cfg, show_progress=False, overwrite=True):
     logger.info('wrote %d frames to cache in %g seconds', len(reader[0]), elapsed)
     return reader
 
-def get_frames(reader, cfg, show_progress=False, autocache=False):
+def get_frames(reader, cfg, show_progress=False, force=False, clean=False):
     cache_file = os.path.join(cfg.analysis_dir, 'frame_cache.npz')
-    if not os.path.exists(cache_file):
-        logger.info('no frame cache file %s found, generating cache' % cache_file)
+    if not os.path.exists(cache_file) or clean:
+        if clean:
+            msg = 'no frame cache file %s found, generating cache' % cache_file
+        else:
+            msg = 'clean specified, generating cache'
+        logger.info(msg)
         return cache_frames(reader, cfg, show_progress)
 
     start = time.time()

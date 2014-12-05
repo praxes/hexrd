@@ -142,11 +142,11 @@ def get_job_queue(cfg, ids_to_refine=None):
     return job_queue, n_jobs
 
 
-def get_data(cfg, show_progress=False):
+def get_data(cfg, show_progress=False, force=False, clean=False):
     # TODO: this should be refactored somehow to avoid initialize_experiment
     # and avoid using the old reader. Also, the detector is not used here.
     pd, reader, detector = initialize_experiment(cfg)
-    reader = get_frames(reader, cfg, show_progress)
+    reader = get_frames(reader, cfg, show_progress, force, clean)
 
     instrument_cfg = get_instrument_parameters(cfg)
     detector_params = get_detector_parameters(instrument_cfg)
@@ -174,9 +174,9 @@ def get_data(cfg, show_progress=False):
     return reader, pkwargs
 
 
-def fit_grains(cfg, force=False, show_progress=False, ids_to_refine=None):
+def fit_grains(cfg, force=False, clean=False, show_progress=False, ids_to_refine=None):
     # load the data
-    reader, pkwargs = get_data(cfg, show_progress)
+    reader, pkwargs = get_data(cfg, show_progress, force, clean)
     job_queue, njobs = get_job_queue(cfg, ids_to_refine)
 
     # log this before starting progress bar

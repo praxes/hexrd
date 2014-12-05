@@ -23,8 +23,12 @@ def configure_parser(sub_parsers):
         help="don't report progress in terminal"
         )
     p.add_argument(
+        '-c', '--clean', action='store_true',
+        help='overwrites existing analysis, including frame cache'
+        )
+    p.add_argument(
         '-f', '--force', action='store_true',
-        help='overwrites existing analysis'
+        help='overwrites existing analysis, exlcuding frame cache'
         )
     p.add_argument(
         '-p', '--profile', action='store_true',
@@ -70,9 +74,10 @@ def execute(args, parser):
 
     logger.info('=== begin fit-grains ===')
 
+    clobber = args.force or args.clean
     for cfg in cfgs:
         # prepare the analysis directory
-        if os.path.exists(cfg.analysis_dir) and not args.force:
+        if os.path.exists(cfg.analysis_dir) and not clobber:
             logger.error(
                 'Analysis "%s" at %s already exists.'
                 ' Change yml file or specify "force"',
@@ -112,7 +117,8 @@ def execute(args, parser):
             cfg,
             force=args.force,
             show_progress=not args.quiet,
-            ids_to_refine=args.grains
+            ids_to_refine=args.grains,
+            clean=args.clean
             )
 
         if args.profile:
