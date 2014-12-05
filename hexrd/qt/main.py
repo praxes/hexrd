@@ -66,6 +66,11 @@ class GraphicsCanvasController(QObject):
 class MainController(QMainWindow):
 
 
+    @property
+    def cfg(self):
+        return self._cfgs[self._current_cfg_index]
+
+
     def __init__(self, log_level, cfg=None):
         super(MainController, self).__init__()
         # Create and display the splash screen
@@ -92,6 +97,8 @@ class MainController(QMainWindow):
         # connect signals before loading config or restoring state
         self._connect_signals()
 
+        self.configSectionSpinBox.setVisible(False)
+        self._current_cfg_index = 0
         self.load_config(cfg)
 
         self.settings = QSettings('hexrd', 'hexrd')
@@ -231,7 +238,7 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
 
     @pyqtSlot()
     def on_actionLoadConfiguration_triggered(self):
-        if self.cfgs[0].dirty:
+        if self.cfg.dirty:
             confirm = QMessageBox()
             confirm.setText('Configuration has been modified.')
             confirm.setInformativeText(
@@ -249,7 +256,7 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
             elif ret == QMessageBox.Cancel:
                 return
         temp = QFileDialog.getOpenFileName(
-            self, 'Load Configuration', self.cfgs[0].working_dir,
+            self, 'Load Configuration', self.cfg.working_dir,
             'YAML files (*.yml)'
             )
         if temp:
@@ -257,17 +264,17 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
 
 
     def on_analysisNameLineEdit_editingFinished(self):
-        self.cfgs[0].analysis_name = str(self.analysisNameLineEdit.text())
+        self.cfg.analysis_name = str(self.analysisNameLineEdit.text())
 
 
     @pyqtSlot()
     def on_changeWorkingDirButton_clicked(self):
         temp = QFileDialog.getExistingDirectory(
-            parent=self, caption='booya', directory=self.cfgs[0].working_dir
+            parent=self, caption='booya', directory=self.cfg.working_dir
             )
         if temp:
             self.workingDirLineEdit.setText(temp)
-            self.cfgs[0].working_dir = temp
+            self.cfg.working_dir = temp
 
 
     @pyqtSlot(float)
@@ -281,8 +288,8 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
 
     @pyqtSlot(int)
     def on_multiprocessingSpinBox_valueChanged(self, val):
-        if self.cfgs[0].multiprocessing != val:
-            self.cfgs[0].multiprocessing = val
+        if self.cfg.multiprocessing != val:
+            self.cfg.multiprocessing = val
 
 
     @pyqtSlot(float)
@@ -295,7 +302,7 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
 
 
     def closeEvent(self, event):
-        if self.cfgs[0].dirty:
+        if self.cfg.dirty:
             confirm = QMessageBox()
             confirm.setText('Configuration has been modified.')
             confirm.setInformativeText('Do you want to save your changes?')
@@ -382,16 +389,45 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
         return QMainWindow.event(self, e)
 
 
+    def _set_current_cfg(self, i):
+        self._current_cfg_index = i
+        self.configSectionSpinBox.setValue(i)
+
+
     def load_config(self, filename):
-        self.cfgs = config.open(filename)
+        self._cfgs = config.open(filename)
+        n_cfgs = len(self._cfgs)
+        self.configSectionSpinBox.setVisible(n_cfgs > 1)
+        self.configSectionSpinBox.setMaximum(n_cfgs - 1)
+        if n_cfgs > self._current_cfg_index:
+            self.configSectionSpinBox.setValue(0)
+        self._load_cfg_section(self._current_cfg_index)
+
+
+    @pyqtSlot(int, name='on_configSectionSpinBox_valueChanged')
+    def _load_cfg_section(self, section):
+        self._current_cfg_index = section
 
         # general
-        self.analysisNameLineEdit.setText(self.cfgs[0].analysis_name)
+        self.analysisNameLineEdit.setText(self.cfg.analysis_name)
 
-        self.workingDirLineEdit.setText(self.cfgs[0].working_dir)
+        self.workingDirLineEdit.setText(self.cfg.working_dir)
 
         self.multiprocessingSpinBox.setMaximum(multiprocessing.cpu_count())
-        self.multiprocessingSpinBox.setValue(self.cfgs[0].multiprocessing)
+        self.multiprocessingSpinBox.setValue(self.cfg.multiprocessing)
+
+
+    @pyqtSlot(name='on_actionSaveConfiguration_triggered')
+    def save_config(self):
+        temp = QFileDialog.getSaveFileName(
+            parent=self, caption='Save Configuration',
+            directory=self.cfg.working_dir, filter='YAML files (*.yml)'
+            )
+        if temp:
+            import yaml
+            yaml.dump_all(self.cfgs, temp)
+            return True
+        return False
 
 
     @pyqtSlot(name='on_actionLoadCalibration_triggered')
@@ -420,19 +456,6 @@ Please consider filing an issue report at
 http://github.com/praxes/hexrd/issues, if one does not already exist.""",
             buttons=QMessageBox.Ok
             )
-
-
-    @pyqtSlot(name='on_actionSaveConfiguration_triggered')
-    def save_config(self):
-        temp = QFileDialog.getSaveFileName(
-            parent=self, caption='Save Configuration',
-            directory=self.cfgs[0].working_dir, filter='YAML files (*.yml)'
-            )
-        if temp:
-            import yaml
-            yaml.dump_all(self.cfgs, temp)
-            return True
-        return False
 
 
 
