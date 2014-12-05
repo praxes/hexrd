@@ -3,6 +3,7 @@ import multiprocessing
 import os
 import sys
 import time
+import webbrowser
 
 # use API v2 to prepare for migration to Py3/PyQt5:
 import sip
@@ -10,10 +11,10 @@ sip.setapi('QString', 2)
 sip.setapi('QTextStream', 2)
 sip.setapi('QVariant', 2)
 
-from PyQt4.QtCore import Qt, QObject, QSettings, pyqtSlot
+from PyQt4.QtCore import Qt, QEvent, QObject, QSettings, pyqtSlot
 from PyQt4.QtGui import (
     qApp, QAction, QApplication, QFileDialog, QMainWindow, QMessageBox, QPixmap,
-    QSplashScreen, QWhatsThis
+    QSplashScreen, QWhatsThis, QWidget
     )
 from PyQt4.uic import loadUi
 
@@ -49,6 +50,7 @@ def add_handler(log_level, stream=None):
 class GraphicsCanvasController(QObject):
 
     def __init__(self, ui):
+        QObject.__init__(self)
         self.ui = ui
 
         cmaps = sorted(i[:-2] for i in dir(cm) if i.endswith('_r'))
@@ -60,6 +62,15 @@ class GraphicsCanvasController(QObject):
         ui.maxSpinBox.valueChanged[int].connect(
             ui.minSpinBox.setMaximum
             )
+
+
+
+class WhatsThisUrlLoader(QObject):
+
+    def eventFilter(self, e):
+        if e.type() == QEvent.WhatsThisClicked:
+            webbrowser.open_new_tab(e.href())
+        return False
 
 
 
@@ -96,6 +107,7 @@ class MainController(QMainWindow):
 
         # connect signals before loading config or restoring state
         self._connect_signals()
+        self._load_event_filters()
 
         self.load_config(cfg_file)
 
@@ -104,6 +116,13 @@ class MainController(QMainWindow):
 
         self.show()
         splash.finish(self)
+
+
+    def _load_event_filters(self):
+        temp = WhatsThisUrlLoader()
+        for k, v in self.__dict__.items():
+            if isinstance(v, QWidget):
+                v.installEventFilter(temp)
 
 
     def _create_context_menus(self):

@@ -14,7 +14,7 @@
    <string>MainWindow</string>
   </property>
   <property name="whatsThis">
-   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;a href=&quot;http://www.google.com&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;test&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;a href=&quot;http://hexrd.readthedocs.org&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;HEXRD Doocumentation&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -289,8 +289,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>196</width>
-          <height>272</height>
+          <width>202</width>
+          <height>317</height>
          </rect>
         </property>
         <attribute name="label">
@@ -400,7 +400,7 @@ intensity:</string>
             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;right-click to load, modify, or delete an image series&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
            <property name="whatsThis">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;A long description would go here. Too bad its not simple to add a hyperlink that a user could click and load a webpage. But each widget has to reimplement .event() and handle the WhatsThisClickedEvent? Bonkers.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;A long description would go here. Want even more information? &lt;a href=&quot;http://hexrd.readthedocs.org&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Bonkers&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
            <item>
             <property name="text">
@@ -533,8 +533,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>192</width>
-          <height>272</height>
+          <width>202</width>
+          <height>317</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1447,8 +1447,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>181</width>
-          <height>287</height>
+          <width>202</width>
+          <height>317</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1460,8 +1460,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>181</width>
-          <height>287</height>
+          <width>202</width>
+          <height>317</height>
          </rect>
         </property>
         <attribute name="label">
