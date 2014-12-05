@@ -12,8 +12,8 @@ sip.setapi('QVariant', 2)
 
 from PyQt4.QtCore import Qt, QObject, QSettings, pyqtSlot
 from PyQt4.QtGui import (
-    qApp, QApplication, QFileDialog, QMainWindow, QMessageBox, QPixmap,
-    QSplashScreen
+    qApp, QAction, QApplication, QFileDialog, QMainWindow, QMessageBox, QPixmap,
+    QSplashScreen, QWhatsThis
     )
 from PyQt4.uic import loadUi
 
@@ -81,6 +81,8 @@ class MainController(QMainWindow):
         time.sleep(2)
 
         loadUi(ui_files['main_window'], self)
+        self.menuHelp.addAction(QWhatsThis.createAction(self))
+        self._create_context_menus()
 
         # now that we have the ui, configure the logging widget
         add_handler(log_level, QLogStream(self.loggerTextEdit))
@@ -97,6 +99,16 @@ class MainController(QMainWindow):
 
         self.show()
         splash.finish(self)
+
+
+    def _create_context_menus(self):
+        self.imageSeriesComboBox.addAction(self.actionLoadImageSeries)
+        self.imageSeriesComboBox.addAction(self.actionModifyImageSeries)
+        self.imageSeriesComboBox.addAction(self.actionDeleteImageSeries)
+
+        self.materialComboBox.addAction(self.actionAddMaterial)
+        self.materialComboBox.addAction(self.actionModifyMaterial)
+        self.materialComboBox.addAction(self.actionDeleteMaterial)
 
 
     def _restore_state(self):
@@ -343,6 +355,12 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
         self.multiprocessingSpinBox.setValue(self.cfg.multiprocessing)
 
 
+    @pyqtSlot(name='on_actionLoadImageSeries_triggered')
+    @pyqtSlot(name='on_actionModifyImageSeries_triggered')
+    @pyqtSlot(name='on_actionDeleteImageSeries_triggered')
+    @pyqtSlot(name='on_actionAddMaterial_triggered')
+    @pyqtSlot(name='on_actionModifyMaterial_triggered')
+    @pyqtSlot(name='on_actionDeleteMaterial_triggered')
     @pyqtSlot(name='on_actionSaveCalibration_triggered')
     @pyqtSlot(name='on_actionSaveMaterials_triggered')
     @pyqtSlot(name='on_actionPowderBinnedFit_triggered')

@@ -196,7 +196,7 @@ intensity:</string>
      <x>0</x>
      <y>0</y>
      <width>954</width>
-     <height>19</height>
+     <height>38</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -268,7 +268,7 @@ intensity:</string>
      <item>
       <widget class="QToolBox" name="cfgToolBox">
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <property name="tabSpacing">
         <number>5</number>
@@ -278,8 +278,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>210</width>
-          <height>335</height>
+          <width>374</width>
+          <height>235</height>
          </rect>
         </property>
         <attribute name="label">
@@ -372,8 +372,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>210</width>
-          <height>335</height>
+          <width>369</width>
+          <height>557</height>
          </rect>
         </property>
         <attribute name="label">
@@ -381,18 +381,19 @@ intensity:</string>
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_8">
          <item>
-          <widget class="QComboBox" name="comboBox">
+          <widget class="QComboBox" name="imageSeriesComboBox">
+           <property name="contextMenuPolicy">
+            <enum>Qt::ActionsContextMenu</enum>
+           </property>
            <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select &amp;quot;New Image Series&amp;quot; to open a &amp;quot;load image series&amp;quot; dialog&lt;/p&gt;&lt;p&gt;right-click for a context menu to reload an existing image series (not implemented)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;right-click to load, modify, or delete an image series&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+           <property name="whatsThis">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;A long description would go here. Too bad its not simple to add a hyperlink that a user could click and load a webpage. But each widget has to reimplement .event() and handle the WhatsThisClickedEvent? Bonkers.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
            <item>
             <property name="text">
              <string>None</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Image Series</string>
             </property>
            </item>
           </widget>
@@ -521,8 +522,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>210</width>
-          <height>335</height>
+          <width>350</width>
+          <height>311</height>
          </rect>
         </property>
         <attribute name="label">
@@ -537,8 +538,11 @@ intensity:</string>
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="contextMenuPolicy">
+            <enum>Qt::ActionsContextMenu</enum>
+           </property>
            <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select new material to add a new material (not implemented)&lt;/p&gt;&lt;p&gt;Right click for a context menu to modify an existing material (not implemented)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Right click to add, modify, or delete material&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
            <property name="editable">
             <bool>false</bool>
@@ -566,11 +570,6 @@ intensity:</string>
            <item>
             <property name="text">
              <string>Silicon</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Material</string>
             </property>
            </item>
           </widget>
@@ -701,8 +700,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>316</width>
-          <height>545</height>
+          <width>566</width>
+          <height>903</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1437,8 +1436,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>210</width>
-          <height>335</height>
+          <width>331</width>
+          <height>215</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1450,8 +1449,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>210</width>
-          <height>335</height>
+          <width>331</width>
+          <height>215</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1490,8 +1489,8 @@ intensity:</string>
         <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'MS Shell Dlg 2'; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
        <property name="acceptRichText">
         <bool>false</bool>
@@ -1567,6 +1566,41 @@ p, li { white-space: pre-wrap; }
   <action name="actionPowderDirectFit">
    <property name="text">
     <string>Direct Fit</string>
+   </property>
+  </action>
+  <action name="actionLoadImageSeries">
+   <property name="text">
+    <string>Load new image series</string>
+   </property>
+  </action>
+  <action name="actionModifyImageSeries">
+   <property name="text">
+    <string>Modify image series</string>
+   </property>
+  </action>
+  <action name="actionDeleteImageSeries">
+   <property name="text">
+    <string>Delete image series</string>
+   </property>
+  </action>
+  <action name="actionAddMaterial">
+   <property name="text">
+    <string>Add new material</string>
+   </property>
+  </action>
+  <action name="actionModifyMaterial">
+   <property name="text">
+    <string>Modify existing material</string>
+   </property>
+  </action>
+  <action name="actionDeleteMaterial">
+   <property name="text">
+    <string>Delete material</string>
+   </property>
+  </action>
+  <action name="actionWhatsThis">
+   <property name="text">
+    <string>What's this?</string>
    </property>
   </action>
  </widget>
