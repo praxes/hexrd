@@ -12,8 +12,8 @@ sip.setapi('QVariant', 2)
 
 from PyQt4.QtCore import Qt, QObject, QSettings, pyqtSlot
 from PyQt4.QtGui import (
-    qApp, QApplication, QFileDialog, QMainWindow, QMessageBox, QPixmap,
-    QSplashScreen
+    qApp, QAction, QApplication, QFileDialog, QMainWindow, QMessageBox, QPixmap,
+    QSplashScreen, QWhatsThis
     )
 from PyQt4.uic import loadUi
 
@@ -21,6 +21,7 @@ from matplotlib import cm
 
 from hexrd import config
 from hexrd.qt.resources import image_files, ui_files
+
 
 
 class QLogStream(object):
@@ -44,6 +45,7 @@ def add_handler(log_level, stream=None):
     logger.addHandler(h)
 
 
+
 class GraphicsCanvasController(QObject):
 
     def __init__(self, ui):
@@ -51,7 +53,6 @@ class GraphicsCanvasController(QObject):
 
         cmaps = sorted(i[:-2] for i in dir(cm) if i.endswith('_r'))
         ui.colorMapComboBox.addItems(cmaps)
-        ui.colorMapComboBox.setCurrentIndex(cmaps.index('gist_heat'))
 
         ui.minSpinBox.valueChanged[int].connect(
             ui.maxSpinBox.setMinimum
@@ -59,6 +60,7 @@ class GraphicsCanvasController(QObject):
         ui.maxSpinBox.valueChanged[int].connect(
             ui.minSpinBox.setMaximum
             )
+
 
 
 class MainController(QMainWindow):
@@ -79,32 +81,131 @@ class MainController(QMainWindow):
         time.sleep(2)
 
         loadUi(ui_files['main_window'], self)
+        self.menuHelp.addAction(QWhatsThis.createAction(self))
+        self._create_context_menus()
 
         # now that we have the ui, configure the logging widget
         add_handler(log_level, QLogStream(self.loggerTextEdit))
 
         self.gc_ctlr = GraphicsCanvasController(self)
 
+        # connect signals before loading config or restoring state
         self._connect_signals()
 
         self.load_config(cfg)
 
-        self.setWindowTitle('HEXRD')
         self.settings = QSettings('hexrd', 'hexrd')
-        try:
-            self.restoreGeometry(self.settings.value('geometry'))
-            self.restoreState(self.settings.value('state'))
-            self.cfgToolBox.setCurrentIndex(
-                self.settings.value('currentTool', type=int)
-                )
-        except TypeError:
-            raise
+        self._restore_state()
+
         self.show()
         splash.finish(self)
 
 
+    def _create_context_menus(self):
+        self.imageSeriesComboBox.addAction(self.actionLoadImageSeries)
+        self.imageSeriesComboBox.addAction(self.actionModifyImageSeries)
+        self.imageSeriesComboBox.addAction(self.actionDeleteImageSeries)
+
+        self.materialComboBox.addAction(self.actionAddMaterial)
+        self.materialComboBox.addAction(self.actionModifyMaterial)
+        self.materialComboBox.addAction(self.actionDeleteMaterial)
+
+
+    def _restore_state(self):
+        # main window state
+        self.setWindowTitle('HEXRD')
+        temp = self.settings.value('geometry')
+        if temp is not None:
+            self.restoreGeometry(temp)
+        temp = self.settings.value('state')
+        if temp is not None:
+            self.restoreState(self.settings.value('state'))
+        temp = self.settings.value('currentTool')
+        if temp is not None:
+            self.cfgToolBox.setCurrentIndex(int(temp))
+        # graphics state
+        temp = self.settings.value('currentColorMap')
+        if temp is not None:
+            temp = self.colorMapComboBox.findText(temp)
+            if temp > -1:
+                self.colorMapComboBox.setCurrentIndex(temp)
+        self.cmapReverseCheckBox.setChecked(
+            self.settings.value('cmapReverse') == 'true'
+            )
+        temp = self.settings.value('imageMax')
+        if temp is not None:
+            self.maxSpinBox.setValue(int(temp))
+        self.showOverCheckBox.setChecked(
+            self.settings.value('showOver') == 'true'
+            )
+        temp = self.settings.value('imageMin')
+        if temp is not None:
+            self.minSpinBox.setValue(int(temp))
+        self.showUnderCheckBox.setChecked(
+            self.settings.value('showUnder') == 'true'
+            )
+        # view mode
+        self.singleImRadioButton.setChecked(
+            self.settings.value('viewSingleImage') == 'true'
+            )
+        self.maxImRadioButton.setChecked(
+            self.settings.value('viewMaxImage') == 'true'
+            )
+        self.aveImRadioButton.setChecked(
+            self.settings.value('viewAveImage') == 'true'
+            )
+        self.medianImRadioButton.setChecked(
+            self.settings.value('viewMedianImage') == 'true'
+            )
+        self.minImRadioButton.setChecked(
+            self.settings.value('viewMinImage') == 'true'
+            )
+        # materials
+        self.showRingsCheckBox.setChecked(
+             self.settings.value('showRings') == 'true'
+            )
+        self.showRangesCheckBox.setChecked(
+             self.settings.value('showRanges') == 'true'
+            )
+        temp = self.settings.value('tthRanges')
+        if temp is not None:
+            self.tthRangesSpinBox.setValue(float(temp))
+        # calibration
+        temp = self.settings.value('detxStep')
+        if temp is not None:
+            self.detxStepSpinBox.setValue(float(temp))
+        temp = self.settings.value('detyStep')
+        if temp is not None:
+            self.detyStepSpinBox.setValue(float(temp))
+        temp = self.settings.value('detxRotStep')
+        if temp is not None:
+            self.detxRotStepSpinBox.setValue(float(temp))
+        temp = self.settings.value('detyRotStep')
+        if temp is not None:
+            self.detyRotStepSpinBox.setValue(float(temp))
+        temp = self.settings.value('detzRotStep')
+        if temp is not None:
+            self.detzRotStepSpinBox.setValue(float(temp))
+        temp = self.settings.value('detDistanceStep')
+        if temp is not None:
+            self.detDistanceStepSpinBox.setValue(float(temp))
+        temp = self.settings.value('p0DistortionStep')
+        if temp is not None:
+            self.p0DistortionStepSpinBox.setValue(float(temp))
+        temp = self.settings.value('p1DistortionStep')
+        if temp is not None:
+            self.p1DistortionStepSpinBox.setValue(float(temp))
+        temp = self.settings.value('p2DistortionStep')
+        if temp is not None:
+            self.p2DistortionStepSpinBox.setValue(float(temp))
+        temp = self.settings.value('chiTiltStep')
+        if temp is not None:
+            self.chiTiltStepSpinBox.setValue(float(temp))
+
+
     def _connect_signals(self):
         self.actionExit.triggered.connect(self.close)
+        self.rotateCheckBox.toggled.emit(False)
 
 
     @pyqtSlot()
@@ -142,10 +243,28 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
             self.cfg.working_dir = temp
 
 
+    @pyqtSlot(float)
+    def on_energySpinBox_valueChanged(self, val):
+        try:
+            self.wavelengthSpinBox.blockSignals(True)
+            self.wavelengthSpinBox.setValue(12.39842/val)
+        finally:
+            self.wavelengthSpinBox.blockSignals(False)
+
+
     @pyqtSlot(int)
     def on_multiprocessingSpinBox_valueChanged(self, val):
         if self.cfg.multiprocessing != val:
             self.cfg.multiprocessing = val
+
+
+    @pyqtSlot(float)
+    def on_wavelengthSpinBox_valueChanged(self, val):
+        try:
+            self.energySpinBox.blockSignals(True)
+            self.energySpinBox.setValue(12.39842/val)
+        finally:
+            self.energySpinBox.blockSignals(False)
 
 
     def closeEvent(self, event):
@@ -164,9 +283,63 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
                     return
             elif ret == QMessageBox.Cancel:
                 return
+
         self.settings.setValue('geometry', self.saveGeometry())
         self.settings.setValue('state', self.saveState())
         self.settings.setValue('currentTool', self.cfgToolBox.currentIndex())
+        # graphics window
+        self.settings.setValue(
+            'currentColorMap', self.colorMapComboBox.currentText()
+            )
+        self.settings.setValue(
+            'cmapReverse', self.cmapReverseCheckBox.isChecked()
+            )
+        self.settings.setValue('imageMax', self.maxSpinBox.value())
+        self.settings.setValue('imageMin', self.minSpinBox.value())
+        self.settings.setValue('showOver', self.showOverCheckBox.isChecked())
+        self.settings.setValue('showUnder', self.showUnderCheckBox.isChecked())
+        # image series
+        self.settings.setValue(
+            'viewSingleImage', self.singleImRadioButton.isChecked()
+            )
+        self.settings.setValue(
+            'viewMaxImage', self.maxImRadioButton.isChecked()
+            )
+        self.settings.setValue(
+            'viewAveImage', self.aveImRadioButton.isChecked()
+            )
+        self.settings.setValue(
+            'viewMedianImage', self.medianImRadioButton.isChecked()
+            )
+        self.settings.setValue(
+            'viewMinImage', self.minImRadioButton.isChecked()
+            )
+        # materials
+        self.settings.setValue('showRings', self.showRingsCheckBox.isChecked())
+        self.settings.setValue(
+            'showRanges', self.showRangesCheckBox.isChecked()
+            )
+        self.settings.setValue('tthRanges', self.tthRangesSpinBox.value())
+        # instrument calibration
+        self.settings.setValue('detxStep', self.detxStepSpinBox.value())
+        self.settings.setValue('detyStep', self.detyStepSpinBox.value())
+        self.settings.setValue('detxRotStep', self.detxRotStepSpinBox.value())
+        self.settings.setValue('detyRotStep', self.detyRotStepSpinBox.value())
+        self.settings.setValue('detzRotStep', self.detzRotStepSpinBox.value())
+        self.settings.setValue(
+            'detDistanceStep', self.detDistanceStepSpinBox.value()
+            )
+        self.settings.setValue(
+            'p0DistortionStep', self.p0DistortionStepSpinBox.value()
+            )
+        self.settings.setValue(
+            'p1DistortionStep', self.p1DistortionStepSpinBox.value()
+            )
+        self.settings.setValue(
+            'p2DistortionStep', self.p2DistortionStepSpinBox.value()
+            )
+        self.settings.setValue('chiTiltStep', self.chiTiltStepSpinBox.value())
+
         event.accept()
 
 
@@ -182,6 +355,12 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
         self.multiprocessingSpinBox.setValue(self.cfg.multiprocessing)
 
 
+    @pyqtSlot(name='on_actionLoadImageSeries_triggered')
+    @pyqtSlot(name='on_actionModifyImageSeries_triggered')
+    @pyqtSlot(name='on_actionDeleteImageSeries_triggered')
+    @pyqtSlot(name='on_actionAddMaterial_triggered')
+    @pyqtSlot(name='on_actionModifyMaterial_triggered')
+    @pyqtSlot(name='on_actionDeleteMaterial_triggered')
     @pyqtSlot(name='on_actionSaveCalibration_triggered')
     @pyqtSlot(name='on_actionSaveMaterials_triggered')
     @pyqtSlot(name='on_actionPowderBinnedFit_triggered')
