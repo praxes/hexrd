@@ -44,6 +44,16 @@ except ImportError:
     using_setuptools = False
 
 
+import versioneer
+
+
+versioneer.VCS = 'git'
+versioneer.versionfile_source = 'hexrd/_version.py'
+versioneer.versionfile_build = 'hexrd/_version.py'
+versioneer.tag_prefix = 'v' # tags are like v1.2.0
+versioneer.parentdir_prefix = 'hexrd-' # dirname like 'myproject-1.2.0'
+
+
 class test(Command):
 
     """Run the test suite."""
@@ -115,15 +125,12 @@ if ('bdist_wininst' in sys.argv) or ('bdist_msi' in sys.argv):
     kwds['scripts'].append('scripts/hexrd_win_post_install.py')
 
 
-# release.py contains version, authors, license, url, keywords, etc.
-repo_root = os.path.dirname(os.path.abspath(__file__))
-execfile(os.path.join(repo_root, 'hexrd','release.py'), globals())
-
-
 package_data = [
     'COPYING',
     'LICENSE',
     'wx/hexrd.png',
+    'qt/resources/*.ui',
+    'qt/resources/*.png'
     'data/materials.cfg',
     'data/all_materials.cfg',
     ]
@@ -135,26 +142,31 @@ data_files = [
     ]
 
 
-description = "hexrd diffraction data analysis"
-
+cmdclass = versioneer.get_cmdclass()
+cmdclass['test'] = test
 
 setup(
-    name = name,
-    version = __version__,
-    author = author,
-    author_email = author_email,
-    description = description,
-    license = license,
+    name = 'hexrd',
+    version = versioneer.get_version(),
+    author = 'The HEXRD Development Team',
+    author_email = 'praxes@googlegroups.com',
+    description = 'hexrd diffraction data analysis',
+    long_description = open('README.md').read(),
+    license = 'LGPLv2',
+    url = 'http://hexrd.readthedocs.org',
+    classifiers = [
+        'Intended Audience :: Developers',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: GNU Lesser General Public License v2 (LGPLv2)',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.7',
+        'Topic :: Scientific/Engineering',
+        ],
     ext_modules = ext_modules,
     packages = packages,
-    requires = (
-        'python (>=2.7)',
-        'numpy (>=1.4.0)',
-        'scipy (>=0.7.0)',
-        'wxpython (>= 2.8)',
-        ),
     package_data = {'hexrd': package_data},
     data_files = [('share/hexrd', data_files)],
-    cmdclass = {'test': test},
+    cmdclass = cmdclass,
     **kwds
     )

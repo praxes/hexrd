@@ -4,7 +4,7 @@ from __future__ import print_function, division, absolute_import
 descr = 'Extracts G vectors, grain position and strain'
 example = """
 examples:
-    hexrd grains configuration.yml
+    hexrd fit-grains configuration.yml
 """
 
 
@@ -15,12 +15,24 @@ def configure_parser(sub_parsers):
         help='YAML configuration file'
         )
     p.add_argument(
+        '-g', '--grains', type=str, default=None,
+        help="comma-separated list of IDs to refine, defaults to all"
+        )
+    p.add_argument(
         '-q', '--quiet', action='store_true',
         help="don't report progress in terminal"
         )
     p.add_argument(
+        '-c', '--clean', action='store_true',
+        help='overwrites existing analysis, including frame cache'
+        )
+    p.add_argument(
         '-f', '--force', action='store_true',
-        help='overwrites existing analysis'
+        help='overwrites existing analysis, exlcuding frame cache'
+        )
+    p.add_argument(
+        '-p', '--profile', action='store_true',
+        help='runs the analysis with cProfile enabled',
         )
     p.set_defaults(func=execute)
 
@@ -62,9 +74,10 @@ def execute(args, parser):
 
     logger.info('=== begin fit-grains ===')
 
+    clobber = args.force or args.clean
     for cfg in cfgs:
         # prepare the analysis directory
-        if os.path.exists(cfg.analysis_dir) and not args.force:
+        if os.path.exists(cfg.analysis_dir) and not clobber:
             logger.error(
                 'Analysis "%s" at %s already exists.'
                 ' Change yml file or specify "force"',
@@ -92,8 +105,28 @@ def execute(args, parser):
         logger.info("logging to %s", logfile)
         logger.addHandler(fh)
 
+        if args.profile:
+            import cProfile as profile, pstats, StringIO
+            pr = profile.Profile()
+            pr.enable()
+
         # process the data
-        fit_grains(cfg, force=args.force, show_progress=not args.quiet)
+        if args.grains is not None:
+            args.grains = [int(i) for i in args.grains.split(',')]
+        fit_grains(
+            cfg,
+            force=args.force,
+            show_progress=not args.quiet,
+            ids_to_refine=args.grains,
+            clean=args.clean
+            )
+
+        if args.profile:
+            pr.disable()
+            s = StringIO.StringIO()
+            ps = pstats.Stats(pr, stream=s).sort_stats('cumulative')
+            ps.print_stats(50)
+            logger.info('%s', s.getvalue())
 
         # stop logging for this particular analysis
         fh.flush()

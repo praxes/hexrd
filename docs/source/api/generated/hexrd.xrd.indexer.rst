@@ -36,10 +36,10 @@ Module: :mod:`xrd.indexer`
 .. autofunction:: hexrd.xrd.indexer.paintGrid
 
 
+.. autofunction:: hexrd.xrd.indexer.paintgrid_init
+
+
 .. autofunction:: hexrd.xrd.indexer.paintGridThis
-
-
-.. autofunction:: hexrd.xrd.indexer.progress_bar
 
 
 .. autofunction:: hexrd.xrd.indexer.writeGVE

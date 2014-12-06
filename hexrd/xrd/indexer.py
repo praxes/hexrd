@@ -675,6 +675,7 @@ def pgRefine(x, etaOmeMaps, omegaRange, threshold):
     f = abs(1. - c)
     return f
 
+paramMP = None
 def paintGrid(quats, etaOmeMaps,
               threshold=None, bMat=None,
               omegaRange=None, etaRange=None,
@@ -700,6 +701,11 @@ def paintGrid(quats, etaOmeMaps,
     ...make a new function that gets called by grain to do the g-vec angle
     computation?
     """
+
+    # This global value is used to pass state directly to the multiprocessing
+    # workers. On Windows, where fork() is not used for multiprocessing, it
+    # is reconstructed on each worker via a saved pickle.
+    global paramMP
 
     quats = num.atleast_2d(quats)
     if quats.size == 4:
@@ -825,19 +831,20 @@ def paintGrid(quats, etaOmeMaps,
         }
 
     # do the mapping
-    start = time.time()                      # time this
+    start = time.time()
     retval = None
-    params = [(q, paramMP) for q in quats.T]
     if multiProcMode:
-        pool = multiprocessing.Pool(nCPUs)
-        retval = pool.map(paintGridThis, params, chunksize=chunksize)
+        pool = multiprocessing.Pool(nCPUs, paintgrid_init, (paramMP, ))
+        retval = pool.map(paintGridThis, quats.T, chunksize=chunksize)
     else:
-        retval = map(paintGridThis, params)
+        retval = map(paintGridThis, quats.T)
     elapsed = (time.time() - start)
     logger.info("paintGrid took %.3f seconds", elapsed)
 
     if multiProcMode:
         pool.close()
+
+    paramMP = None
 
     return retval
 
@@ -856,29 +863,33 @@ def _meshgrid2d(x, y):
     return (r1, r2)
 
 
-def paintGridThis(param):
+def paintgrid_init(params):
+    global paramMP
+    paramMP = params
+
+
+def paintGridThis(quat):
     """
     """
-    quat, paramMP = param
     # Unpack common parameters into locals
-    symHKLs    = paramMP['symHKLs']
+    symHKLs = paramMP['symHKLs']
     symHKLs_ix = paramMP['symHKLs_ix']
     wavelength = paramMP['wavelength']
-    hklList    = paramMP['hklList']
-    omeMin     = paramMP['omeMin']
-    omeMax     = paramMP['omeMax']
-    omeTol     = paramMP['omeTol']
-    omePeriod  = paramMP['omePeriod']
+    hklList = paramMP['hklList']
+    omeMin = paramMP['omeMin']
+    omeMax = paramMP['omeMax']
+    omeTol = paramMP['omeTol']
+    omePeriod = paramMP['omePeriod']
     omeIndices = paramMP['omeIndices']
-    omeEdges   = paramMP['omeEdges']
-    etaMin     = paramMP['etaMin']
-    etaMax     = paramMP['etaMax']
-    etaTol     = paramMP['etaTol']
+    omeEdges = paramMP['omeEdges']
+    etaMin = paramMP['etaMin']
+    etaMax = paramMP['etaMax']
+    etaTol = paramMP['etaTol']
     etaIndices = paramMP['etaIndices']
-    etaEdges   = paramMP['etaEdges']
+    etaEdges = paramMP['etaEdges']
     etaOmeMaps = paramMP['etaOmeMaps']
-    bMat       = paramMP['bMat']
-    threshold  = paramMP['threshold']
+    bMat = paramMP['bMat']
+    threshold = paramMP['threshold']
 
     # need this for proper index generation
 

@@ -27,14 +27,13 @@
 
 import logging
 
-from . import release
-from . import config
-
 # Release data
-__author__ = '%s <%s>' % (release.author, release.author_email)
-__license__ = release.license
-__version__ = release.__version__
-version_info = release.version_info
+__author__ = 'HEXRD Development Team <praxes@googlegroups.com>'
+__license__ = 'LGPLv2'
+
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -69,4 +68,3 @@ if USE_NUMBA:
         USE_NUMBA = False
 
 del _readenv
-

@@ -1,10 +1,9 @@
 package:
   name: hexrd
-  version: 0.3.0.dev
+  # requires ".dev" tags following official releases, for now:
+  version: {{ environ['GIT_DESCRIBE_TAG'][1:]+environ.get('GIT_DESCRIBE_NUMBER', '') }}
 
 source:
-  #git_url: https://github.com/praxes/hexrd.git
-  #git_tag: master
   path: ../
 
 build:
@@ -25,7 +24,6 @@ requirements:
   run:
     - matplotlib
     - numba
-#    - numbapro
     - numpy
     - progressbar
     - python
@@ -47,6 +45,7 @@ test:
     - hexrd help fit-grains
     - hexrd gui -h
     - hexrd help gui
+    - hexrd test
 
 about:
   license: LGPL

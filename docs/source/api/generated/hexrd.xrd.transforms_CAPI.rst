@@ -6,13 +6,16 @@ Module: :mod:`xrd.transforms_CAPI`
 
 .. currentmodule:: hexrd.xrd.transforms_CAPI
 
-19 Functions
+21 Functions
 ------------
 
 .. autofunction:: hexrd.xrd.transforms_CAPI.makeGVector
 
 
 .. autofunction:: hexrd.xrd.transforms_CAPI.gvecToDetectorXY
+
+
+.. autofunction:: hexrd.xrd.transforms_CAPI.gvecToDetectorXYArray
 
 
 .. autofunction:: hexrd.xrd.transforms_CAPI.detectorXYToGvec
@@ -43,6 +46,9 @@ Module: :mod:`xrd.transforms_CAPI`
 
 
 .. autofunction:: hexrd.xrd.transforms_CAPI.makeOscillRotMat
+
+
+.. autofunction:: hexrd.xrd.transforms_CAPI.makeOscillRotMatArray
 
 
 .. autofunction:: hexrd.xrd.transforms_CAPI.makeRotMatOfExpMap

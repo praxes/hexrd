@@ -1,8 +1,10 @@
 import multiprocessing as mp
 import os
+import tempfile
 from unittest import skipIf
 
 from .common import TestConfig, test_data
+from hexrd import config
 
 
 reference_data = \
@@ -45,6 +47,8 @@ class TestRootConfig(TestConfig):
     def test_analysis_name(self):
         self.assertEqual(self.cfgs[0].analysis_name, 'analysis')
         self.assertEqual(self.cfgs[1].analysis_name, 'analysis_2')
+        self.cfgs[3].analysis_name = 'analysis_3'
+        self.assertEqual(self.cfgs[3].analysis_name, 'analysis_3')
 
     def test_section_inheritance(self):
         self.assertEqual(self.cfgs[0].analysis_name, 'analysis')
@@ -56,6 +60,12 @@ class TestRootConfig(TestConfig):
         self.assertEqual(self.cfgs[0].working_dir, os.getcwd())
         self.assertEqual(self.cfgs[1].working_dir, test_data['existing_path'])
         self.assertRaises(IOError, getattr, self.cfgs[2], 'working_dir')
+        self.cfgs[7].working_dir = test_data['existing_path']
+        self.assertEqual(self.cfgs[7].working_dir, test_data['existing_path'])
+        self.assertRaises(
+            IOError, setattr, self.cfgs[7], 'working_dir',
+            test_data['nonexistent_path']
+            )
 
     @skipIf(mp.cpu_count() < 2, 'test requires at least two cores')
     def test_multiprocessing(self):
@@ -68,6 +78,19 @@ class TestRootConfig(TestConfig):
         self.assertEqual(self.cfgs[5].multiprocessing, ncpus)
         self.assertEqual(self.cfgs[6].multiprocessing, 1)
         self.assertEqual(self.cfgs[7].multiprocessing, ncpus-1)
+        self.cfgs[7].multiprocessing = 1
+        self.assertEqual(self.cfgs[7].multiprocessing, 1)
+        self.cfgs[7].multiprocessing = 'all'
+        self.assertEqual(self.cfgs[7].multiprocessing, ncpus)
+        self.cfgs[7].multiprocessing = 2
+        self.assertEqual(self.cfgs[7].multiprocessing, 2)
+        self.assertRaises(
+            RuntimeError, setattr, self.cfgs[7], 'multiprocessing', 'foo'
+            )
+        self.assertRaises(
+            RuntimeError, setattr, self.cfgs[7], 'multiprocessing', -2
+            )
+
 
 
 class TestSingleConfig(TestConfig):
@@ -78,3 +101,20 @@ class TestSingleConfig(TestConfig):
 
     def test_analysis_name(self):
         self.assertEqual(self.cfgs[0].analysis_name, 'foo')
+
+    def test_dirty(self):
+        self.assertEqual(self.cfgs[0].dirty, False)
+        self.cfgs[0].analysis_name = 'bar'
+        self.assertEqual(self.cfgs[0].analysis_name, 'bar')
+        self.assertEqual(self.cfgs[0].dirty, True)
+
+    def test_dump(self):
+        self.assertEqual(self.cfgs[0].dirty, False)
+        self.cfgs[0].analysis_name = 'baz'
+        self.assertEqual(self.cfgs[0].dirty, True)
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            pass
+        self.cfgs[0].dump(f.name)
+        self.assertEqual(self.cfgs[0].dirty, False)
+        cfg = config.open(f.name)[0]
+        self.assertEqual(self.cfgs[0].analysis_name, 'baz')

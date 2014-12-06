@@ -173,7 +173,7 @@ if __name__ == '__main__':
         config = config.open(cfg_filename)[0]
         config._cfg['multiproc'] = 1 # force sequential run
 
-        target.fit_grains(config, force=True, max_grains=max_grains)
+        target.fit_grains(config, force=True, grains=range(max_grains))
 
         elapsed = time.time() - start
         print "\nTotal processing time %.2f seconds" % elapsed

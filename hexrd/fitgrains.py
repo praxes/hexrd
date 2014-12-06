@@ -100,7 +100,7 @@ def set_planedata_exclusions(cfg, detector, pd):
         pd.exclusions = pd.getTTh() >= np.radians(tth_max)
 
 
-def get_job_queue(cfg, max_grains=None):
+def get_job_queue(cfg, ids_to_refine=None):
     job_queue = mp.JoinableQueue()
     # load the queue
     try:
@@ -108,11 +108,12 @@ def get_job_queue(cfg, max_grains=None):
         estimate_f = cfg.fit_grains.estimate
         grain_params_list = np.atleast_2d(np.loadtxt(estimate_f))
         n_quats = len(grain_params_list)
-        if max_grains is None or max_grains > n_quats:
-            max_grains = n_quats
-        for grain_params in grain_params_list[:max_grains]:
+        n_jobs = 0
+        for grain_params in grain_params_list:
             grain_id = grain_params[0]
-            job_queue.put((grain_id, grain_params[3:15]))
+            if ids_to_refine is None or grain_id in ids_to_refine:
+                job_queue.put((grain_id, grain_params[3:15]))
+                n_jobs += 1
         logger.info(
             'fitting grains using "%s" for the initial estimate',
             estimate_f
@@ -122,28 +123,30 @@ def get_job_queue(cfg, max_grains=None):
         logger.info('fitting grains using default initial estimate')
         # load quaternion file
         quats = np.atleast_2d(
-            np.loadtxt(os.path.join(cfg.working_dir, 'accepted_orientations.dat'))
+            np.loadtxt(
+                os.path.join(cfg.working_dir, 'accepted_orientations.dat')
+                )
             )
         n_quats = len(quats)
-        if max_grains is None or max_grains > n_quats:
-            max_grains = n_quats
-        quats = quats[:max_grains]
+        n_jobs = 0
         phi, n = angleAxisOfRotMat(rotMatOfQuat(quats.T))
         for i, (phi, n) in enumerate(zip(phi, n.T)):
-            exp_map = phi*n
-            grain_params = np.hstack(
-                [exp_map, 0., 0., 0., 1., 1., 1., 0., 0., 0.]
-                )
-            job_queue.put((i, grain_params))
-    logger.info("fitting grains for %d of %d orientations", max_grains, n_quats)
-    return job_queue, np.min([max_grains, n_quats])
+            if ids_to_refine is None or i in ids_to_refine:
+                exp_map = phi*n
+                grain_params = np.hstack(
+                    [exp_map, 0., 0., 0., 1., 1., 1., 0., 0., 0.]
+                    )
+                job_queue.put((i, grain_params))
+                n_jobs += 1
+    logger.info("fitting grains for %d of %d orientations", n_jobs, n_quats)
+    return job_queue, n_jobs
 
 
-def get_data(cfg, show_progress=False):
+def get_data(cfg, show_progress=False, force=False, clean=False):
     # TODO: this should be refactored somehow to avoid initialize_experiment
     # and avoid using the old reader. Also, the detector is not used here.
     pd, reader, detector = initialize_experiment(cfg)
-    reader = get_frames(reader, cfg, show_progress)
+    reader = get_frames(reader, cfg, show_progress, force, clean)
 
     instrument_cfg = get_instrument_parameters(cfg)
     detector_params = get_detector_parameters(instrument_cfg)
@@ -171,16 +174,17 @@ def get_data(cfg, show_progress=False):
     return reader, pkwargs
 
 
-def fit_grains(cfg, force=False, show_progress=False, max_grains=None):
+def fit_grains(cfg, force=False, clean=False, show_progress=False, ids_to_refine=None):
     # load the data
-    reader, pkwargs = get_data(cfg, show_progress)
-    job_queue, njobs = get_job_queue(cfg, max_grains)
-    #njobs = job_queue.qsize() # ...raises NotImplementedError on Mac OS
+    reader, pkwargs = get_data(cfg, show_progress, force, clean)
+    job_queue, njobs = get_job_queue(cfg, ids_to_refine)
 
     # log this before starting progress bar
     ncpus = cfg.multiprocessing
     ncpus = ncpus if ncpus < njobs else njobs
-    logger.info('running pullspots with %d processors', ncpus)
+    logger.info(
+        'running pullspots with %d of %d processors', ncpus, mp.cpu_count()
+        )
     if ncpus == 1:
         logger.info('multiprocessing disabled')
 
@@ -303,10 +307,10 @@ class FitGrainsWorker(object):
         ome_start = self._p['omega_start']
         ome_step = self._p['omega_step']
         ome_stop =  self._p['omega_stop']
-        gtable = np.loadtxt(self._p['spots_stem'] % grain_id)
-        valid_refl_ids = gtable[:, 0] >= 0
-        unsat_spots = gtable[:, 5] < self._p['saturation_level']
-        pred_ome = gtable[:, 6]
+        refl_table = np.loadtxt(self._p['spots_stem'] % grain_id)
+        valid_refl_ids = refl_table[:, 0] >= 0
+        unsat_spots = refl_table[:, 5] < self._p['saturation_level']
+        pred_ome = refl_table[:, 8]
         if angularDifference(ome_start, ome_stop, units='degrees') > 0:
             # if here, incomplete have omega range and
             # clip the refelctions very close to the edges to avoid
@@ -327,10 +331,10 @@ class FitGrainsWorker(object):
                 )
         else:
             idx = np.logical_and(valid_refl_ids, unsat_spots)
-            
-        hkls = gtable[idx, 1:4].T # must be column vectors
+
+        hkls = refl_table[idx, 1:4].T # must be column vectors
         self._p['hkls'] = hkls
-        xyo_det = gtable[idx, -3:] # these are the cartesian centroids + ome
+        xyo_det = refl_table[idx, -3:] # these are the cartesian centroids + ome
         xyo_det[:, 2] = mapAngle(xyo_det[:, 2], self._p['omega_period'])
         self._p['xyo_det'] = xyo_det
         if sum(idx) <= 12:

@@ -4,16 +4,40 @@
    :toctree: generated
 
    hexrd.arrayutil
+   hexrd.cacheframes
+   hexrd.cli.cacheframes
+   hexrd.cli.findorientations
+   hexrd.cli.fitgrains
+   hexrd.cli.gui
+   hexrd.cli.help
+   hexrd.cli.main
+   hexrd.cli.test
+   hexrd.config
+   hexrd.config.config
+   hexrd.config.findorientations
+   hexrd.config.fitgrains
+   hexrd.config.imageseries
+   hexrd.config.instrument
+   hexrd.config.material
+   hexrd.config.root
+   hexrd.config.utils
+   hexrd.coreutil
    hexrd.fileutil
+   hexrd.findorientations
+   hexrd.fitgrains
    hexrd.gridutil
    hexrd.matrixutil
    hexrd.orientations
    hexrd.pfigutil
    hexrd.plotwrap
+   hexrd.qt.main
    hexrd.quadrature.q1db
    hexrd.quadrature.q2db
    hexrd.quadrature.q3db
    hexrd.tens
+   hexrd.testing
+   hexrd.utils.decorators
+   hexrd.utils.progressbar
    hexrd.valunits
    hexrd.xrd.crystallography
    hexrd.xrd.detector

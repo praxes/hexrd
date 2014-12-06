@@ -12,6 +12,7 @@ from hexrd.cli import gui
 from hexrd.cli import help
 from hexrd.cli import findorientations
 from hexrd.cli import cacheframes
+from hexrd.cli import test
 
 
 def main():
@@ -51,6 +52,7 @@ def main():
     findorientations.configure_parser(sub_parsers)
     fitgrains.configure_parser(sub_parsers)
     cacheframes.configure_parser(sub_parsers)
+    test.configure_parser(sub_parsers)
 
     try:
         import argcomplete

@@ -6,7 +6,7 @@ Module: :mod:`xrd.rotations`
 
 .. currentmodule:: hexrd.xrd.rotations
 
-20 Functions
+22 Functions
 ------------
 
 .. autofunction:: hexrd.xrd.rotations.arccosSafe
@@ -34,6 +34,12 @@ Module: :mod:`xrd.rotations`
 
 
 .. autofunction:: hexrd.xrd.rotations.quatOfRotMat
+
+
+.. autofunction:: hexrd.xrd.rotations.quatAverage
+
+
+.. autofunction:: hexrd.xrd.rotations.quatAverage_obj
 
 
 .. autofunction:: hexrd.xrd.rotations.rotMatOfExpMap_opt

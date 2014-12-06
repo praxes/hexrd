@@ -84,7 +84,7 @@ def make_old_detector_parfile(
 
 def migrate_detector_to_instrument_config(
     old_par, nrows, ncols, pixel_size, detID='GE', chi=0., tVec_s=np.zeros(3),
-    filename=None
+    saturation_level=2**14-1800, filename=None
     ):
     """
     takes old ge detector parfile from hexrd and converts to the new 10
@@ -112,6 +112,7 @@ def migrate_detector_to_instrument_config(
         print >> fid, "    rows:    %d" %nrows
         print >> fid, "    columns: %d" %ncols
         print >> fid, "    size:    [%f, %f] # [row height, col width] in mm" %tuple(pixel_size)
+        print >> fid, "  saturation_level: %d # for typical GE detector" %saturation_level
         print >> fid, "  transform:"
         print >> fid, "    tilt_angles: [%1.8e, %1.8e, %1.8e] # radians" %tuple(detector_params[:3])
         print >> fid, "    t_vec_d:     [%1.8e, %1.8e, %1.8e] # mm\n" %tuple(detector_params[3:6])
