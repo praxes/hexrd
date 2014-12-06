@@ -289,8 +289,8 @@ def find_orientations(cfg, hkls=None, profile=False):
     try:
         # are we searching the full grid of orientation space?
         qgrid_f = cfg.find_orientations.use_quaternion_grid
-        quats = np.loadtxt(qgrid_f)
-        logger.info("Using %s for full quaternian search", qgrid_f)
+        quats = np.loadtxt(qgrid_f).T
+        logger.info("Using %s for full quaternion search", qgrid_f)
     except (IOError, ValueError):
         # or doing a seeded search?
         logger.info("Defaulting to seeded search")
@@ -345,7 +345,7 @@ def find_orientations(cfg, hkls=None, profile=False):
         delimiter="\t"
         )
 
-    # do the peak extraction now?
-    if cfg.find_orientations.extract_measured_g_vectors:
-        raise NotImplementedError('TODO: implement extract gvecs')
-        #extract_measured_g_vectors(cfg)
+    # obselete # # do the peak extraction now?
+    # obselete # if cfg.find_orientations.extract_measured_g_vectors:
+    # obselete #     raise NotImplementedError('TODO: implement extract gvecs')
+    # obselete #     #extract_measured_g_vectors(cfg)
