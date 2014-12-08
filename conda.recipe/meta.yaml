@@ -20,7 +20,7 @@ requirements:
   build:
     - numpy
     - python
-    - setuptools # [win]
+    - setuptools
   run:
     - matplotlib
     - numba

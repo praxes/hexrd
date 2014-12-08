@@ -31,21 +31,12 @@ import sys
 import numpy
 np_include_dir = os.path.join(numpy.get_include(), 'numpy')
 
-try:
-    from setuptools import setup, Extension
-    from setuptools import Command
-    using_setuptools = True
-except ImportError:
-    if sys.platform.startswith('win'):
-        # Require setuptools on Windows for installing the hexrd.exe entry point
-        raise
-    from distutils.core import setup, Extension
-    from distutils.cmd import Command
-    using_setuptools = False
-
+from setuptools import Command, Extension, find_packages, setup
 
 import versioneer
 
+
+cmdclass = versioneer.get_cmdclass()
 
 versioneer.VCS = 'git'
 versioneer.versionfile_source = 'hexrd/_version.py'
@@ -76,6 +67,8 @@ class test(Command):
         suite = unittest.TestLoader().discover('hexrd')
         unittest.TextTestRunner(verbosity=self.verbosity+1).run(suite)
 
+cmdclass['test'] = test
+
 
 # for SgLite
 srclist = [
@@ -101,39 +94,15 @@ transforms_mod = Extension(
     include_dirs=[np_include_dir]
     )
 
-
-# all modules
 ext_modules = [sglite_mod, transforms_mod]
 
 
-packages = []
-for dirpath, dirnames, filenames in os.walk('hexrd'):
-    if '__init__.py' in filenames:
-        packages.append('.'.join(dirpath.split(os.sep)))
-    else:
-        del(dirnames[:])
-
-
-kwds = {'scripts': []}
-if sys.platform.startswith('win') and using_setuptools:
-    kwds['entry_points'] = {'console_scripts':
-                                ["hexrd = hexrd.cli.main:main"]
-                           }
-else:
-    kwds['scripts'].append('scripts/hexrd')
+kwds = {}
+kwds['entry_points'] = {
+    'console_scripts': ["hexrd = hexrd.cli.main:main"]
+    }
 if ('bdist_wininst' in sys.argv) or ('bdist_msi' in sys.argv):
-    kwds['scripts'].append('scripts/hexrd_win_post_install.py')
-
-
-package_data = [
-    'COPYING',
-    'LICENSE',
-    'wx/hexrd.png',
-    'qt/resources/*.ui',
-    'qt/resources/*.png'
-    'data/materials.cfg',
-    'data/all_materials.cfg',
-    ]
+    kwds['scripts'] = ['scripts/hexrd_win_post_install.py']
 
 
 data_files = [
@@ -141,9 +110,6 @@ data_files = [
     'share/calibrate_from_single_crystal.ipynb'
     ]
 
-
-cmdclass = versioneer.get_cmdclass()
-cmdclass['test'] = test
 
 setup(
     name = 'hexrd',
@@ -164,8 +130,8 @@ setup(
         'Topic :: Scientific/Engineering',
         ],
     ext_modules = ext_modules,
-    packages = packages,
-    package_data = {'hexrd': package_data},
+    packages = find_packages(),
+    include_package_data = True,
     data_files = [('share/hexrd', data_files)],
     cmdclass = cmdclass,
     **kwds
