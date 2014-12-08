@@ -25,7 +25,7 @@ requirements:
     - matplotlib
     - numba
     - numpy
-    - progressbar
+    - progressbar >=2.3
     - python
     - python.app # [osx]
     - pyyaml
