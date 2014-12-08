@@ -1,2 +1,3 @@
 include versioneer.py
-include hexrd/_version.py
+include README.md
+recursive-include hexrd *.py *.ui *.png *.cfg
