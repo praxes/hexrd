@@ -72,6 +72,18 @@ ztol  = 1e-10
 
 DFLT_XTOL = 1e-6
 
+#######
+# GE, Perkin
+NROWS = 2048
+NCOLS = 2048
+PIXEL = 0.2
+
+## pscam
+#NROWS = 2671
+#NCOLS = 4008
+#PIXEL = 0.03
+#######
+
 def angToXYIdeal(tTh, eta, workDist):
     rho = num.tan(tTh) * workDist
     x   = rho * num.cos(eta)
@@ -404,7 +416,6 @@ class FrameWriter(Framer2DRC):
     def __init__(self, *args, **kwargs):
         self.filename        = kwargs.pop('filename')
         self.__nbytes_header = kwargs.pop('nbytesHeader', 0)
-        self.__nempty        = kwargs.pop('nempty', 0)
         self.__nempty        = kwargs.pop('nempty', 0)
 
         Framer2DRC.__init__(self, *args, **kwargs)
@@ -759,9 +770,9 @@ class ReadGE(Framer2DRC):
     It is likely that some of the methods here should be moved up to a base class
     """
     __nbytes_header    = 8192
-    __idim             = 2048
-    __nrows = __idim
-    __ncols = __idim
+    __idim             = min(NROWS, NCOLS)
+    __nrows = NROWS
+    __ncols = NCOLS
     __frame_dtype_dflt = 'int16' # good for doing subtractions
     __frame_dtype_read = 'uint16'
     __frame_dtype_float = 'float64'
@@ -805,7 +816,7 @@ class ReadGE(Framer2DRC):
         """
 
         Framer2DRC.__init__(self,
-                            self.__nrows, self.__ncols,
+                            self.__ncols, self.__nrows,
                             dtypeDefault = self.__frame_dtype_dflt,
                             dtypeRead    = self.__frame_dtype_read,
                             dtypeFloat   = self.__frame_dtype_float,
@@ -3986,8 +3997,9 @@ class Detector2DRC(DetectorBase):
         """
         get angular positions of all pixels
         """
-        jVals = num.tile(num.arange(self.__ncols),(self.__nrows,1))
-        iVals = jVals.T
+        jVals, iVals = num.meshgrid(num.arange(self.__ncols) + 0.5,
+                                    num.arange(self.__nrows) + 0.5)
+
         twoTheta, eta = self.xyoToAng(iVals, jVals)
         return twoTheta, eta
     def xyoToAngCorners(self):
@@ -4916,7 +4928,7 @@ class DetectorGeomGE(Detector2DRC):
     __vfu            = 0.2 # made up
     __vdk            = 1800 # made up
     # 200 x 200 micron pixels
-    __pixelPitch     = 0.2      # in mm
+    __pixelPitch     = PIXEL # in mm
     __idim           = ReadGE._ReadGE__idim
     __nrows          = ReadGE._ReadGE__nrows
     __ncols          = ReadGE._ReadGE__ncols
@@ -4933,7 +4945,7 @@ class DetectorGeomGE(Detector2DRC):
             reader = ReadGE(None, **readerKWArgs)
 
         Detector2DRC.__init__(self,
-                              self.__nrows, self.__ncols, self.__pixelPitch,
+                              self.__ncols, self.__nrows, self.__pixelPitch,
                               self.__vfu, self.__vdk,
                               reader,
                               *args, **kwargs)

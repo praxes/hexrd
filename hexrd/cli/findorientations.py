@@ -27,6 +27,10 @@ def configure_parser(sub_parsers):
         help='overwrites existing analysis'
         )
     p.add_argument(
+        '-c', '--clean', action='store_true',
+        help='overwrites existing analysis, including maps'
+        )
+    p.add_argument(
         '--hkls', metavar='HKLs', type=str, default=None,
         help="""\
 list hkl entries in the materials file to use for fitting

@@ -43,7 +43,7 @@ import wx
 import numpy
 
 numpy.seterr(over='ignore')
- 
+
 #
 #  XRD Modules
 #
@@ -165,7 +165,7 @@ class detectorPanel(wx.Panel):
         self.cbox_ct  = wx.CheckBox(self, wx.NewId(), name)
         self.float_ct = FloatControl(self, wx.NewId())
         self.float_ct.SetValue(det.chiTilt)
-        
+
         #
         #  Distortion parameters
         #
@@ -407,7 +407,7 @@ class detectorPanel(wx.Panel):
         self.__showCbox(self.cbox_yt, self.float_yt, det.refineFlags[4])
         self.__showCbox(self.cbox_zt, self.float_zt, det.refineFlags[5])
         self.__showCbox(self.cbox_ct, self.float_ct, False)
-        
+
         self.__showCbox(self.cbox_d1, self.float_d1, det.refineFlags[6])
         self.__showCbox(self.cbox_d2, self.float_d2, det.refineFlags[7])
         self.__showCbox(self.cbox_d3, self.float_d3, det.refineFlags[8])
@@ -486,7 +486,7 @@ class detectorPanel(wx.Panel):
         #         }
         #     logwin = logWindow(self, wx.NewId(), action, 'Fitting Log')
         #     logwin.ShowModal()
-        # 
+        #
         # except Exception as e:
         #     wx.MessageBox(str(e))
         #     pass
