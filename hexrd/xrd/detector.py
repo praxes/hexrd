@@ -74,14 +74,14 @@ DFLT_XTOL = 1e-6
 
 #######
 # GE, Perkin
-#NROWS = 2048
-#NCOLS = 2048
-#PIXEL = 0.2
+NROWS = 2048
+NCOLS = 2048
+PIXEL = 0.2
 
-# pscam
-NROWS = 2671
-NCOLS = 4008
-PIXEL = 0.03
+## pscam
+#NROWS = 2671
+#NCOLS = 4008
+#PIXEL = 0.03
 #######
 
 def angToXYIdeal(tTh, eta, workDist):
