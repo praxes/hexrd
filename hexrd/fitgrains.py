@@ -164,6 +164,9 @@ def get_data(cfg, show_progress=False, force=False, clean=False):
         'eta_tol': cfg.fit_grains.tolerance.eta,
         'omega_tol': cfg.fit_grains.tolerance.omega,
         'panel_buffer': cfg.fit_grains.panel_buffer,
+        'nrows': instrument_cfg['detector']['pixels']['rows'],
+        'ncols': instrument_cfg['detector']['pixels']['columns'],
+        'pixel_pitch': instrument_cfg['detector']['pixels']['size'],
         'npdiv': cfg.fit_grains.npdiv,
         'threshold': cfg.fit_grains.threshold,
         'spots_stem': os.path.join(cfg.analysis_dir, 'spots_%05d.out'),
@@ -284,6 +287,11 @@ class FitGrainsWorker(object):
 
 
     def pull_spots(self, grain_id, grain_params, iteration):
+        # need to calc panel dims on the fly
+        xdim = self._p['pixel_pitch'][1] * self._p['ncols']
+        ydim = self._p['pixel_pitch'][0] * self._p['nrows']
+        panel_dims = [(-0.5*xdim, -0.5*ydim),
+                      ( 0.5*xdim,  0.5*ydim)]
         return pullSpots(
             self._p['plane_data'],
             self._p['detector_params'],
@@ -295,6 +303,8 @@ class FitGrainsWorker(object):
             eta_tol=self._p['eta_tol'][iteration],
             ome_tol=self._p['omega_tol'][iteration],
             tth_tol=self._p['tth_tol'][iteration],
+            pixel_pitch=self._p['pixel_pitch'],
+            panel_dims=panel_dims,
             panel_buff=self._p['panel_buffer'],
             npdiv=self._p['npdiv'],
             threshold=self._p['threshold'],

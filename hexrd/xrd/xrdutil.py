@@ -25,6 +25,8 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
+import pdb
+
 import sys
 import copy
 import time
@@ -3017,8 +3019,8 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
 
     """
     # convert to radians
-    etaEdges = d2r*num.sort(etaEdges)
-    omeEdges = d2r*num.sort(omeEdges)
+    etaEdges = num.radians(num.sort(etaEdges))
+    omeEdges = num.radians(num.sort(omeEdges))
 
     omeIndices = range(len(omeEdges))
     etaIndices = range(len(etaEdges))
@@ -3044,11 +3046,11 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
     if omeTol is None:
         omeTol = abs(del_ome)
     else:
-        omeTol = d2r*omeTol
+        omeTol = num.radians(omeTol)
     if etaTol is None:
         etaTol = abs(del_eta)
     else:
-        etaTol = d2r*etaTol
+        etaTol = num.radians(etaTol)
 
     # pixel dialtions
     dpix_ome = round( omeTol / abs(del_ome) )
@@ -3077,15 +3079,17 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
             angList  = num.vstack(
                 xfcapi.oscillAnglesOfHKLs(these_hkls, chi, rMat_c, bMat, wlen,
                                           beamVec=bVec, etaVec=eVec, vInv=vInv)
-                                  )
+                )
             if not num.all(num.isnan(angList)):
                 #
-                angList[:, 1:] = xf.mapAngle(angList[:, 1:])
+                angList[:, 1] = xf.mapAngle(angList[:, 1], [etaEdges[0], etaEdges[0]+2*num.pi])
+                angList[:, 2] = xf.mapAngle(angList[:, 2], [omeEdges[0], omeEdges[0]+2*num.pi])
+                #
                 # do eta ranges
                 angMask_eta = num.zeros(len(angList), dtype=bool)
                 for etas in etaRanges:
                     angMask_eta = num.logical_or(angMask_eta, xf.validateAngleRanges(angList[:, 1], etas[0], etas[1]))
-            
+
                 # do omega ranges
                 ccw=True
                 angMask_ome = num.zeros(len(angList), dtype=bool)
@@ -3093,7 +3097,7 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
                     if omes[1] - omes[0] < 0:
                         ccw=False
                     angMask_ome = num.logical_or(angMask_ome, xf.validateAngleRanges(angList[:, 2], omes[0], omes[1], ccw=ccw))
-            
+
                 # mask angles list, hkls
                 angMask = num.logical_and(angMask_eta, angMask_ome)
 
@@ -3211,6 +3215,12 @@ def simulateGVecs(pd, detector_params, grain_params,
                   pixel_pitch=(0.2, 0.2),
                   distortion=(dFunc_ref, dParams_ref)):
     """
+    returns valid_hkl, valid_ang, valid_xy, ang_ps
+
+    panel_dims are [(xmin, ymin), (xmax, ymax)] in mm
+
+    pixel_pitch is [row_size, column_size] in mm
+
     simulate the monochormatic scattering for a specified
 
         - space group
@@ -3253,11 +3263,11 @@ def simulateGVecs(pd, detector_params, grain_params,
     allAngs, allHKLs = _filter_hkls_eta_ome(full_hkls, angList, eta_range, ome_range)
 
     #...preallocate for speed...?
-    det_xy, rMat_s = _project_on_detector_plane(allHKLs, allAngs, 
-                                                bMat, rMat_d, rMat_c, 
+    det_xy, rMat_s = _project_on_detector_plane(allHKLs, allAngs,
+                                                bMat, rMat_d, rMat_c,
                                                 tVec_d, tVec_c, tVec_s, chi, distortion)
-    #det_xy, rMat_s = _project_on_detector_plane_orig(allHKLs, allAngs, 
-    #                                                 bMat, rMat_d, rMat_c, 
+    #det_xy, rMat_s = _project_on_detector_plane_orig(allHKLs, allAngs,
+    #                                                 bMat, rMat_d, rMat_c,
     #                                                 tVec_d, tVec_c, tVec_s, chi, distortion)
 
     #num.testing.assert_array_equal(rMat_s, rMat_s_b)
@@ -3303,7 +3313,7 @@ if USE_NUMBA:
         for el in range(0, len(tth), 4):
             max_tth = num.abs(tth[el + 0] - tth[el + 3])
             eta_diff = eta[el + 0] - eta[el + 3]
-            max_eta = num.abs(num.remainder(eta_diff + hperiod, period) - hperiod) 
+            max_eta = num.abs(num.remainder(eta_diff + hperiod, period) - hperiod)
             for i in range(3):
                 curr_tth = num.abs(tth[el + i] - tth[el + i + 1])
                 eta_diff = eta[el + i] - eta[el + i + 1]
@@ -3422,7 +3432,14 @@ def pullSpots(pd, detector_params, grain_params, reader,
               npdiv=1, threshold=10,
               doClipping=False, filename=None,
               save_spot_list=False, use_closest=False):
+    """
+    Function for pulling spots from a reader object for
+    specific detector panel and crystal specifications
 
+    panel_dims are [(xmin, ymin), (xmax, ymax)] in mm
+
+    pixel_pitch is [row_size, column_size] in mm
+    """
     # steal ref beam and eta from transforms.py
     bVec   = xf.bVec_ref
     eVec   = xf.eta_ref
@@ -3453,13 +3470,13 @@ def pullSpots(pd, detector_params, grain_params, reader,
         #
         del_ome   = reader[1][1]
         ome_edges = [reader[1][0] + i*del_ome for i in range(nframes + 1)]
-        ome_range = (ome_edges[0], ome_edges[-1])
+        ome_range = num.sort([ome_edges[0], ome_edges[-1]])
         #
         frame_nrows = reader[0][0].shape[0]
         frame_ncols = reader[0][0].shape[1]
         #
-        row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
-        col_edges = num.arange(frame_ncols + 1)*pixel_pitch[0] + panel_dims[0][1]
+        row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_pitch[1] + panel_dims[0][1]
+        col_edges = num.arange(frame_ncols + 1)*pixel_pitch[0] + panel_dims[0][0]
     else:
         """
         HAVE OLD READER CLASS
@@ -3467,14 +3484,16 @@ def pullSpots(pd, detector_params, grain_params, reader,
         nframes = reader.getNFrames()
         #
         del_ome   = reader.getDeltaOmega() # this one is in radians!
-        ome_range = num.array( reader.getOmegaMinMax() ) * num.sign(del_ome)
-        ome_edges = num.arange(nframes+1)*del_ome + ome_range[0]
+        ome_range = num.array( reader.getOmegaMinMax() )
+        ome_edges = num.hstack([reader.omegas - 0.5*abs(del_ome),
+                                reader.omegas[-1] + 0.5*abs(del_ome)
+                                ])
         #
         frame_nrows = reader.get_nrows()
         frame_ncols = reader.get_ncols()
         #
-        row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_pitch[1] + panel_dims[0][0]
-        col_edges = num.arange(frame_ncols + 1)*pixel_pitch[0] + panel_dims[0][1]
+        row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_pitch[1] + panel_dims[0][1]
+        col_edges = num.arange(frame_ncols + 1)*pixel_pitch[0] + panel_dims[0][0]
         pass
 
     iframe  = num.arange(0, nframes)
@@ -3505,7 +3524,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                           panel_dims=pdim_buffered,
                           pixel_pitch=pixel_pitch,
                           distortion=distortion)
-
+    # CHECKED TO HERE OK # pdb.set_trace()
     if filename is not None:
         if isinstance(filename, file):
             fid = filename
@@ -3581,10 +3600,12 @@ def pullSpots(pd, detector_params, grain_params, reader,
             pass
         row_indices   = gutil.cellIndices(row_edges, xy_eval[:, 1])
         if num.any(row_indices < 0) or num.any(row_indices >= frame_nrows):
+            # CHECKED OK # pdb.set_trace()
             print "(%d, %d, %d): window falls off detector; skipping..." % tuple(hkl)
             continue
         col_indices   = gutil.cellIndices(col_edges, xy_eval[:, 0])
         if num.any(col_indices < 0) or num.any(col_indices >= frame_ncols):
+            # CHECKED OK # pdb.set_trace()
             print "(%d, %d, %d): window falls off detector; skipping..." % tuple(hkl)
             continue
         frame_indices = gutil.cellIndices(ome_edges, angs[2] + d2r*ome_del)
