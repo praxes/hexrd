@@ -3539,7 +3539,6 @@ def pullSpots(pd, detector_params, grain_params, reader,
     iRefl = 0
     spot_list = []
     for hkl, angs, xy, pix in zip(*sim_g):
-
         ndiv_tth = npdiv*num.ceil( tth_tol/(pix[0]*r2d) )
         ndiv_eta = npdiv*num.ceil( eta_tol/(pix[1]*r2d) )
 
@@ -3576,6 +3575,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
         conn = gutil.cellConnectivity( sdims[1], sdims[2], origin='ll')
 
         rMat_s = xfcapi.makeOscillRotMat([chi, angs[2]])
+
         if doClipping:
             gVec_c = xf.anglesToGVec(gVec_angs_vtx,
                                      bVec, eVec,
@@ -3616,7 +3616,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
         # read frame in, splitting reader if necessary
         split_reader = False
         if min(frame_indices) < 0:
-            if full_range < 2*num.pi:
+            if full_range > 0:
                 reidx = num.where(frame_indices >= 0)[0]
                 sdims[0] = len(reidx)
                 frame_indices = frame_indices[reidx]
@@ -3627,7 +3627,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 oidx1  = iframe[frame_indices[reidx1]]
                 oidx2  = frame_indices[reidx2]
         if max(frame_indices) >= nframes:
-            if full_range < 2*num.pi:
+            if full_range > 0:
                 reidx = num.where(frame_indices < nframes)[0]
                 sdims[0] = len(reidx)
                 frame_indices = frame_indices[reidx]
@@ -3642,7 +3642,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
             if split_reader:
                 f1 = reader[0][oidx1[0]:oidx1[0]+len(oidx1)]
                 f2 = reader[0][oidx2[0]:oidx2[0]+len(oidx2)]
-                frames = np.hstack([f1, f2])
+                frames = num.hstack([f1, f2])
             else:
                 frames = reader[0][frame_indices[0]:sdims[0]+frame_indices[0]]
 
