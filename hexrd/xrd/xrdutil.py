@@ -3431,7 +3431,8 @@ def pullSpots(pd, detector_params, grain_params, reader,
               tth_tol=0.15, eta_tol=1., ome_tol=1.,
               npdiv=1, threshold=10,
               doClipping=False, filename=None,
-              save_spot_list=False, use_closest=False):
+              save_spot_list=False, use_closest=True, 
+              quiet=True):
     """
     Function for pulling spots from a reader object for
     specific detector panel and crystal specifications
@@ -3601,12 +3602,14 @@ def pullSpots(pd, detector_params, grain_params, reader,
         row_indices   = gutil.cellIndices(row_edges, xy_eval[:, 1])
         if num.any(row_indices < 0) or num.any(row_indices >= frame_nrows):
             # CHECKED OK # pdb.set_trace()
-            print "(%d, %d, %d): window falls off detector; skipping..." % tuple(hkl)
+            if not quiet:
+                print "(%d, %d, %d): window falls off detector; skipping..." % tuple(hkl)
             continue
         col_indices   = gutil.cellIndices(col_edges, xy_eval[:, 0])
         if num.any(col_indices < 0) or num.any(col_indices >= frame_ncols):
             # CHECKED OK # pdb.set_trace()
-            print "(%d, %d, %d): window falls off detector; skipping..." % tuple(hkl)
+            if not quiet:
+                print "(%d, %d, %d): window falls off detector; skipping..." % tuple(hkl)
             continue
         frame_indices = gutil.cellIndices(ome_edges, angs[2] + d2r*ome_del)
 
