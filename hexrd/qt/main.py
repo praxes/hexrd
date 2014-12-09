@@ -3,6 +3,7 @@ import multiprocessing
 import os
 import sys
 import time
+import webbrowser
 
 # use API v2 to prepare for migration to Py3/PyQt5:
 import sip
@@ -10,10 +11,10 @@ sip.setapi('QString', 2)
 sip.setapi('QTextStream', 2)
 sip.setapi('QVariant', 2)
 
-from PyQt4.QtCore import Qt, QObject, QSettings, pyqtSlot
+from PyQt4.QtCore import Qt, QEvent, QObject, QSettings, pyqtSlot
 from PyQt4.QtGui import (
     qApp, QAction, QApplication, QFileDialog, QMainWindow, QMessageBox, QPixmap,
-    QSplashScreen, QWhatsThis
+    QSplashScreen, QWhatsThis, QWidget
     )
 from PyQt4.uic import loadUi
 
@@ -49,6 +50,7 @@ def add_handler(log_level, stream=None):
 class GraphicsCanvasController(QObject):
 
     def __init__(self, ui):
+        QObject.__init__(self)
         self.ui = ui
 
         cmaps = sorted(i[:-2] for i in dir(cm) if i.endswith('_r'))
@@ -63,10 +65,24 @@ class GraphicsCanvasController(QObject):
 
 
 
+class WhatsThisUrlLoader(QObject):
+
+    def eventFilter(self, e):
+        if e.type() == QEvent.WhatsThisClicked:
+            webbrowser.open_new_tab(e.href())
+        return False
+
+
+
 class MainController(QMainWindow):
 
 
-    def __init__(self, log_level, cfg=None):
+    @property
+    def cfg(self):
+        return self._cfgs[0]
+
+
+    def __init__(self, log_level, cfg_file=None):
         super(MainController, self).__init__()
         # Create and display the splash screen
         splash_pix = QPixmap(image_files['splash'])
@@ -91,14 +107,22 @@ class MainController(QMainWindow):
 
         # connect signals before loading config or restoring state
         self._connect_signals()
+        self._load_event_filters()
 
-        self.load_config(cfg)
+        self.load_config(cfg_file)
 
         self.settings = QSettings('hexrd', 'hexrd')
         self._restore_state()
 
         self.show()
         splash.finish(self)
+
+
+    def _load_event_filters(self):
+        temp = WhatsThisUrlLoader()
+        for k, v in self.__dict__.items():
+            if isinstance(v, QWidget):
+                v.installEventFilter(temp)
 
 
     def _create_context_menus(self):
@@ -204,13 +228,12 @@ class MainController(QMainWindow):
 
 
     def _connect_signals(self):
-        self.actionExit.triggered.connect(self.close)
+        self.actionQuit.triggered.connect(self.close)
         self.rotateCheckBox.toggled.emit(False)
 
 
     @pyqtSlot()
     def on_actionDocumentation_triggered(self):
-        import webbrowser
         webbrowser.open_new_tab('http://hexrd.readthedocs.org/en/latest')
 
 
@@ -227,6 +250,33 @@ HEXRD is an open-source project originally conceived by Joel Bernier, and
 developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
 """
             )
+
+
+    @pyqtSlot()
+    def on_actionLoadConfiguration_triggered(self):
+        if self.cfg.dirty:
+            confirm = QMessageBox()
+            confirm.setText('Configuration has been modified.')
+            confirm.setInformativeText(
+"""Do you want to save your changes before loading a new configuration?"""
+                )
+            confirm.setStandardButtons(
+                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
+                )
+            confirm.button(QMessageBox.Discard).setText("Discard")
+            confirm.setDefaultButton(QMessageBox.Cancel)
+            ret = confirm.exec_()
+            if ret == QMessageBox.Save:
+                if self.save_config() is False:
+                    return
+            elif ret == QMessageBox.Cancel:
+                return
+        temp = QFileDialog.getOpenFileName(
+            self, 'Load Configuration', self.cfg.working_dir,
+            'YAML files (*.yml)'
+            )
+        if temp:
+            self.load_config(temp)
 
 
     def on_analysisNameLineEdit_editingFinished(self):
@@ -268,7 +318,7 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
 
 
     def closeEvent(self, event):
-        if self.cfg.dirty:
+        if self._cfg_file is not None and self.cfg.dirty:
             confirm = QMessageBox()
             confirm.setText('Configuration has been modified.')
             confirm.setInformativeText('Do you want to save your changes?')
@@ -343,18 +393,43 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
         event.accept()
 
 
-    def load_config(self, cfg):
-        self.cfg = cfg
+    def event(self, e):
+        # this is a placeholder, something I'm trying to support
+        # clickable hyperlinks in the whatsThis documentation
+        try:
+            href = e.href()
+            import webbrowser
+            webbrowser.open_new_tab(href)
+        except AttributeError:
+            pass
+        return QMainWindow.event(self, e)
+
+
+    def load_config(self, filename):
+        self._cfg_file = filename
+        self._cfgs = config.open(filename)
 
         # general
         self.analysisNameLineEdit.setText(self.cfg.analysis_name)
-
         self.workingDirLineEdit.setText(self.cfg.working_dir)
-
         self.multiprocessingSpinBox.setMaximum(multiprocessing.cpu_count())
         self.multiprocessingSpinBox.setValue(self.cfg.multiprocessing)
 
 
+    @pyqtSlot(name='on_actionSaveConfiguration_triggered')
+    def save_config(self):
+        temp = QFileDialog.getSaveFileName(
+            parent=self, caption='Save Configuration',
+            directory=self.cfg.working_dir, filter='YAML files (*.yml)'
+            )
+        if temp:
+            config.save(self._cfgs, temp)
+            return True
+        return False
+
+
+    @pyqtSlot(name='on_actionLoadCalibration_triggered')
+    @pyqtSlot(name='on_actionLoadMaterials_triggered')
     @pyqtSlot(name='on_actionLoadImageSeries_triggered')
     @pyqtSlot(name='on_actionModifyImageSeries_triggered')
     @pyqtSlot(name='on_actionDeleteImageSeries_triggered')
@@ -381,18 +456,6 @@ http://github.com/praxes/hexrd/issues, if one does not already exist.""",
             )
 
 
-    @pyqtSlot(name='on_actionSaveConfiguration_triggered')
-    def save_config(self):
-        temp = QFileDialog.getSaveFileName(
-            parent=self, caption='Save Configuration',
-            directory=self.cfg.working_dir, filter='YAML files (*.yml)'
-            )
-        if temp:
-            self.cfg.dump(temp)
-            return True
-        return False
-
-
 
 def execute(args):
     app = QApplication(sys.argv)
@@ -405,8 +468,6 @@ def execute(args):
     else:
         log_level = logging.CRITICAL if args.quiet else logging.INFO
 
-    cfg = config.open(args.config)[0]
-
-    ctlr = MainController(log_level, cfg)
+    ctlr = MainController(log_level, args.config)
 
     sys.exit(app.exec_())

@@ -1,15 +1,12 @@
 package:
   name: hexrd
   # requires ".dev" tags following official releases, for now:
-  version: {{ environ['GIT_DESCRIBE_TAG'][1:]+environ.get('GIT_DESCRIBE_NUMBER', '') }}
+  version: {{ environ.get('GIT_DESCRIBE_TAG', '')[1:]+environ.get('GIT_DESCRIBE_NUMBER', '') }}
 
 source:
-  #git_url: https://github.com/praxes/hexrd.git
-  #git_tag: master
-  path: ../
+  git_url: ../
 
 build:
-  #number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
   detect_binary_files_with_prefix: true
   osx_is_app: yes
   entry_points:
@@ -23,13 +20,12 @@ requirements:
   build:
     - numpy
     - python
-    - setuptools # [win]
+    - setuptools
   run:
     - matplotlib
     - numba
-#    - numbapro
     - numpy
-    - progressbar
+    - progressbar >=2.3
     - python
     - python.app # [osx]
     - pyyaml

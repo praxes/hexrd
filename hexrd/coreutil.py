@@ -174,15 +174,19 @@ def initialize_experiment(cfg):
     flip = cfg.image_series.flip
 
     # detector data
-    reader = ReadGE(
-        [(f, image_start) for f in cfg.image_series.files],
-        np.radians(cfg.image_series.omega.start),
-        np.radians(cfg.image_series.omega.step),
-        subtractDark=dark is not None, # TODO: get rid of this
-        dark=dark,
-        doFlip=flip is not None,
-        flipArg=flip, # TODO: flip=flip
-        )
+    try:
+        reader = ReadGE(
+            [(f, image_start) for f in cfg.image_series.files],
+            np.radians(cfg.image_series.omega.start),
+            np.radians(cfg.image_series.omega.step),
+            subtractDark=dark is not None, # TODO: get rid of this
+            dark=dark,
+            doFlip=flip is not None,
+            flipArg=flip, # TODO: flip=flip
+            )
+    except IOError:
+        print "raw data not found, skipping reader init"
+        reader = None
 
     ws.loadDetector(os.path.join(cwd, detector_fname))
 
