@@ -102,12 +102,10 @@ entry_points = {
     'console_scripts': ["hexrd = hexrd.cli.main:main"]
     }
 
-# only defining scripts so we can bdist_wininst can create a startmenu entry
+# only defining scripts so bdist_wininst can make an entry in the start menu
 scripts = []
 if ('bdist_wininst' in sys.argv) or ('bdist_msi' in sys.argv):
     scripts.append('scripts/hexrd_win_post_install.py')
-    # Maybe someday someone will fix http://stackoverflow.com/questions/3542119
-    entry_points['gui_scripts'] = ["hexrd_gui = hexrd.cli.main:main"]
 
 data_files = [
     ('share/hexrd', glob.glob('share/*')),

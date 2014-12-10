@@ -7,7 +7,8 @@ def install():
     """Routine to be run by the win32 installer with the -install switch."""
 
     # Get some system constants
-    target = os.path.join(sys.prefix, 'Scripts', 'hexrd_gui.exe')
+    target = os.path.join(sys.prefix, 'pythonw.exe')
+    script = os.path.join(sys.prefix, 'Scripts', 'hexrd-script.py')
     # Lookup path to common startmenu ...
     start_dir = os.path.join(
         get_special_folder_path('CSIDL_COMMON_PROGRAMS'),
@@ -21,7 +22,9 @@ def install():
 
     # Create program shortcuts ...
     link_file = os.path.join(start_dir, 'hexrd.lnk')
-    create_shortcut(target, 'hexrd', link_file, "gui", "%HOMEDRIVE%%HOMEPATH%")
+    create_shortcut(
+        target, 'hexrd', link_file, "%s gui" % script, "%HOMEDRIVE%%HOMEPATH%"
+        )
     file_created(link_file)
 
 
