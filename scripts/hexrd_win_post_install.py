@@ -2,25 +2,17 @@
 
 import os, sys, shutil
 
-def mkshortcut(target, description, link_file, *args, **kw):
-    """make a shortcut if it doesn't exist, and register its creation"""
-
-    create_shortcut(target, description, link_file, *args, **kw)
-    file_created(link_file)
 
 def install():
     """Routine to be run by the win32 installer with the -install switch."""
 
     # Get some system constants
-    prefix = sys.prefix
-    python = os.path.join(prefix, 'python.exe')
+    target = os.path.join(sys.prefix, 'Scripts', 'hexrd_gui.exe')
     # Lookup path to common startmenu ...
     start_dir = os.path.join(
         get_special_folder_path('CSIDL_COMMON_PROGRAMS'),
         'HEXRD'
     )
-    scripts_dir = os.path.join(prefix, 'Scripts')
-    lib_dir = os.path.join(prefix, 'Lib', 'site-packages', 'hexrd')
 
     # Create entry ...
     if not os.path.isdir(start_dir):
@@ -28,13 +20,15 @@ def install():
         directory_created(start_dir)
 
     # Create program shortcuts ...
-    script = '"%s"' % os.path.join(scripts_dir, 'hexrd_app.py')
-    f = os.path.join(start_dir, 'hexrd.lnk')
-    mkshortcut(python, 'hexrd', f, script, "%HOMEDRIVE%%HOMEPATH%")
+    link_file = os.path.join(start_dir, 'hexrd.lnk')
+    create_shortcut(target, 'hexrd', link_file, "gui", "%HOMEDRIVE%%HOMEPATH%")
+    file_created(link_file)
+
 
 def remove():
     """Routine to be run by the win32 installer with the -remove switch."""
     pass
+
 
 # main()
 if len(sys.argv) > 1:
