@@ -111,6 +111,17 @@ data_files = [
     ('share/hexrd', glob.glob('share/*')),
     ]
 
+package_data = {
+    'hexrd': [
+        'COPYING',
+        'LICENSE',
+        'data/*.cfg',
+        'qt/resources/*.ui',
+        'qt/resources/*.png',
+        'wx/*.png',
+        ]
+    }
+
 setup(
     name = 'hexrd',
     version = versioneer.get_version(),
@@ -134,5 +145,6 @@ setup(
     entry_points = entry_points,
     scripts = scripts,
     data_files = data_files,
+    package_data = package_data,
     cmdclass = cmdclass,
     )
