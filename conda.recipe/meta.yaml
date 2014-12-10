@@ -37,6 +37,7 @@ test:
   imports:
     - hexrd
   commands:
+    - hexrd -V
     - hexrd -h
     - hexrd help
     - hexrd find-orientations -h
