@@ -1,3 +1,4 @@
 include versioneer.py
 include README.md
+include hexrd/COPYING hexrd/LICENSE
 recursive-include hexrd *.py *.ui *.png *.cfg
