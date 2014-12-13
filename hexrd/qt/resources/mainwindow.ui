@@ -1515,6 +1515,9 @@ p, li { white-space: pre-wrap; }
    </widget>
   </widget>
   <widget class="QDockWidget" name="docsDockWidget">
+   <property name="windowTitle">
+    <string>Documentation</string>
+   </property>
    <attribute name="dockWidgetArea">
     <number>2</number>
    </attribute>

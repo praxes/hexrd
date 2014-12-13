@@ -95,9 +95,6 @@ class MainController(QMainWindow):
         time.sleep(0.01)
         qApp.processEvents()
 
-        # give the splash screen a little time to breathe
-        time.sleep(2)
-
         loadUi(ui_files['main_window'], self)
         self.menuHelp.addAction(QWhatsThis.createAction(self))
         self._create_context_menus()
@@ -116,7 +113,11 @@ class MainController(QMainWindow):
         self.settings = QSettings('hexrd', 'hexrd')
         self._restore_state()
 
+        # give the splash screen a little time to breathe
+        time.sleep(1)
+
         self.show()
+
         splash.finish(self)
 
 
