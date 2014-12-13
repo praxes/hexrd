@@ -11,15 +11,17 @@ sip.setapi('QString', 2)
 sip.setapi('QTextStream', 2)
 sip.setapi('QVariant', 2)
 
-from PyQt4.QtCore import Qt, QEvent, QObject, QSettings, pyqtSlot
+from PyQt4.QtCore import Qt, QEvent, QObject, QSettings, QUrl, pyqtSlot
 from PyQt4.QtGui import (
-    qApp, QAction, QApplication, QFileDialog, QMainWindow, QMessageBox, QPixmap,
-    QSplashScreen, QWhatsThis, QWidget
+    qApp, QAction, QApplication, QDockWidget, QFileDialog, QMainWindow,
+    QMessageBox, QPixmap, QSplashScreen, QWhatsThis, QWidget
     )
+from PyQt4.QtWebKit import QWebView
 from PyQt4.uic import loadUi
 
 from matplotlib import cm
 
+import hexrd
 from hexrd import config
 from hexrd.qt.resources import image_files, ui_files
 
@@ -147,6 +149,15 @@ class MainController(QMainWindow):
         temp = self.settings.value('currentTool')
         if temp is not None:
             self.cfgToolBox.setCurrentIndex(int(temp))
+        # docs
+        if 'dev' in hexrd.__version__:
+            self.docsWebView.load(
+                QUrl('http://hexrd.readthedocs.org/en/latest')
+                )
+        else:
+            self.docsWebView.load(
+                QUrl('http://hexrd.readthedocs.org/en/v%s' % hexrd.__version__)
+                )
         # graphics state
         temp = self.settings.value('currentColorMap')
         if temp is not None:
@@ -234,7 +245,8 @@ class MainController(QMainWindow):
 
     @pyqtSlot()
     def on_actionDocumentation_triggered(self):
-        webbrowser.open_new_tab('http://hexrd.readthedocs.org/en/latest')
+        self.docsDockWidget.setVisible(True)
+        #webbrowser.open_new_tab('http://hexrd.readthedocs.org/en/latest')
 
 
     @pyqtSlot()
@@ -334,6 +346,9 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
             elif ret == QMessageBox.Cancel:
                 return
 
+        # documentation
+        self.settings.setValue('docsPage', self.docsWebView.url())
+        # geometry
         self.settings.setValue('geometry', self.saveGeometry())
         self.settings.setValue('state', self.saveState())
         self.settings.setValue('currentTool', self.cfgToolBox.currentIndex())
