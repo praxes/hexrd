@@ -347,8 +347,6 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
             elif ret == QMessageBox.Cancel:
                 return
 
-        # documentation
-        self.settings.setValue('docsPage', self.docsWebView.url())
         # geometry
         self.settings.setValue('geometry', self.saveGeometry())
         self.settings.setValue('state', self.saveState())
