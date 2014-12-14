@@ -1,6 +1,6 @@
-===================
+###################
 HEXRD Documentation
-===================
+###################
 
 .. only:: html
 
@@ -8,15 +8,15 @@ HEXRD Documentation
    :Date: |today|
 
 
-Welcome to HEXRD's documentation!
-=================================
-
 Contents:
 
 .. toctree::
    :maxdepth: 1
 
+   users/index
    api/index
+   dev/index
+
 
 .. todo::
    Joel's explanation of hexrd's :download:`transforms <_static/transforms.pdf>`
@@ -26,4 +26,3 @@ Contents:
    * :ref:`genindex`
    * :ref:`modindex`
    * :ref:`search`
-
