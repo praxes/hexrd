@@ -19,6 +19,7 @@ Contents:
 
 
 .. todo::
+
    Joel's explanation of hexrd's :download:`transforms <_static/transforms.pdf>`
    needs to find a permanent home in the docs.
 
