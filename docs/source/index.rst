@@ -23,6 +23,7 @@ Contents:
    needs to find a permanent home in the docs.
 
 .. only:: html
+
    * :ref:`genindex`
    * :ref:`modindex`
    * :ref:`search`
