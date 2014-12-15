@@ -273,9 +273,9 @@ domain.
 """
 
 import os, sys, re, subprocess, errno
-from distutils.core import Command
-from distutils.command.sdist import sdist as _sdist
-from distutils.command.build import build as _build
+from setuptools import Command
+from setuptools.command.sdist import sdist as _sdist
+from setuptools.command.build_py import build_py as _build_py
 
 # these configuration settings will be overridden by setup.py after it
 # imports us
@@ -755,10 +755,10 @@ class cmd_version(Command):
         print("Version is currently: %s" % ver)
 
 
-class cmd_build(_build):
+class cmd_build_py(_build_py):
     def run(self):
         versions = get_versions(verbose=True)
-        _build.run(self)
+        _build_py.run(self)
         # now locate _version.py in the new build/ directory and replace it
         # with an updated value
         if versionfile_build:
@@ -891,7 +891,7 @@ class cmd_update_files(Command):
 def get_cmdclass():
     cmds = {'version': cmd_version,
             'versioneer': cmd_update_files,
-            'build': cmd_build,
+            'build_py': cmd_build_py,
             'sdist': cmd_sdist,
             }
     if 'cx_Freeze' in sys.modules:  # cx_freeze enabled?
