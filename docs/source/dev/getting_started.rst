@@ -7,7 +7,7 @@ Revision Control
 Hexrd uses the git revision control system and `GitHub
 <https://github.com/praxes/hexrd>`_. If you are not familiar with git, github
 provides an `interactive online tutorial <https://try.github.io>`_. The free,
-online `Pro Git <https://progit.org>`_ bookis another good reference.
+online `Pro Git <https://progit.org>`_ book is another good reference.
 
 To install git, Linux users should use their package manager. OS X users may
 want to install `GitHub for Mac <https://mac.github.com>`_. Windows users may
