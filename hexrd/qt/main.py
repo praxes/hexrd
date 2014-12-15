@@ -131,16 +131,7 @@ class MainController(QtGui.QMainWindow):
         if temp is not None:
             self.cfgToolBox.setCurrentIndex(int(temp))
         # docs
-        if 'dev' in hexrd.__version__:
-            self.docsWebView.load(
-                QtCore.QUrl('http://hexrd.readthedocs.org/en/latest')
-                )
-        else:
-            self.docsWebView.load(
-                QtCore.QUrl(
-                    'http://hexrd.readthedocs.org/en/v%s' % hexrd.__version__
-                    )
-                )
+        self.docsWebView.load(QtCore.QUrl(hexrd.doc_url))
         # graphics state
         temp = self.settings.value('currentColorMap')
         if temp is not None:
@@ -231,7 +222,7 @@ class MainController(QtGui.QMainWindow):
         if self._preferences.docs_view == 'dockWidget':
             self.docsDockWidget.setVisible(True)
         elif self._preferences.docs_view == 'webbrowser':
-            webbrowser.open_new_tab('http://hexrd.readthedocs.org/en/latest')
+            webbrowser.open_new_tab(hexrd.doc_url)
 
 
     @QtCore.pyqtSlot()
