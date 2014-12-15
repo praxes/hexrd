@@ -84,7 +84,7 @@ If you forgot to create a new branch, and have been making changes directly in
 your master branch, there is potential for a more difficult merge. You
 generally want the master branch in your local repository to be either in sync
 with, or behind, the upstream master branch. You don't want commits in your
-local master branch that don't exist in the upstream master. If youfind
+local master branch that don't exist in the upstream master. If you find
 yourself in such a situation, its easy to resolve. If you have uncommitted
 changes in your working directory, first run::
 
@@ -105,4 +105,5 @@ Finally, if you stashed any uncommitted changes to create the new branch::
   git stash pop
 
 Now your `my-next-branch` looks just like it would have if you had create the
-branch before making any changes to `master`, and `master` is in sync with https://github.com/praxes/hexrd/tree/master.
+branch before making any changes to `master`, and `master` is in sync with
+https://github.com/praxes/hexrd/tree/master.
