@@ -13,7 +13,7 @@ build:
     - hexrd = hexrd.cli:main
 
 app:
-  entry: hexrd
+  entry: hexrd gui
   summary: High-energy x-ray diffraction analysis
 
 requirements:
@@ -37,6 +37,7 @@ test:
   imports:
     - hexrd
   commands:
+    - hexrd -V
     - hexrd -h
     - hexrd help
     - hexrd find-orientations -h
