@@ -78,7 +78,11 @@ NROWS = 2048
 NCOLS = 2048
 PIXEL = 0.2
 
+<<<<<<< Updated upstream
 ## pscam
+=======
+# pscam
+>>>>>>> Stashed changes
 #NROWS = 2671
 #NCOLS = 4008
 #PIXEL = 0.03

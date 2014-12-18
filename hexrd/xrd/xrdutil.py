@@ -3415,7 +3415,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
               tth_tol=0.15, eta_tol=1., ome_tol=1.,
               npdiv=1, threshold=10,
               doClipping=False, filename=None,
-              save_spot_list=False, use_closest=True, 
+              save_spot_list=False, use_closest=True,
               quiet=True):
     """
     Function for pulling spots from a reader object for
