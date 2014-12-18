@@ -7,11 +7,12 @@ import multiprocessing
 
 # These can't be relative imports on Windows because of the hack
 # in main() for multiprocessing.freeze_support()
+from hexrd.cli import cacheframes
+from hexrd.cli import documentation
+from hexrd.cli import findorientations
 from hexrd.cli import fitgrains
 from hexrd.cli import gui
 from hexrd.cli import help
-from hexrd.cli import findorientations
-from hexrd.cli import cacheframes
 from hexrd.cli import test
 
 
@@ -48,6 +49,7 @@ def main():
     )
 
     help.configure_parser(sub_parsers)
+    documentation.configure_parser(sub_parsers)
     gui.configure_parser(sub_parsers)
     findorientations.configure_parser(sub_parsers)
     fitgrains.configure_parser(sub_parsers)

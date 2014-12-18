@@ -3580,7 +3580,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
         xy_eval = xfcapi.gvecToDetectorXY(gVec_c.T,
                                           rMat_d, rMat_s, rMat_c,
                                           tVec_d, tVec_s, tVec_c)
-        if distortion is not None or len(distortion) == 2:
+        if distortion is not None and len(distortion) == 2:
             xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
             pass
         row_indices   = gutil.cellIndices(row_edges, xy_eval[:, 1])
