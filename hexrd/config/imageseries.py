@@ -1,6 +1,8 @@
 import glob
 import os
 
+import numpy as np
+
 from .config import Config
 
 
@@ -56,9 +58,34 @@ class OmegaConfig(Config):
 
 
     @property
+    def steps(self):
+        try:
+            res = []
+            res.extend(
+                np.round(np.abs((f-s)/d))
+                for s,f,d in zip(self.start, self.stop, self.step)
+                )
+        except TypeError:
+            res = np.round(np.abs((self.stop-self.start)/self.step))
+        return res
+
+
+    @property
     def stop(self):
         return self._cfg.get('image_series:omega:stop')
 
+
+    @property
+    def positions(self):
+        res = []
+        try:
+            for s,f,n in zip(self.start, self.stop, self.steps):
+                res.extend(np.linspace(s, f, n, endpoint=False))
+        except TypeError:
+            res.extend(
+                np.linspace(self.start, self.stop, self.steps, endpoint=False)
+                )
+        return res
 
 
 class ImageSeriesConfig(Config):
