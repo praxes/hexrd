@@ -18,6 +18,7 @@ from PyQt4 import uic
 import hexrd
 from hexrd import config
 from .graphicscanvas import GraphicsCanvasController
+from .imageseries import get_image_series
 from .preferences import get_preferences
 from .resources import resources
 
@@ -77,7 +78,7 @@ class MainController(QtGui.QMainWindow):
 
         uic.loadUi(resources['mainwindow.ui'], self)
         self.menuHelp.addAction(QtGui.QWhatsThis.createAction(self))
-        self._create_context_menus()
+        self._configure_tool_buttons()
 
         # now that we have the ui, configure the logging widget
         add_handler(log_level, QLogStream(self.loggerTextEdit))
@@ -108,14 +109,14 @@ class MainController(QtGui.QMainWindow):
                 v.installEventFilter(temp)
 
 
-    def _create_context_menus(self):
-        self.imageSeriesComboBox.addAction(self.actionLoadImageSeries)
-        self.imageSeriesComboBox.addAction(self.actionModifyImageSeries)
-        self.imageSeriesComboBox.addAction(self.actionDeleteImageSeries)
+    def _configure_tool_buttons(self):
+        self.imageSeriesToolButton.addAction(self.actionLoadImageSeries)
+        self.imageSeriesToolButton.addAction(self.actionModifyImageSeries)
+        self.imageSeriesToolButton.addAction(self.actionDeleteImageSeries)
 
-        self.materialComboBox.addAction(self.actionAddMaterial)
-        self.materialComboBox.addAction(self.actionModifyMaterial)
-        self.materialComboBox.addAction(self.actionDeleteMaterial)
+        self.materialToolButton.addAction(self.actionAddMaterial)
+        self.materialToolButton.addAction(self.actionModifyMaterial)
+        self.materialToolButton.addAction(self.actionDeleteMaterial)
 
 
     def _restore_state(self):
@@ -214,7 +215,6 @@ class MainController(QtGui.QMainWindow):
 
     def _connect_signals(self):
         self.actionQuit.triggered.connect(self.close)
-        self.rotateCheckBox.toggled.emit(False)
 
 
     @QtCore.pyqtSlot()
@@ -266,6 +266,11 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
             )
         if temp:
             self.load_config(temp)
+
+
+    @QtCore.pyqtSlot()
+    def on_actionLoadImageSeries_triggered(self):
+        get_image_series(self.cfg, self.cfg.analysis_name, ui=True)
 
 
     @QtCore.pyqtSlot()
@@ -426,7 +431,6 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
 
     @QtCore.pyqtSlot(name='on_actionLoadCalibration_triggered')
     @QtCore.pyqtSlot(name='on_actionLoadMaterials_triggered')
-    @QtCore.pyqtSlot(name='on_actionLoadImageSeries_triggered')
     @QtCore.pyqtSlot(name='on_actionModifyImageSeries_triggered')
     @QtCore.pyqtSlot(name='on_actionDeleteImageSeries_triggered')
     @QtCore.pyqtSlot(name='on_actionAddMaterial_triggered')
