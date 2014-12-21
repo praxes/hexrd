@@ -19,6 +19,7 @@ import hexrd
 from hexrd import config
 from .graphicscanvas import GraphicsCanvasController
 from .imageseries import get_image_series
+from .materialsdialog import get_material
 from .preferences import get_preferences
 from .resources import resources
 
@@ -240,6 +241,12 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
             )
 
 
+
+    @QtCore.pyqtSlot()
+    def on_actionAddMaterial_triggered(self):
+        get_material(ui=True)
+
+
     @QtCore.pyqtSlot()
     def on_actionLoadConfiguration_triggered(self):
         if self.cfg.dirty:
@@ -433,7 +440,6 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
     @QtCore.pyqtSlot(name='on_actionLoadMaterials_triggered')
     @QtCore.pyqtSlot(name='on_actionModifyImageSeries_triggered')
     @QtCore.pyqtSlot(name='on_actionDeleteImageSeries_triggered')
-    @QtCore.pyqtSlot(name='on_actionAddMaterial_triggered')
     @QtCore.pyqtSlot(name='on_actionModifyMaterial_triggered')
     @QtCore.pyqtSlot(name='on_actionDeleteMaterial_triggered')
     @QtCore.pyqtSlot(name='on_actionSaveCalibration_triggered')
@@ -442,6 +448,7 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
     @QtCore.pyqtSlot(name='on_actionPowderDirectFit_triggered')
     @QtCore.pyqtSlot(name='on_actionSingleCrystalFit_triggered')
     @QtCore.pyqtSlot(name='on_actionCake_triggered')
+    @QtCore.pyqtSlot(name='on_actionDarkImage_triggered')
     @QtCore.pyqtSlot(name='on_actionPolarRebin_triggered')
     @QtCore.pyqtSlot(name='on_actionFindOrientations_triggered')
     @QtCore.pyqtSlot(name='on_actionFitGrains_triggered')

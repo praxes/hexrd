@@ -255,6 +255,7 @@ intensity:</string>
     </widget>
     <addaction name="menuCalibrate"/>
     <addaction name="actionCake"/>
+    <addaction name="actionDarkImage"/>
     <addaction name="actionPolarRebin"/>
     <addaction name="actionFindOrientations"/>
     <addaction name="actionFitGrains"/>
@@ -286,7 +287,7 @@ intensity:</string>
      <item>
       <widget class="QToolBox" name="cfgToolBox">
        <property name="currentIndex">
-        <number>1</number>
+        <number>0</number>
        </property>
        <property name="tabSpacing">
         <number>5</number>
@@ -296,8 +297,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>405</width>
-          <height>544</height>
+          <width>376</width>
+          <height>492</height>
          </rect>
         </property>
         <attribute name="label">
@@ -305,43 +306,39 @@ intensity:</string>
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout">
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_2">
-           <item>
-            <widget class="QLabel" name="label">
-             <property name="text">
-              <string>Analysis Name</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLineEdit" name="analysisNameLineEdit"/>
-           </item>
-          </layout>
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>Analysis Name</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="analysisNameLineEdit"/>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>Working Directory</string>
+           </property>
+          </widget>
          </item>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_5">
            <item>
-            <widget class="QLabel" name="label_2">
-             <property name="text">
-              <string>Working Directory</string>
+            <widget class="QLineEdit" name="workingDirLineEdit">
+             <property name="readOnly">
+              <bool>true</bool>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="changeWorkingDirButton">
+            <widget class="QToolButton" name="changeWorkingDirButton">
              <property name="text">
-              <string>Change</string>
+              <string>▼</string>
              </property>
             </widget>
            </item>
           </layout>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="workingDirLineEdit">
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-          </widget>
          </item>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_6">
@@ -368,6 +365,19 @@ intensity:</string>
              </property>
             </widget>
            </item>
+           <item>
+            <spacer name="horizontalSpacer_2">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
           </layout>
          </item>
          <item>
@@ -390,8 +400,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>405</width>
-          <height>544</height>
+          <width>376</width>
+          <height>492</height>
          </rect>
         </property>
         <attribute name="label">
@@ -422,7 +432,7 @@ intensity:</string>
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click to load, modify, or delete an image series&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="text">
-              <string>...</string>
+              <string>   </string>
              </property>
              <property name="popupMode">
               <enum>QToolButton::InstantPopup</enum>
@@ -507,8 +517,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>405</width>
-          <height>544</height>
+          <width>376</width>
+          <height>492</height>
          </rect>
         </property>
         <attribute name="label">
@@ -567,7 +577,7 @@ intensity:</string>
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click to add, modify, or delete material&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="text">
-              <string>...</string>
+              <string>   </string>
              </property>
              <property name="popupMode">
               <enum>QToolButton::InstantPopup</enum>
@@ -1438,8 +1448,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>405</width>
-          <height>544</height>
+          <width>376</width>
+          <height>492</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1451,8 +1461,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>405</width>
-          <height>544</height>
+          <width>376</width>
+          <height>492</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1647,6 +1657,11 @@ p, li { white-space: pre-wrap; }
   <action name="actionPreferences">
    <property name="text">
     <string>Preferences</string>
+   </property>
+  </action>
+  <action name="actionDarkImage">
+   <property name="text">
+    <string>Dark image</string>
    </property>
   </action>
  </widget>
