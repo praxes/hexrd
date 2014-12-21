@@ -287,7 +287,7 @@ intensity:</string>
      <item>
       <widget class="QToolBox" name="cfgToolBox">
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <property name="tabSpacing">
         <number>5</number>

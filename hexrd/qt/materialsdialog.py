@@ -21,8 +21,20 @@ class MaterialDialogController(QtGui.QDialog):
     def __init__(self, name=None):
         super(MaterialDialogController, self).__init__()
         uic.loadUi(resources['materialsdialog.ui'], self)
+        self._config_ui()
 
         self.load_settings()
+
+
+    def _config_ui(self):
+        self.spaceGroupComboBox.lineEdit().setReadOnly(True)
+        for i in range(1,231):
+            self.spaceGroupComboBox.addItem(str(i))
+        self.spaceGroupComboBox.lineEdit().setAlignment(QtCore.Qt.AlignCenter)
+        self.hallSymbolComboBox.lineEdit().setReadOnly(True)
+        self.hermannMauguinComboBox.lineEdit().setReadOnly(True)
+
+        self.spaceGroupComboBox.setCurrentIndex(224)
 
 
     def load_settings(self):
