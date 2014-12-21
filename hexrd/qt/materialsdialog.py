@@ -57,7 +57,6 @@ class MaterialDialogController(QtGui.QDialog):
     @QtCore.pyqtSlot(int, name='on_hallSymbolComboBox_currentIndexChanged')
     @QtCore.pyqtSlot(int, name='on_hermannMauguinComboBox_currentIndexChanged')
     def set_spacegroup(self, val):
-        print val
         try:
             self.spaceGroupComboBox.blockSignals(True)
             self.hallSymbolComboBox.blockSignals(True)
@@ -65,6 +64,12 @@ class MaterialDialogController(QtGui.QDialog):
             self.spaceGroupComboBox.setCurrentIndex(val)
             self.hallSymbolComboBox.setCurrentIndex(val)
             self.hermannMauguinComboBox.setCurrentIndex(val)
+            sgid = int(self.spaceGroupComboBox.currentText().split(':')[0])
+            for sgids, lg in spacegroup._pgDict.items():
+                if sgid in sgids:
+                    self.laueGroupLineEdit.setText(lg[0])
+                    break
+            self.latticeTypeLineEdit.setText(spacegroup._ltDict[lg[1]])
         finally:
             self.spaceGroupComboBox.blockSignals(False)
             self.hallSymbolComboBox.blockSignals(False)

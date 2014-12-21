@@ -1380,6 +1380,9 @@ sgid_to_hm, hm_to_sgid = _map_sg_info(_hmStr)
 
 
 # ==================== Point Groups/Laue Groups
+
+# TODO: make sane mappings
+
 laue_1  = 'ci'
 laue_2  = 'c2h'
 laue_3  = 'd2h'
