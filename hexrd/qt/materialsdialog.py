@@ -1,5 +1,6 @@
 from PyQt4 import QtGui, QtCore, uic
 
+from hexrd.xrd import spacegroup
 from .resources import resources
 
 
@@ -28,13 +29,19 @@ class MaterialDialogController(QtGui.QDialog):
 
     def _config_ui(self):
         self.spaceGroupComboBox.lineEdit().setReadOnly(True)
-        for i in range(1,231):
-            self.spaceGroupComboBox.addItem(str(i))
-        self.spaceGroupComboBox.lineEdit().setAlignment(QtCore.Qt.AlignCenter)
         self.hallSymbolComboBox.lineEdit().setReadOnly(True)
         self.hermannMauguinComboBox.lineEdit().setReadOnly(True)
+        for k in spacegroup.sgid_to_hall:
+            self.spaceGroupComboBox.addItem(k)
+            self.hallSymbolComboBox.addItem(spacegroup.sgid_to_hall[k])
+            self.hermannMauguinComboBox.addItem(spacegroup.sgid_to_hm[k])
+        self.spaceGroupComboBox.lineEdit().setAlignment(QtCore.Qt.AlignCenter)
+        self.hallSymbolComboBox.lineEdit().setAlignment(QtCore.Qt.AlignCenter)
+        self.hermannMauguinComboBox.lineEdit().setAlignment(
+            QtCore.Qt.AlignCenter
+            )
 
-        self.spaceGroupComboBox.setCurrentIndex(224)
+        self.spaceGroupComboBox.setCurrentIndex(522)
 
 
     def load_settings(self):
@@ -44,6 +51,24 @@ class MaterialDialogController(QtGui.QDialog):
     @QtCore.pyqtSlot(name='on_buttonBox_accepted')
     def save_settings(self):
         pass
+
+
+    @QtCore.pyqtSlot(int, name='on_spaceGroupComboBox_currentIndexChanged')
+    @QtCore.pyqtSlot(int, name='on_hallSymbolComboBox_currentIndexChanged')
+    @QtCore.pyqtSlot(int, name='on_hermannMauguinComboBox_currentIndexChanged')
+    def set_spacegroup(self, val):
+        print val
+        try:
+            self.spaceGroupComboBox.blockSignals(True)
+            self.hallSymbolComboBox.blockSignals(True)
+            self.hermannMauguinComboBox.blockSignals(True)
+            self.spaceGroupComboBox.setCurrentIndex(val)
+            self.hallSymbolComboBox.setCurrentIndex(val)
+            self.hermannMauguinComboBox.setCurrentIndex(val)
+        finally:
+            self.spaceGroupComboBox.blockSignals(False)
+            self.hallSymbolComboBox.blockSignals(False)
+            self.hermannMauguinComboBox.blockSignals(False)
 
 
     def not_implemented(self):

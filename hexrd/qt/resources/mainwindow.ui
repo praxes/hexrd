@@ -298,7 +298,7 @@ intensity:</string>
           <x>0</x>
           <y>0</y>
           <width>376</width>
-          <height>492</height>
+          <height>572</height>
          </rect>
         </property>
         <attribute name="label">
@@ -401,7 +401,7 @@ intensity:</string>
           <x>0</x>
           <y>0</y>
           <width>376</width>
-          <height>492</height>
+          <height>572</height>
          </rect>
         </property>
         <attribute name="label">
@@ -518,7 +518,7 @@ intensity:</string>
           <x>0</x>
           <y>0</y>
           <width>376</width>
-          <height>492</height>
+          <height>572</height>
          </rect>
         </property>
         <attribute name="label">
@@ -710,7 +710,7 @@ intensity:</string>
        <widget class="QWidget" name="calibration">
         <property name="geometry">
          <rect>
-          <x>0</x>
+          <x>-21</x>
           <y>0</y>
           <width>566</width>
           <height>903</height>
@@ -1442,32 +1442,6 @@ intensity:</string>
           </spacer>
          </item>
         </layout>
-       </widget>
-       <widget class="QWidget" name="findorientations">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>376</width>
-          <height>492</height>
-         </rect>
-        </property>
-        <attribute name="label">
-         <string>Find Orientations</string>
-        </attribute>
-       </widget>
-       <widget class="QWidget" name="fitgrains">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>376</width>
-          <height>492</height>
-         </rect>
-        </property>
-        <attribute name="label">
-         <string>Fit Grains</string>
-        </attribute>
        </widget>
       </widget>
      </item>
