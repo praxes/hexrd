@@ -266,15 +266,21 @@ intensity:</string>
     </property>
     <addaction name="actionPreferences"/>
    </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
    <addaction name="menuTools"/>
+   <addaction name="menuView"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="configDockWidget">
    <property name="features">
-    <set>QDockWidget::DockWidgetFloatable|QDockWidget::DockWidgetMovable</set>
+    <set>QDockWidget::AllDockWidgetFeatures</set>
    </property>
    <property name="windowTitle">
     <string>Configuration</string>
@@ -297,8 +303,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>376</width>
-          <height>572</height>
+          <width>279</width>
+          <height>538</height>
          </rect>
         </property>
         <attribute name="label">
@@ -400,8 +406,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>376</width>
-          <height>572</height>
+          <width>253</width>
+          <height>538</height>
          </rect>
         </property>
         <attribute name="label">
@@ -432,7 +438,7 @@ intensity:</string>
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click to load, modify, or delete an image series&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="text">
-              <string>   </string>
+              <string/>
              </property>
              <property name="popupMode">
               <enum>QToolButton::InstantPopup</enum>
@@ -517,8 +523,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>376</width>
-          <height>572</height>
+          <width>350</width>
+          <height>538</height>
          </rect>
         </property>
         <attribute name="label">
@@ -577,7 +583,7 @@ intensity:</string>
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click to add, modify, or delete material&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="text">
-              <string>   </string>
+              <string/>
              </property>
              <property name="popupMode">
               <enum>QToolButton::InstantPopup</enum>
@@ -710,7 +716,7 @@ intensity:</string>
        <widget class="QWidget" name="calibration">
         <property name="geometry">
          <rect>
-          <x>-21</x>
+          <x>0</x>
           <y>0</y>
           <width>566</width>
           <height>903</height>
@@ -1450,7 +1456,7 @@ intensity:</string>
   </widget>
   <widget class="QDockWidget" name="loggerDockWidget">
    <property name="features">
-    <set>QDockWidget::DockWidgetFloatable|QDockWidget::DockWidgetMovable</set>
+    <set>QDockWidget::AllDockWidgetFeatures</set>
    </property>
    <property name="windowTitle">
     <string>Logger</string>
@@ -1506,6 +1512,21 @@ p, li { white-space: pre-wrap; }
         </url>
        </property>
       </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="ipythonDockWidget">
+   <property name="windowTitle">
+    <string>IPython</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_3">
+    <layout class="QGridLayout" name="gridLayout_2">
+     <item row="0" column="0">
+      <widget class="QWidget" name="widget" native="true"/>
      </item>
     </layout>
    </widget>

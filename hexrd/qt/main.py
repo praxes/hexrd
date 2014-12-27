@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import logging
 import multiprocessing
@@ -22,6 +22,18 @@ from .imageseries import get_image_series
 from .materialsdialog import get_material
 from .preferences import get_preferences
 from .resources import resources
+
+from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
+from IPython.qt.inprocess import QtInProcessKernelManager
+
+# Create an in-process kernel
+kernel_manager = QtInProcessKernelManager(namespace='user_ns')
+kernel_manager.start_kernel()
+kernel = kernel_manager.kernel
+kernel.gui = 'qt4'
+
+kernel_client = kernel_manager.client()
+kernel_client.start_channels()
 
 
 class QLogStream(object):
@@ -80,6 +92,7 @@ class MainController(QtGui.QMainWindow):
         uic.loadUi(resources['mainwindow.ui'], self)
         self.menuHelp.addAction(QtGui.QWhatsThis.createAction(self))
         self._configure_tool_buttons()
+        self._configure_dock_widgets()
 
         # now that we have the ui, configure the logging widget
         add_handler(log_level, QLogStream(self.loggerTextEdit))
@@ -103,11 +116,31 @@ class MainController(QtGui.QMainWindow):
         splash.finish(self)
 
 
+    def _load_ipython(self):
+        def stop():
+            kernel_client.stop_channels()
+            kernel_manager.shutdown_kernel()
+
+        control = RichIPythonWidget()
+        self.ipythonDockWidget.setWidget(control)
+        control.kernel_manager = kernel_manager
+        control.kernel_client = kernel_client
+        control.exit_requested.connect(stop)
+
+
     def _load_event_filters(self):
         temp = WhatsThisUrlLoader()
         for k, v in self.__dict__.items():
             if isinstance(v, QtGui.QWidget):
                 v.installEventFilter(temp)
+
+
+    def _configure_dock_widgets(self):
+        self._load_ipython()
+        self.menuView.addAction(self.configDockWidget.toggleViewAction())
+        self.menuView.addAction(self.docsDockWidget.toggleViewAction())
+        self.menuView.addAction(self.ipythonDockWidget.toggleViewAction())
+        self.menuView.addAction(self.loggerDockWidget.toggleViewAction())
 
 
     def _configure_tool_buttons(self):
