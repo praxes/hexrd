@@ -23,17 +23,23 @@ from .materialsdialog import get_material
 from .preferences import get_preferences
 from .resources import resources
 
-from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
-from IPython.qt.inprocess import QtInProcessKernelManager
+try:
+    from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
+    from IPython.qt.inprocess import QtInProcessKernelManager
 
-# Create an in-process kernel
-kernel_manager = QtInProcessKernelManager(namespace='user_ns')
-kernel_manager.start_kernel()
-kernel = kernel_manager.kernel
-kernel.gui = 'qt4'
+    # Create an in-process kernel
+    kernel_manager = QtInProcessKernelManager(namespace='user_ns')
+    kernel_manager.start_kernel()
+    kernel = kernel_manager.kernel
+    kernel.gui = 'qt4'
 
-kernel_client = kernel_manager.client()
-kernel_client.start_channels()
+    kernel_client = kernel_manager.client()
+    kernel_client.start_channels()
+except ImportError:
+    pass
+
+
+logger = logging.getLogger('hexrd')
 
 
 class QLogStream(object):
@@ -55,7 +61,6 @@ def add_handler(log_level, stream=None):
         logging.Formatter('%(asctime)s - %(message)s', '%y-%m-%d %H:%M:%S')
         )
     logger.addHandler(h)
-
 
 
 
@@ -92,7 +97,6 @@ class MainController(QtGui.QMainWindow):
         uic.loadUi(resources['mainwindow.ui'], self)
         self.menuHelp.addAction(QtGui.QWhatsThis.createAction(self))
         self._configure_tool_buttons()
-        self._configure_dock_widgets()
 
         # now that we have the ui, configure the logging widget
         add_handler(log_level, QLogStream(self.loggerTextEdit))
@@ -107,6 +111,7 @@ class MainController(QtGui.QMainWindow):
 
         self.settings = QtCore.QSettings('hexrd', 'hexrd')
         self._restore_state()
+        self._configure_dock_widgets()
 
         # give the splash screen a little time to breathe
         time.sleep(1)
@@ -136,10 +141,14 @@ class MainController(QtGui.QMainWindow):
 
 
     def _configure_dock_widgets(self):
-        self._load_ipython()
         self.menuView.addAction(self.configDockWidget.toggleViewAction())
         self.menuView.addAction(self.docsDockWidget.toggleViewAction())
-        self.menuView.addAction(self.ipythonDockWidget.toggleViewAction())
+        try:
+            self._load_ipython()
+            self.menuView.addAction(self.ipythonDockWidget.toggleViewAction())
+        except NameError:
+            logger.info("IPython not installed, embedded console not available")
+            self.ipythonDockWidget.setVisible(False)
         self.menuView.addAction(self.loggerDockWidget.toggleViewAction())
 
 
