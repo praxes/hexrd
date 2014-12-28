@@ -210,8 +210,8 @@ intensity:</string>
      <property name="title">
       <string>Save...</string>
      </property>
-     <addaction name="actionSaveConfiguration"/>
      <addaction name="actionSaveCalibration"/>
+     <addaction name="actionSaveConfiguration"/>
      <addaction name="actionSaveMaterials"/>
     </widget>
     <widget class="QMenu" name="menuLoad">
