@@ -28,7 +28,7 @@ try:
     from IPython.qt.inprocess import QtInProcessKernelManager
 
     # Create an in-process kernel
-    kernel_manager = QtInProcessKernelManager(namespace='user_ns')
+    kernel_manager = QtInProcessKernelManager()
     kernel_manager.start_kernel()
     kernel = kernel_manager.kernel
     kernel.gui = 'qt4'
@@ -66,11 +66,11 @@ def add_handler(log_level, stream=None):
 
 class WhatsThisUrlLoader(QtCore.QObject):
 
-    def eventFilter(self, e):
+    def eventFilter(self, target, e):
         if e.type() == QtCore.QEvent.WhatsThisClicked:
             webbrowser.open_new_tab(e.href())
+            return True
         return False
-
 
 
 class MainController(QtGui.QMainWindow):
@@ -103,15 +103,14 @@ class MainController(QtGui.QMainWindow):
 
         self.gc_ctlr = GraphicsCanvasController(self)
 
-        # connect signals before loading config or restoring state
-        self._connect_signals()
-        self._load_event_filters()
-
         self.load_config(cfg_file)
 
         self.settings = QtCore.QSettings('hexrd', 'hexrd')
         self._restore_state()
         self._configure_dock_widgets()
+
+        # load all ui elements before loading the event filters
+        self._load_event_filters()
 
         # give the splash screen a little time to breathe
         time.sleep(1)
@@ -134,7 +133,8 @@ class MainController(QtGui.QMainWindow):
 
 
     def _load_event_filters(self):
-        temp = WhatsThisUrlLoader()
+        temp = WhatsThisUrlLoader(self)
+        self.installEventFilter(temp)
         for k, v in self.__dict__.items():
             if isinstance(v, QtGui.QWidget):
                 v.installEventFilter(temp)
@@ -256,8 +256,63 @@ class MainController(QtGui.QMainWindow):
             self.chiTiltStepSpinBox.setValue(float(temp))
 
 
-    def _connect_signals(self):
-        self.actionQuit.triggered.connect(self.close)
+    def _save_state(self):
+        # geometry
+        self.settings.setValue('geometry', self.saveGeometry())
+        self.settings.setValue('state', self.saveState())
+        self.settings.setValue('currentTool', self.cfgToolBox.currentIndex())
+        # graphics window
+        self.settings.setValue(
+            'currentColorMap', self.colorMapComboBox.currentText()
+            )
+        self.settings.setValue(
+            'cmapReverse', self.cmapReverseCheckBox.isChecked()
+            )
+        self.settings.setValue('imageMax', self.maxSpinBox.value())
+        self.settings.setValue('imageMin', self.minSpinBox.value())
+        self.settings.setValue('showOver', self.showOverCheckBox.isChecked())
+        self.settings.setValue('showUnder', self.showUnderCheckBox.isChecked())
+        # image series
+        self.settings.setValue(
+            'viewSingleImage', self.singleImRadioButton.isChecked()
+            )
+        self.settings.setValue(
+            'viewMaxImage', self.maxImRadioButton.isChecked()
+            )
+        self.settings.setValue(
+            'viewAveImage', self.aveImRadioButton.isChecked()
+            )
+        self.settings.setValue(
+            'viewMedianImage', self.medianImRadioButton.isChecked()
+            )
+        self.settings.setValue(
+            'viewMinImage', self.minImRadioButton.isChecked()
+            )
+        # materials
+        self.settings.setValue('showRings', self.showRingsCheckBox.isChecked())
+        self.settings.setValue(
+            'showRanges', self.showRangesCheckBox.isChecked()
+            )
+        self.settings.setValue('tthRanges', self.tthRangesSpinBox.value())
+        # instrument calibration
+        self.settings.setValue('detxStep', self.detxStepSpinBox.value())
+        self.settings.setValue('detyStep', self.detyStepSpinBox.value())
+        self.settings.setValue('detxRotStep', self.detxRotStepSpinBox.value())
+        self.settings.setValue('detyRotStep', self.detyRotStepSpinBox.value())
+        self.settings.setValue('detzRotStep', self.detzRotStepSpinBox.value())
+        self.settings.setValue(
+            'detDistanceStep', self.detDistanceStepSpinBox.value()
+            )
+        self.settings.setValue(
+            'p0DistortionStep', self.p0DistortionStepSpinBox.value()
+            )
+        self.settings.setValue(
+            'p1DistortionStep', self.p1DistortionStepSpinBox.value()
+            )
+        self.settings.setValue(
+            'p2DistortionStep', self.p2DistortionStepSpinBox.value()
+            )
+        self.settings.setValue('chiTiltStep', self.chiTiltStepSpinBox.value())
 
 
     @QtCore.pyqtSlot()
@@ -270,18 +325,15 @@ class MainController(QtGui.QMainWindow):
 
     @QtCore.pyqtSlot()
     def on_actionAbout_triggered(self):
-        dlg = QtGui.QMessageBox.about(
+        QtGui.QMessageBox.about(
             self, 'About HEXRD',
-"""HEXRD provides a collection of resources for analysis of x-ray diffraction
-data, especially high-energy x-ray diffraction. HEXRD is comprised of a
-library and API for writing scripts, a command line interface, and an
-interactive graphical user interface.
-
-HEXRD is an open-source project originally conceived by Joel Bernier, and
-developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
-"""
+"HEXRD provides a collection of resources for analysis of x-ray diffraction "
+"data, especially high-energy x-ray diffraction. HEXRD is comprised of a "
+"library and API for writing scripts, a command line interface, and an "
+"interactive graphical user interface.\n\n"
+"HEXRD is an open-source project originally conceived by Joel Bernier, and "
+"developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al."
             )
-
 
 
     @QtCore.pyqtSlot()
@@ -381,78 +433,11 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
                     event.ignore()
                     return
             elif ret == QMessageBox.Cancel:
+                event.ignore()
                 return
-
-        # geometry
-        self.settings.setValue('geometry', self.saveGeometry())
-        self.settings.setValue('state', self.saveState())
-        self.settings.setValue('currentTool', self.cfgToolBox.currentIndex())
-        # graphics window
-        self.settings.setValue(
-            'currentColorMap', self.colorMapComboBox.currentText()
-            )
-        self.settings.setValue(
-            'cmapReverse', self.cmapReverseCheckBox.isChecked()
-            )
-        self.settings.setValue('imageMax', self.maxSpinBox.value())
-        self.settings.setValue('imageMin', self.minSpinBox.value())
-        self.settings.setValue('showOver', self.showOverCheckBox.isChecked())
-        self.settings.setValue('showUnder', self.showUnderCheckBox.isChecked())
-        # image series
-        self.settings.setValue(
-            'viewSingleImage', self.singleImRadioButton.isChecked()
-            )
-        self.settings.setValue(
-            'viewMaxImage', self.maxImRadioButton.isChecked()
-            )
-        self.settings.setValue(
-            'viewAveImage', self.aveImRadioButton.isChecked()
-            )
-        self.settings.setValue(
-            'viewMedianImage', self.medianImRadioButton.isChecked()
-            )
-        self.settings.setValue(
-            'viewMinImage', self.minImRadioButton.isChecked()
-            )
-        # materials
-        self.settings.setValue('showRings', self.showRingsCheckBox.isChecked())
-        self.settings.setValue(
-            'showRanges', self.showRangesCheckBox.isChecked()
-            )
-        self.settings.setValue('tthRanges', self.tthRangesSpinBox.value())
-        # instrument calibration
-        self.settings.setValue('detxStep', self.detxStepSpinBox.value())
-        self.settings.setValue('detyStep', self.detyStepSpinBox.value())
-        self.settings.setValue('detxRotStep', self.detxRotStepSpinBox.value())
-        self.settings.setValue('detyRotStep', self.detyRotStepSpinBox.value())
-        self.settings.setValue('detzRotStep', self.detzRotStepSpinBox.value())
-        self.settings.setValue(
-            'detDistanceStep', self.detDistanceStepSpinBox.value()
-            )
-        self.settings.setValue(
-            'p0DistortionStep', self.p0DistortionStepSpinBox.value()
-            )
-        self.settings.setValue(
-            'p1DistortionStep', self.p1DistortionStepSpinBox.value()
-            )
-        self.settings.setValue(
-            'p2DistortionStep', self.p2DistortionStepSpinBox.value()
-            )
-        self.settings.setValue('chiTiltStep', self.chiTiltStepSpinBox.value())
-
-        event.accept()
-
-
-    def event(self, e):
-        # this is a placeholder, something I'm trying to support
-        # clickable hyperlinks in the whatsThis documentation
-        try:
-            href = e.href()
-            import webbrowser
-            webbrowser.open_new_tab(href)
-        except AttributeError:
-            pass
-        return QtGui.QMainWindow.event(self, e)
+            else:
+                self._save_state()
+                event.accept()
 
 
     def load_config(self, filename):

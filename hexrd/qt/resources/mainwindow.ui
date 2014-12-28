@@ -401,17 +401,17 @@ intensity:</string>
          </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="imageseries">
+       <widget class="QWidget" name="dataseries">
         <property name="geometry">
          <rect>
-          <x>0</x>
+          <x>-51</x>
           <y>0</y>
           <width>253</width>
           <height>538</height>
          </rect>
         </property>
         <attribute name="label">
-         <string>Image Series</string>
+         <string>Data Series</string>
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_8">
          <item>
@@ -422,7 +422,7 @@ intensity:</string>
               <enum>Qt::DefaultContextMenu</enum>
              </property>
              <property name="toolTip">
-              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              <string/>
              </property>
              <property name="whatsThis">
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;A long description would go here. Want even more information? &lt;a href=&quot;http://hexrd.readthedocs.org&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Bonkers&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -438,7 +438,7 @@ intensity:</string>
               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click to load, modify, or delete an image series&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="text">
-              <string/>
+              <string>  </string>
              </property>
              <property name="popupMode">
               <enum>QToolButton::InstantPopup</enum>
@@ -521,7 +521,7 @@ intensity:</string>
        <widget class="QWidget" name="materials">
         <property name="geometry">
          <rect>
-          <x>0</x>
+          <x>-148</x>
           <y>0</y>
           <width>350</width>
           <height>538</height>
@@ -1682,6 +1682,22 @@ p, li { white-space: pre-wrap; }
     <hint type="destinationlabel">
      <x>1228</x>
      <y>1025</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionQuit</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>827</x>
+     <y>564</y>
     </hint>
    </hints>
   </connection>
