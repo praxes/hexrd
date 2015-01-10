@@ -73,6 +73,16 @@ class WhatsThisUrlLoader(QtCore.QObject):
         return False
 
 
+
+class IPythonNamespaceUpdater(QtCore.QObject):
+
+    def eventFilter(self, target, e):
+        if e.type() == QtCore.QEvent.Enter:
+            kernel.shell.user_ns.update(globals())
+        return False
+
+
+
 class MainController(QtGui.QMainWindow):
 
 
@@ -130,6 +140,7 @@ class MainController(QtGui.QMainWindow):
         control.kernel_manager = kernel_manager
         control.kernel_client = kernel_client
         control.exit_requested.connect(stop)
+        control.installEventFilter(IPythonNamespaceUpdater(self))
 
 
     def _load_event_filters(self):
