@@ -19,20 +19,6 @@ try:
     from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
     from IPython.qt.inprocess import QtInProcessKernelManager
     from IPython.lib import guisupport
-
-    # monkeypatch IPython.embed so we can use the console for debugging:
-    def embed():
-        import inspect
-        frame = inspect.currentframe()
-        try:
-            temp = frame.f_back.f_globals
-            temp.update(frame.f_back.f_locals)
-        finally:
-            del frame
-        kernel.shell.run_line_magic('reset', '-f -s')
-        kernel.shell.push(temp)
-    import IPython
-    IPython.embed = embed
 except ImportError:
     pass
 
@@ -47,6 +33,7 @@ from .utils import WhatsThisUrlLoader
 
 
 logger = logging.getLogger('hexrd')
+
 
 
 class QLogStream(object):
@@ -121,11 +108,9 @@ class MainController(QtGui.QMainWindow):
     def _load_ipython(self):
         # Create an in-process kernel
         kernel_manager = QtInProcessKernelManager()
-        kernel_manager.start_kernel(extra_arguments=['--pylab'])
-        global kernel
-        kernel = kernel_manager.kernel
-        kernel.gui = 'qt4'
-        kernel.shell.enable_pylab(gui='inline')
+        kernel_manager.start_kernel()
+        kernel_manager.kernel.gui = 'qt4'
+        kernel_manager.kernel.shell.enable_pylab(gui='inline')
 
         kernel_client = kernel_manager.client()
         kernel_client.start_channels()
@@ -138,11 +123,28 @@ class MainController(QtGui.QMainWindow):
         control.exit_requested.connect(kernel_manager.shutdown_kernel)
 
         class IPythonNamespaceUpdater(QtCore.QObject):
+            shell = kernel_manager.kernel.shell
             def eventFilter(self, target, e):
                 if e.type() == QtCore.QEvent.Enter:
-                    kernel.shell.push(globals())
+                    self.shell.push(globals())
                 return False
         control.installEventFilter(IPythonNamespaceUpdater(self))
+
+        class Debug(object):
+            def __init__(self, shell):
+                self.shell = shell
+            def __call__(self):
+                import inspect
+                frame = inspect.currentframe()
+                try:
+                    temp = frame.f_back.f_globals
+                    temp.update(frame.f_back.f_locals)
+                finally:
+                    del frame
+                self.shell.run_line_magic('reset', '-f -s')
+                self.shell.push(temp)
+        # now monkeypatch hexrd.debug to use the qt console:
+        hexrd.debug = Debug(kernel_manager.kernel.shell)
 
 
     def _load_event_filters(self):
