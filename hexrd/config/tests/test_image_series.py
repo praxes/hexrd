@@ -1,6 +1,8 @@
 import os
 import tempfile
 
+import numpy as np
+
 from .common import TestConfig, test_data
 
 
@@ -34,6 +36,10 @@ image_series:
 image_series:
   file:
     ids: 2
+  omega:
+    start: [0, 60]
+    stop: [59.95, 119.95]
+    step: [0.249792, 0.249792]
 ---
 image_series:
   file:
@@ -212,3 +218,18 @@ class TestOmegaConfig(TestConfig):
             getattr, self.cfgs[0].image_series.omega, 'stop'
             )
         self.assertEqual(self.cfgs[2].image_series.omega.stop, 360)
+
+
+    def test_positions(self):
+        res = np.linspace(0, 360, 1440, endpoint=False).tolist()
+        self.assertArrayEqual(
+            self.cfgs[2].image_series.omega.positions,
+            res
+            )
+        res = []
+        res.extend(np.linspace(0, 59.95, 240, endpoint=False))
+        res.extend(np.linspace(60, 119.95, 240, endpoint=False))
+        self.assertArrayEqual(
+            self.cfgs[3].image_series.omega.positions,
+            res,
+            )
