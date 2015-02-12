@@ -74,6 +74,7 @@ doc_url = 'latest' if 'dev' in __version__ else 'v%s' % __version__
 doc_url = 'http://hexrd.readthedocs.org/en/%s' % doc_url
 
 
+
 try:
     from IPython import embed as debug
 except ImportError:

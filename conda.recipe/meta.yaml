@@ -1,12 +1,13 @@
 package:
   name: hexrd
   # requires ".dev" tags following official releases, for now:
-  version: {{ environ.get('GIT_DESCRIBE_TAG', '')[1:]+environ.get('GIT_DESCRIBE_NUMBER', '') }}
+  version: {{ environ.get('GIT_DESCRIBE_TAG', '')[1:] }}
 
 source:
   git_url: ../
 
 build:
+  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
   detect_binary_files_with_prefix: true
   osx_is_app: yes
   entry_points:
