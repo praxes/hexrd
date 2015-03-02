@@ -36,19 +36,21 @@ Create Conda Packages
 ---------------------
 
 In the `hexrd/conda.recipe` project directory, temporarily modify `git_tag`
-in `meta.yaml` to point to the version::
+in `meta.yaml` to point to the version you want to build (don't commit this
+change to git)::
 
   #git_tag: master
   git_tag: v1.0.0
 
-(do not commit this change, it should always default to `master` in the git
-repository), and then run::
+and then run::
 
   conda build conda.recipe
 
 The resulting conda package can be uploaded to binstar::
 
   binstar upload -u praxes /path/to/hexrd-1.0.0-np19py27_0.tar.bz2
+
+Finally, change `git_tag` back to the default `master`.
 
 
 Update the Documentation
