@@ -25,6 +25,8 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 
+from __future__ import print_function
+
 import logging
 
 # Release data
@@ -50,8 +52,10 @@ def _readenv(name, ctor, default):
         try:
             return ctor(res)
         except:
+            import warnings
             warnings.warn("environ %s defined but failed to parse '%s'" %
                           (name, res), RuntimeWarning)
+            del warnings
             return default
 
 
@@ -62,9 +66,7 @@ if USE_NUMBA:
     try:
         import numba
     except ImportError:
-        import warnings
-        warnings.warn("Numba not available, process may run slower.", RuntimeWarning)
-        del warnings
+        print("*** Numba not available, processing may run slower ***")
         USE_NUMBA = False
 
 del _readenv
