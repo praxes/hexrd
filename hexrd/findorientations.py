@@ -74,8 +74,6 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
     ##    Labeling of spots from seed hkls    ##
     ############################################
 
-    ii       = 0
-    jj       = fiber_ndiv
     qfib     = []
     labels   = []
     numSpots = []
@@ -101,9 +99,10 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
     ##  Generate discrete fibers from labels  ##
     ############################################
 
-    qfib_tmp = np.empty((4, fiber_ndiv*sum(numSpots)))
-
     for i in range(len(pd_hkl_ids)):
+        ii = 0
+        jj = fiber_ndiv
+        qfib_tmp = np.empty((4, fiber_ndiv*numSpots[i]))
         for ispot in range(numSpots[i]):
             if not np.isnan(coms[i][ispot][0]):
                 ome_c = eta_ome.omeEdges[0] \
@@ -115,19 +114,21 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
                     tTh[pd_hkl_ids[i]], eta_c, ome_c
                     )
 
-                qfib_tmp[:, ii:jj] = rot.discreteFiber(
-                    pd.hkls[:, pd_hkl_ids[i]].reshape(3, 1),
-                    gVec_s,
-                    B=bMat,
-                    ndiv=fiber_ndiv,
-                    invert=False,
-                    csym=csym
-                    )[0]
+                qfib_tmp[:, ii:jj] = mutil.uniqueVectors(
+                    rot.discreteFiber(
+                        pd.hkls[:, pd_hkl_ids[i]].reshape(3, 1),
+                        gVec_s,
+                        B=bMat,
+                        ndiv=fiber_ndiv,
+                        invert=False,
+                        csym=csym
+                        )[0]
+                    )
                 ii  = jj
                 jj += fiber_ndiv
                 pass
             pass
-        qfib.append(mutil.uniqueVectors(qfib_tmp))
+        qfib.append(qfib_tmp)
         pass
     return np.hstack(qfib)
 
@@ -352,4 +353,3 @@ def find_orientations(cfg, hkls=None, profile=False):
     # obselete # if cfg.find_orientations.extract_measured_g_vectors:
     # obselete #     raise NotImplementedError('TODO: implement extract gvecs')
     # obselete #     #extract_measured_g_vectors(cfg)
-
