@@ -39,6 +39,11 @@ To stop using develop mode::
 
   python setup.py develop --uninstall
 
+We provide a `hexrd.debug` function that lets you interact with the code in IPython.
+Be advised, this should always be called using `hexrd.debug()`, rather than
+`from hexrd import debug` followed by `debug()`, especially when debugging while running
+the GUI.
+
 Git Branches
 ------------
 

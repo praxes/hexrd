@@ -83,13 +83,18 @@ class ImageSeriesConfig(Config):
 
     @property
     def files(self):
+        stem = self._cfg.image_series.file.stem
         res = []
         missing = []
         for id in self._cfg.image_series.file.ids:
-            id = self._cfg.image_series.file.stem % id
+            try:
+                id = stem % id
+            except TypeError:
+                # string interpolation failed, join stem and id:
+                id = stem + id
             temp = glob.glob(id)
             if temp:
-                res.extend(glob.glob(id))
+                res.extend(temp)
             else:
                 missing.append(id)
         if missing:

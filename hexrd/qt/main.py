@@ -15,6 +15,13 @@ sip.setapi('QVariant', 2)
 from PyQt4 import QtCore, QtGui, uic
 from PyQt4 import uic
 
+try:
+    from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
+    from IPython.qt.inprocess import QtInProcessKernelManager
+    from IPython.lib import guisupport
+except ImportError:
+    pass
+
 import hexrd
 from hexrd import config
 from .graphicscanvas import GraphicsCanvasController
@@ -22,24 +29,11 @@ from .imageseries import get_image_series
 from .materialsdialog import get_material
 from .preferences import get_preferences
 from .resources import resources
-
-try:
-    from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
-    from IPython.qt.inprocess import QtInProcessKernelManager
-
-    # Create an in-process kernel
-    kernel_manager = QtInProcessKernelManager()
-    kernel_manager.start_kernel()
-    kernel = kernel_manager.kernel
-    kernel.gui = 'qt4'
-
-    kernel_client = kernel_manager.client()
-    kernel_client.start_channels()
-except ImportError:
-    pass
+from .utils import WhatsThisUrlLoader
 
 
 logger = logging.getLogger('hexrd')
+
 
 
 class QLogStream(object):
@@ -64,15 +58,6 @@ def add_handler(log_level, stream=None):
 
 
 
-class WhatsThisUrlLoader(QtCore.QObject):
-
-    def eventFilter(self, target, e):
-        if e.type() == QtCore.QEvent.WhatsThisClicked:
-            webbrowser.open_new_tab(e.href())
-            return True
-        return False
-
-
 class MainController(QtGui.QMainWindow):
 
 
@@ -85,7 +70,7 @@ class MainController(QtGui.QMainWindow):
         super(MainController, self).__init__()
         # Create and display the splash screen
         splash_pix = QtGui.QPixmap(resources['hexrd.png'])
-        splash = QtGui.QSplashScreen(splash_pix)#, QtCore.Qt.WindowStaysOnTopHint)
+        splash = QtGui.QSplashScreen(splash_pix)
         splash.setMask(splash_pix.mask())
         splash.show()
         # sleep seems necessary on linux to render the image
@@ -121,15 +106,45 @@ class MainController(QtGui.QMainWindow):
 
 
     def _load_ipython(self):
-        def stop():
-            kernel_client.stop_channels()
-            kernel_manager.shutdown_kernel()
+        # Create an in-process kernel
+        kernel_manager = QtInProcessKernelManager()
+        kernel_manager.start_kernel()
+        kernel_manager.kernel.gui = 'qt4'
+        kernel_manager.kernel.shell.enable_pylab(gui='inline')
+
+        kernel_client = kernel_manager.client()
+        kernel_client.start_channels()
 
         control = RichIPythonWidget()
         self.ipythonDockWidget.setWidget(control)
         control.kernel_manager = kernel_manager
         control.kernel_client = kernel_client
-        control.exit_requested.connect(stop)
+        control.exit_requested.connect(kernel_client.stop_channels)
+        control.exit_requested.connect(kernel_manager.shutdown_kernel)
+
+        class IPythonNamespaceUpdater(QtCore.QObject):
+            shell = kernel_manager.kernel.shell
+            def eventFilter(self, target, e):
+                if e.type() == QtCore.QEvent.Enter:
+                    self.shell.push(globals())
+                return False
+        control.installEventFilter(IPythonNamespaceUpdater(self))
+
+        class Debug(object):
+            def __init__(self, shell):
+                self.shell = shell
+            def __call__(self):
+                import inspect
+                frame = inspect.currentframe()
+                try:
+                    temp = frame.f_back.f_globals
+                    temp.update(frame.f_back.f_locals)
+                finally:
+                    del frame
+                self.shell.run_line_magic('reset', '-f -s')
+                self.shell.push(temp)
+        # now monkeypatch hexrd.debug to use the qt console:
+        hexrd.debug = Debug(kernel_manager.kernel.shell)
 
 
     def _load_event_filters(self):
@@ -492,7 +507,7 @@ http://github.com/praxes/hexrd/issues, if one does not already exist.""",
 
 
 def execute(args):
-    app = QtGui.QApplication(sys.argv)
+    app = guisupport.get_app_qt4(sys.argv)
     app.setApplicationName('HEXRD')
 
     # configure logging
@@ -504,4 +519,4 @@ def execute(args):
 
     ctlr = MainController(log_level, args.config)
 
-    sys.exit(app.exec_())
+    guisupport.start_event_loop_qt4(app)
