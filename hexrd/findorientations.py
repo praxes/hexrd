@@ -101,7 +101,6 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
 
     for i in range(len(pd_hkl_ids)):
         ii = 0
-        jj = fiber_ndiv
         qfib_tmp = np.empty((4, fiber_ndiv*numSpots[i]))
         for ispot in range(numSpots[i]):
             if not np.isnan(coms[i][ispot][0]):
@@ -113,8 +112,7 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
                 gVec_s = xrdutil.makeMeasuredScatteringVectors(
                     tTh[pd_hkl_ids[i]], eta_c, ome_c
                     )
-
-                qfib_tmp[:, ii:jj] = mutil.uniqueVectors(
+                tmp = mutil.uniqueVectors(
                     rot.discreteFiber(
                         pd.hkls[:, pd_hkl_ids[i]].reshape(3, 1),
                         gVec_s,
@@ -124,11 +122,12 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
                         csym=csym
                         )[0]
                     )
-                ii  = jj
-                jj += fiber_ndiv
+                jj = ii + tmp.shape[1]
+                qfib_tmp[:, ii:jj] = tmp
+                ii += tmp.shape[1]
                 pass
             pass
-        qfib.append(qfib_tmp)
+        qfib.append(qfib_tmp[:, :ii])
         pass
     return np.hstack(qfib)
 
