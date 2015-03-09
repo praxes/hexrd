@@ -46,8 +46,13 @@ image_series:
 ---
 image_series:
   file:
-    stem: %(tempdir)s%(pathsep)s%%05d.dat
-    ids: [0, 1]
+    stem: %(tempdir)s
+    ids: %(nonexistent_file)s
+---
+image_series:
+  file:
+    stem: %(tempdir)s%(pathsep)s
+    ids: ['foo.dat', 'bar.dat']
 """ % test_data
 
 
@@ -81,9 +86,22 @@ class TestImageSeriesConfig(TestConfig):
                 sorted(self.cfgs[5].image_series.files),
                 sorted(files[:2])
                 )
-            self.assertRaises(
-                IOError,
-                getattr, self.cfgs[6].image_series, 'files'
+        finally:
+            for f in files:
+                os.remove(f)
+        self.assertRaises(
+            IOError,
+            getattr, self.cfgs[6].image_series, 'files'
+            )
+        files = []
+        for i in ['foo.dat', 'bar.dat']:
+            with open(os.path.join(tempfile.gettempdir(), i), 'w') as f:
+                files.append(f.name)
+                f.write('foo')
+        try:
+            self.assertEqual(
+                files,
+                self.cfgs[7].image_series.files
                 )
         finally:
             for f in files:
