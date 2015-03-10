@@ -1,9 +1,9 @@
-analysis_name: sweep0 # defaults to analysis
+analysis_name: RUBY_SWEEP_0 # defaults to analysis
 
 ## working directory defaults to current working directory
 ## all relative paths specified herein are assumed to be in the working_dir
 ## any files not in working_dir should be specified with an absolute path
-#working_dir: 
+#working_dir:
 
 multiprocessing: all # "all", or "half", or -1 means all but one, defaults to -1
 
@@ -13,23 +13,21 @@ material:
 
 image_series:
   file:
-    stem: RUBY_%04d # can include relative or absolute path
-    ids: [4537, 4538] # or can use globs: ["*2[4-9]"]
+    stem: images/RUBY_%04d # can include relative or absolute path
+    ids: [0] # or can use globs: ["*2[4-9]"]
   images:
-    start: 2
-    #stop: 1440
-    #step: 1
+    start: 0
   omega:
     start: -60.0
     step: 0.25
     stop: 60.0
-  dark: RUBY_4537_medianDark
-  flip: v # ~, v, h, hv, vh, cw, ccw
+  #dark: ~
+  #flip: ~ # ~, v, h, hv, vh, cw, ccw
 
 instrument:
-  parameters: ge_detector.yml
+  parameters: example_calibration.yml
   detector: # this section is only needed to convert old files to the new spec
-    parameters_old: ge_rad.par # the old detector spec, produced by the GUI
+    parameters_old: ge_ceo2.par # the old detector spec, produced by the GUI
     pixels: # this section required to convert from old detector spec
       rows: 2048
       columns: 2048
@@ -40,29 +38,29 @@ find_orientations:
     # A file name must be specified. If it doesn't exist, one will be created
     file: eta-omega.cpl
 
-    threshold: 15
-    #bin_frames: 1 # defaults to 1
+    threshold: 1
+    bin_frames: 1 # defaults to 1
 
     ## "all", or a list of hkl orders used to find orientations
     ## defaults to all orders listed in the material definition
     #active_hkls: [0,1,2,3]
 
-  ## either search full quaternian grid, or seed search based on sparse
+  ## either search full quaternion grid, or seed search based on sparse
   ## orientation maps
-  #use_quaternian_grid: some/file/name # defaults to seeded search
-  seed_search: # this section is ignored if use_quaternian_grid is defined
-    hkl_seeds: [0,1] # hkls ids to use, must be defined for seeded search
-  #  fiber_step: 0.5 # degrees, defaults to ome tolerance
+  #use_quaternion_grid: some/file/name # defaults to seeded search
+  seed_search: # this section is ignored if use_quaternion_grid is defined
+    hkl_seeds: [0,1,2] # hkls ids to use, must be defined for seeded search
+    fiber_step: 0.5 # degrees, defaults to ome tolerance
 
   threshold: 5 # defaults to 1
 
   omega:
     tolerance: 1.0 # in degrees, defaults to 2x ome step
 
-  ## specify the branch cut, in degrees. The range must be 360 degrees.
-  ## defaults to ["image_series:omega:start", "image_series:omega:start"+-360]
-  ## depending on sign of "image_series:omega:step"
-  period: [-180, 180] # in degrees, defaults to full 360 starting at "ome start"
+    ## specify the branch cut, in degrees. The range must be 360 degrees.
+    ## defaults to ["image_series:omega:start", "image_series:omega:start"+-360]
+    ## depending on sign of "image_series:omega:step"
+    period: [-180, 180] # in degrees, defaults to full 360 starting at "ome start"
 
   eta:
     tolerance: 1.0 # in degrees, defaults to 2x ome step
@@ -73,22 +71,20 @@ find_orientations:
     completeness: 0.51 # completeness threshold
     #algorithm: fclusterdata # defaults to dbscan
 
-  #extract_measured_g_vectors: true # defaults to false
-
 fit_grains:
   do_fit: true # if false, extracts grains but doesn't fit. defaults to true
 
-  #estimate: multiruby/grains.out # defaults to None
+  estimate: RUBY_SWEEP_0/grains.out # defaults to None
 
-  #npdiv: 1 # number of polar pixel grid subdivisions, defaults to 2
+  npdiv: 3 # number of polar pixel grid subdivisions, defaults to 2
 
   panel_buffer: 10 # don't fit spots within this many pixels from edge
 
-  threshold: 15
+  threshold: 1
 
   tolerance:
     tth: [0.2, 0.1] # tolerance lists must be identical length
-    eta: [2.0, 2.0]
-    omega: [1.0, 1.0]
+    eta: [2.0, 0.5]
+    omega: [1.0, 0.25]
 
-  tth_max: 15 # true, false, or a non-negative value, defaults to true
+  tth_max: 15.25 # true, false, or a non-negative value, defaults to true
