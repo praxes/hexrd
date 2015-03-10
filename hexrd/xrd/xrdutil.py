@@ -3353,9 +3353,9 @@ def pullSpots(pd, detector_params, grain_params, reader,
         print >> fid, "#\n# ID\t"                       + \
                       "H\tK\tL\t"                       + \
                       "sum(int)\tmax(int)\t"            + \
-                      "pred tth\tpred eta\t pred ome\t" + \
-                      "meas tth\tmeas eta\t meas ome\t" + \
-                      "meas X\tmeas Y\t meas ome\n#"
+                      "pred tth          \tpred eta          \t pred ome          \t" + \
+                      "meas tth          \tmeas eta          \t meas ome          \t" + \
+                      "meas X            \tmeas Y            \t meas ome\n#"
     iRefl = 0
     spot_list = []
     for hkl, angs, xy, pix in zip(*sim_g):
@@ -3627,9 +3627,10 @@ def pullSpots(pd, detector_params, grain_params, reader,
             else:
                 print >> fid, "%d\t"                     % (peakId)                   + \
                               "%d\t%d\t%d\t"             % tuple(hkl)                 + \
-                              "%f\t%f\t"                 % tuple(num.nan*num.ones(2)) + \
+                              "%f         \t%f         \t"                 % tuple(num.nan*num.ones(2)) + \
                               "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                + \
-                              "%f\t%f\t%f\t%f\t%f\t%f"   % tuple(num.nan*num.ones(6))
+                              "%f               \t%f               \t%f" % tuple(num.nan*num.ones(3)) + \
+                              "               \t%f               \t%f               \t%f"   % tuple(num.nan*num.ones(3))
                 pass
             pass
         iRefl += 1
