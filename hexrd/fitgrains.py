@@ -358,7 +358,7 @@ class FitGrainsWorker(object):
             gFlag=gFlag, gScl=gScl,
             omePeriod=self._p['omega_period']
             )
-        completeness = sum(idx)/float(len(idx))
+        completeness = sum(valid_refl_ids)/float(len(valid_refl_ids))
         return grain_params, completeness
 
 
