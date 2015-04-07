@@ -1,0 +1,85 @@
+--- # List of instrumented functions
+
+profile:
+  instrument:
+    - fn: numba.dispatcher.Overloaded.compile
+      color: yellow
+
+    - fn: __main__.load_inputs
+      color: magenta
+
+    - fn: __main__.load_outputs
+      color: cyan
+
+    - fn: __main__.hexrd_version
+      color: blue
+
+    - fn: __main__.original
+      color: red
+
+    - fn: __main__.refactor_1
+      color: green
+
+    - fn: __main__.refactor_2
+      color: magenta
+
+    - fn: __main__.refactor_3
+      color: cyan
+
+    - fn: __main__.refactor_4
+      color: yellow
+
+    - fn: __main__.refactor_5
+      color: black
+
+    - fn: hexrd.xrd.indexer.paintGridThis
+      color: red
+
+    - fn: __main__.paintGridThis_original
+      color: green
+
+    - fn: __main__.paintGridThis_refactor_1
+      color: blue
+
+    - fn: __main__.paintGridThis_refactor_2
+      color: yellow
+
+    - fn: __main__.paintGridThis_refactor_3
+      color: cyan
+
+    - fn: __main__.paintGridThis_refactor_4
+      color: magenta
+
+    - fn: __main__.paintGridThis_refactor_5
+      color: white
+
+    - fn: hexrd.xrd.transforms_CAPI.oscillAnglesOfHKLs
+      color: green
+
+    - fn: hexrd.xrd.transforms.validateAngleRanges
+      color: blue
+
+    - fn: hexrd.xrd.transforms.mapAngle
+      color: red
+
+    - fn: hexrd.xrd.rotations.rotMatOfQuat
+      color: yellow
+
+    - fn: __main__._count_hits
+      color: magenta
+
+    - fn: __main__._filter_angs
+      color: cyan
+
+    - fn: __main__._count_hits_2
+      color: magenta
+
+    - fn: __main__._count_hits_3
+      color: yellow
+
+    - fn: __main__._count_hits_4
+      color: blue
+
+
+
+
