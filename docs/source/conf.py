@@ -36,10 +36,10 @@ print __version__
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.doctest',
-    'sphinx.ext.intersphinx',
+    #'sphinx.ext.autodoc',
+    #'sphinx.ext.autosummary',
+    #'sphinx.ext.doctest',
+    #'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
@@ -228,7 +228,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
   ('index', 'hexrd.tex', u'hexrd Documentation',
-   u'Joel Bernier, et. al.', 'manual'),
+   u'Joel Bernier, Darren Dale, et. al.', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -258,7 +258,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'hexrd', u'hexrd Documentation',
-     [u'Joel Bernier, et. al.'], 1)
+     [u'Joel Bernier, Darren Dale, et. al.'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -272,7 +272,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'hexrd', u'hexrd Documentation',
-   u'Joel Bernier, et. al.', 'hexrd', 'One line description of project.',
+   u'Joel Bernier, Darren Dale, et. al.', 'hexrd',
+   'X-ray diffraction analysis',
    'Miscellaneous'),
 ]
 

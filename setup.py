@@ -25,6 +25,7 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 
+import glob
 import os
 import sys
 
@@ -96,20 +97,30 @@ transforms_mod = Extension(
 
 ext_modules = [sglite_mod, transforms_mod]
 
-
-kwds = {}
-kwds['entry_points'] = {
+# use entry_points, not scripts:
+entry_points = {
     'console_scripts': ["hexrd = hexrd.cli.main:main"]
     }
-if ('bdist_wininst' in sys.argv) or ('bdist_msi' in sys.argv):
-    kwds['scripts'] = ['scripts/hexrd_win_post_install.py']
 
+# only defining scripts so bdist_wininst can make an entry in the start menu
+scripts = []
+if ('bdist_wininst' in sys.argv) or ('bdist_msi' in sys.argv):
+    scripts.append('scripts/hexrd_win_post_install.py')
 
 data_files = [
-    'share/example_config.yml',
-    'share/calibrate_from_single_crystal.ipynb'
+    ('share/hexrd', glob.glob('share/*')),
     ]
 
+package_data = {
+    'hexrd': [
+        'COPYING',
+        'LICENSE',
+        'data/*.cfg',
+        'qt/resources/*.ui',
+        'qt/resources/*.png',
+        'wx/*.png',
+        ]
+    }
 
 setup(
     name = 'hexrd',
@@ -131,8 +142,9 @@ setup(
         ],
     ext_modules = ext_modules,
     packages = find_packages(),
-    include_package_data = True,
-    data_files = [('share/hexrd', data_files)],
+    entry_points = entry_points,
+    scripts = scripts,
+    data_files = data_files,
+    package_data = package_data,
     cmdclass = cmdclass,
-    **kwds
     )

@@ -1,19 +1,21 @@
 package:
   name: hexrd
   # requires ".dev" tags following official releases, for now:
-  version: {{ environ.get('GIT_DESCRIBE_TAG', '')[1:]+environ.get('GIT_DESCRIBE_NUMBER', '') }}
+  version: {{ environ.get('GIT_DESCRIBE_TAG', '')[1:] }}
 
 source:
   git_url: ../
+  git_tag: master # edit to point to specific branch or tag
 
 build:
+  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
   detect_binary_files_with_prefix: true
   osx_is_app: yes
   entry_points:
     - hexrd = hexrd.cli:main
 
 app:
-  entry: hexrd
+  entry: hexrd gui
   summary: High-energy x-ray diffraction analysis
 
 requirements:
@@ -37,6 +39,7 @@ test:
   imports:
     - hexrd
   commands:
+    - hexrd -V
     - hexrd -h
     - hexrd help
     - hexrd find-orientations -h

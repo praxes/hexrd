@@ -222,7 +222,8 @@ def detectorXYToGvec(xy_det,
                      rMat_d, rMat_s,
                      tVec_d, tVec_s, tVec_c,
                      distortion=(dFunc_ref, dParams_ref),
-                     beamVec=bVec_ref, etaVec=eta_ref):
+                     beamVec=bVec_ref, etaVec=eta_ref,
+                     output_ref=False):
     """
     Takes a list cartesian (x, y) pairs in the detector coordinates and calculates
     the associated reciprocal lattice (G) vectors and (bragg angle, azimuth) pairs
@@ -273,11 +274,19 @@ def detectorXYToGvec(xy_det,
     tTh = np.arccos(np.dot(bHat_l.T, dHat_l)).flatten()
     eta = np.arctan2(dHat_e[1, :], dHat_e[0, :]).flatten()
 
+    # angles for reference frame
+    dHat_ref_l = unitVector(P2_l)
+    dHat_ref_e = np.dot(rMat_e.T, dHat_ref_l)
+    tTh_ref = np.arccos(np.dot(bHat_l.T, unitVector(P2_l))).flatten()
+    eta_ref = np.arctan2(dHat+ref_e[1, :], dHat_ref_e[0, :]).flatten()
+    
     # get G-vectors by rotating d by 90-theta about b x d (numpy 'cross' works on row vectors)
     n_g = unitVector(np.cross(bHat_l.T, dHat_l.T).T)
 
     gVec_l = rotate_vecs_about_axis(0.5 * (np.pi - tTh), n_g, dHat_l)
 
+    if output_ref:
+        return (tTh_ref, eta_ref), (tTh, eta), gVec_l
     return (tTh, eta), gVec_l
 
 def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,

@@ -69,7 +69,8 @@ TESTING
 Run this module as main to generate all space groups and test
 the HKL evaluation.
 """
-#
+
+from collections import OrderedDict
 from math import sqrt, floor
 
 import hexrd.xrd.sglite as sglite
@@ -1356,7 +1357,32 @@ def _buildDict(hstr):
 lookupHall, Hall_to_sgnum = _buildDict(_hallStr)
 lookupHM,   HM_to_sgnum   = _buildDict(_hmStr)
 
+def _map_sg_info(hstr):
+    """build the dictionaries from the notation string
+
+    Returns two dictionaries:  one taking sg id to string
+    and the inverse.
+    """
+    d  = OrderedDict()
+    di = OrderedDict()
+    hs = hstr.split('\n')
+    for l in hs:
+        li = l.strip()
+        if li:
+            sgid, altid = li.split(None, 1)
+            d[sgid] = altid
+            di[altid] = sgid
+
+    return d, di
+
+sgid_to_hall, hall_to_sgid = _map_sg_info(_hallStr)
+sgid_to_hm, hm_to_sgid = _map_sg_info(_hmStr)
+
+
 # ==================== Point Groups/Laue Groups
+
+# TODO: make sane mappings
+
 laue_1  = 'ci'
 laue_2  = 'c2h'
 laue_3  = 'd2h'

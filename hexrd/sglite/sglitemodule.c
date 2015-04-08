@@ -1288,13 +1288,13 @@ initsglite(void)
   /* changes for use in mdef*/
 
   SgOpsType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&SgOpsType) < 0) 
+  if (PyType_Ready(&SgOpsType) < 0)
     return;
   Py_INCREF(&SgOpsType);
   PyModule_AddObject(m, "SgOps", (PyObject *)&SgOpsType);
 
   EqMIxType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&EqMIxType) < 0) 
+  if (PyType_Ready(&EqMIxType) < 0)
     return;
   Py_INCREF(&EqMIxType);
   PyModule_AddObject(m, "EqMIx", (PyObject *)&EqMIxType);

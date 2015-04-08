@@ -3181,30 +3181,20 @@ def _filter_hkls_eta_ome(hkls, angles, eta_range, ome_range):
     return allAngs, allHKLs
 
 
-def _project_on_detector_plane_orig(allHKLs, allAngs, bMat, rMat_d, rMat_c,
-                                    tVec_d, tVec_c, tVec_s, chi, distortion):
-    det_xy = []
-    for hkl, angs in zip(allHKLs, allAngs):
-        gVec_c = num.dot(bMat, hkl.reshape(3,1))
-        rMat_s = xfcapi.makeOscillRotMat( [chi, angs[2]] )
-        tmp_xy = xfcapi.gvecToDetectorXY(gVec_c.T, rMat_d, rMat_s, rMat_c,
-                                         tVec_d, tVec_s, tVec_c)
-        if (distortion is not None or len(distortion) == 0) and not num.any(num.isnan(tmp_xy)):
-            det_xy.append(distortion[0](tmp_xy, distortion[1], invert=True))
-    return num.vstack(det_xy), rMat_s
-
-def _project_on_detector_plane(allHKLs, allAngs, bMat, rMat_d, rMat_c,
-                               tVec_d, tVec_c, tVec_s, chi, distortion):
-    if distortion is None or len(distortion) < 2:
-        # no distortion present: return an empty array.
-        return num.zeros((0,2), dtype=num.float)
-
+def _project_on_detector_plane(allHKLs, allAngs, bMat,
+                               rMat_d, rMat_c, chi,
+                               tVec_d, tVec_c, tVec_s, distortion):
     gVec_cs = num.dot(bMat, allHKLs.T)
     rMat_ss = xfcapi.makeOscillRotMatArray(chi, num.ascontiguousarray(allAngs[:,2]))
     tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs.T, rMat_d, rMat_ss, rMat_c,
                                           tVec_d, tVec_s, tVec_c)
     valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
-    det_xy = distortion[0](tmp_xys[valid_mask], distortion[1], invert=True)
+    if distortion is None or len(distortion) == 0:
+        det_xy = tmp_xys[valid_mask]
+    else:
+        det_xy = distortion[0](tmp_xys[valid_mask],
+                               distortion[1],
+                               invert=True)
     return det_xy, rMat_ss[-1]
 
 
@@ -3263,15 +3253,9 @@ def simulateGVecs(pd, detector_params, grain_params,
     allAngs, allHKLs = _filter_hkls_eta_ome(full_hkls, angList, eta_range, ome_range)
 
     #...preallocate for speed...?
-    det_xy, rMat_s = _project_on_detector_plane(allHKLs, allAngs,
-                                                bMat, rMat_d, rMat_c,
-                                                tVec_d, tVec_c, tVec_s, chi, distortion)
-    #det_xy, rMat_s = _project_on_detector_plane_orig(allHKLs, allAngs,
-    #                                                 bMat, rMat_d, rMat_c,
-    #                                                 tVec_d, tVec_c, tVec_s, chi, distortion)
-
-    #num.testing.assert_array_equal(rMat_s, rMat_s_b)
-    #num.testing.assert_array_equal(det_xy_b, det_xy)
+    det_xy, rMat_s = _project_on_detector_plane(allHKLs, allAngs, bMat,
+                                                rMat_d, rMat_c, chi,
+                                                tVec_d, tVec_c, tVec_s, distortion)
     #
     on_panel_x = num.logical_and(det_xy[:, 0] >= panel_dims[0][0], det_xy[:, 0] <= panel_dims[1][0])
     on_panel_y = num.logical_and(det_xy[:, 1] >= panel_dims[0][1], det_xy[:, 1] <= panel_dims[1][1])
@@ -3334,7 +3318,7 @@ if USE_NUMBA:
         * assumes xy_det in UNWARPED configuration
         """
         xy_det = num.atleast_2d(xy_det)
-        if distortion is not None:
+        if distortion is not None and len(distortion) == 2:
             xy_det = distortion[0](xy_det, distortion[1])
 
         xy_expanded = num.empty((len(xy_det) * 4, 2), dtype=xy_det.dtype)
@@ -3354,7 +3338,7 @@ else:
         """
 
         xy_det = num.atleast_2d(xy_det)
-        if distortion is not None:
+        if distortion is not None and len(distortion) == 2:
             xy_det = distortion[0](xy_det, distortion[1])
 
         xp = num.r_[-0.5,  0.5,  0.5, -0.5] * xy_pixelPitch[0]
@@ -3431,7 +3415,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
               tth_tol=0.15, eta_tol=1., ome_tol=1.,
               npdiv=1, threshold=10,
               doClipping=False, filename=None,
-              save_spot_list=False, use_closest=True, 
+              save_spot_list=False, use_closest=True,
               quiet=True):
     """
     Function for pulling spots from a reader object for
@@ -3596,7 +3580,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
         xy_eval = xfcapi.gvecToDetectorXY(gVec_c.T,
                                           rMat_d, rMat_s, rMat_c,
                                           tVec_d, tVec_s, tVec_c)
-        if distortion is not None or len(distortion) == 0:
+        if distortion is not None and len(distortion) == 2:
             xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
             pass
         row_indices   = gutil.cellIndices(row_edges, xy_eval[:, 1])
@@ -3778,7 +3762,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 new_xy = xfcapi.gvecToDetectorXY(gVec_c.T,
                                                  rMat_d, rMat_s, rMat_c,
                                                  tVec_d, tVec_s, tVec_c).flatten()
-                if distortion is not None or len(distortion) == 0:
+                if distortion is not None and len(distortion) == 2:
                     new_xy = distortion[0](num.atleast_2d(new_xy), distortion[1], invert=True).flatten()
         else:
             peakId   = -999

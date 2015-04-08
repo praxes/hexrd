@@ -1,3 +1,5 @@
+from __future__ import absolute_import, print_function
+
 import logging
 import multiprocessing
 import os
@@ -10,18 +12,27 @@ import sip
 sip.setapi('QString', 2)
 sip.setapi('QTextStream', 2)
 sip.setapi('QVariant', 2)
+from PyQt4 import QtCore, QtGui, uic
+from PyQt4 import uic
 
-from PyQt4.QtCore import Qt, QEvent, QObject, QSettings, pyqtSlot
-from PyQt4.QtGui import (
-    qApp, QAction, QApplication, QFileDialog, QMainWindow, QMessageBox, QPixmap,
-    QSplashScreen, QWhatsThis, QWidget
-    )
-from PyQt4.uic import loadUi
+try:
+    from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
+    from IPython.qt.inprocess import QtInProcessKernelManager
+    from IPython.lib import guisupport
+except ImportError:
+    pass
 
-from matplotlib import cm
-
+import hexrd
 from hexrd import config
-from hexrd.qt.resources import image_files, ui_files
+from .graphicscanvas import GraphicsCanvasController
+from .imageseries import get_image_series
+from .materialsdialog import get_material
+from .preferences import get_preferences
+from .resources import resources
+from .utils import WhatsThisUrlLoader
+
+
+logger = logging.getLogger('hexrd')
 
 
 
@@ -47,34 +58,7 @@ def add_handler(log_level, stream=None):
 
 
 
-class GraphicsCanvasController(QObject):
-
-    def __init__(self, ui):
-        QObject.__init__(self)
-        self.ui = ui
-
-        cmaps = sorted(i[:-2] for i in dir(cm) if i.endswith('_r'))
-        ui.colorMapComboBox.addItems(cmaps)
-
-        ui.minSpinBox.valueChanged[int].connect(
-            ui.maxSpinBox.setMinimum
-            )
-        ui.maxSpinBox.valueChanged[int].connect(
-            ui.minSpinBox.setMaximum
-            )
-
-
-
-class WhatsThisUrlLoader(QObject):
-
-    def eventFilter(self, e):
-        if e.type() == QEvent.WhatsThisClicked:
-            webbrowser.open_new_tab(e.href())
-        return False
-
-
-
-class MainController(QMainWindow):
+class MainController(QtGui.QMainWindow):
 
 
     @property
@@ -85,54 +69,112 @@ class MainController(QMainWindow):
     def __init__(self, log_level, cfg_file=None):
         super(MainController, self).__init__()
         # Create and display the splash screen
-        splash_pix = QPixmap(image_files['splash'])
-        splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
+        splash_pix = QtGui.QPixmap(resources['hexrd.png'])
+        splash = QtGui.QSplashScreen(splash_pix)
         splash.setMask(splash_pix.mask())
         splash.show()
         # sleep seems necessary on linux to render the image
         time.sleep(0.01)
-        qApp.processEvents()
+        QtGui.qApp.processEvents()
 
-        # give the splash screen a little time to breathe
-        time.sleep(2)
+        self._preferences = get_preferences()
 
-        loadUi(ui_files['main_window'], self)
-        self.menuHelp.addAction(QWhatsThis.createAction(self))
-        self._create_context_menus()
+        uic.loadUi(resources['mainwindow.ui'], self)
+        self.menuHelp.addAction(QtGui.QWhatsThis.createAction(self))
+        self._configure_tool_buttons()
 
         # now that we have the ui, configure the logging widget
         add_handler(log_level, QLogStream(self.loggerTextEdit))
 
         self.gc_ctlr = GraphicsCanvasController(self)
 
-        # connect signals before loading config or restoring state
-        self._connect_signals()
-        self._load_event_filters()
-
         self.load_config(cfg_file)
 
-        self.settings = QSettings('hexrd', 'hexrd')
+        self.settings = QtCore.QSettings('hexrd', 'hexrd')
         self._restore_state()
+        self._configure_dock_widgets()
+
+        # load all ui elements before loading the event filters
+        self._load_event_filters()
+
+        # give the splash screen a little time to breathe
+        time.sleep(1)
 
         self.show()
+
         splash.finish(self)
 
 
+    def _load_ipython(self):
+        # Create an in-process kernel
+        kernel_manager = QtInProcessKernelManager()
+        kernel_manager.start_kernel()
+        kernel_manager.kernel.gui = 'qt4'
+        kernel_manager.kernel.shell.enable_pylab(gui='inline')
+
+        kernel_client = kernel_manager.client()
+        kernel_client.start_channels()
+
+        control = RichIPythonWidget()
+        self.ipythonDockWidget.setWidget(control)
+        control.kernel_manager = kernel_manager
+        control.kernel_client = kernel_client
+        control.exit_requested.connect(kernel_client.stop_channels)
+        control.exit_requested.connect(kernel_manager.shutdown_kernel)
+
+        class IPythonNamespaceUpdater(QtCore.QObject):
+            shell = kernel_manager.kernel.shell
+            def eventFilter(self, target, e):
+                if e.type() == QtCore.QEvent.Enter:
+                    self.shell.push(globals())
+                return False
+        control.installEventFilter(IPythonNamespaceUpdater(self))
+
+        class Debug(object):
+            def __init__(self, shell):
+                self.shell = shell
+            def __call__(self):
+                import inspect
+                frame = inspect.currentframe()
+                try:
+                    temp = frame.f_back.f_globals
+                    temp.update(frame.f_back.f_locals)
+                finally:
+                    del frame
+                self.shell.run_line_magic('reset', '-f -s')
+                self.shell.push(temp)
+        # now monkeypatch hexrd.debug to use the qt console:
+        hexrd.debug = Debug(kernel_manager.kernel.shell)
+
+
     def _load_event_filters(self):
-        temp = WhatsThisUrlLoader()
+        temp = WhatsThisUrlLoader(self)
+        self.installEventFilter(temp)
         for k, v in self.__dict__.items():
-            if isinstance(v, QWidget):
+            if isinstance(v, QtGui.QWidget):
                 v.installEventFilter(temp)
 
 
-    def _create_context_menus(self):
-        self.imageSeriesComboBox.addAction(self.actionLoadImageSeries)
-        self.imageSeriesComboBox.addAction(self.actionModifyImageSeries)
-        self.imageSeriesComboBox.addAction(self.actionDeleteImageSeries)
+    def _configure_dock_widgets(self):
+        self.menuView.addAction(self.configDockWidget.toggleViewAction())
+        self.menuView.addAction(self.docsDockWidget.toggleViewAction())
+        try:
+            self._load_ipython()
+            self.menuView.addAction(self.ipythonDockWidget.toggleViewAction())
+        except NameError:
+            logger.info("IPython not installed, embedded console not available")
+            self.ipythonDockWidget.setVisible(False)
+        self.menuView.addAction(self.loggerDockWidget.toggleViewAction())
 
-        self.materialComboBox.addAction(self.actionAddMaterial)
-        self.materialComboBox.addAction(self.actionModifyMaterial)
-        self.materialComboBox.addAction(self.actionDeleteMaterial)
+
+    def _configure_tool_buttons(self):
+        self.imageSeriesToolButton.addAction(self.actionLoadImageSeries)
+        self.imageSeriesToolButton.addAction(self.actionModifyImageSeries)
+        self.imageSeriesToolButton.addAction(self.actionDeleteImageSeries)
+
+        self.materialToolButton.addAction(self.actionAddMaterial)
+        self.materialToolButton.addAction(self.actionModifyMaterial)
+        self.materialToolButton.addAction(self.actionDeleteMaterial)
 
 
     def _restore_state(self):
@@ -147,6 +189,8 @@ class MainController(QMainWindow):
         temp = self.settings.value('currentTool')
         if temp is not None:
             self.cfgToolBox.setCurrentIndex(int(temp))
+        # docs
+        self.docsWebView.load(QtCore.QUrl(hexrd.doc_url))
         # graphics state
         temp = self.settings.value('currentColorMap')
         if temp is not None:
@@ -227,113 +271,8 @@ class MainController(QMainWindow):
             self.chiTiltStepSpinBox.setValue(float(temp))
 
 
-    def _connect_signals(self):
-        self.actionQuit.triggered.connect(self.close)
-        self.rotateCheckBox.toggled.emit(False)
-
-
-    @pyqtSlot()
-    def on_actionDocumentation_triggered(self):
-        webbrowser.open_new_tab('http://hexrd.readthedocs.org/en/latest')
-
-
-    @pyqtSlot()
-    def on_actionAbout_triggered(self):
-        dlg = QMessageBox.about(
-            self, 'About HEXRD',
-"""HEXRD provides a collection of resources for analysis of x-ray diffraction
-data, especially high-energy x-ray diffraction. HEXRD is comprised of a
-library and API for writing scripts, a command line interface, and an
-interactive graphical user interface.
-
-HEXRD is an open-source project originally conceived by Joel Bernier, and
-developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
-"""
-            )
-
-
-    @pyqtSlot()
-    def on_actionLoadConfiguration_triggered(self):
-        if self.cfg.dirty:
-            confirm = QMessageBox()
-            confirm.setText('Configuration has been modified.')
-            confirm.setInformativeText(
-"""Do you want to save your changes before loading a new configuration?"""
-                )
-            confirm.setStandardButtons(
-                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
-                )
-            confirm.button(QMessageBox.Discard).setText("Discard")
-            confirm.setDefaultButton(QMessageBox.Cancel)
-            ret = confirm.exec_()
-            if ret == QMessageBox.Save:
-                if self.save_config() is False:
-                    return
-            elif ret == QMessageBox.Cancel:
-                return
-        temp = QFileDialog.getOpenFileName(
-            self, 'Load Configuration', self.cfg.working_dir,
-            'YAML files (*.yml)'
-            )
-        if temp:
-            self.load_config(temp)
-
-
-    def on_analysisNameLineEdit_editingFinished(self):
-        self.cfg.analysis_name = str(self.analysisNameLineEdit.text())
-
-
-    @pyqtSlot()
-    def on_changeWorkingDirButton_clicked(self):
-        temp = QFileDialog.getExistingDirectory(
-            parent=self, caption='booya', directory=self.cfg.working_dir
-            )
-        if temp:
-            self.workingDirLineEdit.setText(temp)
-            self.cfg.working_dir = temp
-
-
-    @pyqtSlot(float)
-    def on_energySpinBox_valueChanged(self, val):
-        try:
-            self.wavelengthSpinBox.blockSignals(True)
-            self.wavelengthSpinBox.setValue(12.39842/val)
-        finally:
-            self.wavelengthSpinBox.blockSignals(False)
-
-
-    @pyqtSlot(int)
-    def on_multiprocessingSpinBox_valueChanged(self, val):
-        if self.cfg.multiprocessing != val:
-            self.cfg.multiprocessing = val
-
-
-    @pyqtSlot(float)
-    def on_wavelengthSpinBox_valueChanged(self, val):
-        try:
-            self.energySpinBox.blockSignals(True)
-            self.energySpinBox.setValue(12.39842/val)
-        finally:
-            self.energySpinBox.blockSignals(False)
-
-
-    def closeEvent(self, event):
-        if self._cfg_file is not None and self.cfg.dirty:
-            confirm = QMessageBox()
-            confirm.setText('Configuration has been modified.')
-            confirm.setInformativeText('Do you want to save your changes?')
-            confirm.setStandardButtons(
-                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
-                )
-            confirm.setDefaultButton(QMessageBox.Cancel)
-            ret = confirm.exec_()
-            if ret == QMessageBox.Save:
-                if self.save_config() is False:
-                    event.ignore()
-                    return
-            elif ret == QMessageBox.Cancel:
-                return
-
+    def _save_state(self):
+        # geometry
         self.settings.setValue('geometry', self.saveGeometry())
         self.settings.setValue('state', self.saveState())
         self.settings.setValue('currentTool', self.cfgToolBox.currentIndex())
@@ -390,19 +329,130 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
             )
         self.settings.setValue('chiTiltStep', self.chiTiltStepSpinBox.value())
 
-        event.accept()
+
+    @QtCore.pyqtSlot()
+    def on_actionDocumentation_triggered(self):
+        if self._preferences.docs_view == 'dockWidget':
+            self.docsDockWidget.setVisible(True)
+        elif self._preferences.docs_view == 'webbrowser':
+            webbrowser.open_new_tab(hexrd.doc_url)
 
 
-    def event(self, e):
-        # this is a placeholder, something I'm trying to support
-        # clickable hyperlinks in the whatsThis documentation
+    @QtCore.pyqtSlot()
+    def on_actionAbout_triggered(self):
+        QtGui.QMessageBox.about(
+            self, 'About HEXRD',
+"HEXRD provides a collection of resources for analysis of x-ray diffraction "
+"data, especially high-energy x-ray diffraction. HEXRD is comprised of a "
+"library and API for writing scripts, a command line interface, and an "
+"interactive graphical user interface.\n\n"
+"HEXRD is an open-source project originally conceived by Joel Bernier, and "
+"developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al."
+            )
+
+
+    @QtCore.pyqtSlot()
+    def on_actionAddMaterial_triggered(self):
+        get_material(ui=True)
+
+
+    @QtCore.pyqtSlot()
+    def on_actionLoadConfiguration_triggered(self):
+        if self.cfg.dirty:
+            QMessageBox = QtGui.QMessageBox
+            confirm = QMessageBox()
+            confirm.setText('Configuration has been modified.')
+            confirm.setInformativeText(
+"""Do you want to save your changes before loading a new configuration?"""
+                )
+            confirm.setStandardButtons(
+                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
+                )
+            confirm.button(QMessageBox.Discard).setText("Discard")
+            confirm.setDefaultButton(QMessageBox.Cancel)
+            ret = confirm.exec_()
+            if ret == QMessageBox.Save:
+                if self.save_config() is False:
+                    return
+            elif ret == QMessageBox.Cancel:
+                return
+        temp = QtGui.QFileDialog.getOpenFileName(
+            self, 'Load Configuration', self.cfg.working_dir,
+            'YAML files (*.yml)'
+            )
+        if temp:
+            self.load_config(temp)
+
+
+    @QtCore.pyqtSlot()
+    def on_actionLoadImageSeries_triggered(self):
+        get_image_series(self.cfg, self.cfg.analysis_name, ui=True)
+
+
+    @QtCore.pyqtSlot()
+    def on_actionPreferences_triggered(self):
+        self._preferences = get_preferences(ui=True)
+
+
+    def on_analysisNameLineEdit_editingFinished(self):
+        self.cfg.analysis_name = str(self.analysisNameLineEdit.text())
+
+
+    @QtCore.pyqtSlot()
+    def on_changeWorkingDirButton_clicked(self):
+        temp = QtGui.QFileDialog.getExistingDirectory(
+            parent=self, caption='booya', directory=self.cfg.working_dir
+            )
+        if temp:
+            self.workingDirLineEdit.setText(temp)
+            self.cfg.working_dir = temp
+
+
+    @QtCore.pyqtSlot(float)
+    def on_energySpinBox_valueChanged(self, val):
         try:
-            href = e.href()
-            import webbrowser
-            webbrowser.open_new_tab(href)
-        except AttributeError:
-            pass
-        return QMainWindow.event(self, e)
+            self.wavelengthSpinBox.blockSignals(True)
+            self.wavelengthSpinBox.setValue(12.39842/val)
+        finally:
+            self.wavelengthSpinBox.blockSignals(False)
+
+
+    @QtCore.pyqtSlot(int)
+    def on_multiprocessingSpinBox_valueChanged(self, val):
+        if self.cfg.multiprocessing != val:
+            self.cfg.multiprocessing = val
+
+
+    @QtCore.pyqtSlot(float)
+    def on_wavelengthSpinBox_valueChanged(self, val):
+        try:
+            self.energySpinBox.blockSignals(True)
+            self.energySpinBox.setValue(12.39842/val)
+        finally:
+            self.energySpinBox.blockSignals(False)
+
+
+    def closeEvent(self, event):
+        if self._cfg_file is not None and self.cfg.dirty:
+            QMessageBox = QtGui.QMessageBox
+            confirm = QMessageBox()
+            confirm.setText('Configuration has been modified.')
+            confirm.setInformativeText('Do you want to save your changes?')
+            confirm.setStandardButtons(
+                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
+                )
+            confirm.setDefaultButton(QMessageBox.Cancel)
+            ret = confirm.exec_()
+            if ret == QMessageBox.Save:
+                if self.save_config() is False:
+                    event.ignore()
+                    return
+            elif ret == QMessageBox.Cancel:
+                event.ignore()
+                return
+            else:
+                self._save_state()
+                event.accept()
 
 
     def load_config(self, filename):
@@ -416,9 +466,9 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
         self.multiprocessingSpinBox.setValue(self.cfg.multiprocessing)
 
 
-    @pyqtSlot(name='on_actionSaveConfiguration_triggered')
+    @QtCore.pyqtSlot(name='on_actionSaveConfiguration_triggered')
     def save_config(self):
-        temp = QFileDialog.getSaveFileName(
+        temp = QtGui.QFileDialog.getSaveFileName(
             parent=self, caption='Save Configuration',
             directory=self.cfg.working_dir, filter='YAML files (*.yml)'
             )
@@ -428,37 +478,36 @@ developed by Joel Bernier, Darren Dale, and Donald Boyce, et.al.
         return False
 
 
-    @pyqtSlot(name='on_actionLoadCalibration_triggered')
-    @pyqtSlot(name='on_actionLoadMaterials_triggered')
-    @pyqtSlot(name='on_actionLoadImageSeries_triggered')
-    @pyqtSlot(name='on_actionModifyImageSeries_triggered')
-    @pyqtSlot(name='on_actionDeleteImageSeries_triggered')
-    @pyqtSlot(name='on_actionAddMaterial_triggered')
-    @pyqtSlot(name='on_actionModifyMaterial_triggered')
-    @pyqtSlot(name='on_actionDeleteMaterial_triggered')
-    @pyqtSlot(name='on_actionSaveCalibration_triggered')
-    @pyqtSlot(name='on_actionSaveMaterials_triggered')
-    @pyqtSlot(name='on_actionPowderBinnedFit_triggered')
-    @pyqtSlot(name='on_actionPowderDirectFit_triggered')
-    @pyqtSlot(name='on_actionSingleCrystalFit_triggered')
-    @pyqtSlot(name='on_actionCake_triggered')
-    @pyqtSlot(name='on_actionPolarRebin_triggered')
-    @pyqtSlot(name='on_actionFindOrientations_triggered')
-    @pyqtSlot(name='on_actionFitGrains_triggered')
+    @QtCore.pyqtSlot(name='on_actionLoadCalibration_triggered')
+    @QtCore.pyqtSlot(name='on_actionLoadMaterials_triggered')
+    @QtCore.pyqtSlot(name='on_actionModifyImageSeries_triggered')
+    @QtCore.pyqtSlot(name='on_actionDeleteImageSeries_triggered')
+    @QtCore.pyqtSlot(name='on_actionModifyMaterial_triggered')
+    @QtCore.pyqtSlot(name='on_actionDeleteMaterial_triggered')
+    @QtCore.pyqtSlot(name='on_actionSaveCalibration_triggered')
+    @QtCore.pyqtSlot(name='on_actionSaveMaterials_triggered')
+    @QtCore.pyqtSlot(name='on_actionPowderBinnedFit_triggered')
+    @QtCore.pyqtSlot(name='on_actionPowderDirectFit_triggered')
+    @QtCore.pyqtSlot(name='on_actionSingleCrystalFit_triggered')
+    @QtCore.pyqtSlot(name='on_actionCake_triggered')
+    @QtCore.pyqtSlot(name='on_actionDarkImage_triggered')
+    @QtCore.pyqtSlot(name='on_actionPolarRebin_triggered')
+    @QtCore.pyqtSlot(name='on_actionFindOrientations_triggered')
+    @QtCore.pyqtSlot(name='on_actionFitGrains_triggered')
     def not_implemented(self):
-        dlg = QMessageBox.information(
+        dlg = QtGui.QMessageBox.information(
             self, 'Not Implemented',
 """The requested feature has not been implemented.
 
 Please consider filing an issue report at
 http://github.com/praxes/hexrd/issues, if one does not already exist.""",
-            buttons=QMessageBox.Ok
+            buttons=QtGui.QMessageBox.Ok
             )
 
 
 
 def execute(args):
-    app = QApplication(sys.argv)
+    app = guisupport.get_app_qt4(sys.argv)
     app.setApplicationName('HEXRD')
 
     # configure logging
@@ -470,4 +519,4 @@ def execute(args):
 
     ctlr = MainController(log_level, args.config)
 
-    sys.exit(app.exec_())
+    guisupport.start_event_loop_qt4(app)

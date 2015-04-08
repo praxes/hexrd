@@ -78,7 +78,12 @@ NROWS = 2048
 NCOLS = 2048
 PIXEL = 0.2
 
-## pscam
+# vert
+#NROWS = 2048
+#NCOLS = 2048
+#PIXEL = 0.0045
+
+# pscam
 #NROWS = 2671
 #NCOLS = 4008
 #PIXEL = 0.03

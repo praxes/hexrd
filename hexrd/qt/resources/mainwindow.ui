@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>954</width>
-    <height>764</height>
+    <width>1655</width>
+    <height>1129</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -198,8 +198,8 @@ intensity:</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>954</width>
-     <height>19</height>
+     <width>1655</width>
+     <height>38</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -210,8 +210,8 @@ intensity:</string>
      <property name="title">
       <string>Save...</string>
      </property>
-     <addaction name="actionSaveConfiguration"/>
      <addaction name="actionSaveCalibration"/>
+     <addaction name="actionSaveConfiguration"/>
      <addaction name="actionSaveMaterials"/>
     </widget>
     <widget class="QMenu" name="menuLoad">
@@ -255,18 +255,32 @@ intensity:</string>
     </widget>
     <addaction name="menuCalibrate"/>
     <addaction name="actionCake"/>
+    <addaction name="actionDarkImage"/>
     <addaction name="actionPolarRebin"/>
     <addaction name="actionFindOrientations"/>
     <addaction name="actionFitGrains"/>
    </widget>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>Edit</string>
+    </property>
+    <addaction name="actionPreferences"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuEdit"/>
    <addaction name="menuTools"/>
+   <addaction name="menuView"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="configDockWidget">
    <property name="features">
-    <set>QDockWidget::DockWidgetFloatable|QDockWidget::DockWidgetMovable</set>
+    <set>QDockWidget::AllDockWidgetFeatures</set>
    </property>
    <property name="windowTitle">
     <string>Configuration</string>
@@ -289,8 +303,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>202</width>
-          <height>317</height>
+          <width>279</width>
+          <height>538</height>
          </rect>
         </property>
         <attribute name="label">
@@ -298,43 +312,39 @@ intensity:</string>
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout">
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_2">
-           <item>
-            <widget class="QLabel" name="label">
-             <property name="text">
-              <string>Analysis Name</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLineEdit" name="analysisNameLineEdit"/>
-           </item>
-          </layout>
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>Analysis Name</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="analysisNameLineEdit"/>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>Working Directory</string>
+           </property>
+          </widget>
          </item>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_5">
            <item>
-            <widget class="QLabel" name="label_2">
-             <property name="text">
-              <string>Working Directory</string>
+            <widget class="QLineEdit" name="workingDirLineEdit">
+             <property name="readOnly">
+              <bool>true</bool>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QPushButton" name="changeWorkingDirButton">
+            <widget class="QToolButton" name="changeWorkingDirButton">
              <property name="text">
-              <string>Change</string>
+              <string>▼</string>
              </property>
             </widget>
            </item>
           </layout>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="workingDirLineEdit">
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-          </widget>
          </item>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_6">
@@ -361,6 +371,19 @@ intensity:</string>
              </property>
             </widget>
            </item>
+           <item>
+            <spacer name="horizontalSpacer_2">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
           </layout>
          </item>
          <item>
@@ -378,36 +401,57 @@ intensity:</string>
          </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="imageseries">
+       <widget class="QWidget" name="dataseries">
         <property name="geometry">
          <rect>
-          <x>0</x>
+          <x>-51</x>
           <y>0</y>
-          <width>202</width>
-          <height>317</height>
+          <width>253</width>
+          <height>538</height>
          </rect>
         </property>
         <attribute name="label">
-         <string>Image Series</string>
+         <string>Data Series</string>
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_8">
          <item>
-          <widget class="QComboBox" name="imageSeriesComboBox">
-           <property name="contextMenuPolicy">
-            <enum>Qt::ActionsContextMenu</enum>
-           </property>
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;right-click to load, modify, or delete an image series&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-           <property name="whatsThis">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;A long description would go here. Want even more information? &lt;a href=&quot;http://hexrd.readthedocs.org&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Bonkers&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
+          <layout class="QHBoxLayout" name="horizontalLayout_4">
            <item>
-            <property name="text">
-             <string>None</string>
-            </property>
+            <widget class="QComboBox" name="imageSeriesComboBox">
+             <property name="contextMenuPolicy">
+              <enum>Qt::DefaultContextMenu</enum>
+             </property>
+             <property name="toolTip">
+              <string/>
+             </property>
+             <property name="whatsThis">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;A long description would go here. Want even more information? &lt;a href=&quot;http://hexrd.readthedocs.org&quot;&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Bonkers&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="editable">
+              <bool>false</bool>
+             </property>
+            </widget>
            </item>
-          </widget>
+           <item>
+            <widget class="QToolButton" name="imageSeriesToolButton">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click to load, modify, or delete an image series&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="text">
+              <string>  </string>
+             </property>
+             <property name="popupMode">
+              <enum>QToolButton::InstantPopup</enum>
+             </property>
+             <property name="toolButtonStyle">
+              <enum>Qt::ToolButtonTextOnly</enum>
+             </property>
+             <property name="arrowType">
+              <enum>Qt::NoArrow</enum>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
          <item>
           <widget class="QGroupBox" name="groupBox">
@@ -460,60 +504,6 @@ intensity:</string>
           </widget>
          </item>
          <item>
-          <widget class="QGroupBox" name="groupBox_2">
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This should be moved into the load image series dialog&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-           <property name="title">
-            <string>Orientation</string>
-           </property>
-           <layout class="QVBoxLayout" name="verticalLayout_10">
-            <item>
-             <widget class="QCheckBox" name="hFlipCheckBox">
-              <property name="text">
-               <string>Flip Horizontal</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QCheckBox" name="vFlipCheckBox">
-              <property name="text">
-               <string>Flip Vertical</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <layout class="QHBoxLayout" name="horizontalLayout_4">
-              <item>
-               <widget class="QCheckBox" name="rotateCheckBox">
-                <property name="text">
-                 <string>Rotate</string>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QRadioButton" name="cwRotRadioButton">
-                <property name="text">
-                 <string>CW</string>
-                </property>
-                <property name="checked">
-                 <bool>true</bool>
-                </property>
-               </widget>
-              </item>
-              <item>
-               <widget class="QRadioButton" name="ccwRotRadioButton">
-                <property name="text">
-                 <string>CCW</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
           <spacer name="verticalSpacer_2">
            <property name="orientation">
             <enum>Qt::Vertical</enum>
@@ -531,10 +521,10 @@ intensity:</string>
        <widget class="QWidget" name="materials">
         <property name="geometry">
          <rect>
-          <x>0</x>
+          <x>-148</x>
           <y>0</y>
-          <width>202</width>
-          <height>317</height>
+          <width>350</width>
+          <height>538</height>
          </rect>
         </property>
         <attribute name="label">
@@ -542,48 +532,65 @@ intensity:</string>
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout_7">
          <item>
-          <widget class="QComboBox" name="materialComboBox">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="contextMenuPolicy">
-            <enum>Qt::ActionsContextMenu</enum>
-           </property>
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Right click to add, modify, or delete material&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-           <property name="editable">
-            <bool>false</bool>
-           </property>
+          <layout class="QHBoxLayout" name="horizontalLayout_7">
            <item>
-            <property name="text">
-             <string>CeO2</string>
-            </property>
+            <widget class="QComboBox" name="materialComboBox">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="contextMenuPolicy">
+              <enum>Qt::DefaultContextMenu</enum>
+             </property>
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="editable">
+              <bool>false</bool>
+             </property>
+             <item>
+              <property name="text">
+               <string>CeO2</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Diamond</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>LaB6</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Ruby</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Silicon</string>
+              </property>
+             </item>
+            </widget>
            </item>
            <item>
-            <property name="text">
-             <string>Diamond</string>
-            </property>
+            <widget class="QToolButton" name="materialToolButton">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click to add, modify, or delete material&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="popupMode">
+              <enum>QToolButton::InstantPopup</enum>
+             </property>
+            </widget>
            </item>
-           <item>
-            <property name="text">
-             <string>LaB6</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Ruby</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Silicon</string>
-            </property>
-           </item>
-          </widget>
+          </layout>
          </item>
          <item>
           <widget class="QTableWidget" name="tableWidget">
@@ -711,8 +718,8 @@ intensity:</string>
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>316</width>
-          <height>545</height>
+          <width>566</width>
+          <height>903</height>
          </rect>
         </property>
         <attribute name="label">
@@ -1442,32 +1449,6 @@ intensity:</string>
          </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="findorientations">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>202</width>
-          <height>317</height>
-         </rect>
-        </property>
-        <attribute name="label">
-         <string>Find Orientations</string>
-        </attribute>
-       </widget>
-       <widget class="QWidget" name="fitgrains">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>202</width>
-          <height>317</height>
-         </rect>
-        </property>
-        <attribute name="label">
-         <string>Fit Grains</string>
-        </attribute>
-       </widget>
       </widget>
      </item>
     </layout>
@@ -1475,7 +1456,7 @@ intensity:</string>
   </widget>
   <widget class="QDockWidget" name="loggerDockWidget">
    <property name="features">
-    <set>QDockWidget::DockWidgetFloatable|QDockWidget::DockWidgetMovable</set>
+    <set>QDockWidget::AllDockWidgetFeatures</set>
    </property>
    <property name="windowTitle">
     <string>Logger</string>
@@ -1485,6 +1466,9 @@ intensity:</string>
    </attribute>
    <widget class="QWidget" name="loggerWidgets">
     <layout class="QVBoxLayout" name="verticalLayout_3">
+     <property name="spacing">
+      <number>0</number>
+     </property>
      <property name="margin">
       <number>0</number>
      </property>
@@ -1500,13 +1484,49 @@ intensity:</string>
         <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Sans Serif'; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'MS Shell Dlg 2'; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
        <property name="acceptRichText">
         <bool>false</bool>
        </property>
       </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="docsDockWidget">
+   <property name="windowTitle">
+    <string>Documentation</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents">
+    <layout class="QVBoxLayout" name="verticalLayout_11">
+     <item>
+      <widget class="QWebView" name="docsWebView">
+       <property name="url">
+        <url>
+         <string>about:blank</string>
+        </url>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="ipythonDockWidget">
+   <property name="windowTitle">
+    <string>IPython</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_3">
+    <layout class="QGridLayout" name="gridLayout_2">
+     <item row="0" column="0">
+      <widget class="QWidget" name="widget" native="true"/>
      </item>
     </layout>
    </widget>
@@ -1629,41 +1649,26 @@ p, li { white-space: pre-wrap; }
     <string>Calibration</string>
    </property>
   </action>
+  <action name="actionPreferences">
+   <property name="text">
+    <string>Preferences</string>
+   </property>
+  </action>
+  <action name="actionDarkImage">
+   <property name="text">
+    <string>Dark image</string>
+   </property>
+  </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QWebView</class>
+   <extends>QWidget</extends>
+   <header>QtWebKit/QWebView</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
-  <connection>
-   <sender>rotateCheckBox</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>ccwRotRadioButton</receiver>
-   <slot>setVisible(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>116</x>
-     <y>611</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>486</x>
-     <y>611</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>rotateCheckBox</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>cwRotRadioButton</receiver>
-   <slot>setVisible(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>116</x>
-     <y>611</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>301</x>
-     <y>611</y>
-    </hint>
-   </hints>
-  </connection>
   <connection>
    <sender>singleImRadioButton</sender>
    <signal>toggled(bool)</signal>
@@ -1677,6 +1682,22 @@ p, li { white-space: pre-wrap; }
     <hint type="destinationlabel">
      <x>1228</x>
      <y>1025</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionQuit</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>827</x>
+     <y>564</y>
     </hint>
    </hints>
   </connection>
