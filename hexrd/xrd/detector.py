@@ -770,9 +770,10 @@ class ReadGE(Framer2DRC):
        empty frame(s).  An error is returned if there are not any specified.
        If there are multiple empty frames, the average is used.
 
-    """
-    """
-    It is likely that some of the methods here should be moved up to a base class
+
+    NOTES:
+
+       It is likely that some of the methods here should be moved up to a base class
     """
     __nbytes_header    = 8192
     __idim             = min(NROWS, NCOLS)
@@ -809,25 +810,20 @@ class ReadGE(Framer2DRC):
                  *args,
                  **kwargs):
         """
-        meant for reading a series of frames from an omega sweep, with fixed delta-omega
-        for each frame
+        meant for reading a series of frames from an omega sweep, with
+        fixed delta-omega for each frame
 
-        omegaStart and omegaDelta can follow fileInfo or be specified in whatever order by keyword
+        omegaStart and omegaDelta can follow fileInfo or be specified
+        in whatever order by keyword
 
-        fileInfo: string, (string, nempty), or list of (string, nempty) for multiple files
+        fileInfo: string, (string, nempty), or list of (string,
+        nempty) for multiple files
 
         for multiple files and no dark, dark is formed only from empty
         frames in the first file
         """
 
-        Framer2DRC.__init__(self,
-                            self.__ncols, self.__nrows,
-                            dtypeDefault = self.__frame_dtype_dflt,
-                            dtypeRead    = self.__frame_dtype_read,
-                            dtypeFloat   = self.__frame_dtype_float,
-                            )
-
-        # defaults
+        # parse kwargs first
         self.__kwPassed = {}
         for parm, val in self.__inParmDict.iteritems():
             self.__kwPassed[parm] = kwargs.has_key(parm)
@@ -836,6 +832,15 @@ class ReadGE(Framer2DRC):
             self.__setattr__(parm, val)
         if len(kwargs) > 0:
             raise RuntimeError, 'unparsed keyword arguments: '+str(kwargs.keys())
+
+        Framer2DRC.__init__(self,
+                            self.__ncols, self.__nrows,
+                            dtypeDefault = self.__frame_dtype_dflt,
+                            dtypeRead    = self.__frame_dtype_read,
+                            dtypeFloat   = self.__frame_dtype_float,
+                            )
+
+        # omega information
         if len(args) == 0:
             pass
         elif len(args) == 2:
