@@ -278,8 +278,8 @@ def detectorXYToGvec(xy_det,
     dHat_ref_l = unitVector(P2_l)
     dHat_ref_e = np.dot(rMat_e.T, dHat_ref_l)
     tTh_ref = np.arccos(np.dot(bHat_l.T, unitVector(P2_l))).flatten()
-    eta_ref = np.arctan2(dHat+ref_e[1, :], dHat_ref_e[0, :]).flatten()
-    
+    eta_ref = np.arctan2(dHat_ref_e[1, :], dHat_ref_e[0, :]).flatten()
+
     # get G-vectors by rotating d by 90-theta about b x d (numpy 'cross' works on row vectors)
     n_g = unitVector(np.cross(bHat_l.T, dHat_l.T).T)
 

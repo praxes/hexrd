@@ -119,7 +119,14 @@ def get_frames(reader, cfg, show_progress=False, force=False, clean=False):
 
     start = time.time()
 
-    n_frames = reader.getNFrames()
+    # temporary catch if reader is None; i.e. raw data not here but cache is
+    # ...NEED TO FIX THIS WHEN AXING OLD READER CLASS!
+    if reader is not None:
+        n_frames = reader.getNFrames()
+    else:
+        n_frames = int( (cfg.image_series.omega.stop \
+                         - cfg.image_series.omega.start) \
+                         / float(cfg.image_series.omega.step) )
     logger.info("reading %d frames from cache", n_frames)
 
     with np.load(cache_file) as npz:

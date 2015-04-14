@@ -116,9 +116,9 @@ def gvecToDetectorXY(gVec_c,
                                              beamVec)
 
 def gvecToDetectorXYArray(gVec_c,
-                     rMat_d, rMat_s, rMat_c,
-                     tVec_d, tVec_s, tVec_c,
-                     beamVec=bVec_ref):
+                          rMat_d, rMat_s, rMat_c,
+                          tVec_d, tVec_s, tVec_c,
+                          beamVec=bVec_ref):
     """
     Takes a list of unit reciprocal lattice vectors in crystal frame to the
     specified detector-relative frame, subject to the conditions:
@@ -146,9 +146,9 @@ def gvecToDetectorXYArray(gVec_c,
     tVec_c  = np.ascontiguousarray( tVec_c.flatten()  )
     beamVec = np.ascontiguousarray( beamVec.flatten() )
     return _transforms_CAPI.gvecToDetectorXYArray(gVec_c,
-                                             rMat_d, rMat_s, rMat_c,
-                                             tVec_d, tVec_s, tVec_c,
-                                             beamVec)
+                                                  rMat_d, rMat_s, rMat_c,
+                                                  tVec_d, tVec_s, tVec_c,
+                                                  beamVec)
 
 def detectorXYToGvec(xy_det,
                      rMat_d, rMat_s,

@@ -38,7 +38,7 @@ find_orientations:
     # A file name must be specified. If it doesn't exist, one will be created
     file: eta-omega.cpl
 
-    threshold: 1
+    threshold: 0.1
     bin_frames: 1 # defaults to 1
 
     ## "all", or a list of hkl orders used to find orientations
@@ -80,7 +80,7 @@ fit_grains:
 
   panel_buffer: 10 # don't fit spots within this many pixels from edge
 
-  threshold: 1
+  threshold: 0.1
 
   tolerance:
     tth: [0.2, 0.1] # tolerance lists must be identical length
