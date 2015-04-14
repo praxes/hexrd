@@ -916,7 +916,7 @@ class PlaneData(object):
         else:
             retval = num.array(hkls)
         return retval
-    def getSymHKLs(self, asStr=False, indices=None):
+    def getSymHKLs(self, asStr=False, withID=False, indices=None):
         """
         new function that returns all symmetric hkls
         """
@@ -934,6 +934,9 @@ class PlaneData(object):
                 if asStr:
                     myStr = lambda x: re.sub('\[|\]|\(|\)','',str(x))
                     retval.append(map(myStr, num.array(hkls).T))
+                elif withID:
+                    retval.append(num.vstack([num.tile(hklData['hklID'], (1, hkls.shape[1])),
+                                              hkls]))
                 else:
                     retval.append(num.array(hkls))
             iRetval += 1
