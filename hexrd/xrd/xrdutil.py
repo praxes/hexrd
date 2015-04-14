@@ -3012,7 +3012,7 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
     """
     all angular info is entered in degrees
 
-    quats are (4, n)
+    expMaps are (3, n)
 
     ...might want to creat module-level angluar unit flag
     ...might want to allow resvers delta omega
@@ -3055,6 +3055,9 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
     # pixel dialtions
     dpix_ome = round( omeTol / abs(del_ome) )
     dpix_eta = round( etaTol / abs(del_eta) )
+
+    i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
+                                num.arange(-dpix_eta, dpix_eta + 1))
 
     # get symmetrically expanded hkls from planeData
     sym_hkls = planeData.getSymHKLs()
@@ -3126,8 +3129,6 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
 
                     if culledEtaIdx is not None and culledOmeIdx is not None:
                         if dpix_ome > 0 or dpix_eta > 0:
-                            i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
-                                                        num.arange(-dpix_eta, dpix_eta + 1))
                             i_sup = omeIndices[culledOmeIdx] + num.array([i_dil.flatten()], dtype=int)
                             j_sup = etaIndices[culledEtaIdx] + num.array([j_dil.flatten()], dtype=int)
 
@@ -3187,7 +3188,7 @@ def _project_on_detector_plane(allHKLs, allAngs, bMat,
     gVec_cs = num.dot(bMat, allHKLs.T)
     rMat_ss = xfcapi.makeOscillRotMatArray(chi, num.ascontiguousarray(allAngs[:,2]))
     tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs.T, rMat_d, rMat_ss, rMat_c,
-                                          tVec_d, tVec_s, tVec_c)
+                                           tVec_d, tVec_s, tVec_c)
     valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
     if distortion is None or len(distortion) == 0:
         det_xy = tmp_xys[valid_mask]
@@ -3251,24 +3252,29 @@ def simulateGVecs(pd, detector_params, grain_params,
     # first find valid G-vectors
     angList = num.vstack(xfcapi.oscillAnglesOfHKLs(full_hkls, chi, rMat_c, bMat, wlen, vInv=vInv_s))
     allAngs, allHKLs = _filter_hkls_eta_ome(full_hkls, angList, eta_range, ome_range)
-
-    #...preallocate for speed...?
-    det_xy, rMat_s = _project_on_detector_plane(allHKLs, allAngs, bMat,
-                                                rMat_d, rMat_c, chi,
-                                                tVec_d, tVec_c, tVec_s, distortion)
-    #
-    on_panel_x = num.logical_and(det_xy[:, 0] >= panel_dims[0][0], det_xy[:, 0] <= panel_dims[1][0])
-    on_panel_y = num.logical_and(det_xy[:, 1] >= panel_dims[0][1], det_xy[:, 1] <= panel_dims[1][1])
-    on_panel   = num.logical_and(on_panel_x, on_panel_y)
-    #
-    valid_ang = allAngs[on_panel, :]; valid_ang[:, 2] = xf.mapAngle(valid_ang[:, 2], ome_period)
-    valid_hkl = allHKLs[on_panel, :]
-    valid_xy  = det_xy[on_panel, :]
-    ang_ps    = angularPixelSize(valid_xy, pixel_pitch,
-                                 rMat_d, rMat_s,
-                                 tVec_d, tVec_s, tVec_c,
-                                 distortion=distortion)
-    #
+    
+    if len(allAngs) == 0:
+        valid_hkl = [] 
+        valid_ang = [] 
+        valid_xy = [] 
+        ang_ps = []
+    else:      
+        #...preallocate for speed...?
+        det_xy, rMat_s = _project_on_detector_plane(allHKLs, allAngs, bMat,
+                                                    rMat_d, rMat_c, chi,
+                                                    tVec_d, tVec_c, tVec_s, distortion)
+        #
+        on_panel_x = num.logical_and(det_xy[:, 0] >= panel_dims[0][0], det_xy[:, 0] <= panel_dims[1][0])
+        on_panel_y = num.logical_and(det_xy[:, 1] >= panel_dims[0][1], det_xy[:, 1] <= panel_dims[1][1])
+        on_panel   = num.logical_and(on_panel_x, on_panel_y)
+        #
+        valid_ang = allAngs[on_panel, :]; valid_ang[:, 2] = xf.mapAngle(valid_ang[:, 2], ome_period)
+        valid_hkl = allHKLs[on_panel, :]
+        valid_xy  = det_xy[on_panel, :]
+        ang_ps    = angularPixelSize(valid_xy, pixel_pitch,
+                                     rMat_d, rMat_s,
+                                     tVec_d, tVec_s, tVec_c,
+                                     distortion=distortion)
     return valid_hkl, valid_ang, valid_xy, ang_ps
 
 

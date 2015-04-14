@@ -87,6 +87,16 @@ PIXEL = 0.2
 #NROWS = 2671
 #NCOLS = 4008
 #PIXEL = 0.03
+
+# LCLS CSpad0
+#NROWS = 825
+#NCOLS = 840
+#PIXEL = 0.10992
+
+## LCLS CSpad1,2
+#NROWS = 400
+#NCOLS = 400
+#PIXEL = 0.10992
 #######
 
 def angToXYIdeal(tTh, eta, workDist):

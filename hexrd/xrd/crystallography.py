@@ -41,12 +41,13 @@ from hexrd.xrd import symmetry
 from hexrd import valunits
 from hexrd.valunits import toFloat
 
-# module vars
+"""module vars"""
 r2d = 180./pi
 d2r = pi/180.
+sqrt3by2 = 0.5*sqrt(3.)
 
+# units
 dUnit = 'angstrom'
-
 outputDegrees = False
 outputDegrees_bak = outputDegrees
 
@@ -481,6 +482,24 @@ def rhombohedralParametersFromHexagonal(a_h, c_h):
     if outputDegrees:
         alfa_r = r2d * alfa_r
     return a_r, alfa_r
+
+def millerBravaisDirectionToVector(dir_ind, a=1., c=1.):
+    """
+    converts direction indices into a unit vector in the crystal frame
+
+    INPUT [uv.w] the Miller-Bravais convention in the hexagonal basis {a1, a2, a3, c}.  
+    The basis for the output, {o1, o2, o3}, is chosen such that
+
+    o1 || a1
+    o3 || c
+    o2 = o3 ^ o1
+    """
+    dir_ind = num.atleast_2d(dir_ind)
+    num_in = len(dir_ind)
+    u = dir_ind[:, 0]
+    v = dir_ind[:, 1]
+    w = dir_ind[:, 2]
+    return unitVector(num.vstack([ 1.5*u*a, sqrt3by2*(2.*v + u)*a, w*c]).reshape(3, num_in))
 
 class PlaneData(object):
     """
