@@ -993,7 +993,7 @@ def refactor_2(quats):
     return map(paintGridThis_refactor_2, quats.T)
 
 def refactor_3(quats):
-    """factored out _filter_angles to a separate function"""
+    """factored out _filter_angles to a separate function, used searchsorted"""
     return map(paintGridThis_refactor_3, quats.T)
 
 def refactor_4(quats):
