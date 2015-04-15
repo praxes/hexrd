@@ -1023,8 +1023,11 @@ def _check_dilated(eta, ome, dpix_eta, dpix_ome, etaOmeMap, threshold):
     at (eta, ome), with a tolerance of (dpix_eta, dpix_ome) samples.
     """
     i_max, j_max = etaOmeMap.shape
-    for i in range(max(ome - dpix_ome, 0), min(ome + dpix_ome + 1, i_max)):
-        for j in range(max(eta - dpix_eta, 0), min(eta + dpix_eta + 1, j_max)):
+    ome_start, ome_stop = max(ome - dpix_ome, 0), min(ome + dpix_ome + 1, i_max)
+    eta_start, eta_stop = max(eta - dpix_eta, 0), min(eta + dpix_eta + 1, j_max)
+    
+    for i in range(ome_start, ome_stop):
+        for j in range(eta_start, eta_stop):
             if etaOmeMap[i,j] > threshold:
                 return 1
     return 0
