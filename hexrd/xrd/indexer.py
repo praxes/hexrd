@@ -50,6 +50,10 @@ from hexrd.xrd           import xrdbase
 
 from hexrd.xrd import transforms      as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
+from hexrd import USE_NUMBA
+
+if USE_NUMBA:
+    import numba
 
 if xrdbase.haveMultiProc:
     multiprocessing = xrdbase.multiprocessing # formerly import
@@ -868,166 +872,171 @@ def paintgrid_init(params):
     paramMP = params
 
 
+################################################################################
+
+# paintGridThis contains the bulk of the process to perform for PaintGrid for a
+# given quaternion. This is also used as the basis for multiprocessing, as the
+# work is split in a per-quaternion basis among different processes.
+# The remainding arguments are marshalled into the module variable "paramMP".
+
 def paintGridThis(quat):
-    """
-    """
-    # Unpack common parameters into locals
-    symHKLs = paramMP['symHKLs']
-    symHKLs_ix = paramMP['symHKLs_ix']
+    # unmarshall parameters into local variables
+    symHKLs = paramMP['symHKLs'] # the HKLs
+    symHKLs_ix = paramMP['symHKLs_ix'] # index partitioning of symHKLs
+    bMat = paramMP['bMat']
     wavelength = paramMP['wavelength']
-    hklList = paramMP['hklList']
+    #hklList = paramMP['hklList'] ### *UNUSED* ###
+    omeEdges = paramMP['omeEdges']
+    omeTol = paramMP['omeTol'] # used once
+    omePeriod = paramMP['omePeriod']
     omeMin = paramMP['omeMin']
     omeMax = paramMP['omeMax']
-    omeTol = paramMP['omeTol']
-    omePeriod = paramMP['omePeriod']
     omeIndices = paramMP['omeIndices']
-    omeEdges = paramMP['omeEdges']
     etaMin = paramMP['etaMin']
     etaMax = paramMP['etaMax']
-    etaTol = paramMP['etaTol']
-    etaIndices = paramMP['etaIndices']
     etaEdges = paramMP['etaEdges']
+    etaTol = paramMP['etaTol'] # used once
+    etaIndices = paramMP['etaIndices']
     etaOmeMaps = paramMP['etaOmeMaps']
-    bMat = paramMP['bMat']
     threshold = paramMP['threshold']
 
-    # need this for proper index generation
-
-    delOmeSign = num.sign(omeEdges[1] - omeEdges[0])
-
+    # dpix_ome and dpix_eta are the number of pixels for the tolerance in
+    # ome/eta. Maybe we should compute this per run instead of per-quaternion
     del_ome = abs(omeEdges[1] - omeEdges[0])
     del_eta = abs(etaEdges[1] - etaEdges[0])
-
-    dpix_ome = round(omeTol / del_ome)
-    dpix_eta = round(etaTol / del_eta)
+    dpix_ome = int(round(omeTol / del_ome))
+    dpix_eta = int(round(etaTol / del_eta))
 
     debug = False
     if debug:
-        print "using ome, eta dilitations of (%d, %d) pixels" \
-              % (dpix_ome, dpix_eta)
+        print( "using ome, eta dilitations of (%d, %d) pixels" \
+              % (dpix_ome, dpix_eta))
 
-    nHKLs = len(symHKLs_ix) - 1
+    # get the equivalent rotation of the quaternion in matrix form (as expected
+    # by oscillAnglesOfHKLs
 
     rMat = rotMatOfQuat(quat)
 
-    nPredRefl = 0
-    nMeasRefl = 0
-    reflInfoList = []
-    dummySpotInfo = num.nan * num.ones(3)
-
     # Compute the oscillation angles of all the symHKLs at once
-    oangs_pair = xfcapi.oscillAnglesOfHKLs(
-        symHKLs, 0., rMat, bMat, wavelength)
+    oangs_pair = xfcapi.oscillAnglesOfHKLs(symHKLs, 0., rMat, bMat, wavelength)
+    hkl_idx, eta_idx, ome_idx = _filter_angs(oangs_pair[0],
+                                             oangs_pair[1],
+                                             symHKLs_ix,
+                                             etaEdges, etaMin, etaMax,
+                                             omeEdges, omeMin, omeMax, omePeriod)
+
+    if len(hkl_idx > 0):
+        hits = _count_hits(eta_idx, ome_idx, hkl_idx, etaOmeMaps,
+                           etaIndices, omeIndices, dpix_eta, dpix_ome,
+                           threshold)
+        retval = float(hits) / float(len(hkl_idx))
+    else:
+        retval = 0
+
+    return retval
+
+
+def _filter_angs(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
+                 omeEdges, omeMin, omeMax, omePeriod):
+    """
+    This is part of paintGridThis:
+
+    bakes data in a way that invalid (nan or out-of-bound) is discarded.
+    returns:
+      - hkl_idx, array of associated hkl indices
+      - eta_idx, array of associated eta indices of predicted
+      - ome_idx, array of associated ome indices of predicted
+    """
     # Interleave the two produced oang solutions to simplify later processing
-    oangs = num.empty((len(symHKLs)*2, 3), dtype=oangs_pair[0].dtype)
-    oangs[0::2] = oangs_pair[0]
-    oangs[1::2] = oangs_pair[1]
+    oangs = num.empty((len(angs_0)*2, 3), dtype=angs_0.dtype)
+    oangs[0::2] = angs_0
+    oangs[1::2] = angs_1
 
     # Map all of the angles at once
     oangs[:, 1] = xf.mapAngle(oangs[:, 1])
     oangs[:, 2] = xf.mapAngle(oangs[:, 2], omePeriod)
 
+    symHKLs_ix = symHKLs_ix*2
+    hkl_idx = num.empty((symHKLs_ix[-1],), dtype=int)
+    start = symHKLs_ix[0]
+    idx=0
+    for end in symHKLs_ix[1:]:
+        hkl_idx[start:end] = idx
+        start = end
+        idx+=1
+
+    # using "right" side to make sure we always get an index *past* the value
+    # if it happens to be equal. That is... we search the index of the first
+    # value that is "greater than" rather than "greater or equal"
+    culled_eta_indices = num.searchsorted(etaEdges, oangs[:, 1], side='right')
+    culled_ome_indices = num.searchsorted(omeEdges, oangs[:, 2], side='right')
+    valid_eta = xf.validateAngleRanges(oangs[:, 1], etaMin, etaMax)
+    valid_ome = xf.validateAngleRanges(oangs[:, 2], omeMin, omeMax)
     # Create a mask of the good ones
-    oangMask = num.logical_and(
-                ~num.isnan(oangs[:, 0]),
-            num.logical_and(
-                xf.validateAngleRanges(oangs[:, 1], etaMin, etaMax),
-                xf.validateAngleRanges(oangs[:, 2], omeMin, omeMax)))
+    valid = ~num.isnan(oangs[:, 0]) # tth not NaN
+    valid = num.logical_and(valid, valid_eta)
+    valid = num.logical_and(valid, valid_ome)
+    valid = num.logical_and(valid, culled_eta_indices > 0)
+    valid = num.logical_and(valid, culled_eta_indices < len(etaEdges))
+    valid = num.logical_and(valid, culled_ome_indices > 0)
+    valid = num.logical_and(valid, culled_ome_indices < len(omeEdges))
 
-    hklCounterP = 0 # running count of excpected (predicted) HKLs
-    hklCounterM = 0 # running count of "hit" HKLs
-    for iHKL in range(nHKLs):
-        start, stop = symHKLs_ix[iHKL:iHKL+2]
-        start, stop = (2*start, 2*stop)
+    hkl_idx = hkl_idx[valid]
+    eta_idx = culled_eta_indices[valid] - 1
+    ome_idx = culled_ome_indices[valid] - 1
 
-        angList = oangs[start:stop]
-        angMask = oangMask[start:stop]
+    return hkl_idx, eta_idx, ome_idx
 
-        allAngs_m = angList[angMask, :]
-        if len(allAngs_m) > 0:
-            # not output # # duplicate HKLs
-            # not output # allHKLs_m = num.vstack(
-            #     [these_hkls, these_hkls]
-            #     )[angMask, :]
 
-            culledTTh  = allAngs_m[:, 0]
-            culledEta  = allAngs_m[:, 1]
-            culledOme  = allAngs_m[:, 2]
-            # not output # culledHKLs = allHKLs_m.T
+def _count_hits(eta_idx, ome_idx, hkl_idx, etaOmeMaps,
+                etaIndices, omeIndices, dpix_eta, dpix_ome, threshold):
+    """
+    This is part of paintGridThis:
 
-            nThisPredRefl = len(culledTTh)
-            hklCounterP += nThisPredRefl
-            for iTTh in range(nThisPredRefl):
-                culledEtaIdx = num.where(etaEdges - culledEta[iTTh] > 0)[0]
-                if len(culledEtaIdx) > 0:
-                    culledEtaIdx = culledEtaIdx[0] - 1
-                    if culledEtaIdx < 0:
-                        culledEtaIdx = None
-                else:
-                    culledEtaIdx = None
-                culledOmeIdx = num.where(omeEdges - culledOme[iTTh] > 0)[0]
-                if len(culledOmeIdx) > 0:
-                    if delOmeSign > 0:
-                        culledOmeIdx = culledOmeIdx[0] - 1
-                    else:
-                        culledOmeIdx = culledOmeIdx[-1]
-                    if culledOmeIdx < 0:
-                        culledOmeIdx = None
-                else:
-                    culledOmeIdx = None
+    for every eta, ome, hkl check if there is a sample that surpasses the
+    threshold in the eta ome map.
+    """
+    predicted = len(hkl_idx)
+    hits = 0
 
-                if culledEtaIdx is not None and culledOmeIdx is not None:
-                    if dpix_ome > 0 or dpix_eta > 0:
-                        i_dil, j_dil = _meshgrid2d(
-                            num.arange(-dpix_ome, dpix_ome + 1),
-                            num.arange(-dpix_eta, dpix_eta + 1)
-                            )
-                        i_sup = omeIndices[culledOmeIdx] + num.array(
-                            [i_dil.flatten()], dtype=int
-                            )
-                        j_sup = etaIndices[culledEtaIdx] + num.array(
-                            [j_dil.flatten()], dtype=int
-                            )
-                        # catch shit that falls off detector...
-                        # ...maybe make this fancy enough to wrap at 2pi?
-                        i_max, j_max = etaOmeMaps[iHKL].shape
-                        idx_mask = num.logical_and(
-                            num.logical_and(i_sup >= 0, i_sup < i_max),
-                            num.logical_and(j_sup >= 0, j_sup < j_max)
-                            )
-                        pixelVal = etaOmeMaps[iHKL][
-                            i_sup[idx_mask], j_sup[idx_mask]
-                            ]
-                    else:
-                        pixelVal = etaOmeMaps[iHKL][
-                            omeIndices[culledOmeIdx], etaIndices[culledEtaIdx]
-                            ]
-                    isHit = num.any(pixelVal >= threshold[iHKL])
-                    if isHit:
-                        hklCounterM += 1
-                # if debug:
-                #     print "hkl %d -->\t%d\t%d\t%d\t" % (
-                #         iHKL, culledHKLs[0, iTTh], culledHKLs[1, iTTh],
-                #         culledHKLs[2, iTTh]
-                #         ) \
-                #         + "isHit=%d\tpixel value: %g\n" % (isHit, pixelVal) \
-                #         + "eta index: %d,%d\tetaP: %g\n" % (
-                #         culledEtaIdx, etaIndices[culledEtaIdx],
-                #         r2d*culledEta[iTTh]
-                #         ) \
-                #         + "ome index: %d,%d\tomeP: %g\n" % (
-                #         culledOmeIdx, omeIndices[culledOmeIdx],
-                #         r2d*culledOme[iTTh]
-                #         )
-                #
-                # close conditional on valid reflections
-            # close loop on signed reflections
-        # close loop on HKL
-    if hklCounterP == 0:
-        retval = 0.
-    else:
-        retval = float(hklCounterM) / float(hklCounterP)
-    return retval
+    for curr_ang in range(predicted):
+        culledEtaIdx = eta_idx[curr_ang]
+        culledOmeIdx = ome_idx[curr_ang]
+        iHKL = hkl_idx[curr_ang]
+        # got a result
+        eta = etaIndices[culledEtaIdx]
+        ome = omeIndices[culledOmeIdx]
+        isHit = _check_dilated(eta, ome, dpix_eta, dpix_ome,
+                               etaOmeMaps[iHKL], threshold[iHKL])
+            
+        if isHit:
+            hits += 1
+
+    return hits
+
+
+def _check_dilated(eta, ome, dpix_eta, dpix_ome, etaOmeMap, threshold):
+    """
+    This is part of paintGridThis:
+
+    check if there exists a sample over the given threshold in the etaOmeMap
+    at (eta, ome), with a tolerance of (dpix_eta, dpix_ome) samples.
+    """
+    i_max, j_max = etaOmeMap.shape
+    for i in range(max(ome - dpix_ome, 0), min(ome + dpix_ome + 1, i_max)):
+        for j in range(max(eta - dpix_eta, 0), min(eta + dpix_eta + 1, j_max)):
+            if etaOmeMap[i,j] > threshold:
+                return 1
+    return 0
+
+
+if USE_NUMBA:
+    # Use numba if availabe for _count_hits (including _check_dilated) as they
+    # get a big boost.
+    # Note that the non-numpy version of this code seems faster that the previous
+    # implementation even without numba.
+    _check_dilated = numba.jit(_check_dilated)
+    _count_hits = numba.jit(_count_hits)
 
 
 def writeGVE(spotsArray, fileroot, **kwargs):
