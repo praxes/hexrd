@@ -168,7 +168,7 @@ def main():
     ch = logging.StreamHandler()
     ch.setLevel(log_level)
 
-    if hasattr(args, 'inst_profile'):
+    if args.inst_profile:
         profile_instrument_all(args.inst_profile)
 
     args.func(args, p)
