@@ -35,16 +35,15 @@ from __future__ import print_function
 
 import argparse
 import cPickle as pickle
-from hexrd.cli.main import profile_instrument_all, profile_dump_results
-import hexrd.xrd.indexer as indexer
 import numpy as np
+import numba
 num = np # original funcion uses num instead of np
 
+import hexrd.xrd.indexer as indexer
 from hexrd.xrd import transforms      as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.xrd import rotations
-import numba
-
+from hexrd.utils import profiler
 
 def _meshgrid2d(x, y):
     """
@@ -933,8 +932,8 @@ def main():
 
     args = p.parse_args()
 
-    if args.inst_profile is not None:
-        profile_instrument_all(args.inst_profile)
+    if args.inst_profile:
+        profiler.instrument_all(args.inst_profile)
 
     input_file = args.experiment + '.inputs.pickled'
     output_file = args.experiment + '.outputs.pickled'
@@ -972,8 +971,8 @@ def main():
     checked_run(refactor_4, (quats,), expected)
     checked_run(refactor_5, (quats,), expected)
 
-    if args.inst_profile is not None:
-        profile_dump_results(args.inst_profile)
+    if args.inst_profile:
+        profiler.dump_results(args.inst_profile)
 
 
 def hexrd_version(quats):

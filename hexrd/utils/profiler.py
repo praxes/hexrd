@@ -8,6 +8,8 @@ full dot path.
 
 from __future__ import print_function, absolute_import
 
+import warnings
+
 try:
     from numbapro import nvtx
 except ImportError:
@@ -92,7 +94,7 @@ def instrument_all(filenames):
     """Instrument functions based on a list of profiler configuration files.
 
     """
-    [parse_file(filename) for filename in args]
+    [parse_file(filename) for filename in filenames]
 
     
 def dump_results(args):
