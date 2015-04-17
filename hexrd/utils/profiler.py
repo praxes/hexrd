@@ -11,6 +11,11 @@ from __future__ import print_function, absolute_import
 import warnings
 
 try:
+    import importlib
+except ImportError:
+    pass
+
+try:
     from numbapro import nvtx
 except ImportError:
     pass

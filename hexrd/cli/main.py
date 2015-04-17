@@ -17,13 +17,6 @@ from hexrd.cli import help
 from hexrd.cli import test
 from hexrd.utils import profiler
 
-
-try:
-    import importlib
-except ImportError:
-    pass
-
-
 def main():
     if sys.platform.startswith('win'):
         # Hack for multiprocessing.freeze_support() to work from a
