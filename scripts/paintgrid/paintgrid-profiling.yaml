@@ -32,53 +32,63 @@ profile:
     - fn: __main__.refactor_5
       color: black
 
-    # - fn: hexrd.xrd.indexer.paintGridThis
-    #   color: red
+    - fn: __main__.refactor_6
+      color: white
 
-    # - fn: __main__.paintGridThis_original
-    #   color: green
+  disabled:
+    - fn: hexrd.xrd.indexer.paintGridThis
+      color: red
 
-    # - fn: __main__.paintGridThis_refactor_1
-    #   color: blue
+    - fn: __main__.paintGridThis_original
+      color: blue
 
-    # - fn: __main__.paintGridThis_refactor_2
-    #   color: yellow
+    - fn: __main__.paintGridThis_refactor_1
+      color: cyan
 
-    # - fn: __main__.paintGridThis_refactor_3
-    #   color: cyan
+    - fn: __main__.paintGridThis_refactor_2
+      color: blue
 
-    # - fn: __main__.paintGridThis_refactor_4
-    #   color: magenta
+    - fn: __main__.paintGridThis_refactor_3
+      color: cyan
 
-    # - fn: __main__.paintGridThis_refactor_5
-    #   color: white
+    - fn: __main__.paintGridThis_refactor_4
+      color: blue
 
-    # - fn: hexrd.xrd.transforms_CAPI.oscillAnglesOfHKLs
-    #   color: green
+    - fn: __main__.paintGridThis_refactor_5
+      color: cyan
 
-    # - fn: hexrd.xrd.transforms.validateAngleRanges
-    #   color: blue
+    - fn: __main__.paintGridThis_refactor_6
+      color: blue
 
-    # - fn: hexrd.xrd.transforms.mapAngle
-    #   color: red
+    - fn: hexrd.xrd.transforms_CAPI.oscillAnglesOfHKLs
+      color: red
 
-    # - fn: hexrd.xrd.rotations.rotMatOfQuat
-    #   color: yellow
+    - fn: hexrd.xrd.transforms.validateAngleRanges
+      color: blue
 
-    # - fn: __main__._count_hits
-    #   color: magenta
+    - fn: hexrd.xrd.transforms.mapAngle
+      color: green
 
-    # - fn: __main__._filter_angs
-    #   color: cyan
+    - fn: hexrd.xrd.rotations.rotMatOfQuat
+      color: yellow
 
-    # - fn: __main__._count_hits_2
-    #   color: magenta
+    - fn: hexrd.xrd.transforms_CAPI.makeRotMatOfQuat
+      color: yellow
 
-    # - fn: __main__._count_hits_3
-    #   color: yellow
+    - fn: __main__._filter_angs
+      color: cyan
 
-    # - fn: __main__._count_hits_4
-    #   color: blue
+    - fn: __main__._count_hits
+      color: magenta
+
+    - fn: __main__._count_hits_2
+      color: magenta
+
+    - fn: __main__._count_hits_3
+      color: yellow
+
+    - fn: __main__._count_hits_4
+      color: blue
 
 
 

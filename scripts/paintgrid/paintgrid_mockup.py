@@ -881,6 +881,69 @@ def paintGridThis_refactor_5(quat):
 
 
 ################################################################################
+# use makeRotMatOfQuat from hexrd.xrd.transforms_CAPI
+def paintGridThis_refactor_6(quat):
+    """
+    """
+    # Unpack common parameters into a Params object
+    #params = Params(**paramMP)
+
+    symHKLs = paramMP['symHKLs'] # the HKLs
+    symHKLs_ix = paramMP['symHKLs_ix'] # index partitioning of symHKLs
+    bMat = paramMP['bMat']
+    wavelength = paramMP['wavelength']
+    #hklList = paramMP['hklList'] ### *UNUSED* ###
+    omeEdges = paramMP['omeEdges']
+    omeTol = paramMP['omeTol'] # used once
+    omePeriod = paramMP['omePeriod']
+    omeMin = paramMP['omeMin']
+    omeMax = paramMP['omeMax']
+    omeIndices = paramMP['omeIndices']
+    etaMin = paramMP['etaMin']
+    etaMax = paramMP['etaMax']
+    etaEdges = paramMP['etaEdges']
+    etaTol = paramMP['etaTol'] # used once
+    etaIndices = paramMP['etaIndices']
+    etaOmeMaps = paramMP['etaOmeMaps']
+    threshold = paramMP['threshold']
+
+    # dpix_ome and dpix_eta are the number of pixels for the tolerance in
+    # ome/eta. Maybe we should compute this per run instead of per-quaternion
+    del_ome = abs(omeEdges[1] - omeEdges[0])
+    del_eta = abs(etaEdges[1] - etaEdges[0])
+    dpix_ome = int(round(omeTol / del_ome))
+    dpix_eta = int(round(etaTol / del_eta))
+
+    debug = False
+    if debug:
+        print( "using ome, eta dilitations of (%d, %d) pixels" \
+              % (dpix_ome, dpix_eta))
+
+    # get the equivalent rotation of the quaternion in matrix form (as expected
+    # by oscillAnglesOfHKLs
+
+    rMat = xfcapi.makeRotMatOfQuat(quat)
+
+    # Compute the oscillation angles of all the symHKLs at once
+    oangs_pair = xfcapi.oscillAnglesOfHKLs(symHKLs, 0., rMat, bMat, wavelength)
+    hkl_idx, eta_idx, ome_idx = _filter_angs(oangs_pair[0],
+                                             oangs_pair[1],
+                                             symHKLs_ix,
+                                             etaEdges, etaMin, etaMax,
+                                             omeEdges, omeMin, omeMax, omePeriod)
+
+    if len(hkl_idx > 0):
+        hits = _count_hits_4(eta_idx, ome_idx, hkl_idx, etaOmeMaps,
+                             etaIndices, omeIndices, dpix_eta, dpix_ome,
+                             threshold)
+        retval = float(hits) / float(len(hkl_idx))
+    else:
+        retval = 0
+
+    return retval
+
+
+################################################################################
 
 def checked_run(function, params, expected, name=None):
     if name is None:
@@ -970,6 +1033,7 @@ def main():
     checked_run(refactor_3, (quats,), expected)
     checked_run(refactor_4, (quats,), expected)
     checked_run(refactor_5, (quats,), expected)
+    checked_run(refactor_6, (quats,), expected)
 
     if args.inst_profile:
         profiler.dump_results(args.inst_profile)
@@ -1003,6 +1067,9 @@ def refactor_5(quats):
     """numba jit also the enclosing loop for checking all hits"""
     return map(paintGridThis_refactor_5, quats.T)
 
+def refactor_6(quats):
+    """refactor_5 + makeRotMatOfQuat from xfcapi"""
+    return map(paintGridThis_refactor_6, quats.T)
 
 if __name__ == '__main__':
     exit(main())

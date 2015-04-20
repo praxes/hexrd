@@ -915,7 +915,7 @@ def paintGridThis(quat):
     # get the equivalent rotation of the quaternion in matrix form (as expected
     # by oscillAnglesOfHKLs
 
-    rMat = rotMatOfQuat(quat)
+    rMat = xfcapi.makeRotMatOfQuat(quat)
 
     # Compute the oscillation angles of all the symHKLs at once
     oangs_pair = xfcapi.oscillAnglesOfHKLs(symHKLs, 0., rMat, bMat, wavelength)
