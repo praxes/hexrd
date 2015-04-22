@@ -970,8 +970,8 @@ def _filter_angs(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
     # value that is "greater than" rather than "greater or equal"
     culled_eta_indices = num.searchsorted(etaEdges, oangs[:, 1], side='right')
     culled_ome_indices = num.searchsorted(omeEdges, oangs[:, 2], side='right')
-    valid_eta = xf.validateAngleRanges(oangs[:, 1], etaMin, etaMax)
-    valid_ome = xf.validateAngleRanges(oangs[:, 2], omeMin, omeMax)
+    valid_eta = xfcapi.validateAngleRanges(oangs[:, 1], etaMin, etaMax)
+    valid_ome = xfcapi.validateAngleRanges(oangs[:, 2], omeMin, omeMax)
     # Create a mask of the good ones
     valid = ~num.isnan(oangs[:, 0]) # tth not NaN
     valid = num.logical_and(valid, valid_eta)
