@@ -942,6 +942,248 @@ def paintGridThis_refactor_6(quat):
 
     return retval
 
+################################################################################
+# use xfcapi versions of mapAngle and validateAngleRanges
+def _filter_angs_2(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
+                   omeEdges, omeMin, omeMax, omePeriod):
+    """
+    bakes data in a way that invalid (nan or out-of-bound) is discarded.
+    returns:
+      - hkl_idx, array of associated hkl indices
+      - eta_idx, array of associated eta indices of predicted
+      - ome_idx, array of associated ome indices of predicted
+    """
+    # Interleave the two produced oang solutions to simplify later processing
+    oangs = num.empty((len(angs_0)*2, 3), dtype=angs_0.dtype)
+    oangs[0::2] = angs_0
+    oangs[1::2] = angs_1
+
+    # Map all of the angles at once
+    oangs[:, 1] = xfcapi.mapAngle(oangs[:, 1])
+    oangs[:, 2] = xfcapi.mapAngle(oangs[:, 2], omePeriod)
+
+    symHKLs_ix = symHKLs_ix*2
+    hkl_idx = num.empty((symHKLs_ix[-1],), dtype=int)
+    start = symHKLs_ix[0]
+    idx=0
+    for end in symHKLs_ix[1:]:
+        hkl_idx[start:end] = idx
+        start = end
+        idx+=1
+
+    # using "right" side to make sure we always get an index *past* the value
+    # if it happens to be equal. That is... we search the index of the first
+    # value that is "greater than" rather than "greater or equal"
+    culled_eta_indices = num.searchsorted(etaEdges, oangs[:, 1], side='right')
+    culled_ome_indices = num.searchsorted(omeEdges, oangs[:, 2], side='right')
+    valid_eta = xfcapi.validateAngleRanges(oangs[:, 1], etaMin, etaMax)
+    valid_ome = xfcapi.validateAngleRanges(oangs[:, 2], omeMin, omeMax)
+    # Create a mask of the good ones
+    valid = ~num.isnan(oangs[:, 0]) # tth not NaN
+    valid = num.logical_and(valid, valid_eta)
+    valid = num.logical_and(valid, valid_ome)
+    valid = num.logical_and(valid, culled_eta_indices > 0)
+    valid = num.logical_and(valid, culled_eta_indices < len(etaEdges))
+    valid = num.logical_and(valid, culled_ome_indices > 0)
+    valid = num.logical_and(valid, culled_ome_indices < len(omeEdges))
+
+    hkl_idx = hkl_idx[valid]
+    eta_idx = culled_eta_indices[valid] - 1
+    ome_idx = culled_ome_indices[valid] - 1
+
+    return hkl_idx, eta_idx, ome_idx
+
+
+def paintGridThis_refactor_7(quat):
+    """
+    """
+    # Unpack common parameters into a Params object
+    #params = Params(**paramMP)
+
+    symHKLs = paramMP['symHKLs'] # the HKLs
+    symHKLs_ix = paramMP['symHKLs_ix'] # index partitioning of symHKLs
+    bMat = paramMP['bMat']
+    wavelength = paramMP['wavelength']
+    #hklList = paramMP['hklList'] ### *UNUSED* ###
+    omeEdges = paramMP['omeEdges']
+    omeTol = paramMP['omeTol'] # used once
+    omePeriod = paramMP['omePeriod']
+    omeMin = paramMP['omeMin']
+    omeMax = paramMP['omeMax']
+    omeIndices = paramMP['omeIndices']
+    etaMin = paramMP['etaMin']
+    etaMax = paramMP['etaMax']
+    etaEdges = paramMP['etaEdges']
+    etaTol = paramMP['etaTol'] # used once
+    etaIndices = paramMP['etaIndices']
+    etaOmeMaps = paramMP['etaOmeMaps']
+    threshold = paramMP['threshold']
+
+    # dpix_ome and dpix_eta are the number of pixels for the tolerance in
+    # ome/eta. Maybe we should compute this per run instead of per-quaternion
+    del_ome = abs(omeEdges[1] - omeEdges[0])
+    del_eta = abs(etaEdges[1] - etaEdges[0])
+    dpix_ome = int(round(omeTol / del_ome))
+    dpix_eta = int(round(etaTol / del_eta))
+
+    debug = False
+    if debug:
+        print( "using ome, eta dilitations of (%d, %d) pixels" \
+              % (dpix_ome, dpix_eta))
+
+    # get the equivalent rotation of the quaternion in matrix form (as expected
+    # by oscillAnglesOfHKLs
+
+    rMat = xfcapi.makeRotMatOfQuat(quat)
+
+    # Compute the oscillation angles of all the symHKLs at once
+    oangs_pair = xfcapi.oscillAnglesOfHKLs(symHKLs, 0., rMat, bMat, wavelength)
+    hkl_idx, eta_idx, ome_idx = _filter_angs_2(oangs_pair[0], oangs_pair[1],
+                                               symHKLs_ix, etaEdges, etaMin,
+                                               etaMax, omeEdges, omeMin, omeMax,
+                                               omePeriod)
+
+    if len(hkl_idx > 0):
+        hits = _count_hits_4(eta_idx, ome_idx, hkl_idx, etaOmeMaps,
+                             etaIndices, omeIndices, dpix_eta, dpix_ome,
+                             threshold)
+        retval = float(hits) / float(len(hkl_idx))
+    else:
+        retval = 0
+
+    return retval
+
+###############################################################################
+# use xfcapi versions of mapAngle and validateAngleRanges
+
+@numba.njit
+def _map_angle(angle, offset):
+    return np.mod(angle-offset, 2*np.pi)+offset
+    
+@numba.jit
+def _normalize_angs(angs_0, angs_1, eta_offset, ome_offset):
+    """assumes:
+    we want etas in -pi -> pi range
+    we want omes in ome_offset -> ome_offset + 2*pi range
+
+    Does: interleaving + "MapAngle" for etas and omes
+    """
+    count = len(angs_0)
+    oangs = num.empty((2*count, 3), dtype=angs_0.dtype)
+
+    for i in range(count):
+        oangs[2*i + 0, 0] = angs_0[i, 0]
+        oangs[2*i + 0, 1] = _map_angle(angs_0[i, 1], eta_offset)
+        oangs[2*i + 0, 2] = _map_angle(angs_0[i, 2], ome_offset)
+        oangs[2*i + 1, 0] = angs_1[i, 0]
+        oangs[2*i + 1, 1] = _map_angle(angs_1[i, 1], eta_offset)
+        oangs[2*i + 1, 2] = _map_angle(angs_1[i, 2], ome_offset)
+
+    return oangs
+        
+
+def _filter_angs_3(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
+                   omeEdges, omeMin, omeMax, omePeriod):
+    """
+    bakes data in a way that invalid (nan or out-of-bound) is discarded.
+    returns:
+      - hkl_idx, array of associated hkl indices
+      - eta_idx, array of associated eta indices of predicted
+      - ome_idx, array of associated ome indices of predicted
+    """
+    oangs = _normalize_angs(angs_0, angs_1, -np.pi, min(omePeriod))
+    
+    symHKLs_ix = symHKLs_ix*2
+    hkl_idx = num.empty((symHKLs_ix[-1],), dtype=int)
+    start = symHKLs_ix[0]
+    idx=0
+    for end in symHKLs_ix[1:]:
+        hkl_idx[start:end] = idx
+        start = end
+        idx+=1
+
+    # using "right" side to make sure we always get an index *past* the value
+    # if it happens to be equal. That is... we search the index of the first
+    # value that is "greater than" rather than "greater or equal"
+    culled_eta_indices = num.searchsorted(etaEdges, oangs[:, 1], side='right')
+    culled_ome_indices = num.searchsorted(omeEdges, oangs[:, 2], side='right')
+    valid_eta = xfcapi.validateAngleRanges(oangs[:, 1], etaMin, etaMax)
+    valid_ome = xfcapi.validateAngleRanges(oangs[:, 2], omeMin, omeMax)
+    # Create a mask of the good ones
+    valid = ~num.isnan(oangs[:, 0]) # tth not NaN
+    valid = num.logical_and(valid, valid_eta)
+    valid = num.logical_and(valid, valid_ome)
+    valid = num.logical_and(valid, culled_eta_indices > 0)
+    valid = num.logical_and(valid, culled_eta_indices < len(etaEdges))
+    valid = num.logical_and(valid, culled_ome_indices > 0)
+    valid = num.logical_and(valid, culled_ome_indices < len(omeEdges))
+
+    hkl_idx = hkl_idx[valid]
+    eta_idx = culled_eta_indices[valid] - 1
+    ome_idx = culled_ome_indices[valid] - 1
+
+    return hkl_idx, eta_idx, ome_idx
+
+
+def paintGridThis_refactor_8(quat):
+    """
+    """
+    # Unpack common parameters into a Params object
+    #params = Params(**paramMP)
+
+    symHKLs = paramMP['symHKLs'] # the HKLs
+    symHKLs_ix = paramMP['symHKLs_ix'] # index partitioning of symHKLs
+    bMat = paramMP['bMat']
+    wavelength = paramMP['wavelength']
+    #hklList = paramMP['hklList'] ### *UNUSED* ###
+    omeEdges = paramMP['omeEdges']
+    omeTol = paramMP['omeTol'] # used once
+    omePeriod = paramMP['omePeriod']
+    omeMin = paramMP['omeMin']
+    omeMax = paramMP['omeMax']
+    omeIndices = paramMP['omeIndices']
+    etaMin = paramMP['etaMin']
+    etaMax = paramMP['etaMax']
+    etaEdges = paramMP['etaEdges']
+    etaTol = paramMP['etaTol'] # used once
+    etaIndices = paramMP['etaIndices']
+    etaOmeMaps = paramMP['etaOmeMaps']
+    threshold = paramMP['threshold']
+
+    # dpix_ome and dpix_eta are the number of pixels for the tolerance in
+    # ome/eta. Maybe we should compute this per run instead of per-quaternion
+    del_ome = abs(omeEdges[1] - omeEdges[0])
+    del_eta = abs(etaEdges[1] - etaEdges[0])
+    dpix_ome = int(round(omeTol / del_ome))
+    dpix_eta = int(round(etaTol / del_eta))
+
+    debug = False
+    if debug:
+        print( "using ome, eta dilitations of (%d, %d) pixels" \
+              % (dpix_ome, dpix_eta))
+
+    # get the equivalent rotation of the quaternion in matrix form (as expected
+    # by oscillAnglesOfHKLs
+
+    rMat = xfcapi.makeRotMatOfQuat(quat)
+
+    # Compute the oscillation angles of all the symHKLs at once
+    oangs_pair = xfcapi.oscillAnglesOfHKLs(symHKLs, 0., rMat, bMat, wavelength)
+    hkl_idx, eta_idx, ome_idx = _filter_angs_3(oangs_pair[0], oangs_pair[1],
+                                               symHKLs_ix, etaEdges, etaMin,
+                                               etaMax, omeEdges, omeMin, omeMax,
+                                               omePeriod)
+
+    if len(hkl_idx > 0):
+        hits = _count_hits_4(eta_idx, ome_idx, hkl_idx, etaOmeMaps,
+                             etaIndices, omeIndices, dpix_eta, dpix_ome,
+                             threshold)
+        retval = float(hits) / float(len(hkl_idx))
+    else:
+        retval = 0
+
+    return retval
+
 
 ################################################################################
 
@@ -1026,14 +1268,16 @@ def main():
             print('{0}:\n{1}\n'.format(key, val))
         print('Experiment for {0} quats.'.format(len(expected)))
 
-    checked_run(hexrd_version, (quats,), expected)
-    checked_run(original, (quats,), expected)
-    checked_run(refactor_1, (quats,), expected)
-    checked_run(refactor_2, (quats,), expected)
-    checked_run(refactor_3, (quats,), expected)
-    checked_run(refactor_4, (quats,), expected)
+    #checked_run(hexrd_version, (quats,), expected)
+    #checked_run(original, (quats,), expected)
+    #checked_run(refactor_1, (quats,), expected)
+    #checked_run(refactor_2, (quats,), expected)
+    #checked_run(refactor_3, (quats,), expected)
+    #checked_run(refactor_4, (quats,), expected)
     checked_run(refactor_5, (quats,), expected)
     checked_run(refactor_6, (quats,), expected)
+    checked_run(refactor_7, (quats,), expected)
+    checked_run(refactor_8, (quats,), expected)
 
     if args.inst_profile:
         profiler.dump_results(args.inst_profile)
@@ -1070,6 +1314,15 @@ def refactor_5(quats):
 def refactor_6(quats):
     """refactor_5 + makeRotMatOfQuat from xfcapi"""
     return map(paintGridThis_refactor_6, quats.T)
+
+def refactor_7(quats):
+    """refactor_6 +  xfcapi validateAngleRanges, mapAngle"""
+    return map(paintGridThis_refactor_7, quats.T)
+
+def refactor_8(quats):
+    """refactor_7 +  custom mapAngle"""
+    return map(paintGridThis_refactor_8, quats.T)
+
 
 if __name__ == '__main__':
     exit(main())
