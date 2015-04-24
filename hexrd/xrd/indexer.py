@@ -935,6 +935,63 @@ def paintGridThis(quat):
 
     return retval
 
+if USE_NUMBA:
+    @numba.njit
+    def _map_angle(angle, offset):
+        return num.mod(angle-offset, 2*num.pi)+offset
+
+    @numba.jit
+    def _normalize_angs_hkls(angs_0, angs_1, omePeriod, symHKLs_ix):
+        """interleave angs, map etas and omegas into the desired period and
+        generate the symHKLs_index array, in one pass using numba"""
+        eta_offset = -num.pi
+        ome_offset = min(omePeriod)
+        count = len(angs_0)
+        oangs = num.empty((2*count, 3), dtype=angs_0.dtype)
+        hkl_idx = num.empty((2*count,), dtype=int)
+        curr_hkl_idx = 0
+        end_curr = symHKLs_ix[1]
+        for i in range(count):
+            oangs[2*i + 0, 0] = angs_0[i, 0]
+            oangs[2*i + 0, 1] = _map_angle(angs_0[i, 1], eta_offset)
+            oangs[2*i + 0, 2] = _map_angle(angs_0[i, 2], ome_offset)
+            oangs[2*i + 1, 0] = angs_1[i, 0]
+            oangs[2*i + 1, 1] = _map_angle(angs_1[i, 1], eta_offset)
+            oangs[2*i + 1, 2] = _map_angle(angs_1[i, 2], ome_offset)
+
+            if i >= end_curr:
+                curr_hkl_idx += 1
+                end_curr = symHKLs_ix[curr_hkl_idx+1]
+
+            hkl_idx[2*i] = curr_hkl_idx
+            hkl_idx[2*i+1] = curr_hkl_idx
+
+        return oangs, hkl_idx
+
+else:
+    def _normalize_angs_hkls(angs_0, angs_1, omePeriod, symHKLs_ix):
+        # Interleave the two produced oang solutions to simplify later
+        # processing
+        oangs = num.empty((len(angs_0)*2, 3), dtype=angs_0.dtype)
+        oangs[0::2] = angs_0
+        oangs[1::2] = angs_1
+
+        # Map all of the angles at once
+        oangs[:, 1] = xf.mapAngle(oangs[:, 1])
+        oangs[:, 2] = xf.mapAngle(oangs[:, 2], omePeriod)
+
+        # generate array of symHKLs indices
+        symHKLs_ix = symHKLs_ix*2
+        hkl_idx = num.empty((symHKLs_ix[-1],), dtype=int)
+        start = symHKLs_ix[0]
+        idx=0
+        for end in symHKLs_ix[1:]:
+            hkl_idx[start:end] = idx
+            start = end
+            idx+=1
+
+        return oangs, hkl_idx
+
 
 def _filter_angs(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
                  omeEdges, omeMin, omeMax, omePeriod):
@@ -947,24 +1004,7 @@ def _filter_angs(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
       - eta_idx, array of associated eta indices of predicted
       - ome_idx, array of associated ome indices of predicted
     """
-    # Interleave the two produced oang solutions to simplify later processing
-    oangs = num.empty((len(angs_0)*2, 3), dtype=angs_0.dtype)
-    oangs[0::2] = angs_0
-    oangs[1::2] = angs_1
-
-    # Map all of the angles at once
-    oangs[:, 1] = xf.mapAngle(oangs[:, 1])
-    oangs[:, 2] = xf.mapAngle(oangs[:, 2], omePeriod)
-
-    symHKLs_ix = symHKLs_ix*2
-    hkl_idx = num.empty((symHKLs_ix[-1],), dtype=int)
-    start = symHKLs_ix[0]
-    idx=0
-    for end in symHKLs_ix[1:]:
-        hkl_idx[start:end] = idx
-        start = end
-        idx+=1
-
+    oangs, hkl_idx = _normalize_angs_hkls(angs_0, angs_1, omePeriod, symHKLs_ix)
     # using "right" side to make sure we always get an index *past* the value
     # if it happens to be equal. That is... we search the index of the first
     # value that is "greater than" rather than "greater or equal"
@@ -1008,7 +1048,7 @@ def _count_hits(eta_idx, ome_idx, hkl_idx, etaOmeMaps,
         ome = omeIndices[culledOmeIdx]
         isHit = _check_dilated(eta, ome, dpix_eta, dpix_ome,
                                etaOmeMaps[iHKL], threshold[iHKL])
-            
+
         if isHit:
             hits += 1
 
@@ -1025,7 +1065,7 @@ def _check_dilated(eta, ome, dpix_eta, dpix_ome, etaOmeMap, threshold):
     i_max, j_max = etaOmeMap.shape
     ome_start, ome_stop = max(ome - dpix_ome, 0), min(ome + dpix_ome + 1, i_max)
     eta_start, eta_stop = max(eta - dpix_eta, 0), min(eta + dpix_eta + 1, j_max)
-    
+
     for i in range(ome_start, ome_stop):
         for j in range(eta_start, eta_stop):
             if etaOmeMap[i,j] > threshold:
