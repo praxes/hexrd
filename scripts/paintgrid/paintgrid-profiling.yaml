@@ -1,16 +1,9 @@
---- # List of instrumented functions
+---
+
+# Profiler configuration
 
 profile:
   instrument:
-    # - fn: numba.dispatcher.Overloaded.compile
-    #   color: yellow
-
-    # - fn: __main__.load_inputs
-    #   color: magenta
-
-    # - fn: __main__.load_outputs
-    #   color: cyan
-
     - fn: __main__.hexrd_version
       color: blue
 
@@ -35,7 +28,16 @@ profile:
     - fn: __main__.refactor_6
       color: white
 
-  disabled:
+    - fn: __main__.refactor_7
+      color: blue
+
+    - fn: __main__.refactor_8
+      color: red
+
+    - fn: __main__.refactor_9
+      color: green
+
+  detailed:
     - fn: hexrd.xrd.indexer.paintGridThis
       color: red
 
@@ -60,14 +62,14 @@ profile:
     - fn: __main__.paintGridThis_refactor_6
       color: blue
 
-    - fn: hexrd.xrd.transforms_CAPI.oscillAnglesOfHKLs
-      color: red
+    - fn: __main__.paintGridThis_refactor_7
+      color: cyan
 
-    - fn: hexrd.xrd.transforms.validateAngleRanges
+    - fn: __main__.paintGridThis_refactor_8
       color: blue
 
-    - fn: hexrd.xrd.transforms.mapAngle
-      color: green
+    - fn: __main__.paintGridThis_refactor_9
+      color: cyan
 
     - fn: hexrd.xrd.rotations.rotMatOfQuat
       color: yellow
@@ -75,7 +77,19 @@ profile:
     - fn: hexrd.xrd.transforms_CAPI.makeRotMatOfQuat
       color: yellow
 
+    - fn: hexrd.xrd.transforms_CAPI.oscillAnglesOfHKLs
+      color: red
+
     - fn: __main__._filter_angs
+      color: cyan
+
+    - fn: __main__._filter_angs_2
+      color: cyan
+
+    - fn: __main__._filter_angs_3
+      color: cyan
+
+    - fn: __main__._filter_angs_4
       color: cyan
 
     - fn: __main__._count_hits
@@ -85,11 +99,20 @@ profile:
       color: magenta
 
     - fn: __main__._count_hits_3
-      color: yellow
+      color: magenta
 
     - fn: __main__._count_hits_4
+      color: magenta
+
+  very-detailed:
+    - fn: hexrd.xrd.transforms.validateAngleRanges
       color: blue
 
+    - fn: hexrd.xrd.transforms_CAPI.validateAngleRanges
+      color: blue
 
+    - fn: __main__._normalize_angs_hkls
+      color: blue
 
-
+    - fn: __main__._create_valid_mask
+      color: green
