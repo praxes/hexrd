@@ -37,6 +37,9 @@ profile:
     - fn: __main__.refactor_9
       color: green
 
+    - fn: __main__.refactor_10
+      color: blue
+
   detailed:
     - fn: hexrd.xrd.indexer.paintGridThis
       color: red

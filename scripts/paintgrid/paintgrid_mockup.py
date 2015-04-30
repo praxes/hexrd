@@ -719,7 +719,7 @@ def _count_hits_3(eta_idx, ome_idx, hkl_idx, etaOmeMaps,
             ome = omeIndices[culledOmeIdx]
             isHit = check_dilated(eta, ome, dpix_eta, dpix_ome,
                                   etaOmeMaps[iHKL], threshold[iHKL])
-            
+
         else:
             pixelVal = etaOmeMaps[iHKL][
                 omeIndices[culledOmeIdx],
@@ -814,7 +814,7 @@ def _count_hits_4(eta_idx, ome_idx, hkl_idx, etaOmeMaps,
         ome = omeIndices[culledOmeIdx]
         isHit = check_dilated(eta, ome, dpix_eta, dpix_ome,
                               etaOmeMaps[iHKL], threshold[iHKL])
-            
+
         if isHit:
             hits += 1
 
@@ -948,7 +948,7 @@ def paintGridThis_refactor_template(quat, filter_angs_func, count_hits_func):
 
 
 def paintGridThis_refactor_6(quat):
-    return paintGridThis_refactor_template(quat, _filter_angs, _count_hits_4) 
+    return paintGridThis_refactor_template(quat, _filter_angs, _count_hits_4)
 
 ################################################################################
 # use xfcapi versions of mapAngle and validateAngleRanges
@@ -1003,7 +1003,7 @@ def _filter_angs_2(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
 
 
 def paintGridThis_refactor_7(quat):
-    return paintGridThis_refactor_template(quat, _filter_angs_2, _count_hits_4) 
+    return paintGridThis_refactor_template(quat, _filter_angs_2, _count_hits_4)
 
 ###############################################################################
 # use xfcapi versions of mapAngle and validateAngleRanges
@@ -1011,7 +1011,7 @@ def paintGridThis_refactor_7(quat):
 @numba.njit
 def _map_angle(angle, offset):
     return np.mod(angle-offset, 2*np.pi)+offset
-    
+
 @numba.jit
 def _normalize_angs(angs_0, angs_1, eta_offset, ome_offset):
     """assumes:
@@ -1032,7 +1032,7 @@ def _normalize_angs(angs_0, angs_1, eta_offset, ome_offset):
         oangs[2*i + 1, 2] = _map_angle(angs_1[i, 2], ome_offset)
 
     return oangs
-        
+
 
 def _filter_angs_3(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
                    omeEdges, omeMin, omeMax, omePeriod):
@@ -1044,7 +1044,7 @@ def _filter_angs_3(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
       - ome_idx, array of associated ome indices of predicted
     """
     oangs = _normalize_angs(angs_0, angs_1, -np.pi, min(omePeriod))
-    
+
     symHKLs_ix = symHKLs_ix*2
     hkl_idx = num.empty((symHKLs_ix[-1],), dtype=int)
     start = symHKLs_ix[0]
@@ -1078,7 +1078,7 @@ def _filter_angs_3(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
 
 
 def paintGridThis_refactor_8(quat):
-    return paintGridThis_refactor_template(quat, _filter_angs_3, _count_hits_4) 
+    return paintGridThis_refactor_template(quat, _filter_angs_3, _count_hits_4)
 
 
 ################################################################################
@@ -1124,7 +1124,7 @@ def _filter_angs_4(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
     """
     oangs, hkl_idx = _normalize_angs_hkls(angs_0, angs_1, -np.pi,
                                           min(omePeriod), symHKLs_ix)
-    
+
     # using "right" side to make sure we always get an index *past* the value
     # if it happens to be equal. That is... we search the index of the first
     # value that is "greater than" rather than "greater or equal"
@@ -1140,7 +1140,7 @@ def _filter_angs_4(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
     num.logical_and(valid, culled_eta_indices < len(etaEdges), valid)
     num.logical_and(valid, culled_ome_indices > 0, valid)
     num.logical_and(valid, culled_ome_indices < len(omeEdges), valid)
-    
+
     hkl_idx = hkl_idx[valid]
     eta_idx = culled_eta_indices[valid] - 1
     ome_idx = culled_ome_indices[valid] - 1
@@ -1149,7 +1149,95 @@ def _filter_angs_4(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
 
 
 def paintGridThis_refactor_9(quat):
-    return paintGridThis_refactor_template(quat, _filter_angs_4, _count_hits_4) 
+    return paintGridThis_refactor_template(quat, _filter_angs_4, _count_hits_4)
+
+################################################################################
+
+@numba.jit
+def _find_in_range(value, spans):
+    """find the index in spans where value >= spans[i] and value < spans[i].
+
+    spans is an ordered array where spans[i] <= spans[i+1] (most often < will
+    hold).
+
+    If value is not in the range [spans[0], spans[-1][, then -2 is returned.
+    """
+
+    if value < spans[0] or value >= spans[-1]:
+        return -2
+
+    # from the previous check, we know 0 is not a possible result
+    li = 0
+    ri = len(spans)
+
+    while li < ri:
+        mi = (li + ri) // 2
+        if value < spans[mi]:
+            ri = mi
+        else:
+            li = mi+1
+
+    return li
+
+@numba.jit
+def _vector_find_in_range(values, spans):
+    result = np.empty(values.shape, dtype=np.int_)
+    for i in range(len(values)):
+        result[i] = _find_in_range(values[i], spans)
+
+    return result
+
+
+def _valid_angles_check(angs, got, expect, starts, ends):
+    if not np.all(got == expect):
+        which = np.where(got != expect)
+        print(" FAIL ".center(80, "-"))
+        print(starts, ends)
+        print(np.vstack((angs[which,1],
+                         got[which], expect[which])).T)
+
+
+def _filter_angs_5(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
+                   omeEdges, omeMin, omeMax, omePeriod):
+    """
+    bakes data in a way that invalid (nan or out-of-bound) is discarded.
+    returns:
+      - hkl_idx, array of associated hkl indices
+      - eta_idx, array of associated eta indices of predicted
+      - ome_idx, array of associated ome indices of predicted
+    """
+    valid_eta_spans = paramMP['valid_eta_spans']
+    valid_ome_spans = paramMP['valid_ome_spans']
+    oangs, hkl_idx = _normalize_angs_hkls(angs_0, angs_1, -np.pi,
+                                          min(omePeriod), symHKLs_ix)
+
+    # using "right" side to make sure we always get an index *past* the value
+    # if it happens to be equal. That is... we search the index of the first
+    # value that is "greater than" rather than "greater or equal"
+    culled_eta_indices = _vector_find_in_range(oangs[:, 1], etaEdges) - 1
+    culled_ome_indices = _vector_find_in_range(oangs[:, 2], omeEdges) - 1
+    valid_eta = _vector_find_in_range(oangs[:,1], valid_eta_spans) & 1
+    valid_ome = _vector_find_in_range(oangs[:,2], valid_ome_spans) & 1
+    # valid_eta_2 = xfcapi.validateAngleRanges(oangs[:, 1], etaMin, etaMax)
+    # valid_ome_2 = xfcapi.validateAngleRanges(oangs[:, 2], omeMin, omeMax)
+    # _valid_angles_check(oangs, valid_eta, valid_eta_2, etaMin, etaMax)
+    # _valid_angles_check(oangs, valid_ome, valid_ome_2, omeMin, omeMax)
+
+    # Create a mask of the good ones
+    valid = ~num.isnan(oangs[:, 0]) # tth not NaN
+    num.logical_and(valid, valid_eta, valid)
+    num.logical_and(valid, valid_ome, valid)
+    num.logical_and(valid, culled_eta_indices >= 0, valid)
+    num.logical_and(valid, culled_ome_indices >= 0, valid)
+
+    hkl_idx = hkl_idx[valid]
+    eta_idx = culled_eta_indices[valid]
+    ome_idx = culled_ome_indices[valid]
+
+    return hkl_idx, eta_idx, ome_idx
+
+def paintGridThis_refactor_10(quat):
+    return paintGridThis_refactor_template(quat, _filter_angs_5, _count_hits_4)
 
 ################################################################################
 
@@ -1185,6 +1273,46 @@ def load_outputs(output_file):
 
     return expected
 
+
+def normalize_ranges(starts, stops, offset, ccw=False):
+    """normalize in the range of [0 - 2*pi[ the ranges.
+    starts contains
+    """
+    if ccw:
+        starts, stops = stops, starts
+
+    # results are in the range of [0, 2*np.pi]
+    if not np.all(starts < stops):
+        raise ValueError('Invalid angle ranges')
+
+
+    # If there is a range that spans more than 2*pi,
+    # return the full range
+    two_pi = 2 * np.pi
+    if np.any((starts + two_pi) < stops):
+        return np.array([0, two_pi])
+
+    starts = np.mod(starts - offset, two_pi) + offset
+    stops = np.mod(stops - offset, two_pi) + offset
+
+    order = np.argsort(starts)
+    result = np.hstack((starts[order, np.newaxis],
+                        stops[order, np.newaxis])).ravel()
+    # at this point, result is in its final form unless there
+    # is wrap-around in the last segment. Handle this case:
+    print(starts, stops, order, result)
+    if result[-1] < result[-2]:
+        new_result = np.empty((len(result)+2,), dtype=result.dtype)
+        new_result[0] = offset
+        new_result[1] = result[-1]
+        new_result[2:-1] = result[0:-1]
+        new_result[-1] = offset + two_pi
+        result = new_result
+
+    if not np.all(starts[1:] > stops[0:-2]):
+        raise ValueError('Angle ranges overlap')
+
+    return result
 
 def main():
     global paramMP
@@ -1228,6 +1356,14 @@ def main():
         quats = quats[:,:COUNT]
         expected = expected[:COUNT]
 
+    # create valid_eta_spans, valid_ome_spans from etaMin/Max and omeMin/Max
+    paramMP['valid_eta_spans'] = normalize_ranges(paramMP['etaMin'],
+                                                  paramMP['etaMax'],
+                                                  -np.pi)
+
+    paramMP['valid_ome_spans'] = normalize_ranges(paramMP['omeMin'],
+                                                  paramMP['omeMax'],
+                                                  0)
     if args.dump_info:
         print(' {0} experiment '.format(args.experiment).center(72, '='))
         for key, val in sorted(paramMP.items()):
@@ -1245,6 +1381,7 @@ def main():
     checked_run(refactor_7, (quats,), expected)
     checked_run(refactor_8, (quats,), expected)
     checked_run(refactor_9, (quats,), expected)
+    checked_run(refactor_10, (quats,), expected)
 
     if args.inst_profile:
         profiler.dump_results(args.inst_profile)
@@ -1293,6 +1430,10 @@ def refactor_8(quats):
 def refactor_9(quats):
     """refactor_8 + refined _filter_angs"""
     return map(paintGridThis_refactor_9, quats.T)
+
+def refactor_10(quats):
+    """refactor_9 + playing with numba"""
+    return map(paintGridThis_refactor_10, quats.T)
 
 
 if __name__ == '__main__':
