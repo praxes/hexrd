@@ -936,7 +936,7 @@ def paintGridThis_refactor_template(quat, filter_angs_func, count_hits_func):
                                                  etaMax, omeEdges, omeMin,
                                                  omeMax, omePeriod)
 
-    if len(hkl_idx > 0):
+    if len(hkl_idx) > 0:
         hits = count_hits_func(eta_idx, ome_idx, hkl_idx, etaOmeMaps,
                              etaIndices, omeIndices, dpix_eta, dpix_ome,
                              threshold)
@@ -1241,6 +1241,86 @@ def paintGridThis_refactor_10(quat):
 
 ################################################################################
 
+@numba.njit
+def _handle_discard_angle(dst_eta_idx, dst_ome_idx, dst_hkl_idx, dst_idx,
+                          ang, eta_offset, ome_offset, hkl,
+                          valid_eta_spans, valid_ome_spans,
+                          etaEdges, omeEdges):
+    tth, eta, ome = ang
+
+    if num.isnan(tth):
+        return dst_idx
+
+    eta = _map_angle(eta, eta_offset)
+    if _find_in_range(eta, valid_eta_spans) & 1 == 0:
+        # index is even: out of valid eta spans
+        return dst_idx
+
+    ome = _map_angle(ome, ome_offset)
+    if _find_in_range(ome, valid_ome_spans) & 1 == 0:
+        # index is even: out of valid ome spans
+        return dst_idx
+
+    # discretize the angles
+    eta_idx = _find_in_range(eta, etaEdges) - 1
+    if eta_idx < 0:
+        # out of range
+        return dst_idx
+
+    ome_idx = _find_in_range(ome, omeEdges) - 1
+    if ome_idx < 0:
+        # out of range
+        return dst_idx
+    
+    dst_eta_idx[dst_idx] = eta_idx
+    dst_ome_idx[dst_idx] = ome_idx
+    dst_hkl_idx[dst_idx] = hkl
+
+    return dst_idx + 1
+
+
+@numba.jit
+def _filter_angs_6(angs_0, angs_1, symHKLs_ix, etaEdges, etaMin, etaMax,
+                   omeEdges, omeMin, omeMax, omePeriod):
+    """assumes:
+    we want etas in -pi -> pi range
+    we want omes in ome_offset -> ome_offset + 2*pi range
+
+    Does: interleaving + "MapAngle" for etas and omes
+    """
+    valid_eta_spans = paramMP['valid_eta_spans']
+    valid_ome_spans = paramMP['valid_ome_spans']
+    eta_offset = -np.pi
+    ome_offset = min(omePeriod)
+    count = len(angs_0)
+    ome_idx = num.empty((2*count,), dtype=int)
+    eta_idx = num.empty((2*count,), dtype=int)
+    hkl_idx = num.empty((2*count,), dtype=int)
+    pivot = 0
+    curr_hkl_idx = 0
+    end_curr = symHKLs_ix[1]
+    for i in range(count):
+        if i >= end_curr:
+            curr_hkl_idx += 1
+            end_curr = symHKLs_ix[curr_hkl_idx+1]
+        pivot = _handle_discard_angle(eta_idx, ome_idx, hkl_idx, pivot,
+                                      angs_0[i], eta_offset, ome_offset,
+                                      curr_hkl_idx, valid_eta_spans,
+                                      valid_ome_spans, etaEdges, omeEdges)
+        pivot = _handle_discard_angle(eta_idx, ome_idx, hkl_idx, pivot,
+                                      angs_1[i], eta_offset, ome_offset,
+                                      curr_hkl_idx, valid_eta_spans,
+                                      valid_ome_spans, etaEdges, omeEdges)
+
+    return hkl_idx[0:pivot], eta_idx[0:pivot], ome_idx[0:pivot]
+
+
+def paintGridThis_refactor_11(quat):
+    return paintGridThis_refactor_template(quat, _filter_angs_6, _count_hits_4)
+
+
+################################################################################
+
 def checked_run(function, params, expected, name=None):
     if name is None:
         name = function.__name__
@@ -1381,7 +1461,11 @@ def main():
     checked_run(refactor_7, (quats,), expected)
     checked_run(refactor_8, (quats,), expected)
     checked_run(refactor_9, (quats,), expected)
+    checked_run(refactor_9_warm, (quats,), expected)
     checked_run(refactor_10, (quats,), expected)
+    checked_run(refactor_10_warm, (quats,), expected)
+    checked_run(refactor_11, (quats,), expected)
+    checked_run(refactor_11_warm, (quats,), expected)
 
     if args.inst_profile:
         profiler.dump_results(args.inst_profile)
@@ -1431,10 +1515,25 @@ def refactor_9(quats):
     """refactor_8 + refined _filter_angs"""
     return map(paintGridThis_refactor_9, quats.T)
 
+def refactor_9_warm(quats):
+    """refactor_8 + refined _filter_angs"""
+    return map(paintGridThis_refactor_9, quats.T)
+
 def refactor_10(quats):
     """refactor_9 + playing with numba"""
     return map(paintGridThis_refactor_10, quats.T)
 
+def refactor_10_warm(quats):
+    """same as refactor_11, but run 'warm' """
+    return map(paintGridThis_refactor_10, quats.T)
+
+def refactor_11(quats):
+    """refactor_10 + full func for _filter_angs in numba"""
+    return map(paintGridThis_refactor_11, quats.T)
+
+def refactor_11_warm(quats):
+    """same as refactor_11, but run 'warm' """
+    return map(paintGridThis_refactor_11, quats.T)
 
 if __name__ == '__main__':
     exit(main())
