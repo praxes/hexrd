@@ -40,6 +40,27 @@ profile:
     - fn: __main__.refactor_10
       color: blue
 
+    - fn: __main__.refactor_11
+      color: yellow
+
+    - fn: __main__.refactor_12
+      color: magenta
+
+    - fn: __main__.refactor_9_warm
+      color: green
+
+    - fn: __main__.refactor_10_warm
+      color: blue
+
+    - fn: __main__.refactor_11_warm
+      color: yellow
+
+    - fn: __main__.refactor_12_warm
+      color: magenta
+
+    - fn: __main__.normalize_ranges
+      color: black
+
   detailed:
     - fn: hexrd.xrd.indexer.paintGridThis
       color: red
@@ -73,6 +94,12 @@ profile:
 
     - fn: __main__.paintGridThis_refactor_9
       color: cyan
+    - fn: __main__.paintGridThis_refactor_10
+      color: blue
+    - fn: __main__.paintGridThis_refactor_11
+      color: cyan
+    - fn: __main__.paintGridThis_refactor_12
+      color: yellow
 
     - fn: hexrd.xrd.rotations.rotMatOfQuat
       color: yellow
@@ -95,6 +122,12 @@ profile:
     - fn: __main__._filter_angs_4
       color: cyan
 
+    - fn: __main__._filter_angs_5
+      color: cyan
+
+    - fn: __main__._filter_angs_6
+      color: cyan
+
     - fn: __main__._count_hits
       color: magenta
 
@@ -107,6 +140,8 @@ profile:
     - fn: __main__._count_hits_4
       color: magenta
 
+    - fn: __main__._filter_and_count_hits
+      color: yellow
   very-detailed:
     - fn: hexrd.xrd.transforms.validateAngleRanges
       color: blue

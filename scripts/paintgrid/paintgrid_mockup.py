@@ -1179,6 +1179,7 @@ def _find_in_range(value, spans):
 
     return li
 
+
 @numba.jit
 def _vector_find_in_range(values, spans):
     result = np.empty(values.shape, dtype=np.int_)
@@ -1271,7 +1272,7 @@ def _handle_discard_angle(dst_eta_idx, dst_ome_idx, dst_hkl_idx, dst_idx,
     if ome_idx < 0:
         # out of range
         return dst_idx
-    
+
     dst_eta_idx[dst_idx] = eta_idx
     dst_ome_idx[dst_idx] = ome_idx
     dst_hkl_idx[dst_idx] = hkl
@@ -1320,6 +1321,136 @@ def paintGridThis_refactor_11(quat):
 
 
 ################################################################################
+
+@numba.njit
+def _angle_is_hit(ang, eta_offset, ome_offset, hkl, valid_eta_spans,
+                  valid_ome_spans, etaEdges, omeEdges, etaOmeMaps, etaIndices,
+                  omeIndices, dpix_eta, dpix_ome, threshold):
+    tth, eta, ome = ang
+
+    if num.isnan(tth):
+        return 0, 0
+
+    eta = _map_angle(eta, eta_offset)
+    if _find_in_range(eta, valid_eta_spans) & 1 == 0:
+        # index is even: out of valid eta spans
+        return 0, 0
+
+    ome = _map_angle(ome, ome_offset)
+    if _find_in_range(ome, valid_ome_spans) & 1 == 0:
+        # index is even: out of valid ome spans
+        return 0, 0
+
+    # discretize the angles
+    eta_idx = _find_in_range(eta, etaEdges) - 1
+    if eta_idx < 0:
+        # out of range
+        return 0, 0
+
+    ome_idx = _find_in_range(ome, omeEdges) - 1
+    if ome_idx < 0:
+        # out of range
+        return 0, 0
+
+    eta = etaIndices[eta_idx]
+    ome = omeIndices[ome_idx]
+    isHit = check_dilated(eta, ome, dpix_eta, dpix_ome,
+                          etaOmeMaps[hkl], threshold[hkl])
+
+    return isHit, 1
+
+
+@numba.njit
+def _filter_and_count_hits(angs_0, angs_1, symHKLs_ix, etaEdges,
+                           valid_eta_spans, valid_ome_spans, omeEdges,
+                           omePeriod, etaOmeMaps, etaIndices, omeIndices,
+                           dpix_eta, dpix_ome, threshold):
+    """assumes:
+    we want etas in -pi -> pi range
+    we want omes in ome_offset -> ome_offset + 2*pi range
+
+    Does: interleaving + "MapAngle" for etas and omes
+    """
+    eta_offset = -np.pi
+    ome_offset = np.min(omePeriod)
+    hits = 0
+    total = 0
+    curr_hkl_idx = 0
+    end_curr = symHKLs_ix[1]
+    count = len(angs_0)
+
+    for i in range(count):
+        if i >= end_curr:
+            curr_hkl_idx += 1
+            end_curr = symHKLs_ix[curr_hkl_idx+1]
+        hit, not_filtered = _angle_is_hit(angs_0[i], eta_offset, ome_offset,
+                                          curr_hkl_idx, valid_eta_spans,
+                                          valid_ome_spans, etaEdges, omeEdges,
+                                          etaOmeMaps, etaIndices, omeIndices,
+                                          dpix_eta, dpix_ome, threshold)
+        hits += hit
+        total += not_filtered
+        hit, not_filtered = _angle_is_hit(angs_1[i], eta_offset, ome_offset,
+                                          curr_hkl_idx, valid_eta_spans,
+                                          valid_ome_spans, etaEdges, omeEdges,
+                                          etaOmeMaps, etaIndices, omeIndices,
+                                          dpix_eta, dpix_ome, threshold)
+        hits += hit
+        total += not_filtered
+
+    return float(hits)/float(total) if total != 0 else 0.0
+
+
+def paintGridThis_refactor_12(quat):
+    """
+    """
+    symHKLs = paramMP['symHKLs'] # the HKLs
+    symHKLs_ix = paramMP['symHKLs_ix'] # index partitioning of symHKLs
+    bMat = paramMP['bMat']
+    wavelength = paramMP['wavelength']
+    omeEdges = paramMP['omeEdges']
+    omeTol = paramMP['omeTol'] # used once
+    omePeriod = paramMP['omePeriod']
+    #omeMin = paramMP['omeMin']
+    #omeMax = paramMP['omeMax']
+    valid_eta_spans = paramMP['valid_eta_spans']
+    valid_ome_spans = paramMP['valid_ome_spans']
+    omeIndices = paramMP['omeIndices']
+    #etaMin = paramMP['etaMin']
+    #etaMax = paramMP['etaMax']
+    etaEdges = paramMP['etaEdges']
+    etaTol = paramMP['etaTol'] # used once
+    etaIndices = paramMP['etaIndices']
+    etaOmeMaps = paramMP['etaOmeMaps']
+    threshold = paramMP['threshold']
+
+    # dpix_ome and dpix_eta are the number of pixels for the tolerance in
+    # ome/eta. Maybe we should compute this per run instead of per-quaternion
+    del_ome = abs(omeEdges[1] - omeEdges[0])
+    del_eta = abs(etaEdges[1] - etaEdges[0])
+    dpix_ome = int(round(omeTol / del_ome))
+    dpix_eta = int(round(etaTol / del_eta))
+
+    debug = False
+    if debug:
+        print( "using ome, eta dilitations of (%d, %d) pixels" \
+              % (dpix_ome, dpix_eta))
+
+    # get the equivalent rotation of the quaternion in matrix form (as expected
+    # by oscillAnglesOfHKLs
+
+    rMat = xfcapi.makeRotMatOfQuat(quat)
+
+    # Compute the oscillation angles of all the symHKLs at once
+    oangs_pair = xfcapi.oscillAnglesOfHKLs(symHKLs, 0., rMat, bMat, wavelength)
+
+    return _filter_and_count_hits(oangs_pair[0], oangs_pair[1], symHKLs_ix,
+                                  etaEdges, valid_eta_spans, valid_ome_spans,
+                                  omeEdges, omePeriod, etaOmeMaps, etaIndices,
+                                  omeIndices, dpix_eta, dpix_ome, threshold)
+
+################################################################################
+
 
 def checked_run(function, params, expected, name=None):
     if name is None:
@@ -1466,6 +1597,8 @@ def main():
     checked_run(refactor_10_warm, (quats,), expected)
     checked_run(refactor_11, (quats,), expected)
     checked_run(refactor_11_warm, (quats,), expected)
+    checked_run(refactor_12, (quats,), expected)
+    checked_run(refactor_12_warm, (quats,), expected)
 
     if args.inst_profile:
         profiler.dump_results(args.inst_profile)
@@ -1534,6 +1667,14 @@ def refactor_11(quats):
 def refactor_11_warm(quats):
     """same as refactor_11, but run 'warm' """
     return map(paintGridThis_refactor_11, quats.T)
+
+def refactor_12(quats):
+    """refactor_11 + merging of _filter_angs with _count_hits"""
+    return map(paintGridThis_refactor_12, quats.T)
+
+def refactor_12_warm(quats):
+    """same as refactor_12, but run 'warm' """
+    return map(paintGridThis_refactor_12, quats.T)
 
 if __name__ == '__main__':
     exit(main())
