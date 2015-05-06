@@ -422,13 +422,12 @@ def makeRotMatOfExpMap(expMap):
     arg = np.ascontiguousarray(expMap.flatten())
     return _transforms_CAPI.makeRotMatOfExpMap(arg)
 
-def makeRotMatOfQuat(quat):
+def makeRotMatOfQuat(quats):
     """
-    make rotation matrix from a unit quaternion
+    make rotation matrix from vstacked unit quaternions
 
-    ...check to set if input is unit magnitude?
     """
-    arg = np.ascontiguousarray(quat.flatten())
+    arg = np.ascontiguousarray(quats)
     return _transforms_CAPI.makeRotMatOfQuat(arg)
 
 def makeBinaryRotMat(axis):

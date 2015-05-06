@@ -363,7 +363,9 @@ class FitGrainsWorker(object):
 
 
     def get_e_mat(self, grain_params):
-        # TODO: document what is this?
+        """
+        strain tensor calculation
+        """
         return logm(np.linalg.inv(vecMVToSymm(grain_params[6:])))
 
 
