@@ -1486,8 +1486,8 @@ def load_outputs(output_file):
 
 
 def normalize_ranges(starts, stops, offset, ccw=False):
-    """normalize in the range of [0 - 2*pi[ the ranges.
-    starts contains
+    """normalize in the range of [offset, 2*pi+offset[ the ranges.
+    Note this function assumes that ranges don't overlap.
     """
     if ccw:
         starts, stops = stops, starts
