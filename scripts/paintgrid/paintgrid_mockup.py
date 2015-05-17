@@ -1501,7 +1501,7 @@ def normalize_ranges(starts, stops, offset, ccw=False):
     # return the full range
     two_pi = 2 * np.pi
     if np.any((starts + two_pi) < stops):
-        return np.array([0, two_pi])
+        return np.array([offset, two_pi+offset])
 
     starts = np.mod(starts - offset, two_pi) + offset
     stops = np.mod(stops - offset, two_pi) + offset
@@ -1574,19 +1574,19 @@ def main():
 
     paramMP['valid_ome_spans'] = normalize_ranges(paramMP['omeMin'],
                                                   paramMP['omeMax'],
-                                                  0)
+                                                  min(paramMP['omePeriod']))
     if args.dump_info:
         print(' {0} experiment '.format(args.experiment).center(72, '='))
         for key, val in sorted(paramMP.items()):
             print('{0}:\n{1}\n'.format(key, val))
         print('Experiment for {0} quats.'.format(len(expected)))
 
-    #checked_run(hexrd_version, (quats,), expected)
-    #checked_run(original, (quats,), expected)
-    #checked_run(refactor_1, (quats,), expected)
-    #checked_run(refactor_2, (quats,), expected)
-    #checked_run(refactor_3, (quats,), expected)
-    #checked_run(refactor_4, (quats,), expected)
+    checked_run(hexrd_version, (quats,), expected)
+    checked_run(original, (quats,), expected)
+    checked_run(refactor_1, (quats,), expected)
+    checked_run(refactor_2, (quats,), expected)
+    checked_run(refactor_3, (quats,), expected)
+    checked_run(refactor_4, (quats,), expected)
     checked_run(refactor_5, (quats,), expected)
     checked_run(refactor_6, (quats,), expected)
     checked_run(refactor_7, (quats,), expected)
