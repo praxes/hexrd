@@ -885,7 +885,7 @@ def _normalize_ranges(starts, stops, offset, ccw=False):
     # return the full range
     two_pi = 2 * num.pi
     if num.any((starts + two_pi) < stops):
-        return num.array([0, two_pi])
+        return num.array([offset, two_pi+offset])
 
     starts = num.mod(starts - offset, two_pi) + offset
     stops = num.mod(stops - offset, two_pi) + offset
@@ -925,7 +925,7 @@ def paintgrid_init(params):
 
     paramMP['valid_ome_spans'] = _normalize_ranges(paramMP['omeMin'],
                                                    paramMP['omeMax'],
-                                                   0)
+                                                   min(paramMP['omePeriod']))
 
 
 
