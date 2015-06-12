@@ -440,6 +440,9 @@ def makeEtaFrameRotMat(bHat_l, eHat_l):
     return _transforms_CAPI.makeEtaFrameRotMat(arg1, arg2)
 
 def validateAngleRanges(angList, angMin, angMax, ccw=True):
+    angList = angList.astype(np.double, order="C")
+    angMin = angMin.astype(np.double, order="C")
+    angMax = angMax.astype(np.double, order="C")
     return _transforms_CAPI.validateAngleRanges(angList,angMin,angMax,ccw)
 
 def rotate_vecs_about_axis(angle, axis, vecs):

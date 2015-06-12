@@ -631,8 +631,10 @@ def angularDifference(angList0, angList1, units=angularUnits):
     return abs(np.remainder(diffAngles + 0.5*period, period) - 0.5*period)
 
 def mapAngle(ang, *args, **kwargs):
-    """
-    Utility routine to map an angle into a specified period
+    """Utility routine to map an angle into a specified period
+
+    actual function is mapAngle(ang[, range], units=angularUnits).  range is
+    optional and defaults to the appropriate angle for the unit centered on 0.
     """
     units  = angularUnits
     period = periodDict[units]
