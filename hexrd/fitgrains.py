@@ -241,7 +241,7 @@ def write_grains_file(cfg, results):
     # while also keeping the width of the lines to a minimum, settled
     # on %19.12g representation.
     header_items = (
-        'grain ID', 'completeness', 'sum(resd**2)/nrefl',
+        'grain ID', 'completeness', 'chi2',
         'xi[0]', 'xi[1]', 'xi[2]', 'tVec_c[0]', 'tVec_c[1]', 'tVec_c[2]',
         'vInv_s[0]', 'vInv_s[1]', 'vInv_s[2]', 'vInv_s[4]*sqrt(2)',
         'vInv_s[5]*sqrt(2)', 'vInv_s[6]*sqrt(2)', 'ln(V[0,0])',
@@ -314,6 +314,17 @@ class FitGrainsWorker(object):
 
 
     def fit_grains(self, grain_id, grain_params):
+        """
+        Executes lsq fits of grains based on spot files
+        
+        REFLECTION TABLE
+        
+        Cols as follows:
+            0-6:   ID    PID    H    K    L    sum(int)    max(int)    
+            6-9:   pred tth    pred eta    pred ome              
+            9-12:  meas tth    meas eta    meas ome              
+            12-15: meas X      meas Y      meas ome
+        """
         ome_start = self._p['omega_start']
         ome_step = self._p['omega_step']
         ome_stop =  self._p['omega_stop']
@@ -336,8 +347,8 @@ class FitGrainsWorker(object):
                     pred_ome < np.radians(ome_stop - 2*ome_step)
                     )
             idx = np.logical_and(
-                unsat_spots,
-                np.logical_and(valid_refl_ids, idx_ome)
+                valid_refl_ids,
+                np.logical_and(unsat_spots, idx_ome)
                 )
         else:
             idx = np.logical_and(valid_refl_ids, unsat_spots)
@@ -379,9 +390,7 @@ class FitGrainsWorker(object):
             bVec_ref, eta_ref,
             dFunc, dParams,
             self._p['omega_period'],
-            simOnly=False
-            )
-
+            simOnly=False, return_value_flag=2)
 
     def loop(self):
         id, grain_params = self._jobs.get(False)
@@ -398,7 +407,7 @@ class FitGrainsWorker(object):
         eMat = self.get_e_mat(grain_params)
         resd = self.get_residuals(grain_params)
 
-        self._results.append((id, grain_params, compl, eMat, sum(resd**2)))
+        self._results.append((id, grain_params, compl, eMat, resd))
         self._jobs.task_done()
 
 
