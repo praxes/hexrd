@@ -185,9 +185,14 @@ def initialize_experiment(cfg):
             flipArg=flip, # TODO: flip=flip
             )
     except IOError:
-        print "raw data not found, skipping reader init"
+        logger.info("raw data not found, skipping reader init")
         reader = None
 
-    ws.loadDetector(os.path.join(cwd, detector_fname))
+    try:
+        ws.loadDetector(os.path.join(cwd, detector_fname))
+        detector = ws.detector
+    except IOError:
+        logger.info("old detector par file not found, skipping; \nalthough you may need this for find-orientations")        
+        detector = None
 
-    return pd, reader, ws.detector
+    return pd, reader, detector
