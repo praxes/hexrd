@@ -24,6 +24,7 @@ requirements:
     - python
     - setuptools
   run:
+    - dill
     - matplotlib
     - numba
     - numpy

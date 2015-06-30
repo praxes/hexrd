@@ -234,9 +234,12 @@ def fit_grains(cfg, force=False, clean=False, show_progress=False, ids_to_refine
     logger.info('processed %d grains in %g minutes', n_res, elapsed/60)
 
 
-def write_grains_file(cfg, results):
+def write_grains_file(cfg, results, output_name=None):
     # record the results to file
-    f = open(os.path.join(cfg.analysis_dir, 'grains.out'), 'w')
+    if output_name is None:
+        f = open(os.path.join(cfg.analysis_dir, 'grains.out'), 'w')
+    else:
+        f = open(os.path.join(cfg.analysis_dir, output_name), 'w')
     # going to some length to make the header line up with the data
     # while also keeping the width of the lines to a minimum, settled
     # on %19.12g representation.

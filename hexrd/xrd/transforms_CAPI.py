@@ -59,6 +59,22 @@ eta_ref  =  Xl
 # ######################################################################
 # Funtions
 
+def anglesToGVec(angs, bHat_l=bVec_ref, eHat_l=eta_ref, chi=0., rMat_c=I3):
+    """
+    from 'eta' frame out to lab (with handy kwargs to go to crystal or sample)
+
+    * setting omega to zero in ang imput and omitting rMat_c leaves 
+      in the lab frame in accordance with beam frame specs.
+    """
+    angs = np.ascontiguousarray( np.atleast_2d(angs) )
+    bHat_l = np.ascontiguousarray( bHat_l.flatten() )
+    eHat_l = np.ascontiguousarray( eHat_l.flatten() )
+    rMat_c = np.ascontiguousarray( rMat_c )
+    chi = float(chi)
+    return _transforms_CAPI.anglesToGVec(angs, 
+                                         bHat_l, eHat_l,
+                                         chi, rMat_c)
+
 def makeGVector(hkl, bMat):
     """
     take a CRYSTAL RELATIVE B matrix onto a list of hkls to output unit
