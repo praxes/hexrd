@@ -5000,7 +5000,7 @@ class DetectorGeomGE(Detector2DRC):
         xshape = xin.shape
         yshape = yin.shape
         xy_in = num.vstack([xin.flatten(), yin.flatten()]).T
-        xy_out = distortion.GE41RT(xy_in, self.dparms, invert=invert)
+        xy_out = distortion.GE_41RT(xy_in, self.dparms, invert=invert)
         return xy_out[:, 0].reshape(xshape), xy_out[:, 1].reshape(yshape)
 
 class DetectorGeomFrelon(Detector2DRC):
