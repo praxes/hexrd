@@ -4999,7 +4999,7 @@ class DetectorGeomGE(Detector2DRC):
     def radialDistortion(self, xin, yin, invert=False):
         xshape = xin.shape
         yshape = yin.shape
-        xy_in = np.vstack([xin.flatten(), yin.flatten()]).T
+        xy_in = num.vstack([xin.flatten(), yin.flatten()]).T
         xy_out = distortion.GE41RT(xy_in, self.dparms, invert=invert)
         return xy_out[:, 0].reshape(xshape), xy_out[:, 1].reshape(yshape)
 
