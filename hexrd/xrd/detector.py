@@ -50,6 +50,8 @@ from matplotlib.widgets import Slider, Button, RadioButtons
 from hexrd import xrd
 from hexrd.xrd.xrdbase import getGaussNDParams, dataToFrame
 from hexrd.xrd.crystallography import processWavelength
+from hexrd.xrd import distortion
+from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.xrd.rotations import mapAngle
 from hexrd.xrd.rotations import rotMatOfExpMap
 from hexrd.xrd.rotations import rotMatOfExpMap, arccosSafe
@@ -4990,75 +4992,11 @@ class DetectorGeomGE(Detector2DRC):
     def getDParamRefineDflt(self):
         return self.__dParamRefineDflt
     def radialDistortion(self, xin, yin, invert=False):
-        """
-        Apply radial distortion to polar coordinates on GE detector
-
-        xin, yin are 1D arrays or scalars, assumed to be relative to self.xc, self.yc
-        Units are [mm, radians].  This is the power-law based function of Bernier.
-
-        Available Keyword Arguments :
-
-        invert = True or >False< :: apply inverse warping
-        """
-        if self.dparms[0] == 0 and self.dparms[1] == 0 and self.dparms[2] == 0:
-            xout = xin
-            yout = yin
-        else:
-            # canonical max radius based on perfectly centered beam
-            #   - 204.8 in mm or 1024 in pixel indices
-            rhoMax = self.__idim * self.__pixelPitch / 2
-
-            # make points relative to detector center
-            x0 = (xin + self.xc) - rhoMax
-            y0 = (yin + self.yc) - rhoMax
-
-            # detector relative polar coordinates
-            #   - this is the radius that gets rescaled
-            rho0 = num.sqrt( x0*x0 + y0*y0 )
-            eta0 = num.arctan2( y0, x0 )
-
-            if invert:
-                # in here must do nonlinear solve for distortion
-                # must loop to call fsolve individually for each point
-                rho0   = num.atleast_1d(rho0)
-                rShape = rho0.shape
-                rho0   = num.atleast_1d(rho0).flatten()
-                rhoOut = num.zeros(len(rho0), dtype=float)
-
-                eta0   = num.atleast_1d(eta0).flatten()
-
-                rhoSclFuncInv = lambda ri, ni, ro, rx, p: \
-                    (p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
-                     p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
-                     p[2]*(ri/rx)**p[5] + 1)*ri - ro
-
-                rhoSclFIprime = lambda ri, ni, ro, rx, p: \
-                    p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) * (p[3] + 1) + \
-                    p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) * (p[4] + 1) + \
-                    p[2]*(ri/rx)**p[5] * (p[5] + 1) + 1
-
-                for iRho in range(len(rho0)):
-                    rhoOut[iRho] = fsolve(rhoSclFuncInv, rho0[iRho],
-                                          fprime=rhoSclFIprime,
-                                          args=(eta0[iRho], rho0[iRho], rhoMax, self.dparms) )
-                    pass
-
-                rhoOut = rhoOut.reshape(rShape)
-            else:
-                # usual case: calculate scaling to take you from image to detector plane
-                # 1 + p[0]*(ri/rx)**p[2] * num.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
-                rhoSclFunc = lambda ri, rx=rhoMax, p=self.dparms, ni=eta0: \
-                             p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
-                             p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
-                             p[2]*(ri/rx)**p[5] + 1
-
-                rhoOut = num.squeeze( rho0 * rhoSclFunc(rho0) )
-                pass
-
-            xout = rhoOut * num.cos(eta0) + rhoMax - self.xc
-            yout = rhoOut * num.sin(eta0) + rhoMax - self.yc
-
-        return xout, yout
+        xshape = xin.shape
+        yshape = yin.shape
+        xy_in = np.vstack([xin.flatten(), yin.flatten()]).T
+        xy_out = distortion.GE41RT(xy_in, self.dparms, invert=invert)
+        return xy_out[:, 0].reshape(xshape), xy_out[:, 1].reshape(yshape)
 
 class DetectorGeomFrelon(Detector2DRC):
     """

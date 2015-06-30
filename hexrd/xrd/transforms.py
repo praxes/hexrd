@@ -26,7 +26,7 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 
-import os, sys, warnings
+import sys
 import numpy as np
 #np.seterr(invalid='ignore')
 
@@ -462,8 +462,8 @@ def polarRebin(thisFrame,
     startRho = rhoRange[0]
     stopRho  = rhoRange[1]
 
-    nrows = thisFrame.shape[0]   # total number of rows in the full image
-    ncols = thisFrame.shape[1]   # total number of columns in the full image
+    #nrows = thisFrame.shape[0]   # total number of rows in the full image
+    #ncols = thisFrame.shape[1]   # total number of columns in the full image
 
     subPixArea = 1/float(npdiv)**2 # areal rescaling for subpixel intensities
 
@@ -1048,7 +1048,7 @@ def rotate_vecs_about_axis(angle, axis, vecs):
 
     """
     angle   = np.atleast_1d(angle)
-    nvecs   = vecs.shape[1]                  # assume column vecs
+    #nvecs   = vecs.shape[1]                  # assume column vecs
 
     # quaternion components
     q0 = np.cos(0.5*angle)
