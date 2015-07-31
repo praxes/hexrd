@@ -412,7 +412,11 @@ def objFuncFitGrain(gFit, gFull, gFlag,
         if return_value_flag == 1:
             retval = sum( abs(retval) )
         elif return_value_flag == 2:
-            nu_fac = 1 / (npts - len(gFit) - 1.)
+            denom = npts - len(gFit) - 1.
+            if denom != 0:
+                nu_fac = 1. / denom
+            else:
+                nu_fac = 1.
             retval = nu_fac * sum(retval**2 / abs(np.hstack([calc_xy, calc_omes.reshape(npts, 1)]).flatten()))
     return retval
 
