@@ -41,7 +41,8 @@ from hexrd.xrd import transforms      as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.xrd import distortion      as dFuncs
 
-import pdb
+epsf      = np.finfo(float).eps # ~2.2e-16
+sqrt_epsf = np.sqrt(epsf)       # ~1.5e-8
 
 # ######################################################################
 # Module Data
@@ -173,7 +174,7 @@ def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
                             distortion=(dFunc_ref, dParams_ref, dFlag_ref, dScl_ref),
                             pFlag=pFlag_ref, pScl=pScl_ref,
                             omePeriod=None,
-                            factor=0.1, xtol=1e-4, ftol=1e-4):
+                            factor=0.1, xtol=sqrt_epsf, ftol=sqrt_epsf):
     """
     """
     if omePeriod is not None:
@@ -307,7 +308,7 @@ def fitGrain(xyo_det, hkls_idx, bMat, wavelength,
              distortion=(dFunc_ref, dParams_ref),
              gFlag=gFlag_ref, gScl=gScl_ref,
              omePeriod=None,
-             factor=0.1, xtol=1e-6, ftol=1e-6):
+             factor=0.1, xtol=sqrt_epsf, ftol=sqrt_epsf):
     """
     """
     if omePeriod is not None:
