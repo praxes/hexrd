@@ -78,6 +78,22 @@ class FitGrainsConfig(Config):
     def tolerance(self):
         return ToleranceConfig(self._cfg)
 
+    
+    @property
+    def refit(self):
+        key = 'fit_grains:refit'
+        temp = self._cfg.get(key, None)
+        if temp is None:
+            return temp
+        else:
+            if not isinstance(temp, (int, float, list)):
+                raise RuntimeError(
+                    '"%s" must be None, a scalar, or a list, got "%s"' % (key, temp)
+                    )
+            if isinstance(temp, (int, float)):
+                temp = [temp, temp]
+            return temp
+
 
     @property
     def tth_max(self):

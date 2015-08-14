@@ -50,6 +50,8 @@ from matplotlib.widgets import Slider, Button, RadioButtons
 from hexrd import xrd
 from hexrd.xrd.xrdbase import getGaussNDParams, dataToFrame
 from hexrd.xrd.crystallography import processWavelength
+from hexrd.xrd import distortion
+from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.xrd.rotations import mapAngle
 from hexrd.xrd.rotations import rotMatOfExpMap
 from hexrd.xrd.rotations import rotMatOfExpMap, arccosSafe
@@ -78,6 +80,11 @@ NROWS = 2048
 NCOLS = 2048
 PIXEL = 0.2
 
+# CHESS retiga
+#NROWS = 2048
+#NCOLS = 2048
+#PIXEL = 0.00148
+
 # vert
 #NROWS = 2048
 #NCOLS = 2048
@@ -87,6 +94,16 @@ PIXEL = 0.2
 #NROWS = 2671
 #NCOLS = 4008
 #PIXEL = 0.03
+
+# LCLS CSpad0
+#NROWS = 825
+#NCOLS = 840
+#PIXEL = 0.10992
+
+## LCLS CSpad1,2
+#NROWS = 400
+#NCOLS = 400
+#PIXEL = 0.10992
 #######
 
 def angToXYIdeal(tTh, eta, workDist):
@@ -770,9 +787,10 @@ class ReadGE(Framer2DRC):
        empty frame(s).  An error is returned if there are not any specified.
        If there are multiple empty frames, the average is used.
 
-    """
-    """
-    It is likely that some of the methods here should be moved up to a base class
+
+    NOTES:
+
+       It is likely that some of the methods here should be moved up to a base class
     """
     __nbytes_header    = 8192
     __idim             = min(NROWS, NCOLS)
@@ -809,25 +827,20 @@ class ReadGE(Framer2DRC):
                  *args,
                  **kwargs):
         """
-        meant for reading a series of frames from an omega sweep, with fixed delta-omega
-        for each frame
+        meant for reading a series of frames from an omega sweep, with
+        fixed delta-omega for each frame
 
-        omegaStart and omegaDelta can follow fileInfo or be specified in whatever order by keyword
+        omegaStart and omegaDelta can follow fileInfo or be specified
+        in whatever order by keyword
 
-        fileInfo: string, (string, nempty), or list of (string, nempty) for multiple files
+        fileInfo: string, (string, nempty), or list of (string,
+        nempty) for multiple files
 
         for multiple files and no dark, dark is formed only from empty
         frames in the first file
         """
 
-        Framer2DRC.__init__(self,
-                            self.__ncols, self.__nrows,
-                            dtypeDefault = self.__frame_dtype_dflt,
-                            dtypeRead    = self.__frame_dtype_read,
-                            dtypeFloat   = self.__frame_dtype_float,
-                            )
-
-        # defaults
+        # parse kwargs first
         self.__kwPassed = {}
         for parm, val in self.__inParmDict.iteritems():
             self.__kwPassed[parm] = kwargs.has_key(parm)
@@ -836,6 +849,15 @@ class ReadGE(Framer2DRC):
             self.__setattr__(parm, val)
         if len(kwargs) > 0:
             raise RuntimeError, 'unparsed keyword arguments: '+str(kwargs.keys())
+
+        Framer2DRC.__init__(self,
+                            self.__ncols, self.__nrows,
+                            dtypeDefault = self.__frame_dtype_dflt,
+                            dtypeRead    = self.__frame_dtype_read,
+                            dtypeFloat   = self.__frame_dtype_float,
+                            )
+
+        # omega information
         if len(args) == 0:
             pass
         elif len(args) == 2:
@@ -4975,75 +4997,11 @@ class DetectorGeomGE(Detector2DRC):
     def getDParamRefineDflt(self):
         return self.__dParamRefineDflt
     def radialDistortion(self, xin, yin, invert=False):
-        """
-        Apply radial distortion to polar coordinates on GE detector
-
-        xin, yin are 1D arrays or scalars, assumed to be relative to self.xc, self.yc
-        Units are [mm, radians].  This is the power-law based function of Bernier.
-
-        Available Keyword Arguments :
-
-        invert = True or >False< :: apply inverse warping
-        """
-        if self.dparms[0] == 0 and self.dparms[1] == 0 and self.dparms[2] == 0:
-            xout = xin
-            yout = yin
-        else:
-            # canonical max radius based on perfectly centered beam
-            #   - 204.8 in mm or 1024 in pixel indices
-            rhoMax = self.__idim * self.__pixelPitch / 2
-
-            # make points relative to detector center
-            x0 = (xin + self.xc) - rhoMax
-            y0 = (yin + self.yc) - rhoMax
-
-            # detector relative polar coordinates
-            #   - this is the radius that gets rescaled
-            rho0 = num.sqrt( x0*x0 + y0*y0 )
-            eta0 = num.arctan2( y0, x0 )
-
-            if invert:
-                # in here must do nonlinear solve for distortion
-                # must loop to call fsolve individually for each point
-                rho0   = num.atleast_1d(rho0)
-                rShape = rho0.shape
-                rho0   = num.atleast_1d(rho0).flatten()
-                rhoOut = num.zeros(len(rho0), dtype=float)
-
-                eta0   = num.atleast_1d(eta0).flatten()
-
-                rhoSclFuncInv = lambda ri, ni, ro, rx, p: \
-                    (p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
-                     p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
-                     p[2]*(ri/rx)**p[5] + 1)*ri - ro
-
-                rhoSclFIprime = lambda ri, ni, ro, rx, p: \
-                    p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) * (p[3] + 1) + \
-                    p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) * (p[4] + 1) + \
-                    p[2]*(ri/rx)**p[5] * (p[5] + 1) + 1
-
-                for iRho in range(len(rho0)):
-                    rhoOut[iRho] = fsolve(rhoSclFuncInv, rho0[iRho],
-                                          fprime=rhoSclFIprime,
-                                          args=(eta0[iRho], rho0[iRho], rhoMax, self.dparms) )
-                    pass
-
-                rhoOut = rhoOut.reshape(rShape)
-            else:
-                # usual case: calculate scaling to take you from image to detector plane
-                # 1 + p[0]*(ri/rx)**p[2] * num.cos(p[4] * ni) + p[1]*(ri/rx)**p[3]
-                rhoSclFunc = lambda ri, rx=rhoMax, p=self.dparms, ni=eta0: \
-                             p[0]*(ri/rx)**p[3] * num.cos(2.0 * ni) + \
-                             p[1]*(ri/rx)**p[4] * num.cos(4.0 * ni) + \
-                             p[2]*(ri/rx)**p[5] + 1
-
-                rhoOut = num.squeeze( rho0 * rhoSclFunc(rho0) )
-                pass
-
-            xout = rhoOut * num.cos(eta0) + rhoMax - self.xc
-            yout = rhoOut * num.sin(eta0) + rhoMax - self.yc
-
-        return xout, yout
+        xshape = xin.shape
+        yshape = yin.shape
+        xy_in = num.vstack([xin.flatten(), yin.flatten()]).T
+        xy_out = distortion.GE_41RT(xy_in, self.dparms, invert=invert)
+        return xy_out[:, 0].reshape(xshape), xy_out[:, 1].reshape(yshape)
 
 class DetectorGeomFrelon(Detector2DRC):
     """

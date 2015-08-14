@@ -1,0 +1,156 @@
+---
+
+# Profiler configuration
+
+profile:
+  instrument:
+    - fn: __main__.hexrd_version
+      color: blue
+
+    - fn: __main__.original
+      color: red
+
+    - fn: __main__.refactor_1
+      color: green
+
+    - fn: __main__.refactor_2
+      color: magenta
+
+    - fn: __main__.refactor_3
+      color: cyan
+
+    - fn: __main__.refactor_4
+      color: yellow
+
+    - fn: __main__.refactor_5
+      color: black
+
+    - fn: __main__.refactor_6
+      color: white
+
+    - fn: __main__.refactor_7
+      color: blue
+
+    - fn: __main__.refactor_8
+      color: red
+
+    - fn: __main__.refactor_9
+      color: green
+
+    - fn: __main__.refactor_10
+      color: blue
+
+    - fn: __main__.refactor_11
+      color: yellow
+
+    - fn: __main__.refactor_12
+      color: magenta
+
+    - fn: __main__.refactor_9_warm
+      color: green
+
+    - fn: __main__.refactor_10_warm
+      color: blue
+
+    - fn: __main__.refactor_11_warm
+      color: yellow
+
+    - fn: __main__.refactor_12_warm
+      color: magenta
+
+    - fn: __main__.normalize_ranges
+      color: black
+
+  detailed:
+    - fn: hexrd.xrd.indexer.paintGridThis
+      color: red
+
+    - fn: __main__.paintGridThis_original
+      color: blue
+
+    - fn: __main__.paintGridThis_refactor_1
+      color: cyan
+
+    - fn: __main__.paintGridThis_refactor_2
+      color: blue
+
+    - fn: __main__.paintGridThis_refactor_3
+      color: cyan
+
+    - fn: __main__.paintGridThis_refactor_4
+      color: blue
+
+    - fn: __main__.paintGridThis_refactor_5
+      color: cyan
+
+    - fn: __main__.paintGridThis_refactor_6
+      color: blue
+
+    - fn: __main__.paintGridThis_refactor_7
+      color: cyan
+
+    - fn: __main__.paintGridThis_refactor_8
+      color: blue
+
+    - fn: __main__.paintGridThis_refactor_9
+      color: cyan
+    - fn: __main__.paintGridThis_refactor_10
+      color: blue
+    - fn: __main__.paintGridThis_refactor_11
+      color: cyan
+    - fn: __main__.paintGridThis_refactor_12
+      color: yellow
+
+    - fn: hexrd.xrd.rotations.rotMatOfQuat
+      color: yellow
+
+    - fn: hexrd.xrd.transforms_CAPI.makeRotMatOfQuat
+      color: yellow
+
+    - fn: hexrd.xrd.transforms_CAPI.oscillAnglesOfHKLs
+      color: red
+
+    - fn: __main__._filter_angs
+      color: cyan
+
+    - fn: __main__._filter_angs_2
+      color: cyan
+
+    - fn: __main__._filter_angs_3
+      color: cyan
+
+    - fn: __main__._filter_angs_4
+      color: cyan
+
+    - fn: __main__._filter_angs_5
+      color: cyan
+
+    - fn: __main__._filter_angs_6
+      color: cyan
+
+    - fn: __main__._count_hits
+      color: magenta
+
+    - fn: __main__._count_hits_2
+      color: magenta
+
+    - fn: __main__._count_hits_3
+      color: magenta
+
+    - fn: __main__._count_hits_4
+      color: magenta
+
+    - fn: __main__._filter_and_count_hits
+      color: yellow
+  very-detailed:
+    - fn: hexrd.xrd.transforms.validateAngleRanges
+      color: blue
+
+    - fn: hexrd.xrd.transforms_CAPI.validateAngleRanges
+      color: blue
+
+    - fn: __main__._normalize_angs_hkls
+      color: blue
+
+    - fn: __main__._create_valid_mask
+      color: green

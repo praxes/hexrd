@@ -25,8 +25,6 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
-import pdb
-
 import sys
 import copy
 import time
@@ -3012,7 +3010,7 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
     """
     all angular info is entered in degrees
 
-    quats are (4, n)
+    expMaps are (3, n)
 
     ...might want to creat module-level angluar unit flag
     ...might want to allow resvers delta omega
@@ -3055,6 +3053,9 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
     # pixel dialtions
     dpix_ome = round( omeTol / abs(del_ome) )
     dpix_eta = round( etaTol / abs(del_eta) )
+
+    i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
+                                num.arange(-dpix_eta, dpix_eta + 1))
 
     # get symmetrically expanded hkls from planeData
     sym_hkls = planeData.getSymHKLs()
@@ -3126,8 +3127,6 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
 
                     if culledEtaIdx is not None and culledOmeIdx is not None:
                         if dpix_ome > 0 or dpix_eta > 0:
-                            i_dil, j_dil = num.meshgrid(num.arange(-dpix_ome, dpix_ome + 1),
-                                                        num.arange(-dpix_eta, dpix_eta + 1))
                             i_sup = omeIndices[culledOmeIdx] + num.array([i_dil.flatten()], dtype=int)
                             j_sup = etaIndices[culledEtaIdx] + num.array([j_dil.flatten()], dtype=int)
 
@@ -3149,7 +3148,8 @@ def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
 _memo_hkls = {}
 def _fetch_hkls_from_planedata(pd):
     if pd not in _memo_hkls:
-        _memo_hkls[pd] = num.ascontiguousarray(num.hstack(pd.getSymHKLs()).T, dtype=float)
+        _memo_hkls[pd] = num.ascontiguousarray(num.hstack(pd.getSymHKLs(withID=True)).T,
+                                               dtype=float)
 
     return _memo_hkls[pd]
 
@@ -3187,7 +3187,7 @@ def _project_on_detector_plane(allHKLs, allAngs, bMat,
     gVec_cs = num.dot(bMat, allHKLs.T)
     rMat_ss = xfcapi.makeOscillRotMatArray(chi, num.ascontiguousarray(allAngs[:,2]))
     tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs.T, rMat_d, rMat_ss, rMat_c,
-                                          tVec_d, tVec_s, tVec_c)
+                                           tVec_d, tVec_s, tVec_c)
     valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
     if distortion is None or len(distortion) == 0:
         det_xy = tmp_xys[valid_mask]
@@ -3249,28 +3249,34 @@ def simulateGVecs(pd, detector_params, grain_params,
     vInv_s = num.ascontiguousarray(grain_params[6:12])
 
     # first find valid G-vectors
-    angList = num.vstack(xfcapi.oscillAnglesOfHKLs(full_hkls, chi, rMat_c, bMat, wlen, vInv=vInv_s))
+    angList = num.vstack(xfcapi.oscillAnglesOfHKLs(full_hkls[:, 1:], chi, rMat_c, bMat, wlen, vInv=vInv_s))
     allAngs, allHKLs = _filter_hkls_eta_ome(full_hkls, angList, eta_range, ome_range)
-
-    #...preallocate for speed...?
-    det_xy, rMat_s = _project_on_detector_plane(allHKLs, allAngs, bMat,
-                                                rMat_d, rMat_c, chi,
-                                                tVec_d, tVec_c, tVec_s, distortion)
-    #
-    on_panel_x = num.logical_and(det_xy[:, 0] >= panel_dims[0][0], det_xy[:, 0] <= panel_dims[1][0])
-    on_panel_y = num.logical_and(det_xy[:, 1] >= panel_dims[0][1], det_xy[:, 1] <= panel_dims[1][1])
-    on_panel   = num.logical_and(on_panel_x, on_panel_y)
-    #
-    valid_ang = allAngs[on_panel, :]; valid_ang[:, 2] = xf.mapAngle(valid_ang[:, 2], ome_period)
-    valid_hkl = allHKLs[on_panel, :]
-    valid_xy  = det_xy[on_panel, :]
-    ang_ps    = angularPixelSize(valid_xy, pixel_pitch,
-                                 rMat_d, rMat_s,
-                                 tVec_d, tVec_s, tVec_c,
-                                 distortion=distortion)
-    #
-    return valid_hkl, valid_ang, valid_xy, ang_ps
-
+    
+    if len(allAngs) == 0:
+        valid_ids = []
+        valid_hkl = [] 
+        valid_ang = [] 
+        valid_xy = [] 
+        ang_ps = []
+    else:      
+        #...preallocate for speed...?
+        det_xy, rMat_s = _project_on_detector_plane(allHKLs[:, 1:], allAngs, bMat,
+                                                    rMat_d, rMat_c, chi,
+                                                    tVec_d, tVec_c, tVec_s, distortion)
+        #
+        on_panel_x = num.logical_and(det_xy[:, 0] >= panel_dims[0][0], det_xy[:, 0] <= panel_dims[1][0])
+        on_panel_y = num.logical_and(det_xy[:, 1] >= panel_dims[0][1], det_xy[:, 1] <= panel_dims[1][1])
+        on_panel   = num.logical_and(on_panel_x, on_panel_y)
+        #
+        valid_ang = allAngs[on_panel, :]; valid_ang[:, 2] = xf.mapAngle(valid_ang[:, 2], ome_period)
+        valid_ids = allHKLs[on_panel, 0]
+        valid_hkl = allHKLs[on_panel, 1:]
+        valid_xy  = det_xy[on_panel, :]
+        ang_ps    = angularPixelSize(valid_xy, pixel_pitch,
+                                     rMat_d, rMat_s,
+                                     tVec_d, tVec_s, tVec_c,
+                                     distortion=distortion)
+    return valid_ids, valid_hkl, valid_ang, valid_xy, ang_ps
 
 if USE_NUMBA:
     @numba.njit
@@ -3515,7 +3521,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
             fid = filename
         else:
             fid = open(filename, 'w')
-        print >> fid, "#\n# ID\t"                       + \
+        print >> fid, "#\n# ID\tPID\t"                  + \
                       "H\tK\tL\t"                       + \
                       "sum(int)\tmax(int)\t"            + \
                       "pred tth          \tpred eta          \t pred ome          \t" + \
@@ -3523,7 +3529,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                       "meas X            \tmeas Y            \t meas ome\n#"
     iRefl = 0
     spot_list = []
-    for hkl, angs, xy, pix in zip(*sim_g):
+    for hklid, hkl, angs, xy, pix in zip(*sim_g):
         ndiv_tth = npdiv*num.ceil( tth_tol/(pix[0]*r2d) )
         ndiv_eta = npdiv*num.ceil( eta_tol/(pix[1]*r2d) )
 
@@ -3800,14 +3806,14 @@ def pullSpots(pd, detector_params, grain_params, reader,
             pass
         if filename is not None:
             if peakId >= 0:
-                print >> fid, "%d\t"                     % (peakId)                            + \
+                print >> fid, "%d\t%d\t"                 % (peakId, hklid)                     + \
                               "%d\t%d\t%d\t"             % tuple(hkl)                          + \
                               "%1.6e\t%1.6e\t"           % (spot_intensity, max_intensity)     + \
                               "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                         + \
                               "%1.12e\t%1.12e\t%1.12e\t" % tuple(com_angs)                     + \
                               "%1.12e\t%1.12e\t%1.12e"   % (new_xy[0], new_xy[1], com_angs[2])
             else:
-                print >> fid, "%d\t"                     % (peakId)                   + \
+                print >> fid, "%d\t%d\t"                 % (peakId, hklid)            + \
                               "%d\t%d\t%d\t"             % tuple(hkl)                 + \
                               "%f         \t%f         \t"                 % tuple(num.nan*num.ones(2)) + \
                               "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                + \
