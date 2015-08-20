@@ -4,6 +4,7 @@ import argparse
 import logging
 import sys
 import multiprocessing
+import warnings
 
 # These can't be relative imports on Windows because of the hack
 # in main() for multiprocessing.freeze_support()
@@ -14,7 +15,7 @@ from hexrd.cli import fitgrains
 from hexrd.cli import gui
 from hexrd.cli import help
 from hexrd.cli import test
-
+from hexrd.utils import profiler
 
 def main():
     if sys.platform.startswith('win'):
@@ -27,7 +28,6 @@ def main():
     if len(sys.argv) == 1:
         sys.argv.append('-h')
 
-    import logging
     import hexrd
 
     p = argparse.ArgumentParser(
@@ -42,6 +42,11 @@ def main():
         "--debug",
         action = "store_true",
         help = 'verbose reporting',
+    )
+    p.add_argument(
+        "--inst-profile",
+        action="append",
+        help='use the following files as source for functions to instrument',
     )
     sub_parsers = p.add_subparsers(
         metavar = 'command',
@@ -69,4 +74,10 @@ def main():
     ch = logging.StreamHandler()
     ch.setLevel(log_level)
 
+    if args.inst_profile:
+        profiler.instrument_all(args.inst_profile)
+
     args.func(args, p)
+
+    if args.inst_profile:
+        profiler.dump_results(args.inst_profile)

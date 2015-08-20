@@ -33,7 +33,7 @@ import numpy as np
 # except:
 #     from scipy.optimize import leastsq
 from scipy import optimize
-returnScalarValue = False
+return_value_flag = None
 
 from hexrd import matrixutil as mutil
 
@@ -41,7 +41,8 @@ from hexrd.xrd import transforms      as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.xrd import distortion      as dFuncs
 
-import pdb
+epsf      = np.finfo(float).eps # ~2.2e-16
+sqrt_epsf = np.sqrt(epsf)       # ~1.5e-8
 
 # ######################################################################
 # Module Data
@@ -173,7 +174,7 @@ def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
                             distortion=(dFunc_ref, dParams_ref, dFlag_ref, dScl_ref),
                             pFlag=pFlag_ref, pScl=pScl_ref,
                             omePeriod=None,
-                            factor=0.1, xtol=1e-4, ftol=1e-4):
+                            factor=0.1, xtol=sqrt_epsf, ftol=sqrt_epsf):
     """
     """
     if omePeriod is not None:
@@ -228,7 +229,7 @@ def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
 def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
               xyo_det, hkls_idx, bMat, vInv, wavelength,
               bVec, eVec, omePeriod,
-              simOnly=False, returnScalarValue=returnScalarValue):
+              simOnly=False, return_value_flag=return_value_flag):
     """
     """
     npts   = len(xyo_det)
@@ -282,8 +283,16 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
         retval = np.hstack([diff_vecs_xy,
                             diff_ome.reshape(npts, 1)
                             ]).flatten()
-        if returnScalarValue:
-            retval = sum( retval )
+        if return_value_flag == 1:
+            retval = sum( abs(retval) )
+        elif return_value_flag == 2:
+            denom = npts - len(gFit) - 1.
+            if denom != 0:
+                nu_fac = 1. / denom
+            else:
+                nu_fac = 1.
+            nu_fac = 1 / (npts - len(pFit) - 1.)
+            retval = nu_fac * sum(retval**2 / abs(np.hstack([calc_xy, calc_omes.reshape(npts, 1)]).flatten())) 
     return retval
 
 """
@@ -299,7 +308,7 @@ def fitGrain(xyo_det, hkls_idx, bMat, wavelength,
              distortion=(dFunc_ref, dParams_ref),
              gFlag=gFlag_ref, gScl=gScl_ref,
              omePeriod=None,
-             factor=0.1, xtol=1e-4, ftol=1e-4):
+             factor=0.1, xtol=sqrt_epsf, ftol=sqrt_epsf):
     """
     """
     if omePeriod is not None:
@@ -337,7 +346,7 @@ def objFuncFitGrain(gFit, gFull, gFlag,
                     bVec, eVec,
                     dFunc, dParams,
                     omePeriod,
-                    simOnly=False, returnScalarValue=returnScalarValue):
+                    simOnly=False, return_value_flag=return_value_flag):
     """
     gFull[0]  = expMap_c[0]
     gFull[1]  = expMap_c[1]
@@ -390,9 +399,9 @@ def objFuncFitGrain(gFit, gFull, gFlag,
 
     rMat_s = xfcapi.makeOscillRotMatArray(chi, calc_omes)
     calc_xy = xfcapi.gvecToDetectorXYArray(gHat_c.T,
-                                            rMat_d, rMat_s, rMat_c,
-                                            tVec_d, tVec_s, tVec_c,
-                                            beamVec=bVec)
+                                           rMat_d, rMat_s, rMat_c,
+                                           tVec_d, tVec_s, tVec_c,
+                                           beamVec=bVec)
 
     if np.any(np.isnan(calc_xy)):
         print "infeasible pFull"
@@ -406,8 +415,15 @@ def objFuncFitGrain(gFit, gFull, gFlag,
         retval = np.hstack([diff_vecs_xy,
                             diff_ome.reshape(npts, 1)
                             ]).flatten()
-        if returnScalarValue:
-            retval = sum( retval )
+        if return_value_flag == 1:
+            retval = sum( abs(retval) )
+        elif return_value_flag == 2:
+            denom = npts - len(gFit) - 1.
+            if denom != 0:
+                nu_fac = 1. / denom
+            else:
+                nu_fac = 1.
+            retval = nu_fac * sum(retval**2 / abs(np.hstack([calc_xy, calc_omes.reshape(npts, 1)]).flatten()))
     return retval
 
 # def accept_test(f_new=f_new, x_new=x_new, f_old=fold, x_old=x_old):

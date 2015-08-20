@@ -26,7 +26,7 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 
-import os, sys, warnings
+import sys
 import numpy as np
 #np.seterr(invalid='ignore')
 
@@ -278,8 +278,8 @@ def detectorXYToGvec(xy_det,
     dHat_ref_l = unitVector(P2_l)
     dHat_ref_e = np.dot(rMat_e.T, dHat_ref_l)
     tTh_ref = np.arccos(np.dot(bHat_l.T, unitVector(P2_l))).flatten()
-    eta_ref = np.arctan2(dHat+ref_e[1, :], dHat_ref_e[0, :]).flatten()
-    
+    eta_ref = np.arctan2(dHat_ref_e[1, :], dHat_ref_e[0, :]).flatten()
+
     # get G-vectors by rotating d by 90-theta about b x d (numpy 'cross' works on row vectors)
     n_g = unitVector(np.cross(bHat_l.T, dHat_l.T).T)
 
@@ -462,8 +462,8 @@ def polarRebin(thisFrame,
     startRho = rhoRange[0]
     stopRho  = rhoRange[1]
 
-    nrows = thisFrame.shape[0]   # total number of rows in the full image
-    ncols = thisFrame.shape[1]   # total number of columns in the full image
+    #nrows = thisFrame.shape[0]   # total number of rows in the full image
+    #ncols = thisFrame.shape[1]   # total number of columns in the full image
 
     subPixArea = 1/float(npdiv)**2 # areal rescaling for subpixel intensities
 
@@ -631,8 +631,10 @@ def angularDifference(angList0, angList1, units=angularUnits):
     return abs(np.remainder(diffAngles + 0.5*period, period) - 0.5*period)
 
 def mapAngle(ang, *args, **kwargs):
-    """
-    Utility routine to map an angle into a specified period
+    """Utility routine to map an angle into a specified period
+
+    actual function is mapAngle(ang[, range], units=angularUnits).  range is
+    optional and defaults to the appropriate angle for the unit centered on 0.
     """
     units  = angularUnits
     period = periodDict[units]
@@ -1048,7 +1050,7 @@ def rotate_vecs_about_axis(angle, axis, vecs):
 
     """
     angle   = np.atleast_1d(angle)
-    nvecs   = vecs.shape[1]                  # assume column vecs
+    #nvecs   = vecs.shape[1]                  # assume column vecs
 
     # quaternion components
     q0 = np.cos(0.5*angle)

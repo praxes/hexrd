@@ -163,6 +163,7 @@ def get_data(cfg, show_progress=False, force=False, clean=False):
         'tth_tol': cfg.fit_grains.tolerance.tth,
         'eta_tol': cfg.fit_grains.tolerance.eta,
         'omega_tol': cfg.fit_grains.tolerance.omega,
+        'refit_tol': cfg.fit_grains.refit,
         'panel_buffer': cfg.fit_grains.panel_buffer,
         'nrows': instrument_cfg['detector']['pixels']['rows'],
         'ncols': instrument_cfg['detector']['pixels']['columns'],
@@ -234,14 +235,17 @@ def fit_grains(cfg, force=False, clean=False, show_progress=False, ids_to_refine
     logger.info('processed %d grains in %g minutes', n_res, elapsed/60)
 
 
-def write_grains_file(cfg, results):
+def write_grains_file(cfg, results, output_name=None):
     # record the results to file
-    f = open(os.path.join(cfg.analysis_dir, 'grains.out'), 'w')
+    if output_name is None:
+        f = open(os.path.join(cfg.analysis_dir, 'grains.out'), 'w')
+    else:
+        f = open(os.path.join(cfg.analysis_dir, output_name), 'w')
     # going to some length to make the header line up with the data
     # while also keeping the width of the lines to a minimum, settled
     # on %19.12g representation.
     header_items = (
-        'grain ID', 'completeness', 'sum(resd**2)/nrefl',
+        'grain ID', 'completeness', 'chi2',
         'xi[0]', 'xi[1]', 'xi[2]', 'tVec_c[0]', 'tVec_c[1]', 'tVec_c[2]',
         'vInv_s[0]', 'vInv_s[1]', 'vInv_s[2]', 'vInv_s[4]*sqrt(2)',
         'vInv_s[5]*sqrt(2)', 'vInv_s[6]*sqrt(2)', 'ln(V[0,0])',
@@ -313,14 +317,25 @@ class FitGrainsWorker(object):
             )
 
 
-    def fit_grains(self, grain_id, grain_params):
+    def fit_grains(self, grain_id, grain_params, refit_tol=None):
+        """
+        Executes lsq fits of grains based on spot files
+        
+        REFLECTION TABLE
+        
+        Cols as follows:
+            0-6:   ID    PID    H    K    L    sum(int)    max(int)    
+            6-9:   pred tth    pred eta    pred ome              
+            9-12:  meas tth    meas eta    meas ome              
+            12-15: meas X      meas Y      meas ome
+        """
         ome_start = self._p['omega_start']
         ome_step = self._p['omega_step']
         ome_stop =  self._p['omega_stop']
         refl_table = np.loadtxt(self._p['spots_stem'] % grain_id)
         valid_refl_ids = refl_table[:, 0] >= 0
-        unsat_spots = refl_table[:, 5] < self._p['saturation_level']
-        pred_ome = refl_table[:, 8]
+        unsat_spots = refl_table[:, 6] < self._p['saturation_level']
+        pred_ome = refl_table[:, 9]
         if angularDifference(ome_start, ome_stop, units='degrees') > 0:
             # if here, incomplete have omega range and
             # clip the refelctions very close to the edges to avoid
@@ -336,34 +351,99 @@ class FitGrainsWorker(object):
                     pred_ome < np.radians(ome_stop - 2*ome_step)
                     )
             idx = np.logical_and(
-                unsat_spots,
-                np.logical_and(valid_refl_ids, idx_ome)
+                valid_refl_ids,
+                np.logical_and(unsat_spots, idx_ome)
                 )
         else:
             idx = np.logical_and(valid_refl_ids, unsat_spots)
+            pass # end if edge case
 
-        hkls = refl_table[idx, 1:4].T # must be column vectors
-        self._p['hkls'] = hkls
-        xyo_det = refl_table[idx, -3:] # these are the cartesian centroids + ome
-        xyo_det[:, 2] = mapAngle(xyo_det[:, 2], self._p['omega_period'])
-        self._p['xyo_det'] = xyo_det
-        if sum(idx) <= 12:
-            return grain_params, 0
-        grain_params = fitGrain(
-            xyo_det, hkls, self._p['bMat'], self._p['wlen'],
-            self._p['detector_params'],
-            grain_params[:3], grain_params[3:6], grain_params[6:],
-            beamVec=bVec_ref, etaVec=eta_ref,
-            distortion=self._p['distortion'],
-            gFlag=gFlag, gScl=gScl,
-            omePeriod=self._p['omega_period']
-            )
+        # completeness from pullspots only; incl saturated
         completeness = sum(valid_refl_ids)/float(len(valid_refl_ids))
-        return grain_params, completeness
 
+        # extract data from grain table
+        hkls = refl_table[idx, 2:5].T # must be column vectors
+        xyo_det = refl_table[idx, -3:] # these are the cartesian centroids + ome
+
+        # set in parameter attribute
+        self._p['hkls'] = hkls
+        self._p['xyo_det'] = xyo_det
+        
+        if sum(idx) <= 12: # not enough reflections to fit... exit
+            completeness = 0.
+        else:
+            grain_params = fitGrain(
+                xyo_det, hkls, self._p['bMat'], self._p['wlen'],
+                self._p['detector_params'],
+                grain_params[:3], grain_params[3:6], grain_params[6:],
+                beamVec=bVec_ref, etaVec=eta_ref,
+                distortion=self._p['distortion'],
+                gFlag=gFlag, gScl=gScl,
+                omePeriod=self._p['omega_period']
+                )
+            if refit_tol is not None:
+                xpix_tol = refit_tol[0]*self._p['pixel_pitch'][1]
+                ypix_tol = refit_tol[0]*self._p['pixel_pitch'][0]
+                fome_tol = refit_tol[1]*self._p['omega_step']
+                
+                xyo_det_fit = objFuncFitGrain(
+                    grain_params[gFlag], grain_params, gFlag,
+                    self._p['detector_params'],
+                    xyo_det, hkls, self._p['bMat'], self._p['wlen'],
+                    bVec_ref, eta_ref,
+                    self._p['distortion'][0], self._p['distortion'][1],
+                    self._p['omega_period'], simOnly=True
+                    )
+
+                # define difference vectors for spot fits
+                x_diff = abs(xyo_det[:, 0] - xyo_det_fit[:, 0])
+                y_diff = abs(xyo_det[:, 1] - xyo_det_fit[:, 1])
+                ome_diff = np.degrees(
+                    angularDifference(xyo_det[:, 2], xyo_det_fit[:, 2])
+                    )
+
+                # filter out reflections with centroids more than 
+                # a pixel and delta omega away from predicted value
+                idx_1 = np.logical_and(
+                    x_diff <= xpix_tol,
+                    np.logical_and(y_diff <= ypix_tol,
+                                   ome_diff <= fome_tol)
+                                   )
+                idx_new = np.zeros_like(idx, dtype=bool)
+                idx_new[np.where(idx == 1)[0][idx_1]] = True
+
+                if sum(idx_new) > 12 and (sum(idx_new) > 0.5*sum(idx)):
+                    # have enough reflections left
+                    #   ** the check that we have more than half of what
+                    #      we started with is a hueristic
+                    hkls = refl_table[idx_new, 2:5].T
+                    xyo_det = refl_table[idx_new, -3:]
+
+                    # set in parameter attribute
+                    self._p['hkls'] = hkls
+                    self._p['xyo_det'] = xyo_det
+
+                    # do fit
+                    grain_params = fitGrain(
+                        xyo_det, hkls,
+                        self._p['bMat'], self._p['wlen'],
+                        self._p['detector_params'],
+                        grain_params[:3], grain_params[3:6], grain_params[6:],
+                        beamVec=bVec_ref, etaVec=eta_ref,
+                        distortion=self._p['distortion'],
+                        gFlag=gFlag, gScl=gScl,
+                        omePeriod=self._p['omega_period']
+                        )
+                    pass # end check on num of refit refls
+                pass # end refit loop
+            pass # end on num of refls
+        return grain_params, completeness
+        
 
     def get_e_mat(self, grain_params):
-        # TODO: document what is this?
+        """
+        strain tensor calculation
+        """
         return logm(np.linalg.inv(vecMVToSymm(grain_params[6:])))
 
 
@@ -377,9 +457,7 @@ class FitGrainsWorker(object):
             bVec_ref, eta_ref,
             dFunc, dParams,
             self._p['omega_period'],
-            simOnly=False
-            )
-
+            simOnly=False, return_value_flag=2)
 
     def loop(self):
         id, grain_params = self._jobs.get(False)
@@ -389,14 +467,15 @@ class FitGrainsWorker(object):
         iterations = (have_estimate, len(self._p['eta_tol']))
         for iteration in range(*iterations):
             self.pull_spots(id, grain_params, iteration)
-            grain_params, compl = self.fit_grains(id, grain_params)
+            grain_params, compl = self.fit_grains(id, grain_params,
+                                                  refit_tol=self._p['refit_tol'])
             if compl == 0:
                 break
 
         eMat = self.get_e_mat(grain_params)
         resd = self.get_residuals(grain_params)
 
-        self._results.append((id, grain_params, compl, eMat, sum(resd**2)))
+        self._results.append((id, grain_params, compl, eMat, resd))
         self._jobs.task_done()
 
 

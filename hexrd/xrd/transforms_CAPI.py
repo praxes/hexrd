@@ -59,6 +59,22 @@ eta_ref  =  Xl
 # ######################################################################
 # Funtions
 
+def anglesToGVec(angs, bHat_l=bVec_ref, eHat_l=eta_ref, chi=0., rMat_c=I3):
+    """
+    from 'eta' frame out to lab (with handy kwargs to go to crystal or sample)
+
+    * setting omega to zero in ang imput and omitting rMat_c leaves 
+      in the lab frame in accordance with beam frame specs.
+    """
+    angs = np.ascontiguousarray( np.atleast_2d(angs) )
+    bHat_l = np.ascontiguousarray( bHat_l.flatten() )
+    eHat_l = np.ascontiguousarray( eHat_l.flatten() )
+    rMat_c = np.ascontiguousarray( rMat_c )
+    chi = float(chi)
+    return _transforms_CAPI.anglesToGVec(angs, 
+                                         bHat_l, eHat_l,
+                                         chi, rMat_c)
+
 def makeGVector(hkl, bMat):
     """
     take a CRYSTAL RELATIVE B matrix onto a list of hkls to output unit
@@ -116,9 +132,9 @@ def gvecToDetectorXY(gVec_c,
                                              beamVec)
 
 def gvecToDetectorXYArray(gVec_c,
-                     rMat_d, rMat_s, rMat_c,
-                     tVec_d, tVec_s, tVec_c,
-                     beamVec=bVec_ref):
+                          rMat_d, rMat_s, rMat_c,
+                          tVec_d, tVec_s, tVec_c,
+                          beamVec=bVec_ref):
     """
     Takes a list of unit reciprocal lattice vectors in crystal frame to the
     specified detector-relative frame, subject to the conditions:
@@ -146,9 +162,9 @@ def gvecToDetectorXYArray(gVec_c,
     tVec_c  = np.ascontiguousarray( tVec_c.flatten()  )
     beamVec = np.ascontiguousarray( beamVec.flatten() )
     return _transforms_CAPI.gvecToDetectorXYArray(gVec_c,
-                                             rMat_d, rMat_s, rMat_c,
-                                             tVec_d, tVec_s, tVec_c,
-                                             beamVec)
+                                                  rMat_d, rMat_s, rMat_c,
+                                                  tVec_d, tVec_s, tVec_c,
+                                                  beamVec)
 
 def detectorXYToGvec(xy_det,
                      rMat_d, rMat_s,
@@ -422,13 +438,12 @@ def makeRotMatOfExpMap(expMap):
     arg = np.ascontiguousarray(expMap.flatten())
     return _transforms_CAPI.makeRotMatOfExpMap(arg)
 
-def makeRotMatOfQuat(quat):
+def makeRotMatOfQuat(quats):
     """
-    make rotation matrix from a unit quaternion
+    make rotation matrix from vstacked unit quaternions
 
-    ...check to set if input is unit magnitude?
     """
-    arg = np.ascontiguousarray(quat.flatten())
+    arg = np.ascontiguousarray(quats)
     return _transforms_CAPI.makeRotMatOfQuat(arg)
 
 def makeBinaryRotMat(axis):
@@ -441,6 +456,9 @@ def makeEtaFrameRotMat(bHat_l, eHat_l):
     return _transforms_CAPI.makeEtaFrameRotMat(arg1, arg2)
 
 def validateAngleRanges(angList, angMin, angMax, ccw=True):
+    angList = angList.astype(np.double, order="C")
+    angMin = angMin.astype(np.double, order="C")
+    angMax = angMax.astype(np.double, order="C")
     return _transforms_CAPI.validateAngleRanges(angList,angMin,angMax,ccw)
 
 def rotate_vecs_about_axis(angle, axis, vecs):

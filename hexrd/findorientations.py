@@ -153,11 +153,8 @@ def run_cluster(compl, qfib, qsym, cfg):
         # use compiled module for distance
         # just to be safe, must order qsym as C-contiguous
         qsym  = np.array(qsym.T, order='C').T
-        quat_distance = lambda x, y: xfcapi.quat_distance(
-            np.array(x, order='C'),
-            np.array(y, order='C'),
-            qsym
-            )
+        def quat_distance(x, y):
+            return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
 
         qfib_r = qfib[:, np.array(compl) > min_compl]
 
