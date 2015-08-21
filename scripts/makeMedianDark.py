@@ -66,16 +66,17 @@ def make_dark_frame(cfg_name, nframes_use=100, nbytes_header=8192, pixel_type=np
         if not quiet:
             print "Using %d frames from '%s'" %(min(n_frames, nframes_use, n_frames_rem), filename)
 
+        nfr = jj - ii
         fid = open(filename, 'rb')
         fid.seek(nbytes_header+n_empty*nbytes_frame, 0)     # header plus junk frames
-        tmp = np.frombuffer(fid.read(nframes_use*nbytes_frame), dtype=pixel_type).reshape(nframes_use, nrows, ncols)
+        tmp = np.frombuffer(fid.read(nfr*nbytes_frame), dtype=pixel_type).reshape(nfr, nrows, ncols)
         fid.close()
-
+        
         # index into frames array
         frames[ii:jj] = tmp
 
         # increment...
-        n_frames_rem -= jj
+        n_frames_rem -= nfr
         if n_frames_rem <= 0:
             break
         else:
