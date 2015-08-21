@@ -3398,6 +3398,25 @@ if USE_NUMBA:
         return _coo_build_window_jit(frame_i.row, frame_i.col, frame_i.data,
                                      min_row, max_row, min_col, max_col,
                                      window)
+
+    
+    @numba.jit
+    def compute_areas_2(xy_eval_vtx, conn):
+        areas = num.empty(len(conn))
+        for i in range(len(conn)):
+            c0, c1, c2, c3 = conn[i]
+            vtx0x, vtx0y = xy_eval_vtx[conn[i,0]]
+            vtx1x, vtx1y = xy_eval_vtx[conn[i,1]]
+            v0x, v0y = vtx1x-vtx0x, vtx1y-vtx0y
+            acc = 0
+            for j in range(2, 4):
+                vtx_x, vtx_y = xy_eval_vtx[conn[i,j]]
+                v1x = vtx_x - vtx0x
+                v1y = vtx_y - vtx0y
+                acc += v0x*v1y - v1x*v0y
+    
+            areas[i] = 0.5 * acc
+        return areas
 else: # not USE_NUMBA
     def _coo_build_window(frame_i, min_row, max_row, min_col, max_col):
         mask = ((min_row <= frame_i.row) & (frame_i.row <= max_row) &
@@ -3410,6 +3429,136 @@ else: # not USE_NUMBA
         window[new_row, new_col] = new_data
 
         return window
+
+
+def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
+                            omega=None,
+                            tth_tol=0.2, eta_tol=1.0,
+                            rMat_c=num.eye(3), tVec_c=num.c_[0.,0.,0.].T,
+                            distortion=distortion,
+                            npdiv=1, quiet=False, compute_areas_func=compute_areas_2):
+    """
+    prototype function for making angular patches on a detector
+
+    panel_dims are [(xmin, ymin), (xmax, ymax)] in mm
+
+    pixel_pitch is [row_size, column_size] in mm
+
+    DISTORTION HANDING IS STILL A KLUDGE
+
+    patches are:
+
+                 delta tth
+   d  ------------- ... -------------
+   e  | x | x | x | ... | x | x | x |
+   l  ------------- ... -------------
+   t                 .
+   a                 .
+                     .
+   e  ------------- ... -------------
+   t  | x | x | x | ... | x | x | x |
+   a  ------------- ... -------------
+
+    """
+    npts = len(tth_eta)
+
+    # detector frame
+    rMat_d = xfcapi.makeDetectorRotMat(
+        instr_cfg['detector']['transform']['tilt_angles']
+        )
+    tVec_d = num.r_[instr_cfg['detector']['transform']['t_vec_d']]
+    pixel_size = instr_cfg['detector']['pixels']['size']
+
+    frame_nrows = instr_cfg['detector']['pixels']['rows']
+    frame_ncols = instr_cfg['detector']['pixels']['columns']
+
+    panel_dims = (
+        -0.5*num.r_[frame_ncols*pixel_size[1], frame_nrows*pixel_size[0]],
+         0.5*num.r_[frame_ncols*pixel_size[1], frame_nrows*pixel_size[0]]
+        )
+    row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_size[1] + panel_dims[0][1]
+    col_edges = num.arange(frame_ncols + 1)*pixel_size[0] + panel_dims[0][0]
+
+    # sample frame
+    chi = instr_cfg['oscillation_stage']['chi']
+    tVec_s = num.r_[instr_cfg['oscillation_stage']['t_vec_s']]
+
+    # data to loop
+    # ...WOULD IT BE CHEAPER TO CARRY ZEROS OR USE CONDITIONAL?
+    if omega is None:
+        full_angs = num.hstack([tth_eta, num.zeros((npts, 1))])
+    else:
+        full_angs = num.hstack([tth_eta, omega.reshape(npts, 1)])
+
+    patches = []
+    for angs, pix in zip(full_angs, ang_pixel_size):
+        ndiv_tth = npdiv*num.ceil( tth_tol/num.degrees(pix[0]) )
+        ndiv_eta = npdiv*num.ceil( eta_tol/num.degrees(pix[1]) )
+
+        tth_del = num.arange(0, ndiv_tth+1)*tth_tol/float(ndiv_tth) - 0.5*tth_tol
+        eta_del = num.arange(0, ndiv_eta+1)*eta_tol/float(ndiv_eta) - 0.5*eta_tol
+
+        # store dimensions for convenience
+        #   * etas and tths are bin vertices, ome is already centers
+        sdims = [ len(eta_del)-1, len(tth_del)-1 ]
+
+        # meshgrid args are (cols, rows), a.k.a (fast, slow)
+        m_tth, m_eta = num.meshgrid(tth_del, eta_del)
+        npts_patch   = m_tth.size
+
+        # calculate the patch XY coords from the (tth, eta) angles
+        # * will CHEAT and ignore the small perturbation the different
+        #   omega angle values causes and simply use the central value
+        gVec_angs_vtx = num.tile(angs, (npts_patch, 1)) \
+                        + num.radians(
+                            num.vstack([m_tth.flatten(),
+                                        m_eta.flatten(),
+                                        num.zeros(npts_patch)
+                                       ]).T
+                                     )
+
+        # FOR ANGULAR MESH
+        conn = gutil.cellConnectivity( sdims[0], sdims[1], origin='ll')
+
+        # make G-vectors
+        gVec_c = xfcapi.anglesToGVec(gVec_angs_vtx, chi=chi, rMat_c=rMat_c)
+        xy_eval_vtx = xfcapi.gvecToDetectorXY(gVec_c,
+                                              rMat_d, rMat_s, rMat_c,
+                                              tVec_d, tVec_s, tVec_c)
+        if distortion is not None and len(distortion) == 2:
+            xy_eval_vtx = distortion[0](xy_eval_vtx, distortion[1], invert=True)
+            pass
+
+        areas = compute_areas_func(xy_eval_vtx, conn)
+        
+        # EVALUATION POINTS
+        #   * for lack of a better option will use centroids
+        tth_eta_cen = gutil.cellCentroids( num.atleast_2d(gVec_angs_vtx[:, :2]), conn )
+        gVec_angs  = num.hstack([tth_eta_cen,
+                                 num.tile(angs[2], (len(tth_eta_cen), 1))])
+        gVec_c = xfcapi.anglesToGVec(gVec_angs, chi=chi, rMat_c=rMat_c)
+        xy_eval = xfcapi.gvecToDetectorXY(gVec_c,
+                                          rMat_d, rMat_s, rMat_c,
+                                          tVec_d, tVec_s, tVec_c)
+        if distortion is not None and len(distortion) == 2:
+            xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
+            pass
+        row_indices   = gutil.cellIndices(row_edges, xy_eval[:, 1])
+        col_indices   = gutil.cellIndices(col_edges, xy_eval[:, 0])
+
+        # append patch data to list
+        patches.append(((gVec_angs_vtx[:, 0].reshape(m_tth.shape),
+                         gVec_angs_vtx[:, 1].reshape(m_tth.shape)),
+                        (xy_eval_vtx[:, 0].reshape(m_tth.shape),
+                         xy_eval_vtx[:, 1].reshape(m_tth.shape)),
+                        conn,
+                        areas.reshape(sdims[0], sdims[1]),
+                        (row_indices.reshape(sdims[0], sdims[1]),
+                         col_indices.reshape(sdims[0], sdims[1]))
+                        )
+                    )
+        pass
+    return patches
 
 def pullSpots(pd, detector_params, grain_params, reader,
               ome_period=(-num.pi, num.pi),

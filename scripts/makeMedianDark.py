@@ -1,61 +1,138 @@
+#!/usr/bin/env python
 import sys, os
 
-from hexrd.xrd import detector
-from hexrd.xrd import xrdutil
+import argparse
 
-fileInfo = [('/home/bernier2/Documents/data/ruby_00025.ge3', 2), 
-            ('/home/bernier2/Documents/data/ruby_00026.ge3', 2)]
+import yaml
 
-nChunk      = 5
-medianSize  = 3
-medianRange = (-50,50)
+import numpy as np
 
-def medianDarkGE(fileInfo, nChunk, medianSize, medianRange):
-    reader    = detector.ReadGE(fileInfo, subtractDark=False, doFlip=False)    
-    numFrames = reader.getNFrames()
-    mdresults = xrdutil.darkFromStack(reader, nFrames=numFrames, nChunk=nChunk, 
-                                      medianSize=medianSize, medianRange=medianRange, 
-                                      checkIntensityResolution=False)
-    darkFrame, deadPixels, std = mdresults
-    return darkFrame, deadPixels, std
+from hexrd import config
+from hexrd.fitgrains import get_instrument_parameters
 
-if __name__ == "__main__":
+def make_dark_frame(cfg_name, nframes_use=100, nbytes_header=8192, pixel_type=np.uint16, quiet=False, output_name=None):
     """
-    Usage:
+    FOR BYTE STREAM IMAGES ONLY!
 
-    python makeMedianDark.py LT3MEW ge2 341 341 5 1 ./ dark
+    nbytes_header and pixel_bytes default for raw GE
     """
-    argv = sys.argv[1:]
     
-    fileRoot   = argv[0]
-    fileSuffix = argv[1]
-    fileStart  = argv[2]
-    fileStop   = argv[3]
-    zpad       = argv[4]
-    nEmtpy     = argv[5]
-    outputDir  = argv[6]
-    outputName = argv[7]
+    cfg = config.open(cfg_name)[0] # only first block...
+    raw_cfg = [g for g in yaml.load_all(open(cfg_name, 'r'))] # take first block... maybe iterate?
+
+    try:
+        output_name = cfg.image_series.dark
+    except IOError:
+        if raw_cfg[0]['image_series'].has_key('dark') and output_name is None:
+            output_name = raw_cfg[0]['image_series']['dark']
+
+    if not os.path.exists(output_name):
+        # create if necessary    
+        open(output_name, 'w+').close()
+
+    n_empty = cfg.image_series.images.start
+
+    image_numbers = cfg.image_series.file.ids
+    n_images = len(image_numbers)
     
-    numImages = (int(fileStop) - int(fileStart)) + 1
-    fileInfo = []
-    zpad_str = "_%"+"0%dd" % (int(zpad))
+    instr_cfg = get_instrument_parameters(cfg)
+
+    nrows = instr_cfg['detector']['pixels']['rows']
+    ncols = instr_cfg['detector']['pixels']['columns']
+
+    pixel_bytes = pixel_type().itemsize
+    nbytes_frame = pixel_bytes*nrows*ncols
+
+    filename = cfg.image_series.file.stem %cfg.image_series.file.ids[0]
+    file_bytes = os.stat(filename).st_size
+    n_frames = getNFramesFromBytes(file_bytes, nbytes_header, nbytes_frame)
+    n_frames -= n_empty
+    n_frames_total = n_frames*n_images
+    if nframes_use > n_frames_total:
+        if not quiet:
+            print "Requested %d frames, which is in image spec; defaulting to %d" %(nframes_use, n_frames_total)
+        nframes_use = n_frames_total
     
-    for i in range(numImages):
-        if fileSuffix.strip() == '':
-            fname = fileRoot+zpad_str
-            oname = outputName
+    ii = 0
+    jj = min(nframes_use, n_frames)
+
+    n_frames_cum = 0
+    n_frames_rem = nframes_use
+
+    frames = np.empty((nframes_use, nrows, ncols), dtype=pixel_type)
+    for i_frame in range(len(image_numbers)):
+        filename = cfg.image_series.file.stem %cfg.image_series.file.ids[i_frame]
+
+        if not quiet:
+            print "Using %d frames from '%s'" %(min(n_frames, nframes_use, n_frames_rem), filename)
+
+        fid = open(filename, 'rb')
+        fid.seek(nbytes_header+n_empty*nbytes_frame, 0)     # header plus junk frames
+        tmp = np.frombuffer(fid.read(nframes_use*nbytes_frame), dtype=pixel_type).reshape(nframes_use, nrows, ncols)
+        fid.close()
+
+        # index into frames array
+        frames[ii:jj] = tmp
+
+        # increment...
+        n_frames_rem -= jj
+        if n_frames_rem <= 0:
+            break
         else:
-            fname = fileRoot+zpad_str+"."+fileSuffix 
-            oname = outputName+'.'+fileSuffix
-        fileInfo.append( ( fname % (int(fileStart) + i), int(nEmtpy) ) )
+            ii = jj
+            jj += min(n_frames_rem, n_frames)
+            if not quiet:
+                print "\tframes left: %d" %n_frames_rem
         pass
     
-    print "processing fileInfo: "
-    print fileInfo
+    dark = np.median(frames, axis=0)
+
+    if not quiet:
+        print "Output file: %s" %output_name
+
+    fid = open(cfg.image_series.dark, 'wb')
+    fid.seek(nbytes_header)
+    fid.write(dark.astype(pixel_type))
+    fid.close()
+    return dark.astype(np.uint16)
+
+
+def subtract_dark_and_write(cfg, dark, filename='full_scan.ge'):
+    archive = open(os.path.join(cfg.working_dir, filename), 'wb')
+    archive.seek(nbytes_header)
+    for f in cfg.image_series.files:
+        fid = open(f, 'rb')
+        fid.seek(nbytes_header, 0)     # header plus first junk frame
+        for iframe in range(int(cfg.image_series.n_frames)):
+            frame = np.frombuffer(fid.read(nbytes_frame), dtype=np.uint16).reshape(nrows, ncols)
+            tmp = frame - dark
+            tmp[tmp <= cfg.find_orientations.orientation_maps.threshold] = 0
+            archive.write(tmp)
+        fid.close()
+    archive.close()
+    return
+
+
+def getNFramesFromBytes(fileBytes, nbytesHeader, nbytesFrame):
+    assert (fileBytes - nbytesHeader) % nbytesFrame == 0,\
+        'file size not correct'
+    nFrames = int((fileBytes - nbytesHeader) / nbytesFrame)
+    if nFrames*nbytesFrame + nbytesHeader != fileBytes:
+        raise RuntimeError, 'file size not correctly calculated'
+    return nFrames
+
+if __name__ == '__main__':
+    """
+    USAGE : python makeMedianDark <cfg_file> <num frames to use> <output filename>
+    """
+    parser = argparse.ArgumentParser(description='Make median dark from cfg file')
+
+    parser.add_argument('cfg', metavar='cfg_filename', type=str, help='a YAML config filename')
+    parser.add_argument('-n','--num-frames', help='Number of frames to use in median calculation', type=int, default=100)
+    parser.add_argument('-o','--output-name', help='Output filename', type=str)
+
+    args = vars(parser.parse_args(sys.argv[1:]))
     
-    darkFrame, deadPixels, std = medianDarkGE(fileInfo, nChunk, medianSize, medianRange)
-    fw = detector.FrameWriter(2048, 2048, 
-                              filename=os.path.join(outputDir, oname), 
-                              nbytesHeader=8192)
-    fw.write(darkFrame)
-    fw.close()
+    dark = make_dark_frame(args['cfg'], nframes_use=args['num_frames'], output_name=args['output_name'])
+    
+    
