@@ -28,11 +28,11 @@ DSetPath = lambda f, p: "%s['%s']" % (f, p)
 class MakeImageSeriesError(Exception):
     """Class for MakeImageSeriesError  errors"""
     def __init__(self, message):
-	self.message = message
+        self.message = message
         return
 
     def __str__(self):
-	return self.message
+        return self.message
 
     pass  # end class
 
