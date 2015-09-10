@@ -82,3 +82,5 @@ void rotate_vecs_about_axis_cfunc(long int na, double * angles,
 				  double * rVecs);
 
 double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym);
+
+void homochoricOfQuat_cfunc(int nq, double * qPtr, double * hPtr);
