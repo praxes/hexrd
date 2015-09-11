@@ -581,7 +581,7 @@ class Experiment(object):
                 det_class_str = lines[i]
         f.seek(0)
         if det_class_str is None:
-            raise RuntimeError, "detector class label not recongined in file!"
+            raise RuntimeError, "detector class label not recongized in file!"
         else:
             plist_rflags = numpy.loadtxt(f)
             plist = plist_rflags[:, 0]
