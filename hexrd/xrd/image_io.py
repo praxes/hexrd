@@ -55,7 +55,6 @@ class OmegaImageSeries(object):
         return
 
     def __getitem__(self, k):
-        print 'new image: ', k
         return self._imseries[k]
 
     @property
@@ -218,11 +217,14 @@ class ReadGE(Framer2DRC,OmegaFramer):
         """
         self._fname = file_info
         self._kwargs = kwargs
-        self._omis = OmegaImageSeries(file_info, **kwargs)
+        try:
+            self._omis = OmegaImageSeries(file_info, **kwargs)
+            Framer2DRC.__init__(self, self._omis.nrows, self._omis.ncols)
+            OmegaFramer.__init__(self, self._omis.omega)
+        except:
+            self._omis = None
         self.mask = None
 
-        Framer2DRC.__init__(self, self._omis.nrows, self._omis.ncols)
-        OmegaFramer.__init__(self, self._omis.omega)
 
         # counter for last global frame that was read
         self.iFrame = -1
