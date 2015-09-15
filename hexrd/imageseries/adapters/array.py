@@ -34,6 +34,10 @@ class ArrayImageSeriesAdapter(ImageSeriesAdapter):
     def shape(self):
         return self._nxny
 
+    @property
+    def dtype(self):
+        return self._data.dtype
+    
     def __getitem__(self, key):
         return self._data[key]
 

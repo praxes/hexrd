@@ -2,6 +2,7 @@
 
 import abc
 
+import numpy
 import h5py
 
 def write(ims, fname, fmt, opts):
@@ -13,9 +14,10 @@ def write(ims, fname, fmt, opts):
     *opts* - namespace of options
     """
     print('writing format ', fmt, ' to file: ', fname)
-    w = _Registry.getwriter(fmt)
-    w.write(ims, fname, opts)
-    
+    wcls = _Registry.getwriter(fmt)
+    print(wcls)
+    w = wcls(ims, fname, opts)
+    w.write()
 
 # Registry
 
@@ -26,7 +28,7 @@ class _RegisterWriter(abc.ABCMeta):
         _Registry.register(cls)
 
 class _Registry(object):
-    """Registry for symmetry type instances"""
+    """Registry for imageseries writers"""
     writer_registry = dict()
 
     @classmethod
@@ -50,10 +52,33 @@ class Writer(object):
 class WriteH5(Writer):
     fmt = 'hdf5'
 
-    @classmethod
-    def write(cls, ims, fname, opts):
+    def __init__(self, ims, fname, opts):
+        self._ims = ims
+        self._shape = ims.shape
+        self._dtype = ims.dtype
+        self._nframes = len(ims)
+        
+        self._fname = fname
+        self._opts = opts
+        self._path = self._opts['path']
+
+    def _open_dset(self):
+        """open HDF5 file and dataset"""
+        f = h5py.File(self._fname, "a")
+        s0, s1 = self._shape
+        
+        return f.create_dataset(self._path, (self._nframes, s0, s1), self._dtype,
+                                compression="gzip")
+    #
+    # ======================================== API
+    #
+    def write(self):
         """Write imageseries to HDF5 file"""
         print('writing hdf5')
-        pass
+        ds = self._open_dset()
+        for i in range(self._nframes):
+            ds[i, :, :] = self._ims[i]
+
+        # next: add metadata
         
     pass # end class
