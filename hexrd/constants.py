@@ -27,39 +27,46 @@
 # ============================================================
 
 import numpy as np
+from scipy import constants as sc
 
+# pi related
 pi    = np.pi
 piby2 = 0.5 * pi
 piby3 = pi / 3.
 piby4 = 0.25 * pi
 piby6 = pi / 6.
 
+# misc radicals
 sq2    = np.sqrt(2.)
 sq3    = np.sqrt(3.)
 sq3by2 = 0.5 * sq3
 
+# tolerancing
 epsf      = np.finfo(float).eps      # ~2.2e-16
 ten_epsf  = 10 * epsf                # ~2.2e-15
 sqrt_epsf = np.sqrt(epsf)            # ~1.5e-8
 
-periodDict   = {'degrees': 360.0, 'radians': 2*pi}
-angularUnits = 'radians'        # module-level angle units
-
-d2r = pi / 180.
-r2d = 180. / pi
+# for angles
+periodDict = {'degrees': 360.0, 'radians': 2*pi}
+angularUnits = 'radians' # module-level angle units
+d2r = deg2rad = pi / 180.
+r2d = rad2deg = 180. / pi
 
 # basis vectors
-I3    = np.eye(3)                  # (3, 3) identity
-X_ref = I3[:, 0].reshape(3, 1)     # X in the lab frame
-Y_ref = I3[:, 1].reshape(3, 1)     # Y in the lab frame
-Z_ref = I3[:, 2].reshape(3, 1)     # Z in the lab frame
+I3    = np.eye(3) # (3, 3) identity
+X = np.array(I3[:, 0].reshape(3, 1), order='C') # X in the lab frame
+Y = np.array(I3[:, 1].reshape(3, 1), order='C') # Y in the lab frame
+Z = np.array(I3[:, 2].reshape(3, 1), order='C') # Z in the lab frame
 
 zeros_3x1 = np.zeros((3, 1))
 zeros_6x1 = np.zeros((6, 1))
 
 # reference beam direction and eta=0 ref in LAB FRAME for standard geometry
-bVec_DFLT = -Z_ref
-eVec_DFLT =  X_ref
+bVec = -Z_ref
+eVec =  X_ref
 
 # for strain
-vInv_ref = np.c_[1., 1., 1., 0., 0., 0.].T
+vInv = np.array(np.r_[1., 1., 1., 0., 0., 0.].reshape(6, 1), order='C')
+
+# for energy/wavelength conversions
+keVToAngstrom = lambda x: (1e7*sc.c*sc.h/sc.e) / x

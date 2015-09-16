@@ -466,11 +466,20 @@ def rotate_vecs_about_axis(angle, axis, vecs):
 
 def quat_distance(q1, q2, qsym):
     """
-    qsy coming from hexrd.xrd.crystallogray.PlaneData.getQSym() is C-contiguous
+    qsym coming from hexrd.xrd.crystallogray.PlaneData.getQSym() is C-contiguous
     """
     q1 = np.ascontiguousarray(q1.flatten())
     q2 = np.ascontiguousarray(q2.flatten())
     return _transforms_CAPI.quat_distance(q1, q2, qsym)
+
+def homochoricOfQuat(quats):
+    """
+    Compute homochoric parameters of unit quaternions
+
+    quats is (4, n)
+    """
+    q = np.ascontiguousarray(quats.T)
+    return _transforms_CAPI.homochoricOfQuat(q)
 
 #def rotateVecsAboutAxis(angle, axis, vecs):
 #    return _transforms_CAPI.rotateVecsAboutAxis(angle, axis, vecs)
