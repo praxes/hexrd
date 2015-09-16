@@ -16,8 +16,8 @@ from PyQt4 import QtCore, QtGui, uic
 from PyQt4 import uic
 
 try:
-    from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
-    from IPython.qt.inprocess import QtInProcessKernelManager
+    from qtconsole.rich_ipython_widget import RichIPythonWidget
+    from qtconsole.inprocess import QtInProcessKernelManager
     from IPython.lib import guisupport
 except ImportError:
     pass

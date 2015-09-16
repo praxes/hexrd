@@ -32,6 +32,7 @@ requirements:
     - python
     - python.app # [osx]
     - pyyaml
+    - qtconsole
     - scikit-learn ==0.15.2
     - scipy
     - wxpython
