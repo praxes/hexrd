@@ -48,20 +48,23 @@ class Writer(object):
     """Base class for writers"""
     __metaclass__ = _RegisterWriter
     fmt = None
-        
-class WriteH5(Writer):
-    fmt = 'hdf5'
-
     def __init__(self, ims, fname, opts):
         self._ims = ims
         self._shape = ims.shape
         self._dtype = ims.dtype
         self._nframes = len(ims)
-        
         self._fname = fname
         self._opts = opts
-        self._path = self._opts['path']
 
+    pass # end class
+        
+class WriteH5(Writer):
+    fmt = 'hdf5'
+
+    def __init__(self, ims, fname, opts):
+        Writer.__init__(self, ims, fname, opts)
+        self._path = self._opts['path']
+    
     def _open_dset(self):
         """open HDF5 file and dataset"""
         f = h5py.File(self._fname, "a")
@@ -74,7 +77,7 @@ class WriteH5(Writer):
     #
     def write(self):
         """Write imageseries to HDF5 file"""
-        print('writing hdf5')
+        print('writing ', self.fmt)
         ds = self._open_dset()
         for i in range(self._nframes):
             ds[i, :, :] = self._ims[i]
@@ -82,3 +85,27 @@ class WriteH5(Writer):
         # next: add metadata
         
     pass # end class
+
+class WriteFrameCache(Writer):
+
+    fmt = 'frame-cache'
+    def __init__(self, ims, fname, opts):
+        Writer.__init__(self, ims, fname, opts)
+        self._thresh = self._opts['threshold']
+
+    def write(self):
+        """writes frame cache for imageseries
+
+        presumes sparse forms are small enough to contain all frames
+        """
+        print('writing ', self.fmt)
+        arrd = dict()
+        for i in range(self._nframes):
+            frame = self._ims[i]
+            mask = frame > self._thresh
+            row, col = mask.nonzero()
+            arrd['%d_data' % i] = frame[mask]
+            arrd['%d_row' % i] = row
+            arrd['%d_col' % i] = col
+        
+        numpy.savez_compressed(self._fname, **arrd)
