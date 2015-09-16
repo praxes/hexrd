@@ -70,6 +70,8 @@ from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 
 from hexrd.xrd import distortion
+#from hexrd.fitgrains import get_frames, get_instrument_parameters
+
 try:
     from femODFUtil import pfig as pfigPkg
     havePfigPkg = True
@@ -1715,7 +1717,218 @@ class EtaOmeMaps(object):
         self.omeEdges = ome_eta.omeEdges
         self.etas = ome_eta.etas
         self.omegas = ome_eta.omegas
+        return
+    
 
+
+# not ready # class BaseEtaOme(object):
+# not ready #     """
+# not ready #     eta-ome map base class derived from new YAML config 
+# not ready # 
+# not ready #     ...for now...
+# not ready # 
+# not ready #     must provide:
+# not ready # 
+# not ready #     self.dataStore
+# not ready #     self.planeData
+# not ready #     self.iHKLList 
+# not ready #     self.etaEdges # IN RADIANS 
+# not ready #     self.omeEdges # IN RADIANS
+# not ready #     self.etas     # IN RADIANS
+# not ready #     self.omegas   # IN RADIANS
+# not ready # 
+# not ready #     This wrapper will provide all but dataStore.
+# not ready #     """
+# not ready #     def __init__(self, cfg, reader=None, eta_step=None):
+# not ready #         """
+# not ready #         currently, reader has to be None *OLD* class type until fixed with new imageIO; 
+# not ready #         if None, then the frame_cache.npz specified by the config must exist
+# not ready #         """
+# not ready #         self.cfg = cfg
+# not ready #         self.instr_cfg = get_instrument_parameters(cfg)
+# not ready #         
+# not ready #         # currently hard-coded to do reader from npz frame cache
+# not ready #         # kwarg *MUST* be 'new' style reader
+# not ready #         if reader is None:
+# not ready #             self.__reader = get_frames(reader, self.cfg)
+# not ready #         else:
+# not ready #             self.__reader = reader
+# not ready #         
+# not ready #         # set eta_step IN DEGREES
+# not ready #         if eta_step is None:
+# not ready #             self._eta_step = self.cfg.image_series.omega.step
+# not ready #         else:
+# not ready #             self._eta_step = abs(eta_step) # just in case negative... 
+# not ready #         
+# not ready #         material_list = cPickle.load(open(cfg.material.definitions, 'r'))
+# not ready #         material_names = [material_list[i].name for i in range(len(material_list))]
+# not ready #         material_dict = dict(zip(material_names, material_list))
+# not ready #         self.planeData = material_dict[cfg.material.active].planeData
+# not ready #         
+# not ready #         self._iHKLList = None
+# not ready # 
+# not ready #         self._etaEdges = None
+# not ready #         self._omeEdges = None
+# not ready #         self._etas = None
+# not ready #         self._omegas = None
+# not ready # 
+# not ready #         return
+# not ready # 
+# not ready #     @property
+# not ready #     def iHKLList(self):
+# not ready #         return self._iHKLList
+# not ready #     @iHKLList.getter
+# not ready #     def iHKLList(self, ids=None):
+# not ready #         """
+# not ready #         ids must be a list 
+# not ready #         """
+# not ready #         if ids is not None:
+# not ready #             assert hasattr(ids, '__len__'), "ids must be a list or list-like object"
+# not ready # 
+# not ready #         # start with all available    
+# not ready #         active_hkls = range(pd.hkls.shape[1])
+# not ready #         # check cfg file
+# not ready #         temp = cfg.find_orientations.orientation_maps.active_hkls
+# not ready #         # override if spec'd explicitly in cfg
+# not ready #         active_hkls = active_hkls if temp == 'all' else temp
+# not ready #         # override with hkls from command line, if specified
+# not ready #         return ids if ids is not None else active_hkls
+# not ready # 
+# not ready #     @property
+# not ready #     def omegas(self):
+# not ready #         return self._omegas
+# not ready #     @omegas.getter
+# not ready #     def omegas(self):
+# not ready #         """
+# not ready #         forces consistency with reader
+# not ready #         """
+# not ready #         num_ome = len(self.__reader[0])
+# not ready #         ome_start = self.__reader[1][0]
+# not ready #         ome_step  = self.__reader[1][1]
+# not ready #         return ome_step*(num.arange(num_ome) + 0.5) + ome_start
+# not ready # 
+# not ready #     @property
+# not ready #     def eta_step(self):
+# not ready #         return self._eta_step
+# not ready #     
+# not ready #     @property
+# not ready #     def etas(self):
+# not ready #         return self._etas
+# not ready #     @etas.getter
+# not ready #     def etas(self):
+# not ready #         """
+# not ready #         range is forced to be [-180, 180] for now, so step must be positive
+# not ready # 
+# not ready #         step is same as omega unless specified (in degrees)
+# not ready #         """
+# not ready #         num_eta = int(360/float(abs(self.eta_step)))
+# not ready #         return num.radians(self.eta_step)*(num.arange(num_eta) + 0.5) - num.pi
+# not ready # 
+# not ready #     @property
+# not ready #     def omeEdges(self):
+# not ready #         return self._omeEdges
+# not ready #     @omeEdges.getter
+# not ready #     def omeEdges(self):
+# not ready #         ome_step = self.omegas[1] - self.omegas[0] # same as self.__reader[1][1]
+# not ready #         return num.hstack([self.omegas - 0.5*ome_step, self.omegas[-1] + 0.5*ome_step])
+# not ready # 
+# not ready #     @property
+# not ready #     def etaEdges(self):
+# not ready #         return self._etaEdges
+# not ready #     @etaEdges.getter
+# not ready #     def etaEdges(self):
+# not ready #         return num.hstack([self.etas - 0.5*eta_step, self.etas[-1] + 0.5*eta_step])
+# not ready # 
+# not ready # class EtaOmeMaps(BaseEtaOme):
+# not ready #     """
+# not ready #     """
+# not ready #     def __init__(self, cfg, reader=None, eta_step=None,
+# not ready #                  omega=0., tVec_s=num.zeros(3), 
+# not ready #                  npdiv=2):
+# not ready #         
+# not ready #         # first init the base class
+# not ready #         super( EtaOmeMaps, self ).__init__(cfg, reader=reader, eta_step=eta_step)
+# not ready #         
+# not ready #         # grac relevant tolerances for patches
+# not ready #         tth_tol = num.degrees(self.planeData.tThWidth)
+# not ready #         eta_tol = num.degrees(abs(self.etas[1]-self.etas[0]))
+# not ready # 
+# not ready #         # grab distortion
+# not ready #         if instr_cfg['detector']['distortion']['function_name'] is None:
+# not ready #             distortion = None
+# not ready #         else:
+# not ready #             # THIS IS STILL A KLUDGE!!!!!
+# not ready #             distortion = (xf.dFunc_ref,
+# not ready #                           num.r_[instr_cfg['detector']['distortion']['parameters']]
+# not ready #                           )
+# not ready #         # stack parameters
+# not ready #         detector_params = num.hstack([
+# not ready #             instr_cfg['detector']['transform']['tilt_angles'], 
+# not ready #             instr_cfg['detector']['transform']['t_vec_d'],
+# not ready #             instr_cfg['oscillation_stage']['chi'],   
+# not ready #             instr_cfg['oscillation_stage']['t_vec_s'],   
+# not ready #             ])
+# not ready #         pixel_pitch = instr_cfg['detector']['pixels']['size']
+# not ready #         chi = self.instr_cfg['oscillation_stage']['chi'] # in DEGREES
+# not ready # 
+# not ready #         # 6 detector affine xform parameters
+# not ready #         rMat_d = makeDetectorRotMat(detector_params[:3])
+# not ready #         tVec_d = detector_params[3:6]
+# not ready # 
+# not ready #         # 'dummy' sample frame rot mat
+# not ready #         rMats_s = makeOscillRotMat(num.radians([chi, omega]))
+# not ready # 
+# not ready #         # since making maps for all eta, must hand trivial crystal params
+# not ready #         rMat_c = np.eye(3)
+# not ready #         tVec_c = np.zeros(3)
+# not ready #         
+# not ready #         # make angle arrays for patches
+# not ready #         neta = len(self.etas)
+# not ready #         nome = len(reader[0])
+# not ready # 
+# not ready #         # make full angs list
+# not ready #         angs = [num.vstack([tth*num.ones(neta),
+# not ready #                            etas,
+# not ready #                            num.zeros(nome)])
+# not ready #                 for tth in self.planeData.getTTh()]
+# not ready # 
+# not ready #         """SET MAPS CONTAINER AS ATTRIBUTE"""
+# not ready #         self.dataStore = num.zeros((len(angs), nome, neta))
+# not ready #         for i_ring in range(len(angs)):
+# not ready #             # need xy coords and pixel sizes
+# not ready #             gVec_ring_l = xfcapi.anglesToGVec(angs[i_ring].T, chi=chi, rMat_c=rMat_c)
+# not ready #             xydet_ring = xfcapi.gvecToDetectorXY(gVec_ring_l,
+# not ready #                                                  rMat_d, rMat_s, rMat_c,
+# not ready #                                                  tVec_d, tVec_s, tVec_c)
+# not ready #             
+# not ready #             if distortion is not None:
+# not ready #                 det_xy = distortion[0](xydet_ring,
+# not ready #                                        distortion[1],
+# not ready #                                        invert=True)
+# not ready #             ang_ps = angularPixelSize(det_xy, pixel_pitch,
+# not ready #                                       rMat_d, rMat_s,
+# not ready #                                       tVec_d, tVec_s, tVec_c,
+# not ready #                                       distortion=distortion)
+# not ready #             
+# not ready #             patches = make_reflection_patches(self.instr_cfg,
+# not ready #                                               angs[i_ring].T[:, :2], ang_ps,
+# not ready #                                               omega=None,
+# not ready #                                               tth_tol=tth_tol, eta_tol=eta_tol,
+# not ready #                                               distortion=distortion,
+# not ready #                                               npdiv=npdiv, quiet=False,
+# not ready #                                               compute_areas_func=gutil.compute_areas)
+# not ready #                 
+# not ready #             for i in range(nome):
+# not ready #                 this_frame = num.array(reader[0][i].todense())
+# not ready #                 for j in range(neta):
+# not ready #                     ii = patches[j][-1][0]
+# not ready #                     jj = patches[j][-1][1]
+# not ready #                     areas = patches[j][-2]
+# not ready #                     self.dataStore[i_ring, i, j] = num.sum(this_frame[ii, jj] * areas / num.sum(areas))
+# not ready #                     pass
+# not ready #                 pass
+# not ready #             pass
+# not ready #         return
 
 
 def makeMeasuredScatteringVectors(tTh, eta, ome, convention='hexrd', frame='sample'):
@@ -3434,8 +3647,8 @@ else: # not USE_NUMBA
 def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
                             omega=None,
                             tth_tol=0.2, eta_tol=1.0,
-                            rMat_c=num.eye(3), tVec_c=num.c_[0.,0.,0.].T,
-                            distortion=distortion,
+                            rMat_c=num.eye(3), tVec_c=num.zeros((3, 1)),
+                            distortion=None,
                             npdiv=1, quiet=False, compute_areas_func=compute_areas_2):
     """
     prototype function for making angular patches on a detector
@@ -3546,7 +3759,6 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
         row_indices   = gutil.cellIndices(row_edges, xy_eval[:, 1])
         col_indices   = gutil.cellIndices(col_edges, xy_eval[:, 0])
 
-        # append patch data to list
         patches.append(((gVec_angs_vtx[:, 0].reshape(m_tth.shape),
                          gVec_angs_vtx[:, 1].reshape(m_tth.shape)),
                         (xy_eval_vtx[:, 0].reshape(m_tth.shape),
