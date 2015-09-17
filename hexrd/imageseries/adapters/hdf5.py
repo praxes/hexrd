@@ -35,6 +35,11 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
         return mdict
 
     @property
+    def dtype(self):
+        with self._dset as dset:
+            return dset.dtype
+        
+    @property
     #@memoize so you only need to do this once
     def shape(self):
         with self._dset as dset:

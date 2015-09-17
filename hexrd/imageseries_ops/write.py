@@ -1,22 +1,22 @@
 """Write imageseries to various formats"""
-
+from __future__ import print_function
 import abc
 
-import numpy
+import numpy as np
 import h5py
 
-def write(ims, fname, fmt, opts):
+def write(ims, fname, fmt, **kwargs):
     """write imageseries to file with options
 
     *ims* - an imageseries
     *fname* - name of file
     *fmt* - a format string
-    *opts* - namespace of options
+    *kwargs* - options specific to format
     """
     print('writing format ', fmt, ' to file: ', fname)
     wcls = _Registry.getwriter(fmt)
     print(wcls)
-    w = wcls(ims, fname, opts)
+    w = wcls(ims, fname, **kwargs)
     w.write()
 
 # Registry
@@ -48,21 +48,21 @@ class Writer(object):
     """Base class for writers"""
     __metaclass__ = _RegisterWriter
     fmt = None
-    def __init__(self, ims, fname, opts):
+    def __init__(self, ims, fname, **kwargs):
         self._ims = ims
         self._shape = ims.shape
         self._dtype = ims.dtype
         self._nframes = len(ims)
         self._fname = fname
-        self._opts = opts
+        self._opts = kwargs
 
     pass # end class
         
 class WriteH5(Writer):
     fmt = 'hdf5'
 
-    def __init__(self, ims, fname, opts):
-        Writer.__init__(self, ims, fname, opts)
+    def __init__(self, ims, fname, **kwargs):
+        Writer.__init__(self, ims, fname, **kwargs)
         self._path = self._opts['path']
     
     def _open_dset(self):
@@ -89,8 +89,8 @@ class WriteH5(Writer):
 class WriteFrameCache(Writer):
 
     fmt = 'frame-cache'
-    def __init__(self, ims, fname, opts):
-        Writer.__init__(self, ims, fname, opts)
+    def __init__(self, ims, fname, **kwargs):
+        Writer.__init__(self, ims, fname, **kwargs)
         self._thresh = self._opts['threshold']
 
     def write(self):
@@ -100,6 +100,7 @@ class WriteFrameCache(Writer):
         """
         print('writing ', self.fmt)
         arrd = dict()
+        sh = None
         for i in range(self._nframes):
             frame = self._ims[i]
             mask = frame > self._thresh
@@ -107,5 +108,7 @@ class WriteFrameCache(Writer):
             arrd['%d_data' % i] = frame[mask]
             arrd['%d_row' % i] = row
             arrd['%d_col' % i] = col
+            if sh is None:
+                arrd['shape'] = np.array(frame.shape)
         
-        numpy.savez_compressed(self._fname, **arrd)
+        np.savez_compressed(self._fname, **arrd)
