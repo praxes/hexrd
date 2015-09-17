@@ -45,14 +45,17 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
         Currently returns none
         """
         return None
-    
-    def shape(self):
+
+    @property
+    def dtype(self):
         return self._dtype
 
+    @property
+    def shape(self):
+        return self._shape
 
     def __getitem__(self, key):
-        with self._dset as dset:
-            return dset.__getitem__(key)
+        return self._framelist[key]
 
     def __iter__(self):
         return ImageSeriesIterator(self)

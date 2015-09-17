@@ -39,5 +39,4 @@ def open(filename, format=None, **kwargs):
     # find the appropriate adapter based on format specified
     reg = adapters.Registry.adapter_registry
     adapter = reg[format](filename, **kwargs)
-    print adapter
     return ImageSeries(adapter)
