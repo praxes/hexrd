@@ -146,7 +146,10 @@ def get_data(cfg, show_progress=False, force=False, clean=False):
     # TODO: this should be refactored somehow to avoid initialize_experiment
     # and avoid using the old reader. Also, the detector is not used here.
     pd, reader, detector = initialize_experiment(cfg)
-    reader = get_frames(reader, cfg, show_progress, force, clean)
+    if cfg.fit_grains.fit_only:
+        reader = None
+    else:
+        reader = get_frames(reader, cfg, show_progress, force, clean)
 
     instrument_cfg = get_instrument_parameters(cfg)
     detector_params = get_detector_parameters(instrument_cfg)
