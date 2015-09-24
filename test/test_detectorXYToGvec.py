@@ -7,9 +7,10 @@ from hexrd.xrd import transforms_CAPI as xfcapi
 # input parameters
 bVec_ref = xf.bVec_ref
 
-rMat_d = xf.makeDetectorRotMat( ( 0.0011546340766314521,
-                                 -0.0040527538387122993,
-                                 -0.0026221336905160211 ) ) 
+tilt_angles = (  0.0011546340766314521,
+                -0.0040527538387122993,
+                 -0.0026221336905160211 )
+rMat_d = xf.makeDetectorRotMat( tilt_angles ) 
 tVec_d = np.array( [ [   -1.44904 ],
                      [   -3.235616],
                      [-1050.74026 ] ] )
