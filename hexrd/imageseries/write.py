@@ -13,9 +13,7 @@ def write(ims, fname, fmt, **kwargs):
     *fmt* - a format string
     *kwargs* - options specific to format
     """
-    print('writing format ', fmt, ' to file: ', fname)
     wcls = _Registry.getwriter(fmt)
-    print(wcls)
     w = wcls(ims, fname, **kwargs)
     w.write()
 

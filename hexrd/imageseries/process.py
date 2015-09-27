@@ -1,6 +1,7 @@
 """Class for processing frames or frame groups"""
+from hexrd.imageseries import ImageSeries
 
-class ModifiedImageSeries(Imageseries):
+class ProcessedImageSeries(ImageSeries):
     """Images series with mapping applied to frames"""
     def __init__(self, imser, cfg):
         """Instantiate imsageseries based on existing one with mapping options
@@ -11,10 +12,14 @@ class ModifiedImageSeries(Imageseries):
         self._imser = imser
 
     def __getitem__(self, key):
-        return self._imser.__getitem__(key)
+        return self._process_frame(key)
         
     def __len__(self):
         return len(self._imser)
+
+    def _process_frame(self, key):
+        img = self._imser[key]
+        return img
 
     @property 
     def dtype(self):
@@ -24,8 +29,5 @@ class ModifiedImageSeries(Imageseries):
     def shape(self):
         return self._imser.shape
 
-    def process_frame(self, key):
-        img = self._imser[key]
-        return self._process_frame(img)
     
     pass # end class
