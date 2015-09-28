@@ -4,6 +4,8 @@ from hexrd.imageseries import ImageSeries
 class ProcessedImageSeries(ImageSeries):
     """Images series with mapping applied to frames"""
     FLIP = 'flip'
+    DARK = 'dark'
+    
     def __init__(self, imser, **kwargs):
         """Instantiate imsageseries based on existing one with mapping options
 
@@ -21,8 +23,13 @@ class ProcessedImageSeries(ImageSeries):
 
     def _process_frame(self, key):
         img = self._imser[key]
+        img = self._subtract_dark(img)
         img = self._flip(img)
         return img
+
+    def _subtract_dark(self, img):
+        if self.DARK in self._opts:
+            return img - self._opts[self.DARK]
 
     def _flip(self, img):
         if self.FLIP in self._opts:
