@@ -75,7 +75,6 @@ class WriteH5(Writer):
     #
     def write(self):
         """Write imageseries to HDF5 file"""
-        print('writing ', self.fmt)
         ds = self._open_dset()
         for i in range(self._nframes):
             ds[i, :, :] = self._ims[i]
@@ -96,7 +95,6 @@ class WriteFrameCache(Writer):
 
         presumes sparse forms are small enough to contain all frames
         """
-        print('writing ', self.fmt)
         arrd = dict()
         sh = None
         for i in range(self._nframes):
