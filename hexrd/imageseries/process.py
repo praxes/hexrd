@@ -1,4 +1,6 @@
 """Class for processing frames or frame groups"""
+import numpy as np
+
 from hexrd.imageseries import ImageSeries
 
 class ProcessedImageSeries(ImageSeries):
@@ -30,6 +32,8 @@ class ProcessedImageSeries(ImageSeries):
     def _subtract_dark(self, img):
         if self.DARK in self._opts:
             return img - self._opts[self.DARK]
+        else:
+            return img
 
     def _flip(self, img):
         if self.FLIP in self._opts:
@@ -53,7 +57,16 @@ class ProcessedImageSeries(ImageSeries):
             pimg = img
 
         return pimg
-        
+
+    def _toarray(self, nframes=0):
+        mynf = len(self)
+        nf = np.min(mynf, nframes) if nframes > 0 else mynf
+        ashp = (nf,) + self.shape
+        a = np.zeros(ashp, dtype=self.dtype)
+        for i in range(nf):
+            a[i] = self.__getitem__(i)
+
+        return a
 
     @property 
     def dtype(self):
@@ -63,5 +76,7 @@ class ProcessedImageSeries(ImageSeries):
     def shape(self):
         return self._imser.shape
 
+    def median(self, nframes=0):
+        return np.median(self._toarray(nframes=nframes), axis=0)
     
     pass # end class
