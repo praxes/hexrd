@@ -3629,7 +3629,7 @@ class Detector2DRC(DetectorBase):
                 ]).T
             gVec_s = xfcapi.anglesToGVec(angs, chi=chi)
             rMat_s = xfcapi.makeOscillRotMatArray(chi, angs[:, 2])
-            xy_det = xfcapi.gvecToDetectorXYArray(gVec_s,
+            xy_cen = xfcapi.gvecToDetectorXYArray(gVec_s,
                                                   self.ROT_l2d, rMat_s, I3,
                                                   self.tVec_d, zvec3, tVec_c)
         else:
@@ -3641,12 +3641,15 @@ class Detector2DRC(DetectorBase):
                 ]).T
             gVec_s = xfcapi.anglesToGVec(angs, chi=chi)
             rMat_s = xfcapi.makeOscillRotMat(num.r_[chi, 0.])
-            xy_det = xfcapi.gvecToDetectorXY(gVec_s,
+            xy_cen = xfcapi.gvecToDetectorXY(gVec_s,
                                              self.ROT_l2d, rMat_s, I3,
                                              self.tVec_d, zvec3, tVec_c)
             pass
 
         # package as P4-d
+        xy_det = num.empty(xy_cen.shape)
+        xy_det[:, 0] = xy_cen[:, 0] + 0.5*self.extent[0] - self.xc
+        xy_det[:, 1] = xy_cen[:, 1] + 0.5*self.extent[1] - self.yc
         P4_d = num.vstack([xy_det.T, nzeros]) 
 
         # obselete # # make center-based cartesian coord's
@@ -3781,8 +3784,8 @@ class Detector2DRC(DetectorBase):
         applyRadialDistortion = True
 
         outputShape = num.shape(x0)
-        x0          = num.asarray(x0).flatten()
-        y0          = num.asarray(y0).flatten()
+        x0 = num.asarray(x0).flatten()
+        y0 = num.asarray(y0).flatten()
 
         numPts = len(x0)                # ... no check for y0 or omega
         ome = ()
@@ -3829,8 +3832,8 @@ class Detector2DRC(DetectorBase):
             x0, y0 = self.cartesianCoordsOfPixelIndices(x0, y0)
 
         # move to centered coordinates
-        x0 = x0 - self.xc
-        y0 = y0 - self.yc
+        x0 = x0 - 0.5*self.extent[0]
+        y0 = y0 - 0.5*self.extent[1]
 
         if applyRadialDistortion:
             X_d, Y_d = self.radialDistortion(x0, y0, invert=False)
@@ -4079,10 +4082,9 @@ class Detector2DRC(DetectorBase):
         nEta = self.nEta
         dEta = 2*math.pi/nEta
 
-        etaRing = num.arange(0., 2.0*math.pi+dEta/2., dEta)
-        nEta    = len(etaRing) # why this?
+        etaRing = dEta*num.arange(0., nEta+1)
 
-        excl   = num.array(planeData.exclusions)
+        excl = num.array(planeData.exclusions)
 
         # grab full tThs and tile if ranges are desired
         tThs = planeData.getTTh()
@@ -4091,7 +4093,7 @@ class Detector2DRC(DetectorBase):
 
         # grab the relevant hkls and loop
         for i in range(len(tThs)):
-            tThRing = num.tile(tThs[i], nEta)
+            tThRing = num.tile(tThs[i], len(etaRing))
             r = self.angToXYO(tThRing, etaRing) # omegaRing
             rList.append(r)
             pass

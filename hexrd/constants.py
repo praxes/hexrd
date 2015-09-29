@@ -62,8 +62,8 @@ zeros_3x1 = np.zeros((3, 1))
 zeros_6x1 = np.zeros((6, 1))
 
 # reference beam direction and eta=0 ref in LAB FRAME for standard geometry
-bVec = -Z_ref
-eVec =  X_ref
+bVec = -Z
+eVec =  X
 
 # for strain
 vInv = np.array(np.r_[1., 1., 1., 0., 0., 0.].reshape(6, 1), order='C')

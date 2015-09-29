@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import optimize as opt
+from hexrd.constants import *
 from hexrd import USE_NUMBA
 if USE_NUMBA:
     import numba
@@ -23,14 +24,17 @@ if USE_NUMBA:
     @numba.njit
     def _ge_41rt_inverse_distortion(out, in_, rhoMax, params):
         maxiter = 100
-        prec = 1e-16
+        prec = epsf
 
         p0, p1, p2, p3, p4, p5 = params[0:6]
         rxi = 1.0/rhoMax
         for el in range(len(in_)):
             xi, yi = in_[el, 0:2]
             ri = np.sqrt(xi*xi + yi*yi)
-            ri_inv = 1.0/ri
+            if ri < sqrt_epsf:
+                ri_inv = 0.0
+            else:
+                ri_inv = 1.0/ri
             sinni = yi*ri_inv
             cosni = xi*ri_inv
             ro = ri
@@ -67,7 +71,10 @@ if USE_NUMBA:
         for el in range(len(in_)):
             xi, yi = in_[el, 0:2]
             ri = np.sqrt(xi*xi + yi*yi)
-            ri_inv = 1.0/ri
+            if ri < sqrt_epsf:
+                ri_inv = 0.0
+            else:
+                ri_inv = 1.0/ri
             sinni = yi*ri_inv
             cosni = xi*ri_inv
             cos2ni = cosni*cosni - sinni*sinni
@@ -86,14 +93,17 @@ else:
     # non-numba versions for the direct and inverse distortion
     def _ge_41rt_inverse_distortion(out, in_, rhoMax, params):
         maxiter = 100
-        prec = 1e-16
+        prec = epsf
 
         p0, p1, p2, p3, p4, p5 = params[0:6]
         rxi = 1.0/rhoMax
 
         xi, yi = in_[:, 0], in_[:,1]
         ri = np.sqrt(xi*xi + yi*yi)
-        ri_inv = 1.0/ri
+        if ri < sqrt_epsf:
+            ri_inv = 0.0
+        else:
+            ri_inv = 1.0/ri
         sinni = yi*ri_inv
         cosni = xi*ri_inv
         ro = ri
@@ -127,7 +137,10 @@ else:
 
         xi, yi = in_[:, 0], in_[:,1]
         ri = np.sqrt(xi*xi + yi*yi)
-        ri_inv = 1.0/ri
+        if ri < sqrt_epsf:
+            ri_inv = 0.0
+        else:
+            ri_inv = 1.0/ri
         sinni = yi*ri_inv
         cosni = xi*ri_inv
         cos2ni = cosni*cosni - sinni*sinni
