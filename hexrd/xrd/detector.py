@@ -3852,7 +3852,7 @@ class Detector2DRC(DetectorBase):
                 tmp = xfcapi.detectorXYToGvec(xy_det[i, :],
                                               self.ROT_l2d, rMat_s,
                                               self.tVec_d, zvec3, tVec_c)
-                tmpData[:, i] = [tmp[0][0][i], tmp[0][1][i]]
+                tmpData[:, i] = [tmp[0][0], tmp[0][1]]
                 gVec_l[i, :] = tmp[1]
                 pass
             pass
