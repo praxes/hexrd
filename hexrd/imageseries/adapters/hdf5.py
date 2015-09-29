@@ -43,7 +43,7 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
     #@memoize so you only need to do this once
     def shape(self):
         with self._dset as dset:
-            return dset.shape
+            return dset.shape[1:]
 
     def __init__(self, fname, **kwargs):
         """Constructor for H5FrameSeries

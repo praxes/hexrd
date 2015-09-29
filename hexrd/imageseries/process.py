@@ -60,7 +60,7 @@ class ProcessedImageSeries(ImageSeries):
 
     def _toarray(self, nframes=0):
         mynf = len(self)
-        nf = np.min(mynf, nframes) if nframes > 0 else mynf
+        nf = np.min((mynf, nframes)) if nframes > 0 else mynf
         ashp = (nf,) + self.shape
         a = np.zeros(ashp, dtype=self.dtype)
         for i in range(nf):
