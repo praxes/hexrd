@@ -4,6 +4,7 @@ import abc
 
 import numpy as np
 import h5py
+import yaml
 
 def write(ims, fname, fmt, **kwargs):
     """write imageseries to file with options
@@ -84,17 +85,30 @@ class WriteH5(Writer):
     pass # end class
 
 class WriteFrameCache(Writer):
-
+    """info from yml file"""
     fmt = 'frame-cache'
     def __init__(self, ims, fname, **kwargs):
+        """write yml file with frame cache info
+
+        kwargs has keys:
+
+        cache_file - name of array cache file
+        meta - metadata dictionary
+        """
         Writer.__init__(self, ims, fname, **kwargs)
         self._thresh = self._opts['threshold']
+        self._cache = kwargs['cache_file']
+        self._meta = kwargs['meta'] if 'meta' in kwargs else dict()
 
-    def write(self):
-        """writes frame cache for imageseries
+    def _write_yml(self):
+        datad = {'file': self._cache, 'dtype': str(self._ims.dtype),
+                 'nframes': len(self._ims), 'shape': list(self._ims.shape)}
+        info = {'data': datad, 'meta': self._meta}
+        with open(self._fname, "w") as f:
+            yaml.dump(info, f) 
 
-        presumes sparse forms are small enough to contain all frames
-        """
+    def _write_frames(self):
+        """also save shape array as originally done (before yaml)"""
         arrd = dict()
         sh = None
         for i in range(self._nframes):
@@ -107,4 +121,14 @@ class WriteFrameCache(Writer):
             if sh is None:
                 arrd['shape'] = np.array(frame.shape)
         
-        np.savez_compressed(self._fname, **arrd)
+        np.savez_compressed(self._cache, **arrd)
+
+    def write(self):
+        """writes frame cache for imageseries
+
+        presumes sparse forms are small enough to contain all frames
+        """
+        self._write_frames()
+        self._write_yml()
+
+        

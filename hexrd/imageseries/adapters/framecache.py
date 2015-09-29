@@ -5,6 +5,7 @@ from ..imageseriesiter import ImageSeriesIterator
 
 import numpy as np
 from scipy.sparse import csr_matrix
+import yaml
 
 class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
     """collection of images in HDF5 format"""
@@ -15,36 +16,42 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
         """Constructor for frame cache image series
 
         *fname* - filename of the yml file 
-        *kwargs* - keyword arguments (none required 
+        *kwargs* - keyword arguments (none required)
         """
         self._fname = fname
-        self._load()
+        self._load_yml()
+        self._load_cache()
 
-    def _load(self):
+    def _load_yml(self):
+        with open(self._fname, "r") as f:
+            d = yaml.load(f)
+        datad = d['data']
+        metad = d['meta']
+        self._cache = datad['file']
+        self._nframes = datad['nframes']
+        self._shape = tuple(datad['shape'])
+        self._dtype = np.dtype(datad['dtype'])
+        self._meta = metad
+
+    def _load_cache(self):
         """load into list of csr sparse matrices"""
-        arrs = np.load(self._fname)
-        self._shape = tuple(arrs['shape'].tolist())
-        self._dtype = None
+        arrs = np.load(self._cache)
 
-        arrsh = tuple(arrs['shape'])
-        nk = len(arrs.files) - 1
-        self._nframes = nk/3
         self._framelist = []
         for i in range(self._nframes):
             row = arrs["%d_row" % i]
             col = arrs["%d_col" % i]
             data = arrs["%d_data" % i]
-            frame = csr_matrix((data, (row, col)), shape=arrsh)
+            frame = csr_matrix((data, (row, col)), shape=self._shape)
             self._framelist.append(frame)
-            if self._dtype is None:
-                self._dtype = data.dtype
-    
+
+    @property
     def metadata(self):
         """(read-only) Image sequence metadata
 
         Currently returns none
         """
-        return None
+        return self._meta
 
     @property
     def dtype(self):
