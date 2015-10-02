@@ -48,6 +48,12 @@ try:
 except ImportError:
     pass
 
+have_parallel_dbscan = False
+try:
+    from parallel_dbscan import omp_dbscan
+    have_parallel_dbscan = True
+except ImportError:
+    pass
 
 def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
     """ 
@@ -154,8 +160,8 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
         # use compiled module for distance
         # just to be safe, must order qsym as C-contiguous
         qsym  = np.array(qsym.T, order='C').T
-        def quat_distance(x, y):
-            return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
+        #def quat_distance(x, y):
+        #    return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
 
         qfib_r = qfib[:, np.array(compl) > min_compl]
 
@@ -164,14 +170,28 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
             qfib_r.shape[1], 100*min_compl
             )
 
+        if algorithm == 'parallel-dbscan' and not have_parallel_dbscan:
+            algorithm = 'dbscan'
+            logger.warning(
+                "parallel_dbscan not found, trying sklearn dbscan"
+                )
+            
         if algorithm == 'dbscan' and not have_sklearn:
             algorithm = 'fclusterdata'
             logger.warning(
                 "sklearn >= 0.14 required for dbscan, using fclusterdata"
                 )
-        if algorithm == 'dbscan':
+
+        if algorithm == 'parallel-dbscan':
+            homochoric_coords = xfcapi.homochoricOfQuat(qfib_r.T)
+            labels = omp_dbscan(
+                homochoric_coords,
+                eps=np.radians(cl_radius),
+                min_samples=1)
+            cl = labels + 1          
+        elif algorithm == 'dbscan':
             pdist = pairwise_distances(
-                qfib_r.T, metric=quat_distance, n_jobs=-1
+                qfib_r.T, metric=xfcapi.quat_distance, n_jobs=-1
                 )
             core_samples, labels = dbscan(
                 pdist,
@@ -185,7 +205,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
                 qfib_r.T,
                 np.radians(cl_radius),
                 criterion='distance',
-                metric=quat_distance
+                metric=xfcapi.quat_distance
                 )
         else:
             raise RuntimeError(
