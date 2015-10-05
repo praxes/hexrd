@@ -7,7 +7,8 @@ class ProcessedImageSeries(ImageSeries):
     """Images series with mapping applied to frames"""
     FLIP = 'flip'
     DARK = 'dark'
-    
+    RECT = 'rectangle'
+
     def __init__(self, imser, **kwargs):
         """Instantiate imsageseries based on existing one with mapping options
 
@@ -19,19 +20,30 @@ class ProcessedImageSeries(ImageSeries):
 
     def __getitem__(self, key):
         return self._process_frame(key)
-        
+
     def __len__(self):
         return len(self._imser)
 
     def _process_frame(self, key):
+        # apply flip at end
         img = self._imser[key]
         img = self._subtract_dark(img)
+        img = self._rectangle(img)
         img = self._flip(img)
         return img
 
     def _subtract_dark(self, img):
+        # need to check for values below zero
         if self.DARK in self._opts:
             return img - self._opts[self.DARK]
+        else:
+            return img
+
+    def _rectangle(self, img):
+        # restrict to rectangle
+        if self.RECT in self._opts:
+            r = self._opts[self.RECT]
+            return img[r[0,0]:r[0,1], r[1,0]:r[1,1]]
         else:
             return img
 
@@ -40,7 +52,7 @@ class ProcessedImageSeries(ImageSeries):
             flip = self._opts['flip']
         else:
             return img
-        
+
         if flip in ('y','v'): # about y-axis (vertical)
             pimg = img[:, ::-1]
         elif flip in ('x', 'h'): # about x-axis (horizontal)
@@ -68,7 +80,7 @@ class ProcessedImageSeries(ImageSeries):
 
         return a
 
-    @property 
+    @property
     def dtype(self):
         return self._imser.dtype
 
@@ -78,5 +90,5 @@ class ProcessedImageSeries(ImageSeries):
 
     def median(self, nframes=0):
         return np.median(self._toarray(nframes=nframes), axis=0)
-    
+
     pass # end class
