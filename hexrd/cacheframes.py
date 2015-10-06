@@ -113,7 +113,7 @@ def get_frames(reader, cfg, show_progress=False, force=False, clean=False):
         if clean:
             msg = 'no frame cache file %s found, generating cache' % cache_file
         else:
-            msg = 'clean specified, generating cache'
+            msg = 'clean specified, regenerating cache'
         logger.info(msg)
         return cache_frames(reader, cfg, show_progress)
 

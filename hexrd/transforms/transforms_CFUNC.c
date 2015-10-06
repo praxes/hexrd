@@ -920,3 +920,27 @@ double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
 
   return(dist);
 }
+
+void homochoricOfQuat_cfunc(int nq, double * qPtr, double * hPtr)
+{
+  int i;
+  double f, s, phi;
+
+  for (i=0; i<nq; i++) {
+    phi = 2. * acos(qPtr[4*i+0]);
+
+    if (phi > epsf) {
+      f = cbrt(0.75*(phi - sin(phi)));
+      s = 1. / sin(0.5*phi);
+
+      hPtr[3*i+0] = f * s * qPtr[4*i+1];
+      hPtr[3*i+1] = f * s * qPtr[4*i+2];
+      hPtr[3*i+2] = f * s * qPtr[4*i+3];
+    }
+    else {
+      hPtr[3*i+0] = 0.;
+      hPtr[3*i+1] = 0.;
+      hPtr[3*i+2] = 0.;      
+    }
+  }
+}

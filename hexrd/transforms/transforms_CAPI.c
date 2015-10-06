@@ -30,8 +30,8 @@ static PyMethodDef _transform_methods[] = {
   {"makeEtaFrameRotMat",makeEtaFrameRotMat,METH_VARARGS,"Make eta basis COB matrix"},
   {"validateAngleRanges",validateAngleRanges,METH_VARARGS,""},
   {"rotate_vecs_about_axis",rotate_vecs_about_axis,METH_VARARGS,"Rotate vectors about an axis"},
-  {"quat_distance",quat_distance,METH_VARARGS,""},
-  //{"rotateVecsAboutAxis",rotateVecsAboutAxis,METH_VARARGS,"Rotate vectors about an axis"},
+  {"quat_distance",quat_distance,METH_VARARGS,"Compute distance between two unit quaternions"},
+  {"homochoricOfQuat",homochoricOfQuat,METH_VARARGS,"Compute homochoric parameterization of list of unit quaternions"},
   {NULL,NULL}
 };
 
@@ -1013,4 +1013,44 @@ static PyObject * quat_distance(PyObject * self, PyObject * args)
     return NULL;
   }
   return(PyFloat_FromDouble(dist));
+}
+
+static PyObject * homochoricOfQuat(PyObject * self, PyObject * args)
+{
+  PyArrayObject *quat, *hVec;
+  int nq, dq, ne;
+  npy_intp dims[2];
+  double *qPtr, *hPtr;
+
+  /* Parse arguments */
+  if ( !PyArg_ParseTuple(args,"O", &quat)) return(NULL);
+  if ( quat == NULL ) return(NULL);
+
+  /* Verify shape of input arrays */
+  dq = PyArray_NDIM(quat);
+  if (dq == 1) {
+    ne = PyArray_DIMS(quat)[0];
+    assert( ne == 4 );
+    nq = 1;
+    dims[0] = nq; dims[1] = 3;
+    /* Allocate the result matrix with appropriate dimensions and type */
+    hVec = (PyArrayObject*)PyArray_EMPTY(2,dims,NPY_DOUBLE,0);
+  } else {
+    assert( dq == 2 );
+    nq = PyArray_DIMS(quat)[0];
+    ne = PyArray_DIMS(quat)[1];
+    assert( ne == 4 );
+    dims[0] = nq; dims[1] = 3;
+    /* Allocate the result matrix with appropriate dimensions and type */
+    hVec = (PyArrayObject*)PyArray_EMPTY(2,dims,NPY_DOUBLE,0);
+  }
+
+  /* Grab pointers to the various data arrays */
+  qPtr = (double*)PyArray_DATA(quat);
+  hPtr = (double*)PyArray_DATA(hVec);
+
+  /* Call the actual function */
+  homochoricOfQuat_cfunc(nq, qPtr, hPtr);
+
+  return((PyObject*)hVec);
 }

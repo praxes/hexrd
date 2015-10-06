@@ -246,6 +246,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
         ', '.join([str(i) for i in available_hkls[active_hkls]])
         )
 
+    # not ready # eta_ome = xrdutil.EtaOmeMaps(cfg, reader=reader, eta_step=None)
     bin_frames = cfg.find_orientations.orientation_maps.bin_frames
     eta_bins = np.int(2*np.pi / abs(reader.getDeltaOmega())) / bin_frames
     eta_ome = xrdutil.CollapseOmeEta(

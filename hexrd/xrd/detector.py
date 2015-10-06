@@ -59,6 +59,7 @@ from hexrd.quadrature import q1db
 from hexrd.quadrature import q2db
 from hexrd.matrixutil import unitVector
 from hexrd import valunits
+from hexrd.xrd import transforms_CAPI as xfcapi
 
 havePlotWrap = True
 try:
@@ -73,6 +74,9 @@ bsize = 25000
 ztol  = 1e-10
 
 DFLT_XTOL = 1e-6
+
+I3 = num.eye(3)
+zvec3 = num.zeros((3, 1))
 
 #######
 # GE, Perkin
@@ -3411,33 +3415,14 @@ class Detector2DRC(DetectorBase):
     def setTilt(self, tilt):
         self.tilt = num.array(tilt)
 
-        # tilt angles
-        gX = self.tilt[0]
-        gY = self.tilt[1]
-        gZ = self.tilt[2]
-
-        # rotation 1: gX about Xl
-        ROTX = rotMatOfExpMap(gX * self.Xl)
-
-        # the transformed Yl axis (Yd)
-        Yd = num.dot(ROTX, self.Yl)
-
-        # rotation 2: gY about Yd
-        ROTY = rotMatOfExpMap(gY * Yd)
-
-        # the transformed Zl axis (Zd)
-        Zd = num.dot(num.dot(ROTY, ROTX), self.Zl)
-
-        # rotation 3: gZ about Zd
-        ROTZ = rotMatOfExpMap(gZ * Zd)
-
         # change of basis matrix from hatPrime to Prime
-        self.ROT_l2d = num.dot(ROTZ, num.dot(ROTY, ROTX))
+        self.ROT_l2d = xfcapi.makeDetectorRotMat(tilt)
 
         # tilted X-Y plane normal
-        self.N = Zd
+        self.N = self.ROT_l2d[:, 2].reshape(3, 1)
 
         return
+
     def getXTilt(self):
         return self.tilt[0]
     def setXTilt(self, xTilt):
@@ -3445,7 +3430,7 @@ class Detector2DRC(DetectorBase):
         self.setTilt(self.tilt)
         return
     xTilt = property(getXTilt, setXTilt, None)
-    #
+
     def getYTilt(self):
         return self.tilt[1]
     def setYTilt(self, yTilt):
@@ -3453,7 +3438,7 @@ class Detector2DRC(DetectorBase):
         self.setTilt(self.tilt)
         return
     yTilt = property(getYTilt, setYTilt, None)
-    #
+
     def getZTilt(self):
         return self.tilt[2]
     def setZTilt(self, zTilt):
@@ -3480,7 +3465,15 @@ class Detector2DRC(DetectorBase):
     def getAngPixelSize(self, xyo, delta_omega):
         'get pixel size in angular coordinates at a given cartesian coordinate position'
         xyoCorners = num.tile(xyo, (8,1)).T + \
-            num.array([[[[i,j,k] for i in [-0.5,0.5]] for j in [-0.5,0.5]] for k in [-0.5*delta_omega, 0.5*delta_omega]]).reshape(8,3).T
+            num.array([
+                [
+                    [
+                        [i,j,k] for i in [-0.5,0.5]
+                    ]
+                    for j in [-0.5,0.5]
+                ]
+                for k in [-0.5*delta_omega, 0.5*delta_omega]
+            ]).reshape(8,3).T
         angCorners = num.array(self.xyoToAngMap(*xyoCorners))
         unc = num.max(angCorners, axis=1) - num.min(angCorners, axis=1)
         return unc
@@ -3535,10 +3528,41 @@ class Detector2DRC(DetectorBase):
 
         return row, col
 
-    #
-    # Real geometric stuff below -- proceed at own risk
-    #
-    def angToXYO_V(self, tth, eta_l, *args, **kwargs):
+    def get_tVec_d(self):
+        """
+        calculate tVec_d from old [xc, yc, D] parameter spec
+        
+        as loaded the params have 2 columns: [val, bool]
+        """
+        det_origin = 0.5*self.extent # (X, Y) (cols, rows) in this case
+        P2_d   = num.c_[ self.xc - det_origin[0],
+                         self.yc - det_origin[1],
+                         0.].T
+        P2_l   = num.c_[ 0.,
+                         0.,
+                         -self.workDist].T
+        return P2_l - num.dot(self.ROT_l2d, P2_d)
+    def set_tVec_d(self):
+        raise RuntimeError, 'calculated property; cannot set'
+    tVec_d = property(get_tVec_d, set_tVec_d, None)
+    
+    def makeNew(self, *args, **kwargs):
+        kwargs.setdefault('getDParamDflt', self.getDParamDflt)
+        kwargs.setdefault('setDParamZero', self.setDParamZero)
+        kwargs.setdefault('getDParamScalings', self.getDParamScalings)
+        kwargs.setdefault('getDParamRefineDflt', self.getDParamRefineDflt)
+        kwargs.setdefault('radialDistortion', self.radialDistortion)
+        newDG = self.__class__(self.__ncols, self.__nrows, self.__pixelPitch,
+                               self.__vFactorUnc, self.__vDark, self.reader,
+                               self,
+                               *args, **kwargs)
+        return newDG
+
+
+    """ REAL GEOMETRIC STUFF BELOW -- PROCEED AT OWN RISK """
+    
+    
+    def angToXYO(self, tth, eta_l, *args, **kwargs):
         """
         opposite of xyoToAng
         """
@@ -3570,9 +3594,7 @@ class Detector2DRC(DetectorBase):
                 elif argkeys[i] is 'outputDV':
                     outputDV = kwargs[argkeys[i]]
                 elif argkeys[i] is 'units':
-                    if kwargs[argkeys[i]] is 'pixels':
-                        toPixelUnits = True
-                    elif kwargs[argkeys[i]] is self.pixelPitchUnit:
+                    if kwargs[argkeys[i]] is self.pixelPitchUnit:
                         toPixelUnits = False
                     else:
                         raise RuntimeError, 'Output units \'%s\'not understood!' % (str(kwargs[argkeys[i]]))
@@ -3588,63 +3610,105 @@ class Detector2DRC(DetectorBase):
                 else:
                     raise RuntimeError, 'Unrecognized keyword argument: ' + str(argkeys[i])
 
-        # make center-based cartesian coord's
-        #   - SHOULD BE IN PIXEL PITCH UNITS (MM)
-        #   ... maybe add hard check on this in future
-        #
         if self.pVec is None:
-            XC = nzeros
-            YC = nzeros
-
-            D  = num.tile(self.workDist, numPts)
+            tVec_c = zvec3
         else:
-            assert len(ome) == numPts, 'with precession, omega argument consistent with ' \
-                   + 'x and y (or i and j) is required'
-            # if here, we have a precession vector and must deal with it
-            #
-            #   - ome is taken as a CCW (+) rotation of the SAMPLE FRAME about Y
-            #   - when the BASIS is transformed by R, vector comp's must transform by R'
-            R_s2l = rotMatOfExpMap( num.tile(ome, (3, 1)) * num.tile(self.Yl, (1, numPts)) )
+            tVec_c = num.atleast_1d(self.pVec).flatten().reshape(3, 1)
+        
+        if self.chiTilt is None:
+            chi = 0.
+        else:
+            chi = float(self.chi)
 
-            # array of rotated precession vector components
-            if not hasattr(self.pVec, '__len__'):
-                raise RuntimeError, 'pVec must be array-like'
+        if len(ome) > 0:
+            # NON-TRIVIAL OMEGAS
+            angs = num.vstack([
+                num.atleast_1d(tth).flatten(),
+                num.atleast_1d(eta_l).flatten(),
+                ome,
+                ]).T
+            gVec_s = xfcapi.anglesToGVec(angs, chi=chi)
+            rMat_s = xfcapi.makeOscillRotMatArray(chi, angs[:, 2])
+            xy_cen = xfcapi.gvecToDetectorXYArray(gVec_s,
+                                                  self.ROT_l2d, rMat_s, I3,
+                                                  self.tVec_d, zvec3, tVec_c)
+        else:
+            # ZERO OMEGA
+            angs = num.vstack([
+                num.atleast_1d(tth).flatten(),
+                num.atleast_1d(eta_l).flatten(),
+                nzeros,
+                ]).T
+            gVec_s = xfcapi.anglesToGVec(angs, chi=chi)
+            rMat_s = xfcapi.makeOscillRotMat(num.r_[chi, 0.])
+            xy_cen = xfcapi.gvecToDetectorXY(gVec_s,
+                                             self.ROT_l2d, rMat_s, I3,
+                                             self.tVec_d, zvec3, tVec_c)
+            pass
 
-            self.pVec = num.asarray(self.pVec)
+        # package as P4-d
+        xy_det = num.empty(xy_cen.shape)
+        xy_det[:, 0] = xy_cen[:, 0] + 0.5*self.extent[0] - self.xc
+        xy_det[:, 1] = xy_cen[:, 1] + 0.5*self.extent[1] - self.yc
+        P4_d = num.vstack([xy_det.T, nzeros]) 
 
-            grainCM_l = num.dot(R_s2l, self.pVec.reshape(3, 1))
-            if grainCM_l.ndim == 3:
-                grainCM_l = grainCM_l.squeeze().T
-
-            XC = grainCM_l[0, :]
-            YC = grainCM_l[1, :]
-
-            D  = self.workDist + grainCM_l[2, :] # now array of D's
-
-        # make radii
-        rho_l = D * num.tan(tth)
-
-        #
-        # ------- ASSIGN POINT COORD'S AND FORM ROTATION
-        #
-        # origins of the scattering (P1) and lab (P2) frames
-        #   - the common frame for arithmatic is the scattering frame
-        P1 = num.vstack([XC, YC, D])
-        P2 = num.zeros((3, numPts))
-
-        # tilt calculations moved into setTilt
-
-        # Convert to cartesian coord's in lab frame
-        P3 = num.vstack( [ rho_l * num.cos(eta_l) + XC, rho_l * num.sin(eta_l) + YC, nzeros ] )
-
-        #
-        # ------- SOLVE FOR RAY-PLANE INTERSECTION
-        #
-        u = num.tile( num.dot(self.N.T, (P2 - P1)) / num.dot(self.N.T, P3 - P1), (3, 1) )
-
-        P4_l = P1 + u * (P3 - P1)
-
-        P4_d = num.dot(self.ROT_l2d.T, P4_l)
+        # obselete # # make center-based cartesian coord's
+        # obselete # #   - SHOULD BE IN PIXEL PITCH UNITS (MM)
+        # obselete # #   ... maybe add hard check on this in future
+        # obselete # #
+        # obselete # if self.pVec is None:
+        # obselete #     XC = nzeros
+        # obselete #     YC = nzeros
+        # obselete # 
+        # obselete #     D  = num.tile(self.workDist, numPts)
+        # obselete # else:
+        # obselete #     assert len(ome) == numPts, 'with precession, omega argument consistent with ' \
+        # obselete #            + 'x and y (or i and j) is required'
+        # obselete #     # if here, we have a precession vector and must deal with it
+        # obselete #     #
+        # obselete #     #   - ome is taken as a CCW (+) rotation of the SAMPLE FRAME about Y
+        # obselete #     #   - when the BASIS is transformed by R, vector comp's must transform by R'
+        # obselete #     R_s2l = rotMatOfExpMap( num.tile(ome, (3, 1)) * num.tile(self.Yl, (1, numPts)) )
+        # obselete # 
+        # obselete #     # array of rotated precession vector components
+        # obselete #     if not hasattr(self.pVec, '__len__'):
+        # obselete #         raise RuntimeError, 'pVec must be array-like'
+        # obselete # 
+        # obselete #     self.pVec = num.asarray(self.pVec)
+        # obselete # 
+        # obselete #     grainCM_l = num.dot(R_s2l, self.pVec.reshape(3, 1))
+        # obselete #     if grainCM_l.ndim == 3:
+        # obselete #         grainCM_l = grainCM_l.squeeze().T
+        # obselete # 
+        # obselete #     XC = grainCM_l[0, :]
+        # obselete #     YC = grainCM_l[1, :]
+        # obselete # 
+        # obselete #     D  = self.workDist + grainCM_l[2, :] # now array of D's
+        # obselete # 
+        # obselete # # make radii
+        # obselete # rho_l = D * num.tan(tth)
+        # obselete # 
+        # obselete # #
+        # obselete # # ------- ASSIGN POINT COORD'S AND FORM ROTATION
+        # obselete # #
+        # obselete # # origins of the scattering (P1) and lab (P2) frames
+        # obselete # #   - the common frame for arithmatic is the scattering frame
+        # obselete # P1 = num.vstack([XC, YC, D])
+        # obselete # P2 = num.zeros((3, numPts))
+        # obselete # 
+        # obselete # # tilt calculations moved into setTilt
+        # obselete # 
+        # obselete # # Convert to cartesian coord's in lab frame
+        # obselete # P3 = num.vstack( [ rho_l * num.cos(eta_l) + XC, rho_l * num.sin(eta_l) + YC, nzeros ] )
+        # obselete # 
+        # obselete # #
+        # obselete # # ------- SOLVE FOR RAY-PLANE INTERSECTION
+        # obselete # #
+        # obselete # u = num.tile( num.dot(self.N.T, (P2 - P1)) / num.dot(self.N.T, P3 - P1), (3, 1) )
+        # obselete # 
+        # obselete # P4_l = P1 + u * (P3 - P1)
+        # obselete # 
+        # obselete # P4_d = num.dot(self.ROT_l2d.T, P4_l)
 
         if applyRadialDistortion:
             X_d, Y_d = self.radialDistortion(P4_d[0, :], P4_d[1, :], invert=True)
@@ -3685,150 +3749,7 @@ class Detector2DRC(DetectorBase):
             retval = 1e3 * risoeLabGvec # these have to be in microns (Soeren)
         return retval
 
-    def xyoToAngMap(self, x0, y0, *args, **kwargs):
-        """
-        eta by default is in [-pi,pi]
-        if all data are in the left quadrants, remap eta into [0,2*pi]
-        """
-        doMap = kwargs.pop('doMap',None)
-        angs = self.xyoToAng(x0, y0, *args, **kwargs)
-        angs[1] = mapAngs(angs[1], doMap=doMap)
-        return angs
-    def makeNew(self, *args, **kwargs):
-        kwargs.setdefault('getDParamDflt', self.getDParamDflt)
-        kwargs.setdefault('setDParamZero', self.setDParamZero)
-        kwargs.setdefault('getDParamScalings', self.getDParamScalings)
-        kwargs.setdefault('getDParamRefineDflt', self.getDParamRefineDflt)
-        kwargs.setdefault('radialDistortion', self.radialDistortion)
-        newDG = self.__class__(self.__ncols, self.__nrows, self.__pixelPitch,
-                               self.__vFactorUnc, self.__vDark, self.reader,
-                               self,
-                               *args, **kwargs)
-        return newDG
-
-    def angToXYO(self, x0, y0, *args, **kwargs):
-        """convert Cartesian to polar
-
-        uses blocking to call vectorized version
-        """
-        #
-        # Block the data if a 1D array, otherwise just call the old one.
-        #
-        haveOme = False
-        wantDV  = False
-        inShape = None
-        try:
-            ndim = x0.ndim
-            if ndim == 2:
-                inShape = x0.shape
-                x0 = x0.flatten()
-                y0 = y0.flatten()
-            elif ndim == 0:
-                return self.angToXYO_V(x0, y0, *args, **kwargs)
-            lenx0 = len(x0)
-        except:
-            # case of nonarray as arg
-            return self.angToXYO_V(x0, y0, *args, **kwargs)
-
-        # don't forget about the pass-through ome arg
-        if len(args) is not 0:
-            haveOme = True
-            ome = num.atleast_1d(args[0])
-            if ome.ndim >= 2:
-                ome = ome.flatten()
-                pass
-            pass
-
-        # need this in case something asks for the dV values...
-        if kwargs.has_key('outputDV'):
-            wantDV = kwargs['outputDV']
-
-        extraRows = sum([haveOme, wantDV])
-
-        sofar = 0; tmpRetv = num.zeros((2+extraRows, lenx0))
-        while lenx0 > sofar:
-            #
-            #  Find out how many to do
-            #
-            somany   = min(lenx0 - sofar, bsize)
-            newsofar = sofar + somany
-            x0i = x0[sofar:newsofar]
-            y0i = y0[sofar:newsofar]
-            if haveOme:
-                rvi = self.angToXYO_V(x0i, y0i, ome[sofar:newsofar], **kwargs)
-            else:
-                rvi = self.angToXYO_V(x0i, y0i, **kwargs)
-            for j in range(len(rvi)):
-                tmpRetv[j, sofar:newsofar] = rvi[j]
-                pass
-            sofar = newsofar
-            pass
-
-        # ... inShape should be set properly from above
-        return [tmpRetv[i, :].reshape(inShape) for i in range(tmpRetv.shape[0])]
-
     def xyoToAng(self, x0, y0, *args, **kwargs):
-        """convert Cartesian to polar
-
-        uses blocking to call vectorized version
-        """
-        #
-        # Block the data if a 1D array, otherwise just call the old one.
-        #
-        haveOme = False
-        wantDV  = False
-        inShape = None
-        try:
-            ndim = x0.ndim
-            if ndim == 2:
-                inShape = x0.shape
-                x0 = x0.flatten()
-                y0 = y0.flatten()
-            elif ndim == 0:
-                return self.xyoToAng_V(x0, y0, *args, **kwargs)
-            lenx0 = len(x0)
-        except:
-            # case of nonarray as arg
-            return self.xyoToAng_V(x0, y0, *args, **kwargs)
-
-        # don't forget about the pass-through ome arg
-        if len(args) is not 0:
-            haveOme = True
-            ome = num.atleast_1d(args[0])
-            if ome.ndim >= 2:
-                ome = ome.flatten()
-                pass
-            pass
-
-        # need this in case something asks for the dV values...
-        if kwargs.has_key('outputDV'):
-            wantDV = kwargs['outputDV']
-
-        extraRows = sum([haveOme, wantDV])
-
-        sofar = 0; tmpRetv = num.zeros((2+extraRows, lenx0))
-        while lenx0 > sofar:
-            #
-            #  Find out how many to do
-            #
-            somany   = min(lenx0 - sofar, bsize)
-            newsofar = sofar + somany
-            x0i = x0[sofar:newsofar]
-            y0i = y0[sofar:newsofar]
-            if haveOme:
-                rvi = self.xyoToAng_V(x0i, y0i, ome[sofar:newsofar], **kwargs)
-            else:
-                rvi = self.xyoToAng_V(x0i, y0i, **kwargs)
-            for j in range(len(rvi)):
-                tmpRetv[j, sofar:newsofar] = rvi[j]
-                pass
-            sofar = newsofar
-            pass
-
-        # ... inShape should be set properly from above
-        return [tmpRetv[i, :].reshape(inShape) for i in range(tmpRetv.shape[0])]
-
-    def xyoToAng_V(self, x0, y0, *args, **kwargs):
         """
         Convert radial spectra obtained from polar
         rebinned powder diffraction images to angular spectra.
@@ -3863,8 +3784,8 @@ class Detector2DRC(DetectorBase):
         applyRadialDistortion = True
 
         outputShape = num.shape(x0)
-        x0          = num.asarray(x0).flatten()
-        y0          = num.asarray(y0).flatten()
+        x0 = num.asarray(x0).flatten()
+        y0 = num.asarray(y0).flatten()
 
         numPts = len(x0)                # ... no check for y0 or omega
         ome = ()
@@ -3881,9 +3802,7 @@ class Detector2DRC(DetectorBase):
                 if argkeys[i] is 'outputDV':
                     outputDV = kwargs[argkeys[i]]
                 elif argkeys[i] is 'units':
-                    if kwargs[argkeys[i]] is 'pixels':
-                        inputPixelUnits = True
-                    elif kwargs[argkeys[i]] is self.pixelPitchUnit:
+                    if kwargs[argkeys[i]] is self.pixelPitchUnit:
                         inputPixelUnits = False
                     else:
                         raise RuntimeError, 'Input units \'%s\' not understood!' % (str(kwargs[argkeys[i]]))
@@ -3899,98 +3818,137 @@ class Detector2DRC(DetectorBase):
                 else:
                     raise RuntimeError, 'Unrecognized keyword argument: ' + str(argkeys[i])
 
-        # make center-based cartesian coord's
-        #   - SHOULD BE IN PIXEL PITCH UNITS (MM)
-        #   ... maybe add hard check on this in future
-        #   - x0, y0 are now written in the cartesian coords
-        #     where [0, 0] is the lower left corner of detector
+        if self.pVec is None:
+            tVec_c = zvec3
+        else:
+            tVec_c = num.atleast_1d(self.pVec).flatten().reshape(3, 1)
+
+        if self.chiTilt is None:
+            chi = 0.
+        else:
+            chi = float(self.chi)
+
         if inputPixelUnits:
             x0, y0 = self.cartesianCoordsOfPixelIndices(x0, y0)
 
-        if self.pVec is None:
-            X_d = x0 - self.xc              # is 1-d!
-            Y_d = y0 - self.yc              # is 1-d!
-
-            XC = nzeros
-            YC = nzeros
-
-            D = num.tile(self.workDist, numPts)
-        else:
-            assert len(ome) == numPts, 'with precession, omega argument consistent with ' \
-                   + 'x and y (or i and j) is required'
-            # if here, we have a precession vector and must deeal with it
-            #
-            #   - ome is taken as a CCW (+) rotation of the SAMPLE FRAME about Y
-            #   - when the BASIS is transformed by R, vector comp's must transform by R'
-            R_s2l = rotMatOfExpMap( num.tile(ome, (3, 1)) * num.tile(self.Yl, (1, numPts)) )
-
-            if not hasattr(self.pVec, '__len__'):
-                raise RuntimeError, 'pVec must be array-like'
-
-            self.pVec = num.asarray(self.pVec)
-
-            # array of rotated precession vector components
-            grainCM_l = num.dot(R_s2l, self.pVec.reshape(3, 1))
-            if grainCM_l.ndim == 3:
-                grainCM_l = grainCM_l.squeeze().T
-
-            # precession-corrected polar detector coord's
-            # X_d = x0 - (self.xc + grainCM_l[0, :]) # is 1-d!
-            # Y_d = y0 - (self.yc + grainCM_l[1, :]) # is 1-d!
-            X_d = x0 - self.xc          # is 1-d!
-            Y_d = y0 - self.yc          # is 1-d!
-
-            XC = grainCM_l[0, :]
-            YC = grainCM_l[1, :]
-
-            D = self.workDist + grainCM_l[2, :] # now array of D's
+        # move to centered coordinates
+        x0 = x0 - 0.5*self.extent[0]
+        y0 = y0 - 0.5*self.extent[1]
 
         if applyRadialDistortion:
-            # apply distortion
-            X_d, Y_d = self.radialDistortion(X_d, Y_d, invert=False)
+            X_d, Y_d = self.radialDistortion(x0, y0, invert=False)
+        xy_det = num.vstack([X_d.flatten(), Y_d.flatten()]).T
+        
+        if len(ome) == 0:
+            tth_eta, gVec_l = xfcapi.detectorXYToGvec(xy_det,
+                                                      self.ROT_l2d, I3,
+                                                      self.tVec_d, zvec3, tVec_c)
+            tmpData = num.vstack(tth_eta)
+        else:
+            tmpData = num.empty((2, numPts), dtype=float)
+            gVec_l = num.empty((numPts, 3), dtype=float)
+            for i in range(numPts):
+                rMat_s = xfcapi.makeOscillRotMat(num.r_[chi, ome[i]])
+                tmp = xfcapi.detectorXYToGvec(xy_det[i, :],
+                                              self.ROT_l2d, rMat_s,
+                                              self.tVec_d, zvec3, tVec_c)
+                tmpData[:, i] = [tmp[0][0], tmp[0][1]]
+                gVec_l[i, :] = tmp[1]
+                pass
+            pass
 
-        #
-        # ------- ASSIGN POINT COORD'S AND FORM ROTATION
-        #
-        # origins of the scattering (P1) and lab (P2) frames
-        #   - the common frame for arithmatic is the scattering frame
-        P1 = num.vstack([XC, YC, D])
-        # P2 = num.vstack([XC, YC, nzeros])
-        P2 = num.zeros((3, numPts))
-
-        # tilt calculations moved into setTilt
-
-        # full 3-d components in tilted the detector frame
-        P4_d = num.vstack( (X_d, Y_d, nzeros) )
-
-        # rotate components into the lab frame
-        P4_l = num.dot(self.ROT_l2d, P4_d)
-
-        # apply translation to get equations of diffracted rays in lab frame
-        rays = P4_l - P1
-
-        # solve for P3 coord's in lab frame
-        u = num.tile( num.dot(self.N.T, (P2 - P1)) / num.dot(self.N.T, rays), (3, 1) )
-
-
-        P3 = P1 + u * rays
-
-        # X-Y components of P3 in lab frame
-        X_l = P3[0, :] - XC
-        Y_l = P3[1, :] - YC
-
-        # polar coords in lab frame
-        rho_l = num.sqrt(X_l*X_l + Y_l*Y_l)
-        eta_l = num.arctan2(Y_l, X_l)
-
-        # get two-theta from dot products with lab-frame beam direction
-        dotProds = num.dot(-self.Zl.T, unitVector(rays)).squeeze()
-
-        # two-theta
-        measTTH = arccosSafe(dotProds)
-
-        # transform data
-        tmpData = num.vstack( [measTTH, eta_l] )
+        # obselete # # make center-based cartesian coord's
+        # obselete # #   - SHOULD BE IN PIXEL PITCH UNITS (MM)
+        # obselete # #   ... maybe add hard check on this in future
+        # obselete # #   - x0, y0 are now written in the cartesian coords
+        # obselete # #     where [0, 0] is the lower left corner of detector
+        # obselete # if inputPixelUnits:
+        # obselete #     x0, y0 = self.cartesianCoordsOfPixelIndices(x0, y0)
+        # obselete # 
+        # obselete # if self.pVec is None:
+        # obselete #     X_d = x0 - self.xc              # is 1-d!
+        # obselete #     Y_d = y0 - self.yc              # is 1-d!
+        # obselete # 
+        # obselete #     XC = nzeros
+        # obselete #     YC = nzeros
+        # obselete # 
+        # obselete #     D = num.tile(self.workDist, numPts)
+        # obselete # else:
+        # obselete #     assert len(ome) == numPts, 'with precession, omega argument consistent with ' \
+        # obselete #            + 'x and y (or i and j) is required'
+        # obselete #     # if here, we have a precession vector and must deeal with it
+        # obselete #     #
+        # obselete #     #   - ome is taken as a CCW (+) rotation of the SAMPLE FRAME about Y
+        # obselete #     #   - when the BASIS is transformed by R, vector comp's must transform by R'
+        # obselete #     R_s2l = rotMatOfExpMap( num.tile(ome, (3, 1)) * num.tile(self.Yl, (1, numPts)) )
+        # obselete # 
+        # obselete #     if not hasattr(self.pVec, '__len__'):
+        # obselete #         raise RuntimeError, 'pVec must be array-like'
+        # obselete # 
+        # obselete #     self.pVec = num.asarray(self.pVec)
+        # obselete # 
+        # obselete #     # array of rotated precession vector components
+        # obselete #     grainCM_l = num.dot(R_s2l, self.pVec.reshape(3, 1))
+        # obselete #     if grainCM_l.ndim == 3:
+        # obselete #         grainCM_l = grainCM_l.squeeze().T
+        # obselete # 
+        # obselete #     # precession-corrected polar detector coord's
+        # obselete #     # X_d = x0 - (self.xc + grainCM_l[0, :]) # is 1-d!
+        # obselete #     # Y_d = y0 - (self.yc + grainCM_l[1, :]) # is 1-d!
+        # obselete #     X_d = x0 - self.xc          # is 1-d!
+        # obselete #     Y_d = y0 - self.yc          # is 1-d!
+        # obselete # 
+        # obselete #     XC = grainCM_l[0, :]
+        # obselete #     YC = grainCM_l[1, :]
+        # obselete # 
+        # obselete #     D = self.workDist + grainCM_l[2, :] # now array of D's
+        # obselete # 
+        # obselete # if applyRadialDistortion:
+        # obselete #     # apply distortion
+        # obselete #     X_d, Y_d = self.radialDistortion(X_d, Y_d, invert=False)
+        # obselete # 
+        # obselete # #
+        # obselete # # ------- ASSIGN POINT COORD'S AND FORM ROTATION
+        # obselete # #
+        # obselete # # origins of the scattering (P1) and lab (P2) frames
+        # obselete # #   - the common frame for arithmatic is the scattering frame
+        # obselete # P1 = num.vstack([XC, YC, D])
+        # obselete # # P2 = num.vstack([XC, YC, nzeros])
+        # obselete # P2 = num.zeros((3, numPts))
+        # obselete # 
+        # obselete # # tilt calculations moved into setTilt
+        # obselete # 
+        # obselete # # full 3-d components in tilted the detector frame
+        # obselete # P4_d = num.vstack( (X_d, Y_d, nzeros) )
+        # obselete # 
+        # obselete # # rotate components into the lab frame
+        # obselete # P4_l = num.dot(self.ROT_l2d, P4_d)
+        # obselete # 
+        # obselete # # apply translation to get equations of diffracted rays in lab frame
+        # obselete # rays = P4_l - P1
+        # obselete # 
+        # obselete # # solve for P3 coord's in lab frame
+        # obselete # u = num.tile( num.dot(self.N.T, (P2 - P1)) / num.dot(self.N.T, rays), (3, 1) )
+        # obselete # 
+        # obselete # 
+        # obselete # P3 = P1 + u * rays
+        # obselete # 
+        # obselete # # X-Y components of P3 in lab frame
+        # obselete # X_l = P3[0, :] - XC
+        # obselete # Y_l = P3[1, :] - YC
+        # obselete # 
+        # obselete # # polar coords in lab frame
+        # obselete # rho_l = num.sqrt(X_l*X_l + Y_l*Y_l)
+        # obselete # eta_l = num.arctan2(Y_l, X_l)
+        # obselete # 
+        # obselete # # get two-theta from dot products with lab-frame beam direction
+        # obselete # dotProds = num.dot(-self.Zl.T, unitVector(rays)).squeeze()
+        # obselete # 
+        # obselete # # two-theta
+        # obselete # measTTH = arccosSafe(dotProds)
+        # obselete # 
+        # obselete # # transform data
+        # obselete # tmpData = num.vstack( [measTTH, eta_l] )
 
         if len(tthRange) == 2:
             tthMin = min(tthRange)
@@ -4013,13 +3971,16 @@ class Detector2DRC(DetectorBase):
 
         return retval
 
-    def makeMaskTThRanges(self, planeData):
+    def xyoToAngMap(self, x0, y0, *args, **kwargs):
         """
-        Mask in the sense that reader with the mask will exclude all else
+        eta by default is in [-pi,pi]
+        if all data are in the left quadrants, remap eta into [0,2*pi]
         """
-        indicesList, iHKLLists = self.makeIndicesTThRanges(planeData)
-        mask = -self.reader.indicesToMask(indicesList)
-        return mask
+        doMap = kwargs.pop('doMap',None)
+        angs = self.xyoToAng(x0, y0, *args, **kwargs)
+        angs[1] = mapAngs(angs[1], doMap=doMap)
+        return angs
+
     def xyoToAngAll(self):
         """
         get angular positions of all pixels
@@ -4029,6 +3990,7 @@ class Detector2DRC(DetectorBase):
 
         twoTheta, eta = self.xyoToAng(iVals, jVals)
         return twoTheta, eta
+
     def xyoToAngCorners(self):
         """
         get angular positions of corner pixels
@@ -4037,6 +3999,7 @@ class Detector2DRC(DetectorBase):
         jVals = num.array([0, 0, self.__ncols-1, self.__ncols-1])
         twoTheta, eta = self.xyoToAng(iVals, jVals)
         return twoTheta, eta
+
     def angOnDetector(self, tTh, eta, *args):
         '''
         note: returns a scalar if tTh and eta have single entries
@@ -4047,6 +4010,7 @@ class Detector2DRC(DetectorBase):
             num.logical_and( j >= 0, j <= self.ncols-1 ) )
         retval = num.atleast_1d(retval)
         return retval
+
     def makeTThRanges(self, planeData, cullDupl=False):
         tThs      = planeData.getTTh()
         tThRanges = planeData.getTThRanges()
@@ -4067,6 +4031,7 @@ class Detector2DRC(DetectorBase):
             hklsCur = []
 
         return iHKLLists
+
     def makeIndicesTThRanges(self, planeData, cullDupl=False):
         """
         return a list of indices for sets of overlaping two-theta ranges;
@@ -4084,14 +4049,21 @@ class Detector2DRC(DetectorBase):
         indicesList = []
         twoTheta, eta = self.xyoToAngAll()
         for iHKLList in iHKLLists:
-            'for some reason, this does not work well when made into a one-liner'
-            #indices = num.where(num.logical_and(twoTheta > tThRanges[iHKLList[0],0], twoTheta < tThRanges[iHKLList[-1],1]))
             b1 = twoTheta > tThRanges[iHKLList[0],0]
             b2 = twoTheta < tThRanges[iHKLList[-1],1]
             b = num.logical_and(b1,b2)
             indices = num.where(b)
             indicesList.append(indices)
         return indicesList, iHKLLists
+
+    def makeMaskTThRanges(self, planeData):
+        """
+        Mask in the sense that reader with the mask will exclude all else
+        """
+        indicesList, iHKLLists = self.makeIndicesTThRanges(planeData)
+        mask = -self.reader.indicesToMask(indicesList)
+        return mask
+
     def getTThMax(self, func=num.min):
         x0_max = self.ncols-1;   y0_max = self.nrows-1;
         x0_mid = 0.5 * x0_max;   y0_mid = 0.5 * y0_max;
@@ -4110,10 +4082,9 @@ class Detector2DRC(DetectorBase):
         nEta = self.nEta
         dEta = 2*math.pi/nEta
 
-        etaRing = num.arange(0., 2.0*math.pi+dEta/2., dEta)
-        nEta    = len(etaRing) # why this?
+        etaRing = dEta*num.arange(0., nEta+1)
 
-        excl   = num.array(planeData.exclusions)
+        excl = num.array(planeData.exclusions)
 
         # grab full tThs and tile if ranges are desired
         tThs = planeData.getTTh()
@@ -4122,7 +4093,7 @@ class Detector2DRC(DetectorBase):
 
         # grab the relevant hkls and loop
         for i in range(len(tThs)):
-            tThRing = num.tile(tThs[i], nEta)
+            tThRing = num.tile(tThs[i], len(etaRing))
             r = self.angToXYO(tThRing, etaRing) # omegaRing
             rList.append(r)
             pass

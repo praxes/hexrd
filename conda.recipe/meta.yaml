@@ -27,12 +27,13 @@ requirements:
     - dill
     - matplotlib
     - numba
-    - numpy
+    - numpy >=1.9
     - progressbar >=2.3
     - python
     - python.app # [osx]
     - pyyaml
-    - scikit-learn
+    - qtconsole
+    - scikit-learn ==0.15.2
     - scipy
     - wxpython
 

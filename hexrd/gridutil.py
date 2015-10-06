@@ -119,6 +119,24 @@ if USE_NUMBA:
                     acc += crd[con[i,k], j]
                 out[i,j] = acc * inv_conn
         return out
+
+    @numba.jit
+    def compute_areas(xy_eval_vtx, conn):
+        areas = np.empty(len(conn))
+        for i in range(len(conn)):
+            c0, c1, c2, c3 = conn[i]
+            vtx0x, vtx0y = xy_eval_vtx[conn[i,0]]
+            vtx1x, vtx1y = xy_eval_vtx[conn[i,1]]
+            v0x, v0y = vtx1x-vtx0x, vtx1y-vtx0y
+            acc = 0
+            for j in range(2, 4):
+                vtx_x, vtx_y = xy_eval_vtx[conn[i,j]]
+                v1x = vtx_x - vtx0x
+                v1y = vtx_y - vtx0y
+                acc += v0x*v1y - v1x*v0y
+    
+            areas[i] = 0.5 * acc
+        return areas
 else:
     def cellCentroids(crd, con):
         """
@@ -136,6 +154,13 @@ else:
             centroid_xy[i, :] = (el_crds).mean(axis=0)
         return centroid_xy
 
+    def compute_areas(xy_eval_vtx, conn):
+        areas = np.zeros(len(conn))
+        for i in range(len(conn)):
+            polygon = [[xy_eval_vtx[conn[i, j], 0],
+                        xy_eval_vtx[conn[i, j], 1]] for j in range(4)]
+            areas[i] = gutil.computeArea(polygon)
+        return areas
 
 def computeArea(polygon):
     """
