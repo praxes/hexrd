@@ -34,10 +34,11 @@ class ProcessedImageSeries(ImageSeries):
 
     def _subtract_dark(self, img):
         # need to check for values below zero
-        if self.DARK in self._opts:
-            return img - self._opts[self.DARK]
-        else:
+        if self.DARK not in self._opts:
             return img
+
+        dark = self._opts[self.DARK]
+        return np.where(img > dark, img-dark, 0)
 
     def _rectangle(self, img):
         # restrict to rectangle
