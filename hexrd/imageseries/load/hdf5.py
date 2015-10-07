@@ -1,6 +1,7 @@
 """HDF5 adapter class
 """
 import h5py
+
 from . import ImageSeriesAdapter
 from ..imageseriesiter import ImageSeriesIterator
 
@@ -38,7 +39,7 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
     def dtype(self):
         with self._dset as dset:
             return dset.dtype
-        
+
     @property
     #@memoize so you only need to do this once
     def shape(self):
@@ -83,4 +84,3 @@ class H5ContextManager:
 
     def __exit__(self, *args):
         self._f.close()
-

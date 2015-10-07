@@ -1,7 +1,7 @@
 """Class for processing frames or frame groups"""
 import numpy as np
 
-from hexrd.imageseries import ImageSeries
+from .baseclass import ImageSeries
 
 class ProcessedImageSeries(ImageSeries):
     """Images series with mapping applied to frames"""
