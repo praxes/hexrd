@@ -25,6 +25,9 @@ class ImageSeries(ImageSeriesABC):
     def __len__(self):
         return len(self._adapter)
 
+    def __iter__(self):
+        return self._adapter.__iter__()
+
     @property
     def dtype(self):
         return self._adapter.dtype
