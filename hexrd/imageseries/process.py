@@ -1,4 +1,4 @@
-"""Class for processing frames or frame groups"""
+"""Class for processing individual frames"""
 import numpy as np
 
 from .baseclass import ImageSeries
@@ -9,14 +9,23 @@ class ProcessedImageSeries(ImageSeries):
     DARK = 'dark'
     RECT = 'rectangle'
 
-    def __init__(self, imser, **kwargs):
-        """Instantiate imsageseries based on existing one with mapping options
+    _opdict = {}
+
+    def __init__(self, imser, oplist):
+        """imsageseries based on existing one with image processing options
 
         *imser* - an existing imageseries
-        *kwargs* - dictionary for processing options
+        *oplist* - list of processing operations;
+                   a list of pairs (key, data) pairs, with key specifying the
+                   operation to perform using specified data
+
         """
         self._imser = imser
-        self._opts = kwargs
+        self._oplist = oplist
+
+        self.addop(self.DARK, self._subtract_dark)
+        self.addop(self.FLIP, self._flip)
+        self.addop(self.RECT, self._rectangle)
 
     def __getitem__(self, key):
         return self._process_frame(key)
@@ -25,35 +34,23 @@ class ProcessedImageSeries(ImageSeries):
         return len(self._imser)
 
     def _process_frame(self, key):
-        # apply flip at end
-        img = self._imser[key]
-        img = self._subtract_dark(img)
-        img = self._rectangle(img)
-        img = self._flip(img)
+        img = np.copy(self._imser[key])
+        for op in self.oplist:
+            key, data = op
+            func = self._opdict[key]
+            img = func(img, data)
+
         return img
 
-    def _subtract_dark(self, img):
+    def _subtract_dark(self, img, dark):
         # need to check for values below zero
-        if self.DARK not in self._opts:
-            return img
-
-        dark = self._opts[self.DARK]
         return np.where(img > dark, img-dark, 0)
 
-    def _rectangle(self, img):
+    def _rectangle(self, img, r):
         # restrict to rectangle
-        if self.RECT in self._opts:
-            r = self._opts[self.RECT]
-            return img[r[0,0]:r[0,1], r[1,0]:r[1,1]]
-        else:
-            return img
+        return img[r[0,0]:r[0,1], r[1,0]:r[1,1]]
 
-    def _flip(self, img):
-        if self.FLIP in self._opts:
-            flip = self._opts['flip']
-        else:
-            return img
-
+    def _flip(self, img, flip):
         if flip in ('y','v'): # about y-axis (vertical)
             pimg = img[:, ::-1]
         elif flip in ('x', 'h'): # about x-axis (horizontal)
@@ -80,7 +77,9 @@ class ProcessedImageSeries(ImageSeries):
             a[i] = self.__getitem__(i)
 
         return a
-
+    #
+    # ==================== API
+    #
     @property
     def dtype(self):
         return self._imser.dtype
@@ -88,6 +87,20 @@ class ProcessedImageSeries(ImageSeries):
     @property
     def shape(self):
         return self._imser.shape
+
+    @classmethod
+    def addop(cls, key, func):
+        """Add operation to processing options
+
+        *key* - string to use to specify this op
+        *func* - function to call for this op: f(data)
+        """
+        cls._opdict[key] = func
+
+    @property
+    def oplist(self):
+        """list of operations to apply"""
+        return self._oplist
 
     def median(self, nframes=0):
         return np.median(self._toarray(nframes=nframes), axis=0)
