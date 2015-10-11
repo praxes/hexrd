@@ -15,7 +15,7 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
     def __init__(self, fname, **kwargs):
         """Constructor for frame cache image series
 
-        *fname* - filename of the yml file 
+        *fname* - filename of the yml file
         *kwargs* - keyword arguments (none required)
         """
         self._fname = fname
@@ -42,7 +42,8 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
             row = arrs["%d_row" % i]
             col = arrs["%d_col" % i]
             data = arrs["%d_data" % i]
-            frame = csr_matrix((data, (row, col)), shape=self._shape)
+            frame = csr_matrix((data, (row, col)),
+                               shape=self._shape, dtype=self._dtype)
             self._framelist.append(frame)
 
     @property
@@ -62,7 +63,7 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
         return self._shape
 
     def __getitem__(self, key):
-        return self._framelist[key]
+        return self._framelist[key].toarray()
 
     def __iter__(self):
         return ImageSeriesIterator(self)
