@@ -8,6 +8,7 @@ from .baseclass import ImageSeries
 from . import load
 from . import process
 from . import save
+from . import stats
 
 def open(filename, format=None, **kwargs):
     # find the appropriate adapter based on format specified

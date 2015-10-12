@@ -102,7 +102,4 @@ class ProcessedImageSeries(ImageSeries):
         """list of operations to apply"""
         return self._oplist
 
-    def median(self, nframes=0):
-        return np.median(self._toarray(nframes=nframes), axis=0)
-
     pass # end class
