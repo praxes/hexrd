@@ -9,17 +9,41 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
     """collection of images in HDF5 format"""
 
     format = 'hdf5'
-    #The code below failed with: "Error when calling the metaclass bases"
-    #                  "'property' object is not callable"
-    #@property
-    #def format(self):
-    #    return 'hdf5'
+
+    def __init__(self, fname, **kwargs):
+        """Constructor for H5FrameSeries
+
+        *fname* - filename of the HDF5 file
+        *kwargs* - keyword arguments, choices are:
+           path - (required) path of dataset in HDF5 file
+        """
+        self.__h5name = fname
+        self.__path = kwargs['path']
+        self.__images = '/'.join([self.__path, 'images'])
+
+    def __getitem__(self, key):
+        with self._dset as dset:
+            return dset.__getitem__(key)
+
+    def __iter__(self):
+        return ImageSeriesIterator(self)
+
+    #@memoize
+    def __len__(self):
+        with self._dset as dset:
+            return len(dset)
+
+    @property
+    def _dgroup(self):
+        # return a context manager to ensure proper file handling
+        # always use like: "with self._dgroup as dgroup:"
+        return H5ContextManager(self.__h5name, self.__path)
 
     @property
     def _dset(self):
         # return a context manager to ensure proper file handling
         # always use like: "with self._dset as dset:"
-        return H5ContextManager(self.__h5name, self.__path)
+        return H5ContextManager(self.__h5name, self.__images)
 
     @property
     #@memoize
@@ -29,9 +53,9 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
         Currently returns any dimension scales in a dictionary
         """
         mdict = {}
-        with self._dset as dset:
-            for k in dset.dims[0].keys():
-                mdict[k] = dset.dims[0][k][...]
+        with self._dgroup as dgroup:
+            for k, v in dgroup.attrs.items():
+                mdict[k] = v
 
         return mdict
 
@@ -45,28 +69,6 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
     def shape(self):
         with self._dset as dset:
             return dset.shape[1:]
-
-    def __init__(self, fname, **kwargs):
-        """Constructor for H5FrameSeries
-
-        *fname* - filename of the HDF5 file
-        *kwargs* - keyword arguments, choices are:
-           path - (required) path of dataset in HDF5 file
-        """
-        self.__h5name = fname
-        self.__path = kwargs['path']
-
-    def __getitem__(self, key):
-        with self._dset as dset:
-            return dset.__getitem__(key)
-
-    def __iter__(self):
-        return ImageSeriesIterator(self)
-
-    #@memoize
-    def __len__(self):
-        with self._dset as dset:
-            return len(dset)
 
     pass  # end class
 

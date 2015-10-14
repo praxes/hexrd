@@ -56,20 +56,28 @@ class Writer(object):
         self._opts = kwargs
 
     pass # end class
-        
+
 class WriteH5(Writer):
     fmt = 'hdf5'
 
     def __init__(self, ims, fname, **kwargs):
+        """Write imageseries in HDF5 file
+
+           Required Args:
+           path - the path in HDF5 file
+
+"""
         Writer.__init__(self, ims, fname, **kwargs)
         self._path = self._opts['path']
-    
+        self._meta = kwargs['meta'] if 'meta' in kwargs else dict()
+
     def _open_dset(self):
         """open HDF5 file and dataset"""
         f = h5py.File(self._fname, "a")
+        g = f.create_group(self._path)
         s0, s1 = self._shape
-        
-        return f.create_dataset(self._path, (self._nframes, s0, s1), self._dtype,
+
+        return g.create_dataset('images', (self._nframes, s0, s1), self._dtype,
                                 compression="gzip")
     #
     # ======================================== API
@@ -80,8 +88,10 @@ class WriteH5(Writer):
         for i in range(self._nframes):
             ds[i, :, :] = self._ims[i]
 
-        # next: add metadata
-        
+        # add metadata
+        for k, v in self._meta.items():
+            ds[k] = v
+
     pass # end class
 
 class WriteFrameCache(Writer):
@@ -105,7 +115,7 @@ class WriteFrameCache(Writer):
                  'nframes': len(self._ims), 'shape': list(self._ims.shape)}
         info = {'data': datad, 'meta': self._meta}
         with open(self._fname, "w") as f:
-            yaml.dump(info, f) 
+            yaml.dump(info, f)
 
     def _write_frames(self):
         """also save shape array as originally done (before yaml)"""
@@ -120,7 +130,7 @@ class WriteFrameCache(Writer):
             arrd['%d_col' % i] = col
             if sh is None:
                 arrd['shape'] = np.array(frame.shape)
-        
+
         np.savez_compressed(self._cache, **arrd)
 
     def write(self):
@@ -130,5 +140,3 @@ class WriteFrameCache(Writer):
         """
         self._write_frames()
         self._write_yml()
-
-        
