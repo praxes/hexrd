@@ -11,13 +11,13 @@ class ArrayImageSeriesAdapter(ImageSeriesAdapter):
     def __init__(self, fname, **kwargs):
         """Constructor for frame cache image series
 
-        *fname* - should be None 
+        *fname* - should be None
         *kwargs* - keyword arguments
                  . 'data' = a 3D array (double/float)
                  . 'metadata' = a dictionary
         """
         self._data = kwargs['data']
-        self._meta = kwargs.pop('metadata', dict())
+        self._meta = kwargs.pop('meta', dict())
         self._shape = self._data.shape
         self._nframes = self._shape[0]
         self._nxny = self._shape[1:3]
@@ -37,7 +37,7 @@ class ArrayImageSeriesAdapter(ImageSeriesAdapter):
     @property
     def dtype(self):
         return self._data.dtype
-    
+
     def __getitem__(self, key):
         return self._data[key]
 

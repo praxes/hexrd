@@ -52,6 +52,7 @@ class Writer(object):
         self._shape = ims.shape
         self._dtype = ims.dtype
         self._nframes = len(ims)
+        self._meta = ims.metadata
         self._fname = fname
         self._opts = kwargs
 
@@ -69,28 +70,24 @@ class WriteH5(Writer):
 """
         Writer.__init__(self, ims, fname, **kwargs)
         self._path = self._opts['path']
-        self._meta = kwargs['meta'] if 'meta' in kwargs else dict()
 
-    def _open_dset(self):
-        """open HDF5 file and dataset"""
-        f = h5py.File(self._fname, "a")
-        g = f.create_group(self._path)
-        s0, s1 = self._shape
-
-        return g.create_dataset('images', (self._nframes, s0, s1), self._dtype,
-                                compression="gzip")
     #
     # ======================================== API
     #
     def write(self):
         """Write imageseries to HDF5 file"""
-        ds = self._open_dset()
+        f = h5py.File(self._fname, "a")
+        g = f.create_group(self._path)
+        s0, s1 = self._shape
+
+        ds = g.create_dataset('images', (self._nframes, s0, s1), self._dtype,
+                                compression="gzip")
         for i in range(self._nframes):
             ds[i, :, :] = self._ims[i]
 
         # add metadata
         for k, v in self._meta.items():
-            ds[k] = v
+            g.attrs[k] = v
 
     pass # end class
 
@@ -108,7 +105,6 @@ class WriteFrameCache(Writer):
         Writer.__init__(self, ims, fname, **kwargs)
         self._thresh = self._opts['threshold']
         self._cache = kwargs['cache_file']
-        self._meta = kwargs['meta'] if 'meta' in kwargs else dict()
 
     def _write_yml(self):
         datad = {'file': self._cache, 'dtype': str(self._ims.dtype),

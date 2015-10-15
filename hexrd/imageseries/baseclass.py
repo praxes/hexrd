@@ -36,4 +36,8 @@ class ImageSeries(ImageSeriesABC):
     def shape(self):
         return self._adapter.shape
 
+    @property
+    def metadata(self):
+        return self._adapter.metadata
+
     pass  # end class
