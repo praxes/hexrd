@@ -52,7 +52,15 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
 
         Currently returns none
         """
-        return self._meta
+        metad = {}
+        for k, v in self._meta.items():
+            if v == '++np.array':
+                newk = k + '-array'
+                metad[k] = np.array(self._meta.pop(newk))
+                metad.pop(newk, None)
+            else:
+                metad[k] = v
+        return metad
 
     @property
     def dtype(self):

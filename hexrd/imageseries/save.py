@@ -106,10 +106,21 @@ class WriteFrameCache(Writer):
         self._thresh = self._opts['threshold']
         self._cache = kwargs['cache_file']
 
+    def _process_meta(self):
+        d = {}
+        for k, v in self._meta.items():
+            if isinstance(v, np.ndarray):
+                d[k] = '++np.array'
+                d[k + '-array'] = v.tolist()
+            else:
+                d[k] = v
+
+        return d
+
     def _write_yml(self):
         datad = {'file': self._cache, 'dtype': str(self._ims.dtype),
                  'nframes': len(self._ims), 'shape': list(self._ims.shape)}
-        info = {'data': datad, 'meta': self._meta}
+        info = {'data': datad, 'meta': self._process_meta()}
         with open(self._fname, "w") as f:
             yaml.dump(info, f)
 
