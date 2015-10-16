@@ -395,7 +395,10 @@ def find_orientations(cfg, hkls=None, profile=False):
                                         )
             num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
             pass
-        min_samples = np.floor(np.average(num_seed_refls))
+        min_samples = max(
+            cfg.find_orientations.clustering.completeness*np.floor(np.average(num_seed_refls)),
+            4
+            )
     else:
         min_samples = 1
 
