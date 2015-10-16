@@ -27,9 +27,11 @@ from hexrd.coreutil import initialize_experiment
 
 from hexrd.xrd import xrdutil
 from hexrd.xrd.detector import ReadGE
+from hexrd.xrd.xrdutil import simulateGVecs
 
 from hexrd.xrd import distortion as dFuncs
 
+from hexrd.fitgrains import get_instrument_parameters
 
 logger = logging.getLogger(__name__)
 
@@ -284,7 +286,7 @@ def find_orientations(cfg, hkls=None, profile=False):
 
     # need instrument cfg later on down...
     instr_cfg = get_instrument_parameters(cfg)
-    detector_parameters = np.hstack([
+    detector_params = np.hstack([
         instr_cfg['detector']['transform']['tilt_angles'],
         instr_cfg['detector']['transform']['t_vec_d'],
         instr_cfg['oscillation_stage']['chi'],
@@ -296,9 +298,9 @@ def find_orientations(cfg, hkls=None, profile=False):
                   ( 0.5*cdim,  0.5*rdim),
                   )
     # UGH! hard-coded distortion...
-    if instr_cfg['distortion']['function_name'] == 'GE_41RT':
+    if instr_cfg['detector']['distortion']['function_name'] == 'GE_41RT':
         distortion = (dFuncs.GE_41RT,
-                      instr_cfg['distortion']['parameters'],
+                      instr_cfg['detector']['distortion']['parameters'],
                       )
     else:
         distortion = None
@@ -384,8 +386,8 @@ def find_orientations(cfg, hkls=None, profile=False):
             sim_results = simulateGVecs(pd,
                                         detector_params,
                                         grain_params,
-                                        ome_range=ome_range,
-                                        ome_period=np.radians(cfg.find_orientations.omega.period),
+                                        ome_range=(ome_range,),
+                                        ome_period=(ome_range[0], ome_range[0]+2*np.pi),
                                         eta_range=np.radians(cfg.find_orientations.eta.range),
                                         panel_dims=panel_dims,
                                         pixel_pitch=cfg.instrument.detector.pixels.size,
@@ -396,9 +398,11 @@ def find_orientations(cfg, hkls=None, profile=False):
         min_samples = np.floor(np.average(num_seed_refls))
     else:
         min_samples = 1
-        
+
+    logger.info("neighborhood size estimate is %d points", (min_samples))
+    
     # cluster analysis to identify orientation blobs, the final output:
-    qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, min_pts=min_pts)
+    qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, min_samples=min_samples)
     np.savetxt(
         os.path.join(cfg.working_dir, 'accepted_orientations.dat'),
         qbar.T,
