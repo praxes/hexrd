@@ -13,7 +13,7 @@ class ImageSeries(ImageSeriesABC):
         """Build FrameSeries from adapter instance
 
         *adapter* - object instance based on abstract Sequence class with
-        properties for image shape and, optionally, metadata.
+        properties for image shape, data type and metadata.
         """
         self._adapter = adapter
 
