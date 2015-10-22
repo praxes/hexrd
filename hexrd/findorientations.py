@@ -373,10 +373,11 @@ def find_orientations(cfg, hkls=None, profile=False):
     ##   Simulate N random grains to get neighborhood size  ##
     ##########################################################
     if hkl_ids is not None:
-        ngrains = 10
+        ngrains = 100
         rand_q = mutil.unitVector(np.random.randn(4, ngrains))
         rand_e = np.tile(2.*np.arccos(rand_q[0, :]), (3, 1)) \
           * mutil.unitVector(rand_q[1:, :])
+        refl_per_grain = np.zeros(ngrains)
         num_seed_refls = np.zeros(ngrains)
         for i in range(ngrains):
             grain_params = np.hstack([rand_e[:, i],
@@ -393,17 +394,21 @@ def find_orientations(cfg, hkls=None, profile=False):
                                         pixel_pitch=cfg.instrument.detector.pixels.size,
                                         distortion=distortion,
                                         )
+            refl_per_grain[i] = len(sim_results[0])
             num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
             pass
         min_samples = max(
             cfg.find_orientations.clustering.completeness*np.floor(np.average(num_seed_refls)),
             4
             )
+        mean_rpg = int(np.round(np.average(refl_per_grain)))
     else:
         min_samples = 1
+        mean_rpg = 1
 
-    logger.info("neighborhood size estimate is %d points", (min_samples))
-    
+    logger.info("mean number of reflections per grain is %d", mean_rpg)
+    logger.info("neighborhood size estimate is %d points", min_samples)
+
     # cluster analysis to identify orientation blobs, the final output:
     qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, min_samples=min_samples)
     np.savetxt(
