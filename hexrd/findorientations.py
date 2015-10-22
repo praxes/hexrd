@@ -50,13 +50,13 @@ except ImportError:
 
 
 def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
-    """ 
+    """
     From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
     """
     # seed_hkl_ids must be consistent with this...
     pd_hkl_ids = eta_ome.iHKLList[seed_hkl_ids]
-    
+
     # grab angular grid infor from maps
     del_ome = eta_ome.omegas[1] - eta_ome.omegas[0]
     del_eta = eta_ome.etas[1] - eta_ome.etas[0]
@@ -70,7 +70,7 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
     bMat = pd.latVecOps['B']
     csym = pd.getLaueGroup()
     qsym = pd.getQSym()
-    
+
     ############################################
     ##    Labeling of spots from seed hkls    ##
     ############################################
@@ -277,7 +277,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
 def find_orientations(cfg, hkls=None, profile=False):
     """
     Takes a config dict as input, generally a yml document
-    
+
     NOTE: single cfg instance, not iterator!
     """
 
@@ -399,7 +399,7 @@ def find_orientations(cfg, hkls=None, profile=False):
             pass
         min_samples = max(
             cfg.find_orientations.clustering.completeness*np.floor(np.average(num_seed_refls)),
-            4
+            2
             )
         mean_rpg = int(np.round(np.average(refl_per_grain)))
     else:
