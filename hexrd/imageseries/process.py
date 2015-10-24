@@ -88,6 +88,10 @@ class ProcessedImageSeries(ImageSeries):
     def shape(self):
         return self._imser.shape
 
+    @property
+    def metadata(self):
+        return self._imser.metadata
+
     @classmethod
     def addop(cls, key, func):
         """Add operation to processing options
