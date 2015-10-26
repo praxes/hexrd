@@ -20,7 +20,7 @@ import warnings
 
 import numpy as num
 
-import imageseries
+from hexrd import imageseries
 
 warnings.filterwarnings('always', '', DeprecationWarning)
 
@@ -383,4 +383,3 @@ def newGenericReader(ncols, nrows, *args, **kwargs):
     retval = ReadGeneric(filename, ncols, nrows, *args, **kwargs)
 
     return retval
-
