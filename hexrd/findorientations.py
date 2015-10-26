@@ -1,3 +1,4 @@
+
 from __future__ import print_function
 
 import cPickle
@@ -223,13 +224,13 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
                 )
 
         if algorithm == 'parallel-dbscan':
-            cl = cluster_parallel_dbscan(qfib_r, cl_radius)
+            cl = cluster_parallel_dbscan(qfib_r, cl_radius, min_samples)
         elif algorithm == 'homochoric-dbscan':
-            cl = cluster_homochoric_dbscan(qfib_r, cl_radius)
+            cl = cluster_homochoric_dbscan(qfib_r, cl_radius, min_samples)
         elif algorithm == 'dbscan':
-            cl = cluster_dbscan(qfib_r, cl_radius)
+            cl = cluster_dbscan(qfib_r, cl_radius, min_samples)
         elif algorithm == 'fclusterdata':
-            cl = cluster_fclusterdata(qfib_r, cl_radius)
+            cl = cluster_fclusterdata(qfib_r, cl_radius, min_samples)
         else:
             raise RuntimeError(
                 "Clustering algorithm %s not recognized" % algorithm
