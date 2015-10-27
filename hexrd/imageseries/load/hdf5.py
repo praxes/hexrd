@@ -20,6 +20,7 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
         self.__h5name = fname
         self.__path = kwargs['path']
         self.__images = '/'.join([self.__path, 'images'])
+        self._meta = self._getmeta()
 
     def __getitem__(self, key):
         with self._dset as dset:
@@ -45,19 +46,22 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
         # always use like: "with self._dset as dset:"
         return H5ContextManager(self.__h5name, self.__images)
 
-    @property
-    #@memoize
-    def metadata(self):
-        """(read-only) Image sequence metadata
-
-        Currently returns any dimension scales in a dictionary
-        """
+    def _getmeta(self):
         mdict = {}
         with self._dgroup as dgroup:
             for k, v in dgroup.attrs.items():
                 mdict[k] = v
 
         return mdict
+
+    @property
+    #@memoize
+    def metadata(self):
+        """(read-only) Image sequence metadata
+
+        note: metadata loaded on open and allowed to be modified
+        """
+        return self._meta
 
     @property
     def dtype(self):

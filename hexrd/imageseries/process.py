@@ -11,7 +11,7 @@ class ProcessedImageSeries(ImageSeries):
 
     _opdict = {}
 
-    def __init__(self, imser, oplist):
+    def __init__(self, imser, oplist, **kwargs):
         """imsageseries based on existing one with image processing options
 
         *imser* - an existing imageseries
@@ -19,26 +19,33 @@ class ProcessedImageSeries(ImageSeries):
                    a list of pairs (key, data) pairs, with key specifying the
                    operation to perform using specified data
 
+        *keyword args*
+        'frame-list' - specify subset of frames by list
+
         """
         self._imser = imser
         self._oplist = oplist
+        self._frames = kwargs.pop('frame-list', None)
+        self._hasframelist = (self._frames is not None)
 
         self.addop(self.DARK, self._subtract_dark)
         self.addop(self.FLIP, self._flip)
         self.addop(self.RECT, self._rectangle)
 
     def __getitem__(self, key):
-        return self._process_frame(key)
+        return self._process_frame(self._get_index(key))
+
+    def _get_index(self, key):
+        return self._frames[key] if self._hasframelist else key
 
     def __len__(self):
-        return len(self._imser)
+        return len(self._frames) if self._hasframelist else len(self._imser)
 
     def _process_frame(self, key):
-        img = np.copy(self._imser[key])
-        for op in self.oplist:
-            key, data = op
-            func = self._opdict[key]
-            img = func(img, data)
+        img = np.copy(self._imser[self._get_index(key)])
+        for k, d in self.oplist:
+            func = self._opdict[k]
+            img = func(img, d)
 
         return img
 
@@ -67,16 +74,6 @@ class ProcessedImageSeries(ImageSeries):
             pimg = img
 
         return pimg
-
-    def _toarray(self, nframes=0):
-        mynf = len(self)
-        nf = np.min((mynf, nframes)) if nframes > 0 else mynf
-        ashp = (nf,) + self.shape
-        a = np.zeros(ashp, dtype=self.dtype)
-        for i in range(nf):
-            a[i] = self.__getitem__(i)
-
-        return a
     #
     # ==================== API
     #
