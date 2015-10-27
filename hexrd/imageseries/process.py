@@ -20,12 +20,12 @@ class ProcessedImageSeries(ImageSeries):
                    operation to perform using specified data
 
         *keyword args*
-        'frame-list' - specify subset of frames by list
+        'frame_list' - specify subset of frames by list
 
         """
         self._imser = imser
         self._oplist = oplist
-        self._frames = kwargs.pop('frame-list', None)
+        self._frames = kwargs.pop('frame_list', None)
         self._hasframelist = (self._frames is not None)
 
         self.addop(self.DARK, self._subtract_dark)
@@ -42,7 +42,8 @@ class ProcessedImageSeries(ImageSeries):
         return len(self._frames) if self._hasframelist else len(self._imser)
 
     def _process_frame(self, key):
-        img = np.copy(self._imser[self._get_index(key)])
+        # note: key refers to original imageseries
+        img = np.copy(self._imser[key])
         for k, d in self.oplist:
             func = self._opdict[k]
             img = func(img, d)

@@ -186,6 +186,20 @@ class TestImageSeriesProcess(unittest.TestCase):
         diff = compare(is_a1, is_p)
         self.assertAlmostEqual(diff, 0., msg="dark image failed")
 
+
+    def test_process_framelist(self):
+        a = make_array()
+        is_a = imageseries.open(None, 'array', data=a)
+        ops = []
+        frames = [0, 2]
+        is_p = process.ProcessedImageSeries(is_a, ops, frame_list=frames)
+        print("1")
+        is_a2 = imageseries.open(None, 'array', data=a[(0,2), ...])
+        print("lengths: ", len(is_p), len(is_a2), len(is_a))
+        diff = compare(is_a2, is_p)
+        self.assertAlmostEqual(diff, 0., msg="frame list failed")
+
+
 class TestImageSeriesStats(unittest.TestCase):
 
     def test_stats_median(self):
