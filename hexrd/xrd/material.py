@@ -63,6 +63,12 @@ class Material(object):
     DFLT_KEV    = valWUnit('wavelength', 'energy', 80.725e0, 'keV')
     DFLT_STR    = 0.002
     DFLT_TTH    = 0.002
+    DFLT_ATOMINFO   = numpy.array([0,0,0,1])
+    """Fractional Atom Position of an atom in the unit cell followed by the
+    number of electrons within that atom. The max number of electrons is 96.
+    """
+    
+    
     #
     def __init__(self, name=DFLT_NAME, cfgP=None):
         """Constructor for Material
@@ -71,6 +77,8 @@ class Material(object):
         cfgP -- (instance) configuration file parser with
              -- the material name as a section
         """
+        
+        
         #
         self.name = name
         self.description = ''
@@ -89,6 +97,8 @@ class Material(object):
             self.description = ''
             #
             self.sgnum       = Material.DFLT_SGNUM
+            #
+            self._atominfo      = Material.DFLT_ATOMINFO
             #
             pass
         return
@@ -148,7 +158,7 @@ class Material(object):
 
     def _newPdata(self):
         """Create a new plane data instance"""
-        hkls = numpy.array(self.spaceGroup.getHKLs(self.hklMax)).T
+        hkls = numpy.array(self.spaceGroup.getHKLs(self.hklMax)).T#spaceGroup module calculates forbidden reflections
         lprm = [self._lparms[i] for i in self.spaceGroup.reqParams]
         laue = self.spaceGroup.laueGroup
         self._pData = PData(hkls, lprm, laue,
@@ -181,6 +191,7 @@ class Material(object):
             pass
 
         return lp6
+        
     #
     # ============================== API
     #
@@ -277,6 +288,8 @@ The values have units attached, i.e. they are valWunit instances.
 """
     latticeParameters = property(_get_latticeParameters, _set_latticeParameters,
                                  None, lpdoc)
+                                 
+                                 
 
     # property:  "name"
 
@@ -292,6 +305,33 @@ The values have units attached, i.e. they are valWunit instances.
 
     name = property(_get_name, _set_name, None,
                     "Name of material" )
+    
+    
+    
+    # property: "atominfo"   
+    def _get_atominfo(self):
+        """Set method for name"""
+        return self._atominfo
+
+    def _set_atominfo(self, v):
+        """Set method for name"""
+        checkpt=1        
+        try:
+            v.shape[checkpt]==4
+        except IndexError:
+            checkpt=0
+            
+        if v.shape[checkpt]==4:        
+            self._atominfo= v
+        else:
+            print("Improper syntax, array must be n x 4")            
+
+        return
+
+    atominfo = property(_get_atominfo, _set_atominfo, None,
+                    "Information about atomic positions and electron number" )    
+    
+    
     #
     #  ========== Methods
     #
