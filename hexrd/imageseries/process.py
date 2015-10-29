@@ -1,4 +1,6 @@
 """Class for processing individual frames"""
+import copy
+
 import numpy as np
 
 from .baseclass import ImageSeries
@@ -24,6 +26,7 @@ class ProcessedImageSeries(ImageSeries):
 
         """
         self._imser = imser
+        self._meta = copy.deepcopy(imser.metadata)
         self._oplist = oplist
         self._frames = kwargs.pop('frame_list', None)
         self._hasframelist = (self._frames is not None)
@@ -88,7 +91,8 @@ class ProcessedImageSeries(ImageSeries):
 
     @property
     def metadata(self):
-        return self._imser.metadata
+        # this is a modifiable copy of metadata of the original imageseries
+        return self._meta
 
     @classmethod
     def addop(cls, key, func):
