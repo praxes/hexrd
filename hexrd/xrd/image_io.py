@@ -16,12 +16,14 @@ newGenericReader - returns a reader instance
 import copy
 import os
 import time
+import logging
 import warnings
 
-import numpy as num
+import numpy as np
 
 from hexrd import imageseries
 
+logging.basicConfig(level=logging.DEBUG)
 warnings.filterwarnings('always', '', DeprecationWarning)
 
 class ReaderDeprecationWarning(DeprecationWarning):
@@ -30,6 +32,8 @@ class ReaderDeprecationWarning(DeprecationWarning):
         self.value = value
     def __str__(self):
         return repr(self.value)
+
+
 
 class OmegaImageSeries(object):
     """Facade for frame_series class, replacing other readers, primarily ReadGE"""
@@ -47,12 +51,12 @@ class OmegaImageSeries(object):
           to allow for addition of indices with regular ints
         """
         self._imseries = imageseries.open(fname, fmt, **kwargs)
+        self._nframes = len(self._imseries)
         self._shape = self._imseries.shape
         self._meta = self._imseries.metadata
 
         if self.OMEGA_TAG not in self._meta:
             raise RuntimeError('No omega data found in data file')
-        return
 
     def __getitem__(self, k):
         return self._imseries[k]
@@ -60,24 +64,24 @@ class OmegaImageSeries(object):
     @property
     def nframes(self):
         """(get-only) number of frames"""
-        return self._shape[0]
+        return self._nframes
 
     @property
     def nrows(self):
         """(get-only) number of rows"""
-        return self._shape[1]
+        return self._shape[0]
 
     @property
     def ncols(self):
         """(get-only) number of columns"""
-        return self._shape[2]
+        return self._shape[1]
 
     @property
     def omega(self):
         """ (get-only) array of omega min/max per frame"""
         return self._meta[self.OMEGA_TAG]
 
-    pass
+
 
 class Framer2DRC(object):
     """Base class for readers.
@@ -90,7 +94,7 @@ class Framer2DRC(object):
         self.__frame_dtype_read  = dtypeRead
         self.__frame_dtype_float = dtypeFloat
 
-        self.__nbytes_frame  = num.nbytes[dtypeRead]*nrows*ncols
+        self.__nbytes_frame  = np.nbytes[dtypeRead]*nrows*ncols
 
         return
 
@@ -121,7 +125,7 @@ class Framer2DRC(object):
     def getEmptyMask(self):
         """convenience method for getting an emtpy mask"""
         # this used to be a class method
-        return num.zeros([self.nrows, self.ncols], dtype=bool)
+        return np.zeros([self.nrows, self.ncols], dtype=bool)
 
 class OmegaFramer(object):
     """Omega information associated with frame numbers"""
@@ -133,35 +137,28 @@ class OmegaFramer(object):
         Could check for monotonicity.
         """
         self._omegas = omegas
-        self._omin = omegas.min()
-        self._omax = omegas.max()
-        self._omean = omegas.mean(axis=1)
+        self._ombeg = omegas[0, :]
+        self._omend = omegas[1, :]
+        self._omean = omegas.mean(axis=0)
         self._odels = omegas[:, 1] - omegas[:, 0]
         self._delta = self._odels[0]
-        self._orange = num.hstack((omegas[:, 0], omegas[-1, 1]))
+        self._orange = np.hstack((omegas[:, 0], omegas[-1, 1]))
 
         return
 
-    # property:
-
-    def _omin(self):
-        return self._omin
-
-    def _omax(self):
-        return self._omax
-
     def getDeltaOmega(self, nframes=1):
-        return self._omax - self._omin
+        """change in omega over n-frames, assuming constant delta"""
+        return nframes*(self._delta)
 
     def getOmegaMinMax(self):
-        return self._omin, self._omax
+        return self._ombeg, self._omend
 
     def frameToOmega(self, frame):
         """can frame be nonintegral? round to int ... """
         return self._omean[frame]
 
     def omegaToFrame(self, omega):
-        return  num.searchsorted(self._orange) - 1
+        return  np.searchsorted(self._orange) - 1
 
 
     def omegaToFrameRange(self, omega):
@@ -217,11 +214,14 @@ class ReadGE(Framer2DRC,OmegaFramer):
         """
         self._fname = file_info
         self._kwargs = kwargs
+        self._format = kwargs.pop('fmt', None)
         try:
-            self._omis = OmegaImageSeries(file_info, **kwargs)
+            self._omis = OmegaImageSeries(file_info, self._format, **kwargs)
             Framer2DRC.__init__(self, self._omis.nrows, self._omis.ncols)
             OmegaFramer.__init__(self, self._omis.omega)
         except:
+            logging.info('READGE initializations failed')
+            if file_info is not None: raise
             self._omis = None
         self.mask = None
 
@@ -254,7 +254,7 @@ class ReadGE(Framer2DRC,OmegaFramer):
         if hasattr(iFrame, '__len__'):
             # in case last read was multiframe
             oms = [self.frameToOmega(frm) for frm in iFrame]
-            retval = num.mean(num.asarray(oms))
+            retval = np.mean(np.asarray(oms))
         else:
             retval = self.frameToOmega(iFrame)
         return retval
@@ -267,14 +267,14 @@ class ReadGE(Framer2DRC,OmegaFramer):
         """
         # implement in OmegaFrameReader
         nskip = bbox[2][0]
-        bBox = num.array(bbox)
+        bBox = np.array(bbox)
         sl_i = slice(*bBox[0])
         sl_j = slice(*bBox[1])
         'plenty of performance optimization might be possible here'
         if raw:
-            retval = num.empty( tuple(bBox[:,1] - bBox[:,0]), dtype=self.__frame_dtype_read )
+            retval = np.empty( tuple(bBox[:,1] - bBox[:,0]), dtype=self.__frame_dtype_read )
         else:
-            retval = num.empty( tuple(bBox[:,1] - bBox[:,0]), dtype=self.__frame_dtype_dflt )
+            retval = np.empty( tuple(bBox[:,1] - bBox[:,0]), dtype=self.__frame_dtype_dflt )
         for iFrame in range(retval.shape[2]):
             thisframe = reader.read(nskip=nskip)
             nskip = 0
@@ -308,7 +308,7 @@ class ReadGE(Framer2DRC,OmegaFramer):
         *sumImg* can be set to True or to a function of two frames like numpy.maximum
         *nskip* applies only to the first frame
         """
-        self.iFrame = num.atleast_1d(self.iFrame)[-1] + nskip
+        self.iFrame = np.atleast_1d(self.iFrame)[-1] + nskip
 
         multiframe = nframes > 1
         sumimg_callable = hasattr(sumImg, '__call__')
@@ -332,7 +332,7 @@ class ReadGE(Framer2DRC,OmegaFramer):
             return imgs
 
         # Now, operate on frames consecutively
-        op = sumImg if sumimg_callable else num.add
+        op = sumImg if sumimg_callable else np.add
 
         ifrm = self.iFrame + 1
 
@@ -371,7 +371,7 @@ def omeToFrameRange(omega, omegas, omegaDelta):
     result can be a pair of frames if the specified omega is
     exactly on the border
     """
-    retval = num.where(num.abs(omegas - omega) <= omegaDelta*0.5)[0]
+    retval = np.where(np.abs(omegas - omega) <= omegaDelta*0.5)[0]
     return retval
 
 def newGenericReader(ncols, nrows, *args, **kwargs):

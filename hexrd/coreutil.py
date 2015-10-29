@@ -1,5 +1,4 @@
 import collections
-from ConfigParser import SafeConfigParser
 import copy
 import logging
 import os
@@ -169,13 +168,12 @@ def initialize_experiment(cfg):
 
     pd = ws.activeMaterial.planeData
 
-    image_start = cfg.image_series.images.start
-    dark = cfg.image_series.dark
-    flip = cfg.image_series.flip
-
+    isfile = cfg.image_series.filename
+    isfmt = cfg.image_series.format
+    isargs = cfg.image_series.args
     # detector data
     try:
-        reader = ReadGE('imageseries.h5', path='imageseries')
+        reader = ReadGE(isfile, fmt=isfmt, **isargs)
         #reader = ReadGE(
         #    [(f, image_start) for f in cfg.image_series.files],
         #    np.radians(cfg.image_series.omega.start),
@@ -193,7 +191,7 @@ def initialize_experiment(cfg):
         ws.loadDetector(os.path.join(cwd, detector_fname))
         detector = ws.detector
     except IOError:
-        logger.info("old detector par file not found, skipping; \nalthough you may need this for find-orientations")        
+        logger.info("old detector par file not found, skipping; \nalthough you may need this for find-orientations")
         detector = None
 
     return pd, reader, detector
