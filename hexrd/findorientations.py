@@ -8,6 +8,7 @@ import os
 import shelve
 import sys
 import time
+from collections import namedtuple
 
 import numpy as np
 #np.seterr(over='ignore', invalid='ignore')
@@ -140,41 +141,72 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
     return np.hstack(qfib)
 
 
-def cluster_parallel_dbscan(qfib_r, cl_radius, min_samples):
-    homochoric_coords = xfcapi.homochoricOfQuat(qfib_r.T)
-    labels = parallel_dbscan(
+_clustering_option = namedtuple('_clustering_option', ['fn', 'fallback'])
+
+_clustering_algorithm_dict = {}
+
+
+def get_supported_clustering_algorithms():
+    return _clustering_algorithm_dict.keys()
+
+
+def clustering_algorithm(key, fallback=None):
+    def wrapper(fn):
+        assert key not in _clustering_algorithm_dict
+        print('registering ', key, ' as ', fn.__name__)
+        val = _clustering_option(fn, fallback)
+        _clustering_algorithm_dict.update({key: val })
+        return fn
+
+    return wrapper
+
+
+@clustering_algorithm('omp-dbscan', fallback='homochoric-dbscan')
+def cluster_parallel_dbscan(qfib_r, qsym, cl_radius, min_samples):
+    assert have_parallel_dbscan
+    print ("before homochoricOfQuat")
+    homochoric_coords = xfcapi.homochoricOfQuat(qfib_r)
+    print ("after homochoricOfQuat")
+    labels = omp_dbscan(
         homochoric_coords,
-        eps=cl_radius,
+        eps=np.radians(cl_radius),
         min_samples=min_samples)
     return labels + 1
 
 
-def cluster_homochoric_dbscan(qfib_r, cl_radius, min_samples):
+@clustering_algorithm('homochoric-dbscan', fallback='dbscan')
+def cluster_homochoric_dbscan(qfib_r, qsym, cl_radius, min_samples):
     homochoric_coords = xfcapi.homochoricOfQuat(qfib_r.T)
     _, labels = dbscan(
         homochoric_coords,
-        eps=cl_radius,
+        eps=np.radians(cl_radius),
         min_samples=min_samples)
     return labels + 1
 
 
-def cluster_fcluster(qfib_r, cl_radius, min_samples):
+@clustering_algorithm('fclusterdata')
+def cluster_fcluster(qfib_r, qsym,  cl_radius, min_samples):
+    qsym = np.array(qsym.T, order='C').T
+    def quat_distance(x, y):
+        return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
+
     cl = cluster.hierarchy.fclusterdata(
         qfib_r.T,
         np.radians(cl_radius),
         criterion='distance',
-        metric=xfcapi.quat_distance
+        metric=quat_distance
     )
     return cl
 
 
-def cluster_dbscan(qfib_r, cl_radius, min_samples):
+@clustering_algorithm('dbscan', 'fclusterdata')
+def cluster_dbscan(qfib_r, qsym, cl_radius, min_samples):
+    qsym = np.array(qsym.T, order='C').T
     def quat_distance(x, y):
-        qsym  = np.array(qsym.T, order='C').T
         return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
 
     pdist = pairwise_distances(
-        qfib_r.T, metric=xfcapi.quat_distance, n_jobs=-1
+        qfib_r.T, metric=quat_distance, n_jobs=-1
     )
     _, labels = dbscan(
         pdist,
@@ -183,6 +215,8 @@ def cluster_dbscan(qfib_r, cl_radius, min_samples):
         metric='precomputed'
     )
     cl = np.array(labels, dtype=int) + 1
+    return cl
+
 
 def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
     """
@@ -205,39 +239,61 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
         # use compiled module for distance
         # just to be safe, must order qsym as C-contiguous
 
-        qfib_r = qfib[:, np.array(compl) > min_compl].ascontiguousarray()
+        qfib_r = np.ascontiguousarray(qfib[:, np.array(compl) > min_compl])
         logger.info(
             "Feeding %d orientations above %.1f%% to clustering",
             qfib_r.shape[1], 100*min_compl
             )
 
-        if algorithm == 'parallel-dbscan' and not have_parallel_dbscan:
-            algorithm = 'homochoric-dbscan'
-            logger.warning(
-                "parallel_dbscan not found, trying sklearn dbscan"
-                )
+        cl_dict = _clustering_algorithm_dict
+        while algorithm is not None:
+            if algorithm not in cl_dict:
+                raise RuntimeError(
+                    "Clustering '{0}' not recognized".format(algorithm)
+                    )
+            try:
+                cl = cl_dict[algorithm].fn(qfib_r, qsym, cl_radius, min_samples)
+                algorithm = None
+            except Exception as error:
+                logger.info(str(error))
+                fb = cl_dict[algorithm].fallback
+                if fb is None:
+                    msg = "Clustering '{0}' failed, no fallback."
+                    raise RuntimeError(msg.format(algorithm))
+                                       
+                msg = "Clustering '{0}' failed, trying '{1}'."
+                logger.info(msg.format(algorithm, fb))
+                algorithm = fb
+                            
+                            
+        # if algorithm == 'parallel-dbscan' and not have_parallel_dbscan:
+        #     algorithm = 'homochoric-dbscan'
+        #     logger.warning(
+        #         "parallel_dbscan not found, trying sklearn dbscan"
+        #         )
 
-        if algorithm in ('dbscan', 'homochoric-dbscan') and not have_sklearn:
-            algorithm = 'fclusterdata'
-            logger.warning(
-                "sklearn >= 0.14 required for dbscan, using fclusterdata"
-                )
+        # if algorithm in ('dbscan', 'homochoric-dbscan') and not have_sklearn:
+        #     algorithm = 'fclusterdata'
+        #     logger.warning(
+        #         "sklearn >= 0.14 required for dbscan, using fclusterdata"
+        #         )
 
-        if algorithm == 'parallel-dbscan':
-            cl = cluster_parallel_dbscan(qfib_r, cl_radius, min_samples)
-        elif algorithm == 'homochoric-dbscan':
-            cl = cluster_homochoric_dbscan(qfib_r, cl_radius, min_samples)
-        elif algorithm == 'dbscan':
-            cl = cluster_dbscan(qfib_r, cl_radius, min_samples)
-        elif algorithm == 'fclusterdata':
-            cl = cluster_fclusterdata(qfib_r, cl_radius, min_samples)
-        else:
-            raise RuntimeError(
-                "Clustering algorithm %s not recognized" % algorithm
-                )
+        # if algorithm == 'parallel-dbscan':
+        #     cl = cluster_parallel_dbscan(qfib_r, cl_radius, min_samples)
+        # elif algorithm == 'homochoric-dbscan':
+        #     cl = cluster_homochoric_dbscan(qfib_r, cl_radius, min_samples)
+        # elif algorithm == 'dbscan':
+        #     cl = cluster_dbscan(qfib_r, cl_radius, min_samples)
+        # elif algorithm == 'fclusterdata':
+        #     cl = cluster_fclusterdata(qfib_r, cl_radius, min_samples)
+        # else:
+        #     raise RuntimeError(
+        #         "Clustering algorithm %s not recognized" % algorithm
+        #         )
 
         nblobs = len(np.unique(cl))
 
+        # Compute the quaternion average for the different clusters
         qbar = np.zeros((4, nblobs))
         for i in range(nblobs):
             npts = sum(cl == i + 1)
@@ -316,6 +372,8 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
         cPickle.dump(eta_ome, f)
     logger.info("saved eta/ome orientation maps to %s", fn)
     return eta_ome
+
+
 
 
 def find_orientations(cfg, hkls=None, profile=False):
@@ -439,10 +497,10 @@ def find_orientations(cfg, hkls=None, profile=False):
                                         )
             num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
             pass
-        min_samples = max(
+        min_samples = int(max(
             cfg.find_orientations.clustering.completeness*np.floor(np.average(num_seed_refls)),
             4
-            )
+            ))
     else:
         min_samples = 1
 

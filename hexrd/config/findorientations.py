@@ -68,8 +68,9 @@ class ClusteringConfig(Config):
 
     @property
     def algorithm(self):
+        from ..findorientations import get_supported_clustering_algorithms
         key = 'find_orientations:clustering:algorithm'
-        choices = ['parallel-dbscan', 'dbscan', 'fclusterdata']
+        choices = get_supported_clustering_algorithms()
         temp = self._cfg.get(key, 'dbscan').lower()
         if temp in choices:
             return temp
