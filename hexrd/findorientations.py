@@ -58,13 +58,13 @@ except ImportError:
     pass
 
 def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
-    """ 
+    """
     From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
     """
     # seed_hkl_ids must be consistent with this...
     pd_hkl_ids = eta_ome.iHKLList[seed_hkl_ids]
-    
+
     # grab angular grid infor from maps
     del_ome = eta_ome.omegas[1] - eta_ome.omegas[0]
     del_eta = eta_ome.etas[1] - eta_ome.etas[0]
@@ -78,7 +78,7 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
     bMat = pd.latVecOps['B']
     csym = pd.getLaueGroup()
     qsym = pd.getQSym()
-    
+
     ############################################
     ##    Labeling of spots from seed hkls    ##
     ############################################
@@ -145,6 +145,8 @@ _clustering_option = namedtuple('_clustering_option', ['fn', 'fallback'])
 
 _clustering_algorithm_dict = {}
 
+class ClusterMethodUnavailableError(Exception):
+    pass
 
 def get_supported_clustering_algorithms():
     return _clustering_algorithm_dict.keys()
@@ -153,7 +155,6 @@ def get_supported_clustering_algorithms():
 def clustering_algorithm(key, fallback=None):
     def wrapper(fn):
         assert key not in _clustering_algorithm_dict
-        print('registering ', key, ' as ', fn.__name__)
         val = _clustering_option(fn, fallback)
         _clustering_algorithm_dict.update({key: val })
         return fn
@@ -163,10 +164,9 @@ def clustering_algorithm(key, fallback=None):
 
 @clustering_algorithm('omp-dbscan', fallback='homochoric-dbscan')
 def cluster_parallel_dbscan(qfib_r, qsym, cl_radius, min_samples):
-    assert have_parallel_dbscan
-    print ("before homochoricOfQuat")
+    if not have_parallel_dbscan:
+        raise ClusterMethodUnavailableError('required module parallel_dbscan not found.')
     homochoric_coords = xfcapi.homochoricOfQuat(qfib_r)
-    print ("after homochoricOfQuat")
     labels = omp_dbscan(
         homochoric_coords,
         eps=np.radians(cl_radius),
@@ -176,6 +176,9 @@ def cluster_parallel_dbscan(qfib_r, qsym, cl_radius, min_samples):
 
 @clustering_algorithm('homochoric-dbscan', fallback='dbscan')
 def cluster_homochoric_dbscan(qfib_r, qsym, cl_radius, min_samples):
+    if not have_sklearn:
+        raise ClusterMethodUnavailableError('required module sklearn >= 0.14 not found.')
+
     homochoric_coords = xfcapi.homochoricOfQuat(qfib_r.T)
     _, labels = dbscan(
         homochoric_coords,
@@ -201,6 +204,9 @@ def cluster_fcluster(qfib_r, qsym,  cl_radius, min_samples):
 
 @clustering_algorithm('dbscan', 'fclusterdata')
 def cluster_dbscan(qfib_r, qsym, cl_radius, min_samples):
+    if not have_sklearn:
+        raise ClusterMethodUnavailableError('required module sklearn >= 0.14 not found.')
+
     qsym = np.array(qsym.T, order='C').T
     def quat_distance(x, y):
         return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
@@ -254,42 +260,15 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
             try:
                 cl = cl_dict[algorithm].fn(qfib_r, qsym, cl_radius, min_samples)
                 algorithm = None
-            except Exception as error:
-                logger.info(str(error))
+            except ClusterMethodUnavailableError as error:
+                logger.info(error.msg)
                 fb = cl_dict[algorithm].fallback
                 if fb is None:
                     msg = "Clustering '{0}' failed, no fallback."
                     raise RuntimeError(msg.format(algorithm))
-                                       
                 msg = "Clustering '{0}' failed, trying '{1}'."
                 logger.info(msg.format(algorithm, fb))
                 algorithm = fb
-                            
-                            
-        # if algorithm == 'parallel-dbscan' and not have_parallel_dbscan:
-        #     algorithm = 'homochoric-dbscan'
-        #     logger.warning(
-        #         "parallel_dbscan not found, trying sklearn dbscan"
-        #         )
-
-        # if algorithm in ('dbscan', 'homochoric-dbscan') and not have_sklearn:
-        #     algorithm = 'fclusterdata'
-        #     logger.warning(
-        #         "sklearn >= 0.14 required for dbscan, using fclusterdata"
-        #         )
-
-        # if algorithm == 'parallel-dbscan':
-        #     cl = cluster_parallel_dbscan(qfib_r, cl_radius, min_samples)
-        # elif algorithm == 'homochoric-dbscan':
-        #     cl = cluster_homochoric_dbscan(qfib_r, cl_radius, min_samples)
-        # elif algorithm == 'dbscan':
-        #     cl = cluster_dbscan(qfib_r, cl_radius, min_samples)
-        # elif algorithm == 'fclusterdata':
-        #     cl = cluster_fclusterdata(qfib_r, cl_radius, min_samples)
-        # else:
-        #     raise RuntimeError(
-        #         "Clustering algorithm %s not recognized" % algorithm
-        #         )
 
         nblobs = len(np.unique(cl))
 
@@ -379,7 +358,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
 def find_orientations(cfg, hkls=None, profile=False):
     """
     Takes a config dict as input, generally a yml document
-    
+
     NOTE: single cfg instance, not iterator!
     """
 
@@ -505,7 +484,7 @@ def find_orientations(cfg, hkls=None, profile=False):
         min_samples = 1
 
     logger.info("neighborhood size estimate is %d points", (min_samples))
-    
+
     # cluster analysis to identify orientation blobs, the final output:
     qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, min_samples=min_samples)
     np.savetxt(
