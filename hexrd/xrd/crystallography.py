@@ -32,7 +32,7 @@ import warnings
 
 import numpy as num
 import csv
-import sys
+import os
 
 from scipy import constants as C
 from scipy.linalg import inv
@@ -1117,6 +1117,55 @@ class PlaneData(object):
             Qs_ang1.append( thisAng1 )
 
         return Qs_vec, Qs_ang0, Qs_ang1
+        
+        
+        
+    def calcStructFactor(self,atominfo):
+        """ Calculates unit cell structure factors as a function of hkl
+    
+        USAGE:
+    
+        FSquared = calcStructFactor(atominfo,hkls,B)
+    
+        INPUTS:
+    
+        1) atominfo (m x 1 float ndarray) the first threee columns of the matrix contain
+        fractional atom positions [uvw] of atoms in the unit cell. The last column
+        contains the number of electrons for a given atom.
+        
+        2) hkls (3 x n float ndarray) is the array of Miller indices for
+        the planes of interest.  The vectors are assumed to be
+        concatenated along the 1-axis (horizontal).
+    
+        3) B (3 x 3 float ndarray) is a matrix of reciprocal lattice basis vectors,
+        where each column contains a reciprocal lattice basis vector ({g}=[B]*{hkl})
+        
+        
+        OUTPUTS:
+        
+        1) FSquared (n x 1 float ndarray) array of structure factors, one for each
+        hkl passed into the function"""       
+        r=atominfo[:,0:3]
+        elecNum=atominfo[:,3]
+        hkls=self.hkls
+        B=self.latVecOps['B']
+        sinThOverLamdaList,ffDataList=LoadFormFactorData()
+        FSquared=num.zeros(hkls.shape[1])
+    
+        for jj in num.arange(0,hkls.shape[1]):
+            G=hkls[0,jj]*B[:,0]+hkls[1,jj]*B[:,1]+hkls[2,jj]*B[:,2]#Calculate G for each hkl       
+            magG=num.sqrt(G[0]**2+G[1]**2+G[2]**2)#Calculate magnitude of G for each hkl
+            F=0
+            for ii in num.arange(0,r.shape[0]): #Begin calculating form factor
+                ff=RetrieveAtomicFormFactor(elecNum[ii],magG,sinThOverLamdaList,ffDataList) 
+                F=F+ff*num.exp(complex(0,2*num.pi*(hkls[0,jj]*r[ii,0]+hkls[1,jj]*r[ii,1]+hkls[2,jj]*r[ii,2])))
+                             
+            """
+            F=sum_atoms(ff(Q)*e^(2*pi*i(hu+kv+lw)))
+            """
+            FSquared[jj]=num.real(F*num.conj(F))
+    
+        return FSquared 
 
 def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     """
@@ -1382,8 +1431,10 @@ def LoadFormFactorData():
     "Chapter 6.1. Intensity of diffracted intensities", International Tables  
      for Crystallography (2006). Vol. C, ch. 6.1, pp. 554-595
     """    
+   
     
-    dataloc=sys.exec_prefix + '/lib/python2.7/site-packages/hexrd/data/FormFactorVsQ.csv'   
+    dir1=os.path.split(valunits.__file__)
+    dataloc=os.path.join(dir1[0],'data','FormFactorVsQ.csv') 
     
     data=num.zeros((62,99),float)
     
@@ -1446,53 +1497,7 @@ def RetrieveAtomicFormFactor(elecNum,magG,sinThOverLamdaList,ffDataList):
 
 
 
-def calcStructFactor(atominfo,hkls,B):
-    """ Calculates unit cell structure factors as a function of hkl
-
-    USAGE:
-
-    FSquared = calcStructFactor(atominfo,hkls,B)
-
-    INPUTS:
-
-    1) atominfo (m x 1 float ndarray) the first threee columns of the matrix contain
-    fractional atom positions [uvw] of atoms in the unit cell. The last column
-    contains the number of electrons for a given atom.
-    
-    2) hkls (3 x n float ndarray) is the array of Miller indices for
-    the planes of interest.  The vectors are assumed to be
-    concatenated along the 1-axis (horizontal).
-
-    3) B (3 x 3 float ndarray) is a matrix of reciprocal lattice basis vectors,
-    where each column contains a reciprocal lattice basis vector ({g}=[B]*{hkl})
-    
-    
-    OUTPUTS:
-    
-    1) FSquared (n x 1 float ndarray) array of structure factors, one for each
-    hkl passed into the function
-
-    """
-    
-    r=atominfo[:,0:3]
-    elecNum=atominfo[:,3]
-    sinThOverLamdaList,ffDataList=LoadFormFactorData()
-    FSquared=num.zeros(hkls.shape[1])
-
-    for jj in num.arange(0,hkls.shape[1]):
-        G=hkls[0,jj]*B[:,0]+hkls[1,jj]*B[:,1]+hkls[2,jj]*B[:,2]#Calculate G for each hkl       
-        magG=num.sqrt(G[0]**2+G[1]**2+G[2]**2)#Calculate magnitude of G for each hkl
-        F=0
-        for ii in num.arange(0,r.shape[0]): #Begin calculating form factor
-            ff=RetrieveAtomicFormFactor(elecNum[ii],magG,sinThOverLamdaList,ffDataList) 
-            F=F+ff*num.exp(complex(0,2*num.pi*(hkls[0,jj]*r[ii,0]+hkls[1,jj]*r[ii,1]+hkls[2,jj]*r[ii,2])))
-                         
-        """
-        F=sum_atoms(ff(Q)*e^(2*pi*i(hu+kv+lw)))
-        """
-        FSquared[jj]=num.real(F*num.conj(F))
-
-    return FSquared       
+      
     
 
   

@@ -63,7 +63,7 @@ class Material(object):
     DFLT_KEV    = valWUnit('wavelength', 'energy', 80.725e0, 'keV')
     DFLT_STR    = 0.002
     DFLT_TTH    = 0.002
-    DFLT_ATOMINFO   = numpy.array([0,0,0,1])
+    DFLT_ATOMINFO   = numpy.array([[0,0,0,1]])
     """Fractional Atom Position of an atom in the unit cell followed by the
     number of electrons within that atom. The max number of electrons is 96.
     """
@@ -315,13 +315,7 @@ The values have units attached, i.e. they are valWunit instances.
 
     def _set_atominfo(self, v):
         """Set method for name"""
-        checkpt=1        
-        try:
-            v.shape[checkpt]==4
-        except IndexError:
-            checkpt=0
-            
-        if v.shape[checkpt]==4:        
+        if v.shape[1]==4:        
             self._atominfo= v
         else:
             print("Improper syntax, array must be n x 4")            
