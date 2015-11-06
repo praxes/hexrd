@@ -15,3 +15,5 @@ def open(filename, format=None, **kwargs):
     reg = load.Registry.adapter_registry
     adapter = reg[format](filename, **kwargs)
     return ImageSeries(adapter)
+
+write = save.write

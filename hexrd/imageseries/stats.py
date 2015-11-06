@@ -1,5 +1,6 @@
 """Stats for imageseries"""
 import numpy as np
+import logging
 
 def max(ims, nframes=0):
     nf = _nframes(ims, nframes)
@@ -15,6 +16,13 @@ def median(ims, nframes=0):
     nf = _nframes(ims, nframes)
     return np.median(_toarray(ims, nf), axis=0)
 
+def percentile(ims, pct, nframes=0):
+    """return image with given percentile values over all frames"""
+    # could be done by rectangle by rectangle if full series
+    # too  big for memory
+    nf = _nframes(ims, nframes)
+    return np.percentile(_toarray(ims, nf), pct, axis=0)
+
 #
 # ==================== Utilities
 #
@@ -27,6 +35,7 @@ def _toarray(ims, nframes):
     ashp = (nframes,) + ims.shape
     a = np.zeros(ashp, dtype=ims.dtype)
     for i in range(nframes):
+        logging.info('frame: %s', i)
         a[i] = ims[i]
 
     return a

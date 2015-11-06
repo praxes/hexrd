@@ -78,7 +78,7 @@ class OmegaImageSeries(object):
 
     @property
     def omega(self):
-        """ (get-only) array of omega min/max per frame"""
+        """ (get-only) array of omega begin/end per frame"""
         return self._meta[self.OMEGA_TAG]
 
 
@@ -216,9 +216,10 @@ class ReadGE(Framer2DRC,OmegaFramer):
         self._kwargs = kwargs
         self._format = kwargs.pop('fmt', None)
         try:
-            self._omis = OmegaImageSeries(file_info, self._format, **kwargs)
+            self._omis = OmegaImageSeries(file_info, fmt=self._format, **kwargs)
             Framer2DRC.__init__(self, self._omis.nrows, self._omis.ncols)
-            OmegaFramer.__init__(self, self._omis.omega)
+            # note: Omegas are expected in radians, but input in degrees
+            OmegaFramer.__init__(self, (np.pi/180.)*self._omis.omega)
         except:
             logging.info('READGE initializations failed')
             if file_info is not None: raise

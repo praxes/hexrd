@@ -43,3 +43,7 @@ class OmegaConfig(Config):
     @property
     def start(self):
         return self._cfg.get('image_series:omega:start')
+
+    @property
+    def stop(self):
+        return self._cfg.get('image_series:omega:stop')
