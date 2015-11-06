@@ -1,6 +1,7 @@
 
 from __future__ import print_function
 
+import cPickle
 import logging
 import multiprocessing as mp
 import os
