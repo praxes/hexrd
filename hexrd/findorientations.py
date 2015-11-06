@@ -1,7 +1,6 @@
 
 from __future__ import print_function
 
-import cPickle
 import logging
 import multiprocessing as mp
 import os
@@ -179,7 +178,7 @@ def cluster_homochoric_dbscan(qfib_r, qsym, cl_radius, min_samples):
     if not have_sklearn:
         raise ClusterMethodUnavailableError('required module sklearn >= 0.14 not found.')
 
-    homochoric_coords = xfcapi.homochoricOfQuat(qfib_r.T)
+    homochoric_coords = xfcapi.homochoricOfQuat(qfib_r)
     _, labels = dbscan(
         homochoric_coords,
         eps=np.radians(cl_radius),
@@ -252,13 +251,14 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
             )
 
         cl_dict = _clustering_algorithm_dict
+        cluster_args = [qfib_r, qsym, cl_radius, min_samples]
         while algorithm is not None:
             if algorithm not in cl_dict:
                 raise RuntimeError(
                     "Clustering '{0}' not recognized".format(algorithm)
                     )
             try:
-                cl = cl_dict[algorithm].fn(qfib_r, qsym, cl_radius, min_samples)
+                cl = cl_dict[algorithm].fn(*cluster_args)
                 algorithm = None
             except ClusterMethodUnavailableError as error:
                 logger.info(error.msg)
