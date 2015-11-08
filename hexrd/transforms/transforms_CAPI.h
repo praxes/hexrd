@@ -72,4 +72,6 @@ static PyObject * rotate_vecs_about_axis(PyObject * self, PyObject * args);
 
 static PyObject * quat_distance(PyObject * self, PyObject * args);
 
+static PyObject * homochoricOfQuat(PyObject * self, PyObject * args);
+
 /* static PyObject * rotateVecsAboutAxis(PyObject * self, PyObject * args); */

@@ -111,9 +111,9 @@ def get_frames(reader, cfg, show_progress=False, force=False, clean=False):
     cache_file = os.path.join(cfg.analysis_dir, 'frame_cache.npz')
     if not os.path.exists(cache_file) or clean:
         if clean:
-            msg = 'no frame cache file %s found, generating cache' % cache_file
+            msg = 'clean specified, regenerating cache'
         else:
-            msg = 'clean specified, generating cache'
+            msg = 'no frame cache file %s found, generating cache' % cache_file
         logger.info(msg)
         return cache_frames(reader, cfg, show_progress)
 

@@ -96,6 +96,17 @@ class FitGrainsConfig(Config):
 
 
     @property
+    def fit_only(self):
+        key = 'fit_grains:fit_only'
+        temp = self._cfg.get(key, False)
+        if temp in (True, False):
+            return temp
+        raise RuntimeError(
+            '"%s" must be true or false, got "%s"' % (key, temp)
+            )
+
+    
+    @property
     def tth_max(self):
         key = 'fit_grains:tth_max'
         temp = self._cfg.get(key, True)

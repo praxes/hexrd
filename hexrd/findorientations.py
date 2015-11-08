@@ -27,9 +27,11 @@ from hexrd.coreutil import initialize_experiment
 
 from hexrd.xrd import xrdutil
 from hexrd.xrd.detector import ReadGE
+from hexrd.xrd.xrdutil import simulateGVecs
 
 from hexrd.xrd import distortion as dFuncs
 
+from hexrd.fitgrains import get_instrument_parameters
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +50,9 @@ except ImportError:
 
 
 def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
-    """ From ome-eta maps and hklid spec, generate list of
+    """
+    From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
-
-    ** passing of BOTH pd and eta_ome object is redundant; flag for fix!
     """
     # seed_hkl_ids must be consistent with this...
     pd_hkl_ids = eta_ome.iHKLList[seed_hkl_ids]
@@ -132,7 +133,7 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
     return np.hstack(qfib)
 
 
-def run_cluster(compl, qfib, qsym, cfg):
+def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
     """
     """
     cl_radius = cfg.find_orientations.clustering.radius
@@ -246,6 +247,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
         ', '.join([str(i) for i in available_hkls[active_hkls]])
         )
 
+    # not ready # eta_ome = xrdutil.EtaOmeMaps(cfg, reader=reader, eta_step=None)
     bin_frames = cfg.find_orientations.orientation_maps.bin_frames
     eta_bins = np.int(2*np.pi / abs(reader.getDeltaOmega())) / bin_frames
     eta_ome = xrdutil.CollapseOmeEta(
@@ -273,25 +275,56 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
 
 
 def find_orientations(cfg, hkls=None, profile=False):
-    """Takes a config dict as input, generally a yml document"""
+    """
+    Takes a config dict as input, generally a yml document
+
+    NOTE: single cfg instance, not iterator!
+    """
 
     # a goofy call, could be replaced with two more targeted calls
     pd, reader, detector = initialize_experiment(cfg)
 
+    # need instrument cfg later on down...
+    instr_cfg = get_instrument_parameters(cfg)
+    detector_params = np.hstack([
+        instr_cfg['detector']['transform']['tilt_angles'],
+        instr_cfg['detector']['transform']['t_vec_d'],
+        instr_cfg['oscillation_stage']['chi'],
+        instr_cfg['oscillation_stage']['t_vec_s'],
+        ])
+    rdim = cfg.instrument.detector.pixels.size[0]*cfg.instrument.detector.pixels.rows
+    cdim = cfg.instrument.detector.pixels.size[1]*cfg.instrument.detector.pixels.columns
+    panel_dims = ((-0.5*cdim, -0.5*rdim),
+                  ( 0.5*cdim,  0.5*rdim),
+                  )
+    # UGH! hard-coded distortion...
+    if instr_cfg['detector']['distortion']['function_name'] == 'GE_41RT':
+        distortion = (dFuncs.GE_41RT,
+                      instr_cfg['detector']['distortion']['parameters'],
+                      )
+    else:
+        distortion = None
+
+    # start logger
     logger.info("beginning analysis '%s'", cfg.analysis_name)
 
     # load the eta_ome orientation maps
     eta_ome = load_eta_ome_maps(cfg, pd, reader, detector, hkls)
 
+    ome_range = (np.min(eta_ome.omeEdges),
+                 np.max(eta_ome.omeEdges)
+                 )
     try:
         # are we searching the full grid of orientation space?
         qgrid_f = cfg.find_orientations.use_quaternion_grid
         quats = np.loadtxt(qgrid_f).T
         logger.info("Using %s for full quaternion search", qgrid_f)
+        hkl_ids = None
     except (IOError, ValueError):
         # or doing a seeded search?
         logger.info("Defaulting to seeded search")
         hkl_seeds = cfg.find_orientations.seed_search.hkl_seeds
+        hkl_ids = [eta_ome.planeData.hklDataList[i]['hklID'] for i in hkl_seeds]
         hklseedstr = ', '.join(
             [str(i) for i in eta_ome.planeData.hkls.T[hkl_seeds]]
             )
@@ -336,16 +369,51 @@ def find_orientations(cfg, hkls=None, profile=False):
         )
     np.savetxt(os.path.join(cfg.working_dir, 'completeness.dat'), compl)
 
+    ##########################################################
+    ##   Simulate N random grains to get neighborhood size  ##
+    ##########################################################
+    if hkl_ids is not None:
+        ngrains = 100
+        rand_q = mutil.unitVector(np.random.randn(4, ngrains))
+        rand_e = np.tile(2.*np.arccos(rand_q[0, :]), (3, 1)) \
+          * mutil.unitVector(rand_q[1:, :])
+        refl_per_grain = np.zeros(ngrains)
+        num_seed_refls = np.zeros(ngrains)
+        for i in range(ngrains):
+            grain_params = np.hstack([rand_e[:, i],
+                                      xf.zeroVec.flatten(),
+                                      xf.vInv_ref.flatten()
+                                      ])
+            sim_results = simulateGVecs(pd,
+                                        detector_params,
+                                        grain_params,
+                                        ome_range=(ome_range,),
+                                        ome_period=(ome_range[0], ome_range[0]+2*np.pi),
+                                        eta_range=np.radians(cfg.find_orientations.eta.range),
+                                        panel_dims=panel_dims,
+                                        pixel_pitch=cfg.instrument.detector.pixels.size,
+                                        distortion=distortion,
+                                        )
+            refl_per_grain[i] = len(sim_results[0])
+            num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
+            pass
+        min_samples = max(
+            cfg.find_orientations.clustering.completeness*np.floor(np.average(num_seed_refls)),
+            2
+            )
+        mean_rpg = int(np.round(np.average(refl_per_grain)))
+    else:
+        min_samples = 1
+        mean_rpg = 1
+
+    logger.info("mean number of reflections per grain is %d", mean_rpg)
+    logger.info("neighborhood size estimate is %d points", min_samples)
+
     # cluster analysis to identify orientation blobs, the final output:
-    qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg)
+    qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, min_samples=min_samples)
     np.savetxt(
         os.path.join(cfg.working_dir, 'accepted_orientations.dat'),
         qbar.T,
         fmt="%.18e",
         delimiter="\t"
         )
-
-    # obselete # # do the peak extraction now?
-    # obselete # if cfg.find_orientations.extract_measured_g_vectors:
-    # obselete #     raise NotImplementedError('TODO: implement extract gvecs')
-    # obselete #     #extract_measured_g_vectors(cfg)

@@ -146,7 +146,10 @@ def get_data(cfg, show_progress=False, force=False, clean=False):
     # TODO: this should be refactored somehow to avoid initialize_experiment
     # and avoid using the old reader. Also, the detector is not used here.
     pd, reader, detector = initialize_experiment(cfg)
-    reader = get_frames(reader, cfg, show_progress, force, clean)
+    if cfg.fit_grains.fit_only:
+        reader = None
+    else:
+        reader = get_frames(reader, cfg, show_progress, force, clean)
 
     instrument_cfg = get_instrument_parameters(cfg)
     detector_params = get_detector_parameters(instrument_cfg)
@@ -154,26 +157,27 @@ def get_data(cfg, show_progress=False, force=False, clean=False):
     distortion = get_distortion_correction(instrument_cfg)
     set_planedata_exclusions(cfg, detector, pd)
     pkwargs = {
+        'detector_params': detector_params,
         'distortion': distortion,
+        'eta_range': np.radians(cfg.find_orientations.eta.range),
+        'eta_tol': cfg.fit_grains.tolerance.eta,
+        'fit_only': cfg.fit_grains.fit_only,
+        'ncols': instrument_cfg['detector']['pixels']['columns'],
+        'npdiv': cfg.fit_grains.npdiv,
+        'nrows': instrument_cfg['detector']['pixels']['rows'],        
+        'omega_period': np.radians(cfg.find_orientations.omega.period),
         'omega_start': cfg.image_series.omega.start,
         'omega_step': cfg.image_series.omega.step,
         'omega_stop': cfg.image_series.omega.stop,
-        'eta_range': np.radians(cfg.find_orientations.eta.range),
-        'omega_period': np.radians(cfg.find_orientations.omega.period),
-        'tth_tol': cfg.fit_grains.tolerance.tth,
-        'eta_tol': cfg.fit_grains.tolerance.eta,
         'omega_tol': cfg.fit_grains.tolerance.omega,
-        'refit_tol': cfg.fit_grains.refit,
         'panel_buffer': cfg.fit_grains.panel_buffer,
-        'nrows': instrument_cfg['detector']['pixels']['rows'],
-        'ncols': instrument_cfg['detector']['pixels']['columns'],
         'pixel_pitch': instrument_cfg['detector']['pixels']['size'],
-        'npdiv': cfg.fit_grains.npdiv,
-        'threshold': cfg.fit_grains.threshold,
-        'spots_stem': os.path.join(cfg.analysis_dir, 'spots_%05d.out'),
         'plane_data': pd,
-        'detector_params': detector_params,
-        'saturation_level': saturation_level
+        'refit_tol': cfg.fit_grains.refit,
+        'saturation_level': saturation_level,
+        'spots_stem': os.path.join(cfg.analysis_dir, 'spots_%05d.out'),
+        'threshold': cfg.fit_grains.threshold,
+        'tth_tol': cfg.fit_grains.tolerance.tth,
         }
     return reader, pkwargs
 
@@ -187,11 +191,20 @@ def fit_grains(cfg, force=False, clean=False, show_progress=False, ids_to_refine
     ncpus = cfg.multiprocessing
     ncpus = ncpus if ncpus < njobs else njobs
     logger.info(
-        'running pullspots with %d of %d processors', ncpus, mp.cpu_count()
+        'will use %d of %d processors', ncpus, mp.cpu_count()
         )
     if ncpus == 1:
         logger.info('multiprocessing disabled')
 
+    # echo some of the fitting options
+    if cfg.fit_grains.fit_only:
+        logger.info('\t**fitting only; will not pull spots')
+    if cfg.fit_grains.refit is not None:
+        msg = 'will perform refit excluding spots > ' + \
+              '%.2f pixels and ' %cfg.fit_grains.refit[0] + \
+              '%.2f frames from expected values' %cfg.fit_grains.refit[1]
+        logger.info(msg)
+    
     start = time.time()
     pbar = None
     if show_progress:
@@ -466,7 +479,10 @@ class FitGrainsWorker(object):
         have_estimate = not np.all(grain_params[-9] == [0,0,0,1,1,1,0,0,0])
         iterations = (have_estimate, len(self._p['eta_tol']))
         for iteration in range(*iterations):
-            self.pull_spots(id, grain_params, iteration)
+            # pull spots if asked to, otherwise just fit
+            if not self._p['fit_only']:
+                self.pull_spots(id, grain_params, iteration)
+            # FITTING HERE
             grain_params, compl = self.fit_grains(id, grain_params,
                                                   refit_tol=self._p['refit_tol'])
             if compl == 0:
