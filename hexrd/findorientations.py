@@ -110,9 +110,15 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
                 eta_c = eta_ome.etaEdges[0] \
                         + (0.5 + coms[i][ispot][1])*del_eta
 
-                gVec_s = xrdutil.makeMeasuredScatteringVectors(
-                    tTh[pd_hkl_ids[i]], eta_c, ome_c
-                    )
+                #gVec_s = xrdutil.makeMeasuredScatteringVectors(
+                #    tTh[pd_hkl_ids[i]], eta_c, ome_c
+                #    )
+                gVec_s = xfcapi.anglesToGVec(
+                    np.atleast_2d(
+                        [tTh[pd_hkl_ids[i]], eta_c, ome_c]
+                        )
+                    ).T
+                    
                 tmp = mutil.uniqueVectors(
                     rot.discreteFiber(
                         pd.hkls[:, pd_hkl_ids[i]].reshape(3, 1),
@@ -159,6 +165,10 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
 
         qfib_r = qfib[:, np.array(compl) > min_compl]
 
+        if qfib_r.shape[1] > 10000:
+            "Asking to feed %d orientations to clustering, which would be too slow... exiting"
+            return
+        
         logger.info(
             "Feeding %d orientations above %.1f%% to clustering",
             qfib_r.shape[1], 100*min_compl
