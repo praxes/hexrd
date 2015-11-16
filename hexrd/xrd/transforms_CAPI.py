@@ -147,9 +147,9 @@ def gvecToDetectorXYArray(gVec_c,
     rMat_d -- (3, 3) ndarray, the COB taking DETECTOR FRAME components to LAB FRAME
     rMat_s -- (n, 3, 3) ndarray of n COB taking SAMPLE FRAME components to LAB FRAME
     rMat_c -- (3, 3) ndarray, the COB taking CRYSTAL FRAME components to SAMPLE FRAME
-    tVec_d -- (3, 1) ndarray, the translation vector connecting LAB to DETECTOR
-    tVec_s -- (3, 1) ndarray, the translation vector connecting LAB to SAMPLE
-    tVec_c -- (3, 1) ndarray, the translation vector connecting SAMPLE to CRYSTAL
+    tVec_d -- (3, 1) ndarray, the translation vector connecting LAB to DETECTOR in LAB
+    tVec_s -- (3, 1) ndarray, the translation vector connecting LAB to SAMPLE in LAB
+    tVec_c -- (3, 1) ndarray, the translation vector connecting SAMPLE to CRYSTAL in SAMPLE
 
     Outputs:
     (m, 2) ndarray containing the intersections of m <= n diffracted beams
@@ -179,9 +179,9 @@ def detectorXYToGvec(xy_det,
     xy_det -- (n, 2) ndarray or list-like input of n detector (x, y) points
     rMat_d -- (3, 3) ndarray, the COB taking DETECTOR FRAME components to LAB FRAME
     rMat_s -- (3, 3) ndarray, the COB taking SAMPLE FRAME components to LAB FRAME
-    tVec_d -- (3, 1) ndarray, the translation vector connecting LAB to DETECTOR
-    tVec_s -- (3, 1) ndarray, the translation vector connecting LAB to SAMPLE
-    tVec_c -- (3, 1) ndarray, the translation vector connecting SAMPLE to CRYSTAL
+    tVec_d -- (3, 1) ndarray, the translation vector connecting LAB to DETECTOR in LAB
+    tVec_s -- (3, 1) ndarray, the translation vector connecting LAB to SAMPLE in LAB
+    tVec_c -- (3, 1) ndarray, the translation vector connecting SAMPLE to CRYSTAL in SAMPLE
 
     Optional Keyword Arguments:
     beamVec -- (3, 1) mdarray containing the incident beam direction components in the LAB FRAME
