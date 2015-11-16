@@ -35,6 +35,7 @@ from hexrd.fitgrains import get_instrument_parameters
 
 logger = logging.getLogger(__name__)
 
+save_as_ascii = False           # FIX LATER...
 
 # TODO: just require scikit-learn?
 have_sklearn = False
@@ -110,9 +111,15 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
                 eta_c = eta_ome.etaEdges[0] \
                         + (0.5 + coms[i][ispot][1])*del_eta
 
-                gVec_s = xrdutil.makeMeasuredScatteringVectors(
-                    tTh[pd_hkl_ids[i]], eta_c, ome_c
-                    )
+                #gVec_s = xrdutil.makeMeasuredScatteringVectors(
+                #    tTh[pd_hkl_ids[i]], eta_c, ome_c
+                #    )
+                gVec_s = xfcapi.anglesToGVec(
+                    np.atleast_2d(
+                        [tTh[pd_hkl_ids[i]], eta_c, ome_c]
+                        )
+                    ).T
+                    
                 tmp = mutil.uniqueVectors(
                     rot.discreteFiber(
                         pd.hkls[:, pd_hkl_ids[i]].reshape(3, 1),
@@ -133,12 +140,21 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
     return np.hstack(qfib)
 
 
-def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
+def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, radius=None):
     """
     """
+    algorithm = cfg.find_orientations.clustering.algorithm
+
     cl_radius = cfg.find_orientations.clustering.radius
     min_compl = cfg.find_orientations.clustering.completeness
-    algorithm = cfg.find_orientations.clustering.algorithm
+
+    # check for override on completeness threshold
+    if compl_thresh is not None:
+        min_compl = compl_thresh
+
+    # check for override on radius    
+    if radius is not None:
+        cl_radius = radius
 
     start = time.clock() # time this
 
@@ -159,6 +175,10 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
 
         qfib_r = qfib[:, np.array(compl) > min_compl]
 
+        if qfib_r.shape[1] > 10000:
+            raise RuntimeError, \
+                "Requested clustering of %d orientations, which would be too slow!" %qfib_r.shape[1]
+        
         logger.info(
             "Feeding %d orientations above %.1f%% to clustering",
             qfib_r.shape[1], 100*min_compl
@@ -171,12 +191,12 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
                 )
         if algorithm == 'dbscan':
             pdist = pairwise_distances(
-                qfib_r.T, metric=quat_distance, n_jobs=-1
+                qfib_r.T, metric=quat_distance, n_jobs=cfg.muliprocessing
                 )
             core_samples, labels = dbscan(
                 pdist,
                 eps=np.radians(cl_radius),
-                min_samples=1,
+                min_samples=min_samples,
                 metric='precomputed'
                 )
             cl = np.array(labels, dtype=int) + 1
@@ -339,12 +359,13 @@ def find_orientations(cfg, hkls=None, profile=False):
             cfg.find_orientations.seed_search.hkl_seeds,
             cfg.find_orientations.seed_search.fiber_ndiv
             )
-        np.savetxt(
-            os.path.join(cfg.working_dir, 'trial_orientations.dat'),
-            quats.T,
-            fmt="%.18e",
-            delimiter="\t"
-            )
+        if save_as_ascii:
+            np.savetxt(
+                os.path.join(cfg.working_dir, 'trial_orientations.dat'),
+                quats.T,
+                fmt="%.18e",
+                delimiter="\t"
+                )
 
     # generate the completion maps
     logger.info("Running paintgrid on %d trial orientations", (quats.shape[1]))
@@ -367,8 +388,14 @@ def find_orientations(cfg, hkls=None, profile=False):
         doMultiProc=ncpus > 1,
         nCPUs=ncpus
         )
-    np.savetxt(os.path.join(cfg.working_dir, 'completeness.dat'), compl)
 
+    if save_as_ascii:
+        np.savetxt(os.path.join(cfg.working_dir, 'completeness.dat'), compl)
+    else:
+        np.save(os.path.join(cfg.working_dir, 'scored_orientations.npy'),
+                np.vstack([quats, compl])
+                )
+        
     ##########################################################
     ##   Simulate N random grains to get neighborhood size  ##
     ##########################################################
@@ -417,3 +444,4 @@ def find_orientations(cfg, hkls=None, profile=False):
         fmt="%.18e",
         delimiter="\t"
         )
+    return

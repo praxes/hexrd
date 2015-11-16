@@ -28,18 +28,15 @@
 import re
 import copy
 from math import pi
-import warnings
 
 import numpy as num
 import csv
 import os
 
 from scipy import constants as C
-from scipy.linalg import inv
 
-from hexrd.matrixutil import sort, num, array, unique, sqrt, math, unitVector,\
-     ndarray, columnNorm, sum
-from hexrd.xrd.rotations import angleAxisOfRotMat, rotMatOfExpMap, arccosSafe, mapAngle
+from hexrd.matrixutil import sqrt, unitVector, columnNorm, sum
+from hexrd.xrd.rotations import rotMatOfExpMap, mapAngle
 from hexrd.xrd import symmetry
 from hexrd import valunits
 from hexrd.valunits import toFloat
