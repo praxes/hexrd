@@ -191,15 +191,16 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
                 )
         if algorithm == 'dbscan':
             pdist = pairwise_distances(
-                qfib_r.T, metric=quat_distance, n_jobs=cfg.muliprocessing
+                qfib_r.T, metric=quat_distance, n_jobs=cfg.multiprocessing
                 )
             core_samples, labels = dbscan(
                 pdist,
                 eps=np.radians(cl_radius),
-                min_samples=min_samples,
+                min_samples=1,
                 metric='precomputed'
                 )
-            cl = np.array(labels, dtype=int) + 1
+            cl = np.array(labels, dtype=int)
+            # ^^^CURRENTLY NOT SET UP TO HANDLE NOISE PTS!
         elif algorithm == 'fclusterdata':
             cl = cluster.hierarchy.fclusterdata(
                 qfib_r.T,
