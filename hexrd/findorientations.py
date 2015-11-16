@@ -35,6 +35,7 @@ from hexrd.fitgrains import get_instrument_parameters
 
 logger = logging.getLogger(__name__)
 
+save_as_ascii = False           # FIX LATER...
 
 # TODO: just require scikit-learn?
 have_sklearn = False
@@ -175,8 +176,8 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
         qfib_r = qfib[:, np.array(compl) > min_compl]
 
         if qfib_r.shape[1] > 10000:
-            "Asking to feed %d orientations to clustering, which would be too slow... exiting"
-            return
+            raise RuntimeError, \
+                "Requested clustering of %d orientations, which would be too slow!" %qfib_r.shape[1]
         
         logger.info(
             "Feeding %d orientations above %.1f%% to clustering",
@@ -190,12 +191,12 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
                 )
         if algorithm == 'dbscan':
             pdist = pairwise_distances(
-                qfib_r.T, metric=quat_distance, n_jobs=-1
+                qfib_r.T, metric=quat_distance, n_jobs=cfg.muliprocessing
                 )
             core_samples, labels = dbscan(
                 pdist,
                 eps=np.radians(cl_radius),
-                min_samples=1,
+                min_samples=min_samples,
                 metric='precomputed'
                 )
             cl = np.array(labels, dtype=int) + 1
@@ -358,12 +359,13 @@ def find_orientations(cfg, hkls=None, profile=False):
             cfg.find_orientations.seed_search.hkl_seeds,
             cfg.find_orientations.seed_search.fiber_ndiv
             )
-        np.savetxt(
-            os.path.join(cfg.working_dir, 'trial_orientations.dat'),
-            quats.T,
-            fmt="%.18e",
-            delimiter="\t"
-            )
+        if save_as_ascii:
+            np.savetxt(
+                os.path.join(cfg.working_dir, 'trial_orientations.dat'),
+                quats.T,
+                fmt="%.18e",
+                delimiter="\t"
+                )
 
     # generate the completion maps
     logger.info("Running paintgrid on %d trial orientations", (quats.shape[1]))
@@ -386,8 +388,14 @@ def find_orientations(cfg, hkls=None, profile=False):
         doMultiProc=ncpus > 1,
         nCPUs=ncpus
         )
-    np.savetxt(os.path.join(cfg.working_dir, 'completeness.dat'), compl)
 
+    if save_as_ascii:
+        np.savetxt(os.path.join(cfg.working_dir, 'completeness.dat'), compl)
+    else:
+        np.save(os.path.join(cfg.working_dir, 'scored_orientations.npy'),
+                np.vstack([quats, compl])
+                )
+        
     ##########################################################
     ##   Simulate N random grains to get neighborhood size  ##
     ##########################################################
@@ -436,3 +444,4 @@ def find_orientations(cfg, hkls=None, profile=False):
         fmt="%.18e",
         delimiter="\t"
         )
+    return

@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 plt.ioff()
 
-def check_indexing_plots(cfg_filename, plot_trials=False):
+def check_indexing_plots(cfg_filename, plot_trials=False, plot_from_grains=False):
     cfg = config.open(cfg_filename)[0]    # use first block, like indexing
     icfg = get_instrument_parameters(cfg)
 
@@ -35,6 +35,12 @@ def check_indexing_plots(cfg_filename, plot_trials=False):
         compl = np.loadtxt(os.path.join(working_dir, 'completeness.dat'))
         tq = np.atleast_2d(np.loadtxt(os.path.join(working_dir, 'trial_orientations.dat')))
         quats = tq[compl >= 0., :]
+    elif plot_from_grains:
+        quats = rot.quatOfExpMap(
+            np.atleast_2d(
+                np.loadtxt(os.path.join(cfg.analysis_name, 'grains.out'))
+                )[:, 3:6].T
+            )
     else:
         quats = np.atleast_2d(np.loadtxt(os.path.join(working_dir, 'accepted_orientations.dat')))
     expMaps = np.tile(2. * np.arccos(quats[:, 0]), (3, 1))*unitVector(quats[:, 1:].T)
@@ -100,9 +106,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Make median dark from cfg file')
 
     parser.add_argument('cfg', metavar='cfg_filename', type=str, help='a YAML config filename')
-    parser.add_argument('-t','--show-trials', help='plot trial orientations', nargs='?', type=bool, default=False)
+    parser.add_argument('-t','--show-trials', help='plot trial orientations', action='store_true', default=False)
+    parser.add_argument('-g','--plot-from-grains', help='plot fit orientations', action='store_true', default=False)
 
     args = vars(parser.parse_args(sys.argv[1:]))
     
-    dark = check_indexing_plots(args['cfg'], plot_trials=args['show_trials'])
+    dark = check_indexing_plots(args['cfg'], plot_trials=args['show_trials'], plot_from_grains=args['plot_from_grains'])
    
