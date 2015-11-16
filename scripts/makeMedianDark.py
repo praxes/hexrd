@@ -2,7 +2,7 @@
 import sys, os
 
 import argparse
-
+import glob
 import yaml
 
 import numpy as np
@@ -33,7 +33,11 @@ def make_dark_frame(cfg_name, nframes_use=100, nbytes_header=8192, pixel_type=np
     n_empty = cfg.image_series.images.start
 
     image_numbers = cfg.image_series.file.ids
-    n_images = len(image_numbers)
+    if isinstance(image_numbers[0], str): # then globbing
+        filenames = glob.glob(cfg.image_series.file.stem %cfg.image_series.file.ids[0])
+    else:
+        filenames = [cfg.image_series.file.stem %i for i in cfg.image_series.file.ids]
+    n_images = len(filenames)
     
     instr_cfg = get_instrument_parameters(cfg)
 
@@ -43,7 +47,7 @@ def make_dark_frame(cfg_name, nframes_use=100, nbytes_header=8192, pixel_type=np
     pixel_bytes = pixel_type().itemsize
     nbytes_frame = pixel_bytes*nrows*ncols
 
-    filename = cfg.image_series.file.stem %cfg.image_series.file.ids[0]
+    filename = filenames[0]
     file_bytes = os.stat(filename).st_size
     n_frames = getNFramesFromBytes(file_bytes, nbytes_header, nbytes_frame)
     n_frames -= n_empty
@@ -61,7 +65,7 @@ def make_dark_frame(cfg_name, nframes_use=100, nbytes_header=8192, pixel_type=np
 
     frames = np.empty((nframes_use, nrows, ncols), dtype=pixel_type)
     for i_frame in range(len(image_numbers)):
-        filename = cfg.image_series.file.stem %cfg.image_series.file.ids[i_frame]
+        filename = filenames[i_frame]
 
         if not quiet:
             print "Using %d frames from '%s'" %(min(n_frames, nframes_use, n_frames_rem), filename)
