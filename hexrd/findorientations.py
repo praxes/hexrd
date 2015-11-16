@@ -139,12 +139,21 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
     return np.hstack(qfib)
 
 
-def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
+def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, radius=None):
     """
     """
+    algorithm = cfg.find_orientations.clustering.algorithm
+
     cl_radius = cfg.find_orientations.clustering.radius
     min_compl = cfg.find_orientations.clustering.completeness
-    algorithm = cfg.find_orientations.clustering.algorithm
+
+    # check for override on completeness threshold
+    if compl_thresh is not None:
+        min_compl = compl_thresh
+
+    # check for override on radius    
+    if radius is not None:
+        cl_radius = radius
 
     start = time.clock() # time this
 
