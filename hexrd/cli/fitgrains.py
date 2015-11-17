@@ -116,9 +116,9 @@ def execute(args, parser):
         fit_grains(
             cfg,
             force=args.force,
+            clean=args.clean,
             show_progress=not args.quiet,
             ids_to_refine=args.grains,
-            clean=args.clean
             )
 
         if args.profile:
