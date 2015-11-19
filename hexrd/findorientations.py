@@ -234,23 +234,25 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
     return np.atleast_2d(qbar), cl
 
 
-def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
+def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None, clean=False):
     fn = os.path.join(
         cfg.working_dir,
         cfg.find_orientations.orientation_maps.file
         )
-    try:
-        res = cPickle.load(open(fn, 'r'))
-        pd = res.planeData
-        available_hkls = pd.hkls.T
-        logger.info('loaded eta/ome orientation maps from %s', fn)
-        hkls = [str(i) for i in available_hkls[res.iHKLList]]
-        logger.info(
-            'hkls used to generate orientation maps: %s', hkls)
-        return res
-    except (AttributeError, IOError):
+    if not clean:
+        try:
+            res = cPickle.load(open(fn, 'r'))
+            pd = res.planeData
+            available_hkls = pd.hkls.T
+            logger.info('loaded eta/ome orientation maps from %s', fn)
+            hkls = [str(i) for i in available_hkls[res.iHKLList]]
+            logger.info(
+                'hkls used to generate orientation maps: %s', hkls)
+            return res
+        except (AttributeError, IOError):
+            return generate_eta_ome_maps(cfg, pd, reader, detector, hkls)
+    else:
         return generate_eta_ome_maps(cfg, pd, reader, detector, hkls)
-
 
 def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
 
@@ -295,7 +297,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
     return eta_ome
 
 
-def find_orientations(cfg, hkls=None, profile=False):
+def find_orientations(cfg, hkls=None, clean=False, profile=False):
     """
     Takes a config dict as input, generally a yml document
 
@@ -330,7 +332,7 @@ def find_orientations(cfg, hkls=None, profile=False):
     logger.info("beginning analysis '%s'", cfg.analysis_name)
 
     # load the eta_ome orientation maps
-    eta_ome = load_eta_ome_maps(cfg, pd, reader, detector, hkls)
+    eta_ome = load_eta_ome_maps(cfg, pd, reader, detector, hkls=hkls, clean=clean)
 
     ome_range = (np.min(eta_ome.omeEdges),
                  np.max(eta_ome.omeEdges)

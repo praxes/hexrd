@@ -78,13 +78,32 @@ class WriteH5(Writer):
         """Write imageseries to HDF5 file"""
         f = h5py.File(self._fname, "a")
         g = f.create_group(self._path)
-        s0, s1 = self._shape
 
-        ds = g.create_dataset('images', (self._nframes, s0, s1), self._dtype,
-                                compression="gzip")
+        s0, s1 = self._shape
+        shape = (self._nframes, s0, s1)
+
+        # for chunking...  results of experimentation
+        target_chunk_size = 50000
+        bytes_per_pixel = np.dtype(self._dtype).itemsize
+        nbytes_per_row = s1*bytes_per_pixel
+        if nbytes_per_row < target_chunk_size:
+            nrows_to_read = target_chunk_size/nbytes_per_row
+            chunks = (1, min(nrows_to_read, s0), s1)
+        else:
+            ncols_to_read = int(target_chunk_size/float(nbytes_per_row) * s0)
+            chunks = (1, 1, ncols_to_read)
+        
+        # define dataset
+        ds = g.create_dataset('images',
+                              shape,
+                              dtype=self._dtype,
+                              chunks=chunks,
+                              compression="gzip")
+
+        # write images to data_set
         for i in range(self._nframes):
             ds[i, :, :] = self._ims[i]
-
+           
         # add metadata
         for k, v in self._meta.items():
             g.attrs[k] = v
