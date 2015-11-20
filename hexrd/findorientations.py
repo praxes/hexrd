@@ -119,7 +119,7 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
                         [tTh[pd_hkl_ids[i]], eta_c, ome_c]
                         )
                     ).T
-                    
+
                 tmp = mutil.uniqueVectors(
                     rot.discreteFiber(
                         pd.hkls[:, pd_hkl_ids[i]].reshape(3, 1),
@@ -152,7 +152,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
     if compl_thresh is not None:
         min_compl = compl_thresh
 
-    # check for override on radius    
+    # check for override on radius
     if radius is not None:
         cl_radius = radius
 
@@ -178,7 +178,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
         if qfib_r.shape[1] > 10000:
             raise RuntimeError, \
                 "Requested clustering of %d orientations, which would be too slow!" %qfib_r.shape[1]
-        
+
         logger.info(
             "Feeding %d orientations above %.1f%% to clustering",
             qfib_r.shape[1], 100*min_compl
@@ -190,17 +190,23 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
                 "sklearn >= 0.14 required for dbscan, using fclusterdata"
                 )
         if algorithm == 'dbscan':
+            if min_samples is None or cfg.find_orientations.use_quaternion_grid is None:
+                min_samples = 1
+            # compute distance matrix
             pdist = pairwise_distances(
                 qfib_r.T, metric=quat_distance, n_jobs=cfg.multiprocessing
                 )
+            # run dbscan
             core_samples, labels = dbscan(
                 pdist,
                 eps=np.radians(cl_radius),
-                min_samples=1,
+                min_samples=min_samples,
                 metric='precomputed'
                 )
-            cl = np.array(labels, dtype=int)
-            # ^^^CURRENTLY NOT SET UP TO HANDLE NOISE PTS!
+            noise_points = cl == -1 # index for marking noise
+            cl = np.array(labels, dtype=int) + 1 # move index to 1
+            cl[noise_points] = -1 # re-mark noise
+            logger.info("dbscan found %d noise points", sum(noise_points))
         elif algorithm == 'fclusterdata':
             cl = cluster.hierarchy.fclusterdata(
                 qfib_r.T,
@@ -217,10 +223,12 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
 
         qbar = np.zeros((4, nblobs))
         for i in range(nblobs):
-            npts = sum(cl == i + 1)
+            npts = sum(cl == i + 1) # cluster lables should be 1-based
+            # compute quaternion average
             qbar[:, i] = rot.quatAverage(
                 qfib_r[:, cl == i + 1].reshape(4, npts), qsym
                 ).flatten()
+            pass
 
     logger.info("clustering took %f seconds", time.clock() - start)
     logger.info(
@@ -396,7 +404,7 @@ def find_orientations(cfg, hkls=None, profile=False):
         np.save(os.path.join(cfg.working_dir, 'scored_orientations.npy'),
                 np.vstack([quats, compl])
                 )
-        
+
     ##########################################################
     ##   Simulate N random grains to get neighborhood size  ##
     ##########################################################

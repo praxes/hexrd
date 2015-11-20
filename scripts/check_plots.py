@@ -60,9 +60,8 @@ def check_indexing_plots(cfg_filename, plot_trials=False, plot_from_grains=False
     # load orientations
     quats = np.atleast_2d(np.loadtxt(os.path.join(working_dir, 'accepted_orientations.dat')))
     if plot_trials:
-        compl = np.loadtxt(os.path.join(working_dir, 'completeness.dat'))
-        tq = np.atleast_2d(np.loadtxt(os.path.join(working_dir, 'trial_orientations.dat')))
-        quats = tq[compl >= 0., :]
+        scored_trials = np.load(os.path.join(working_dir, 'scored_orientations.dat'))
+        quats = scored_orientations[:4, scored_orientations[-1, :] >= cfg.find_orientations.clustering.completeness]
         pass
     expMaps = np.tile(2. * np.arccos(quats[:, 0]), (3, 1))*unitVector(quats[:, 1:].T)
 
@@ -94,7 +93,7 @@ def check_indexing_plots(cfg_filename, plot_trials=False, plot_from_grains=False
                 idx = np.logical_and(idx_m, idx_g)
                 nrefl = sum(idx)
                 
-                omes_fit = xf.mapAngle(spots_table[idx, -1], np.radians(cfg.find_orientations.omega.period), units='radians')
+                omes_fit = xf.mapAngle(spots_table[idx, 9], np.radians(cfg.find_orientations.omega.period), units='radians')
                 xy_det = spots_table[idx, -3:]
                 xy_det[:, 2] = np.zeros(nrefl)
                 
@@ -135,8 +134,8 @@ def check_indexing_plots(cfg_filename, plot_trials=False, plot_from_grains=False
                     incl = np.logical_or(j_eta >= 0, j_eta < neta)
                     j_eta = j_eta[incl]
 
-                if np.max(i_ome) >= nome or np.min(i_ome) < 0 or np.max(j_eta) >= neta or np.min(j_eta) < 0:
-                    import pdb; pdb.set_trace()
+                #if np.max(i_ome) >= nome or np.min(i_ome) < 0 or np.max(j_eta) >= neta or np.min(j_eta) < 0:
+                #    import pdb; pdb.set_trace()
                 # add to map
                 oes[i_map][i_ome, j_eta] = 1
             pass
