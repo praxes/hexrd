@@ -187,19 +187,24 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
                 "sklearn >= 0.14 required for dbscan, using fclusterdata"
                 )
         if algorithm == 'dbscan':
+            if min_samples is None or cfg.find_orientations.use_quaternion_grid is None:
+                min_samples = 1
+            # compute distance matrix
             pdist = pairwise_distances(
                 qfib_r.T, metric=quat_distance, n_jobs=cfg.multiprocessing
                 )
+            # run dbscan
             core_samples, labels = dbscan(
                 pdist,
                 eps=np.radians(cl_radius),
-                min_samples=1,
+                min_samples=min_samples,
                 metric='precomputed'
                 )
-
-            cl = np.array(labels, dtype=int) + 1
-            # dbscan indices start at 0; noise are -1
-            # ^^^CURRENTLY NOT SET UP TO HANDLE NOISE PTS!
+            cl = np.array(labels, dtype=int) # convert to array
+            noise_points = cl == -1 # index for marking noise
+            cl += 1 # move index to 1-based instead of 0
+            cl[noise_points] = -1 # re-mark noise as -1
+            logger.info("dbscan found %d noise points", sum(noise_points))
         elif algorithm == 'fclusterdata':
             cl = cluster.hierarchy.fclusterdata(
                 qfib_r.T,
@@ -216,10 +221,12 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
 
         qbar = np.zeros((4, nblobs))
         for i in range(nblobs):
-            npts = sum(cl == i + 1)
+            npts = sum(cl == i + 1) # cluster lables should be 1-based
+            # compute quaternion average
             qbar[:, i] = rot.quatAverage(
                 qfib_r[:, cl == i + 1].reshape(4, npts), qsym
                 ).flatten()
+            pass
 
     logger.info("clustering took %f seconds", time.clock() - start)
     logger.info(
@@ -253,6 +260,7 @@ def load_eta_ome_maps(cfg, pd, image_series, hkls=None, clean=False):
         except (AttributeError, IOError):
             return generate_eta_ome_maps(cfg, pd, image_series, hkls)
     else:
+        logger.info('clean option specified; recomputing eta/ome orientation maps')
         return generate_eta_ome_maps(cfg, pd, image_series, hkls)
 
 def generate_eta_ome_maps(cfg, pd, image_series, hkls=None):

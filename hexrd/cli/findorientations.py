@@ -81,7 +81,7 @@ def execute(args, parser):
 
     # prepare the analysis directory
     quats_f = os.path.join(cfg.working_dir, 'accepted_orientations.dat')
-    if os.path.exists(quats_f) and not ( args.force or args.clean ):
+    if os.path.exists(quats_f) and not (args.force or args.clean):
         logger.error(
             '%s already exists. Change yml file or specify "force" or "clean"', quats_f
             )
@@ -111,7 +111,7 @@ def execute(args, parser):
         pr.enable()
 
     # process the data
-    find_orientations(cfg, hkls=args.hkls, profile=args.profile, clean=args.clean)
+    find_orientations(cfg, hkls=args.hkls, clean=args.clean, profile=args.profile)
 
     if args.profile:
         pr.disable()

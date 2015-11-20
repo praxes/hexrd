@@ -1,5 +1,4 @@
 import sys, os
-
 import argparse
 
 import yaml
@@ -14,7 +13,14 @@ from hexrd.fitgrains import get_instrument_parameters
 
 from hexrd.matrixutil import unitVector
 
+# HARD-CODED DISTORTION!!!
+from hexrd.xrd.distortion import GE_41RT
+
+from hexrd.gridutil import cellIndices
+
 from hexrd.xrd import transforms as xf
+from hexrd.xrd import transforms_CAPI as xfcapi
+
 from hexrd.xrd import rotations as rot
 from hexrd.xrd.symmetry import toFundamentalRegion
 from hexrd.xrd.xrdutil import simulateOmeEtaMaps
@@ -27,43 +33,122 @@ plt.ioff()
 
 def check_indexing_plots(cfg_filename, plot_trials=False, plot_from_grains=False):
     cfg = config.open(cfg_filename)[0]    # use first block, like indexing
-    icfg = get_instrument_parameters(cfg)
 
     working_dir = cfg.working_dir
-
-    if plot_trials:
-        compl = np.loadtxt(os.path.join(working_dir, 'completeness.dat'))
-        tq = np.atleast_2d(np.loadtxt(os.path.join(working_dir, 'trial_orientations.dat')))
-        quats = tq[compl >= 0., :]
-    elif plot_from_grains:
-        quats = rot.quatOfExpMap(
-            np.atleast_2d(
-                np.loadtxt(os.path.join(cfg.analysis_name, 'grains.out'))
-                )[:, 3:6].T
-            )
-    else:
-        quats = np.atleast_2d(np.loadtxt(os.path.join(working_dir, 'accepted_orientations.dat')))
-    expMaps = np.tile(2. * np.arccos(quats[:, 0]), (3, 1))*unitVector(quats[:, 1:].T)
+    analysis_dir = os.path.join(working_dir, cfg.analysis_name)
     
+    #instrument parameters
+    icfg = get_instrument_parameters(cfg)
+    chi = icfg['oscillation_stage']['chi']
+
     # load maps that were used
     oem = cPickle.load(
         open(cfg.find_orientations.orientation_maps.file, 'r')
         )
-    omeEdges = np.degrees(oem.omeEdges)
-    etaEdges = np.degrees(oem.etaEdges)
-    planeData = oem.planeData
-    
+    nmaps = len(oem.dataStore)
+    omeEdges = np.degrees(oem.omeEdges); nome = len(omeEdges) - 1
+    etaEdges = np.degrees(oem.etaEdges); neta = len(etaEdges) - 1
     delta_ome = abs(omeEdges[1]-omeEdges[0])
+
+    full_ome_range = xf.angularDifference(omeEdges[0], omeEdges[-1]) == 0
+    full_eta_range = xf.angularDifference(etaEdges[0], etaEdges[-1]) == 0
     
-    chi = icfg['oscillation_stage']['chi']
+    # grab plane data and figure out IDs of map HKLS
+    pd = oem.planeData
+    gvids = [pd.hklDataList[i]['hklID'] for i in np.where(pd.exclusions == False)[0].tolist()]
+
+    # load orientations
+    quats = np.atleast_2d(np.loadtxt(os.path.join(working_dir, 'accepted_orientations.dat')))
+    if plot_trials:
+        scored_trials = np.load(os.path.join(working_dir, 'scored_orientations.dat'))
+        quats = scored_orientations[:4, scored_orientations[-1, :] >= cfg.find_orientations.clustering.completeness]
+        pass
+    expMaps = np.tile(2. * np.arccos(quats[:, 0]), (3, 1))*unitVector(quats[:, 1:].T)
+
+    ##########################################
+    #      SPECIAL CASE FOR FIT GRAINS       #
+    ##########################################
+    if plot_from_grains:
+        distortion = (GE_41RT, icfg['detector']['distortion']['parameters'])
+        #
+        grain_table = np.atleast_2d(np.loadtxt(os.path.join(analysis_dir, 'grains.out')))
+        ngrains = len(grain_table)
+        #
+        expMaps = grain_table[:, 3:6]
+        tVec_c = grain_table[:, 6:9]
+        vInv = grain_table[:, 6:12]
+        #
+        rMat_d = xf.makeDetectorRotMat(icfg['detector']['transform']['tilt_angles'])
+        tVec_d = np.vstack(icfg['detector']['transform']['t_vec_d'])
+        #
+        chi = icfg['oscillation_stage']['chi']
+        tVec_s = np.vstack(icfg['oscillation_stage']['t_vec_s'])
+        #
+        oes = np.zeros(oem.dataStore.shape)
+        for i_grn in range(ngrains):
+            spots_table = np.loadtxt(os.path.join(analysis_dir, 'spots_%05d.out' %i_grn))
+            idx_m = spots_table[:, 0] >= 0
+            for i_map in range(nmaps):
+                idx_g = spots_table[:, 1] == gvids[i_map]
+                idx = np.logical_and(idx_m, idx_g)
+                nrefl = sum(idx)
+                
+                omes_fit = xf.mapAngle(spots_table[idx, 9], np.radians(cfg.find_orientations.omega.period), units='radians')
+                xy_det = spots_table[idx, -3:]
+                xy_det[:, 2] = np.zeros(nrefl)
+                
+                rMat_s_array = xfcapi.makeOscillRotMatArray(chi, omes_fit)
+                
+                # form in-plane vectors for detector points list in DETECTOR FRAME
+                P2_d = xy_det.T
+                
+                # in LAB FRAME
+                P2_l = np.dot(rMat_d, P2_d) + tVec_d # point on detector
+                P0_l = np.hstack(
+                    [tVec_s + np.dot(rMat_s_array[j], tVec_c[i_grn, :].reshape(3, 1)) for j in range(nrefl)]
+                ) # origin of CRYSTAL FRAME
+
+                # diffraction unit vector components in LAB FRAME
+                dHat_l = unitVector(P2_l - P0_l)
+                P2_l = np.dot(rMat_d, xy_det.T) + tVec_d
+                
+                # angles for reference frame
+                dHat_ref_l = unitVector(P2_l)
+    
+                # append etas and omes
+                etas_fit = np.arctan2(dHat_ref_l[1, :], dHat_ref_l[0, :]).flatten()
+           
+                # find indices, then truncate or wrap
+                i_ome = cellIndices(oem.omeEdges, omes_fit)
+                if full_ome_range:
+                    i_ome[i_ome < 0] = np.mod(i_ome, nome) + 1
+                    i_ome[i_ome >= nome] = np.mod(i_ome, nome)
+                else:
+                    incl = np.logical_or(i_ome >= 0, i_ome < nome)
+                    i_ome = i_ome[incl]
+                j_eta = cellIndices(oem.etaEdges, etas_fit)
+                if full_eta_range:
+                    j_eta[j_eta < 0] = np.mod(j_eta, neta) + 1
+                    j_eta[j_eta >= neta] = np.mod(j_eta, neta)
+                else:
+                    incl = np.logical_or(j_eta >= 0, j_eta < neta)
+                    j_eta = j_eta[incl]
+
+                #if np.max(i_ome) >= nome or np.min(i_ome) < 0 or np.max(j_eta) >= neta or np.min(j_eta) < 0:
+                #    import pdb; pdb.set_trace()
+                # add to map
+                oes[i_map][i_ome, j_eta] = 1
+            pass
+        pass
     
     # simulate quaternion points
-    oes = simulateOmeEtaMaps(omeEdges, etaEdges, planeData,
-                             expMaps,
-                             chi=chi,
-                             etaTol=0.01, omeTol=0.01,
-                             etaRanges=None, omeRanges=None,
-                             bVec=xf.bVec_ref, eVec=xf.eta_ref, vInv=xf.vInv_ref)
+    if not plot_from_grains:
+        oes = simulateOmeEtaMaps(omeEdges, etaEdges, pd,
+                                 expMaps,
+                                 chi=chi,
+                                 etaTol=0.01, omeTol=0.01,
+                                 etaRanges=None, omeRanges=None,
+                                 bVec=xf.bVec_ref, eVec=xf.eta_ref, vInv=xf.vInv_ref)
     
     # tick labling
     omes = np.degrees(oem.omeEdges)
@@ -87,7 +172,7 @@ def check_indexing_plots(cfg_filename, plot_trials=False, plot_from_grains=False
         y, x = np.where(oes[i_map] > 0)
         ax_list[i_map].hold(True)
         ax_list[i_map].imshow(oem.dataStore[i_map] > 0.1, cmap=cm.bone)
-        ax_list[i_map].set_title(r'Map for $\{%d %d %d\}$' %tuple(planeData.hkls[:, i_map]))
+        ax_list[i_map].set_title(r'Map for $\{%d %d %d\}$' %tuple(pd.hkls[:, i_map]))
         ax_list[i_map].set_xlabel(r'Azimuth channel, $\eta$; $\Delta\eta=%.3f$' %delta_ome)
         ax_list[i_map].set_ylabel(r'Rotation channel, $\omega$; $\Delta\omega=%.3f$' %delta_ome)
         ax_list[i_map].plot(x, y, 'c+')
