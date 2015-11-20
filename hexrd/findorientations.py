@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 import cPickle
+import dill
 import logging
 import multiprocessing as mp
 import os
@@ -149,10 +150,14 @@ class ClusterMethodUnavailableError(Exception):
     pass
 
 def get_supported_clustering_algorithms():
+    """get a list of the supported clustering algorithms"""
+    # note: this is used by the yaml parser to know available
+    #       options
     return _clustering_algorithm_dict.keys()
 
 
 def clustering_algorithm(key, fallback=None):
+    """A decorator that registers clustering algorithms automagically"""
     def wrapper(fn):
         assert key not in _clustering_algorithm_dict
         val = _clustering_option(fn, fallback)
@@ -160,6 +165,18 @@ def clustering_algorithm(key, fallback=None):
         return fn
 
     return wrapper
+
+
+@clustering_algorithm('qim-dbscan')
+def cluster_quaternion_im_dbscan(qfib_r, qsym, cl_radius, min_samples):
+    if not have_sklearn:
+        raise ClusterMethodUnavailableError('required module sklearn >= 0.14 not found.')
+
+    quaternion_im = np.ascontiguousarray(qfib_r[1:,:])
+    _, labels = dbscan(quaternion_im,
+                       eps=np.sin(0.5*np.radians(cl_radius)),
+                       min_samples=min_samples)
+    return labels + 1
 
 
 @clustering_algorithm('omp-dbscan', fallback='homochoric-dbscan')
@@ -212,7 +229,7 @@ def cluster_dbscan(qfib_r, qsym, cl_radius, min_samples):
         return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
 
     pdist = pairwise_distances(
-        qfib_r.T, metric=quat_distance, n_jobs=-1
+        qfib_r.T, metric=quat_distance, n_jobs=1
     )
     _, labels = dbscan(
         pdist,
@@ -220,8 +237,7 @@ def cluster_dbscan(qfib_r, qsym, cl_radius, min_samples):
         min_samples=min_samples,
         metric='precomputed'
     )
-    cl = np.array(labels, dtype=int) + 1
-    return cl
+    return labels + 1
 
 
 def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
