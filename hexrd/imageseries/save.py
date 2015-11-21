@@ -60,6 +60,8 @@ class Writer(object):
 
 class WriteH5(Writer):
     fmt = 'hdf5'
+    dflt_gzip = 4
+    dflt_chrows = 0
 
     def __init__(self, ims, fname, **kwargs):
         """Write imageseries in HDF5 file
@@ -67,6 +69,9 @@ class WriteH5(Writer):
            Required Args:
            path - the path in HDF5 file
 
+           Options:
+           gzip - 0-9; 0 turns off compression; 4 is default
+           chunk_rows - number of rows per chunk; default is all
 """
         Writer.__init__(self, ims, fname, **kwargs)
         self._path = self._opts['path']
@@ -79,15 +84,36 @@ class WriteH5(Writer):
         f = h5py.File(self._fname, "a")
         g = f.create_group(self._path)
         s0, s1 = self._shape
+        chnk = (1,) + self._shape
 
         ds = g.create_dataset('images', (self._nframes, s0, s1), self._dtype,
-                                compression="gzip")
+                                compression="gzip", chunks=chnk)
         for i in range(self._nframes):
             ds[i, :, :] = self._ims[i]
 
         # add metadata
         for k, v in self._meta.items():
             g.attrs[k] = v
+
+    @property
+    def h5opts(self):
+        d = {}
+        # compression
+        compress = self._opts.pop('gzip', self.dflt_gzip)
+        if compress > 9:
+            raise ValueError('gzip compression cannot exceed 9: %s' % compress)
+        if compress > 0:
+            d['compression'] = 'gzip'
+            d['compression_opts'] = compress
+
+        # chunk size
+        s0, s1 = self._shape
+        chrows = self._opts.pop('gzip', self.dflt_chrows)
+        if chrows < 1 or chrows > s0:
+            chrows = s0
+        d['chunks'] = (1, chrows, s1)
+
+        return d
 
     pass # end class
 
