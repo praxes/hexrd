@@ -87,7 +87,7 @@ class WriteH5(Writer):
         chnk = (1,) + self._shape
 
         ds = g.create_dataset('images', (self._nframes, s0, s1), self._dtype,
-                                compression="gzip", chunks=chnk)
+                              **self.h5opts)
         for i in range(self._nframes):
             ds[i, :, :] = self._ims[i]
 
@@ -108,7 +108,7 @@ class WriteH5(Writer):
 
         # chunk size
         s0, s1 = self._shape
-        chrows = self._opts.pop('gzip', self.dflt_chrows)
+        chrows = self._opts.pop('chunk_rows', self.dflt_chrows)
         if chrows < 1 or chrows > s0:
             chrows = s0
         d['chunks'] = (1, chrows, s1)
