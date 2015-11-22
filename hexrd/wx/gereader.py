@@ -54,17 +54,6 @@ IMAGE_MODE_DICT = {
     }
 IMAGE_MODE_DICT_SEL = dict(zip(IMG_MODES, range(len(MODE_CHOICES))))
 #
-#  * Dark file choices
-#
-DARK_CHO_NONE  = 'no dark image'
-DARK_CHO_FILE  = 'dark image file'
-DARK_CHO_ARRAY = 'dark frame array'
-DARK_CHO_EMPTY = 'empty frames'
-DARK_CHOICES = [DARK_CHO_NONE, DARK_CHO_FILE, DARK_CHO_ARRAY, DARK_CHO_EMPTY]
-DARK_MODES   = [ReaderInput.DARK_MODE_NONE, ReaderInput.DARK_MODE_FILE, ReaderInput.DARK_MODE_ARRAY, ReaderInput.DARK_MODE_EMPTY]
-DARK_MODE_DICT = dict(zip(DARK_CHOICES, DARK_MODES))
-DARK_MODE_DICT_INV = dict(zip(DARK_MODES, DARK_CHOICES))
-#
 #  * Aggregation choices
 #
 AGG_CHO_NONE = 'SINGLE FRAMES'
@@ -74,18 +63,6 @@ AGG_CHO_MIN  = 'min over all frames'
 AGG_CHOICES  = [AGG_CHO_NONE, AGG_CHO_SUM, AGG_CHO_MAX, AGG_CHO_MIN]
 AGG_MODE_DICT     = dict(zip(AGG_CHOICES, ReaderInput.AGG_MODES))
 AGG_MODE_DICT_INV = dict(zip(ReaderInput.AGG_MODES, AGG_CHOICES))
-#
-#  * FLIP choices
-#
-FLIP_CHO_NONE  = 'no flip'
-FLIP_CHO_V     = 'vertical'
-FLIP_CHO_H     = 'horizontal'
-FLIP_CHO_180   = '180 degrees'
-FLIP_CHO_M90   = '-90 degrees'
-FLIP_CHO_P90   = '+90 degrees'
-FLIP_CHOICES   = [FLIP_CHO_NONE, FLIP_CHO_V, FLIP_CHO_H, FLIP_CHO_180, FLIP_CHO_M90, FLIP_CHO_P90]
-FLIP_MODE_DICT = dict(zip(FLIP_CHOICES, ReaderInput.FLIP_MODES))
-FLIP_MODE_DICT_INV = dict(zip(ReaderInput.FLIP_MODES, FLIP_CHOICES))
 #
 #  Utility vFunctions
 #
@@ -177,7 +154,6 @@ class geReaderPanel(wx.Panel):
                                         'Current Reader', style=wx.ALIGN_CENTER)
         self.rdrs_cho = wx.Choice(self, wx.NewId(),
                                   choices=[r.name for r in exp.savedReaders])
-        #self.save_but = wx.Button(self, wx.NewId(), 'Save Reader')
         self.new_but  = wx.Button(self, wx.NewId(), 'New Reader')
         #
         #  Reader Name
@@ -193,22 +169,18 @@ class geReaderPanel(wx.Panel):
                                       style=wx.ALIGN_RIGHT)
         self.mode_cho = wx.Choice(self, wx.NewId(), choices=MODE_CHOICES)
         #
-        #
-        #  Image and dark file names
-        #
-        self.img_but    = wx.Button(self, wx.NewId(), 'Select Image Files')
-        self.dir_but    = wx.Button(self, wx.NewId(), 'Change Image Folder')
-
-        self.drk_lab = wx.StaticText(self, wx.NewId(), 'Dark Mode',
-                                      style=wx.ALIGN_RIGHT)
-        self.drk_cho = wx.Choice(self, wx.NewId(), choices=DARK_CHOICES)
-        self.drk_but = wx.Button(self, wx.NewId(), 'Select Dark File')
-        #
         #  Aggregation
         #
         self.agg_lab = wx.StaticText(self, wx.NewId(), 'Frame Aggregation',
                                       style=wx.ALIGN_RIGHT)
         self.agg_cho = wx.Choice(self, wx.NewId(), choices=AGG_CHOICES)
+        #
+        #
+        #  Image and dark file names
+        #
+        self.img_but    = wx.Button(self, wx.NewId(), 'Select Imageseries File')
+        self.dir_but    = wx.Button(self, wx.NewId(), 'Change Image Folder')
+
         #
         #  Action buttons
         #
@@ -225,12 +197,6 @@ class geReaderPanel(wx.Panel):
                                       style=wx.RAISED_BORDER|wx.TE_READONLY)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         #
-        #  Orientation
-        #
-        self.flip_lab = wx.StaticText(self, wx.NewId(), 'Image Orientation',
-                                      style=wx.ALIGN_RIGHT)
-        self.flip_cho = wx.Choice(self, wx.NewId(), choices=FLIP_CHOICES)
-        #
         #  Subpanels
         #
         self.sp_single = SF_Subpanel(self, wx.NewId())
@@ -245,22 +211,16 @@ class geReaderPanel(wx.Panel):
 
         self.Bind(wx.EVT_TEXT_ENTER, self.OnNameChange, self.name_txt)
 
-        self.Bind(wx.EVT_BUTTON, self.OnDarkBut,    self.drk_but)
         self.Bind(wx.EVT_BUTTON, self.OnImgBut,     self.img_but)
         self.Bind(wx.EVT_BUTTON, self.OnImgDirBut,  self.dir_but)
         self.Bind(wx.EVT_BUTTON, self.OnReadBut,    self.read_but)
 
-        self.Bind(wx.EVT_CHOICE,     self.OnDarkChoice, self.drk_cho)
         self.Bind(wx.EVT_CHOICE,     self.OnAggChoice,  self.agg_cho)
-        self.Bind(wx.EVT_CHOICE,     self.OnFlipChoice,  self.flip_cho)
 
         self.Bind(wx.EVT_SPINCTRL,   self.OnBrowseSpin,  self.browse_spn)
 
         self.Bind(wx.EVT_CHOICE, self.OnReaderChoice, self.rdrs_cho)
-        #self.Bind(wx.EVT_BUTTON, self.OnReaderSave,   self.save_but)
         self.Bind(wx.EVT_BUTTON, self.OnReaderNew,    self.new_but)
-
-        return
 
     def __makeSizers(self):
         """Lay out the interactors"""
@@ -290,16 +250,6 @@ class geReaderPanel(wx.Panel):
         self.fgsizer.Add(wx.Window(self, -1), 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.fgsizer.Add(wx.Window(self, -1), 0, wx.EXPAND|wx.ALIGN_CENTER)
         self.fgsizer.Add(self.agg_cho,    0, wx.EXPAND|wx.ALIGN_CENTER)
-
-        self.fgsizer.Add(self.flip_lab,    0, wx.ALIGN_RIGHT)
-        self.fgsizer.Add(wx.Window(self, -1), 0, wx.EXPAND|wx.ALIGN_CENTER)
-        self.fgsizer.Add(wx.Window(self, -1), 0, wx.EXPAND|wx.ALIGN_CENTER)
-        self.fgsizer.Add(self.flip_cho,    0, wx.EXPAND|wx.ALIGN_CENTER)
-
-        self.fgsizer.Add(self.drk_lab,    0, wx.ALIGN_RIGHT)
-        self.fgsizer.Add(wx.Window(self, -1), 0, wx.EXPAND|wx.ALIGN_CENTER)
-        self.fgsizer.Add(self.drk_cho,    0, wx.EXPAND|wx.ALIGN_CENTER)
-        self.fgsizer.Add(self.drk_but,    0, wx.ALIGN_RIGHT)
 
         self.fgsizer.Add(self.files_lab,      0, wx.ALIGN_RIGHT)
         self.fgsizer.AddSpacer(1)
@@ -348,10 +298,6 @@ class geReaderPanel(wx.Panel):
         self.mode_cho.SetSelection(IMAGE_MODE_DICT_SEL[mode])
         # Agg choice
         self.agg_cho.SetStringSelection(AGG_MODE_DICT_INV[rdr.aggMode])
-        # Image Orientation
-        self.flip_cho.SetStringSelection(FLIP_MODE_DICT_INV[rdr.flipMode])
-        # Dark mode
-        self.drk_cho.SetStringSelection(DARK_MODE_DICT_INV[rdr.darkMode])
 
         # Mode Subpanel
         self.sizer.Show(self.sp_single, (mode == ImageModes.SINGLE_FRAME))
@@ -476,23 +422,6 @@ class geReaderPanel(wx.Panel):
 
         return
 
-    def OnDarkChoice(self, e):
-        """Dark mode choice has been made"""
-        val = e.GetString()
-        mode = DARK_MODE_DICT[val]
-        exp = wx.GetApp().ws
-        exp.activeReader.darkMode = mode
-        #
-        #  Enable/disable other interactors
-        #
-        self.drk_but.Enable(mode == ReaderInput.DARK_MODE_FILE or mode == ReaderInput.DARK_MODE_ARRAY)
-
-        #  Update info window
-
-        self.sp_info.update()
-
-        return
-
     def OnAggChoice(self, e):
         """Aggregation function selection"""
         val = e.GetString()
@@ -519,35 +448,6 @@ class geReaderPanel(wx.Panel):
         exp.activeReader.imageMode = IMAGE_MODE_DICT[mode]
         # Show panels according to mode
         self.update()
-
-        return
-
-    def OnFlipChoice(self, e):
-        """Flip mode chosen"""
-        print 'flip mode:  ', e.GetString()
-        wx.GetApp().ws.activeReader.flipMode = FLIP_MODE_DICT[e.GetString()]
-        return
-
-    def OnDarkBut(self, e):
-        """Load dark file names with file dialogue"""
-        #
-        #  !! Check that "subtract dark" is true
-        #
-        dlg = wx.FileDialog(self, 'Select Dark Image')
-        if dlg.ShowModal() == wx.ID_OK:
-            dir = str(dlg.GetDirectory())
-            fil = str(dlg.GetFilename())
-            if (fil):
-                #
-                #  Set dark file and display name in info box.
-                #
-                exp = wx.GetApp().ws
-                exp.activeReader.darkDir = dir
-                exp.activeReader.darkName = fil
-                self.sp_info.update()
-                pass
-            pass
-        dlg.Destroy()
 
         return
 
