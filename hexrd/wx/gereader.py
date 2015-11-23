@@ -38,6 +38,7 @@ from hexrd.xrd.experiment import ImageModes, ReaderInput
 from hexrd.wx.guiconfig    import WindowParameters as WP
 from hexrd.wx.guiutil import ResetChoice, makeTitleBar
 from hexrd.wx.canvaspanel  import CanvasPanel
+from hexrd.wx.readerinfo_dlg import ReaderInfoDialog
 #
 #  DATA
 #
@@ -456,37 +457,17 @@ class geReaderPanel(wx.Panel):
 
         NOTE:  converts filenames to str from unicode
 """
-        dlg = wx.FileDialog(self, 'Select Images',
-                            style=wx.FD_MULTIPLE)
+        dlg = ReaderInfoDialog(self, -1)
         if dlg.ShowModal() == wx.ID_OK:
-            d = str(dlg.GetDirectory())
-            fnames = [str(p) for p in dlg.GetFilenames()]
-            if (fnames):
-                #
-                #  Set image file list and display name in box.
-                #
-                fnames.sort()
-                exp = wx.GetApp().ws
-                print d, fnames
-                exp.activeReader.imageDir = d
-                exp.activeReader.imageNames = fnames
-
-                pass
+            d = dlg.GetInfo()
+            exp = wx.GetApp().ws
+            exp.activeReader.imageDir = d.pop('directory')
+            exp.activeReader.imageNames = [d.pop('file')]
+            exp.activeReader.imageFmt = d.pop('format')
+            exp.activeReader.imageOpts = d
 
             self.update()
-            pass
         dlg.Destroy()
-
-        return
-
-    def OnDrkSubtract(self, e):
-        """Subtract dark checkbox
-
-        * No other effects until read image button is pressed
-"""
-        wx.GetApp().ws.drkSubtract = self.drk_box.GetValue()
-
-        return
 
     def OnReadBut(self, e):
         """Read the frames"""
@@ -767,11 +748,6 @@ class infoPanel(wx.Panel):
         #  File lists for display.
         #
 
-        self.drk_txt_lab = wx.StaticText(self, wx.NewId(), 'Dark File',
-                                         style=wx.ALIGN_CENTER)
-        self.drk_txt = wx.TextCtrl(self, wx.NewId(), value='<no dark file>',
-                                   style=wx.RAISED_BORDER)
-
         self.img_txt_lab = wx.StaticText(self, wx.NewId(), 'Image Directory',
                                          style=wx.ALIGN_CENTER)
         self.img_txt = wx.TextCtrl(self, wx.NewId(), value='<no images loaded>',
@@ -793,8 +769,6 @@ class infoPanel(wx.Panel):
         self.fgsizer.Add(self.img_txt_lab, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
         self.fgsizer.Add(self.img_txt,     1, wx.EXPAND|wx.ALIGN_CENTER)
 
-        self.fgsizer.Add(self.drk_txt_lab, 0, wx.ALIGN_RIGHT|wx.RIGHT, 5)
-        self.fgsizer.Add(self.drk_txt,     1, wx.EXPAND|wx.ALIGN_CENTER)
         #
         #  Main sizer
         #
@@ -812,7 +786,6 @@ class infoPanel(wx.Panel):
     def update(self):
         """Update information"""
         exp = wx.GetApp().ws
-        self.drk_txt.SetValue(exp.activeReader.darkFile)
         self.img_txt.SetValue(exp.activeReader.imageDir)
 
         return
