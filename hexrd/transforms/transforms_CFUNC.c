@@ -924,13 +924,18 @@ double quat_distance_cfunc(int nsym, double * q1, double * q2, double * qsym)
 void homochoricOfQuat_cfunc(int nq, double * qPtr, double * hPtr)
 {
   int i;
-  double f, s, phi;
+  double arg, f, s, phi;
 
   for (i=0; i<nq; i++) {
     phi = 2. * acos(qPtr[4*i+0]);
 
     if (phi > epsf) {
-      f = cbrt(0.75*(phi - sin(phi)));
+      arg = 0.75*(phi - sin(phi));
+      if (arg < 0.) {
+	f = -pow(-arg, 1./3.);
+      } else {
+	f = pow(arg, 1./3.);
+      }
       s = 1. / sin(0.5*phi);
 
       hPtr[3*i+0] = f * s * qPtr[4*i+1];
