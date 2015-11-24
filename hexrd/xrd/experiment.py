@@ -991,6 +991,8 @@ GE reader is supported.
         self.imageDir = ''
         self.imageNames = []
         self.imageNameD = dict()
+        self.imageFmt = None
+        self.imageOpts = {}
         # Dark file
         self.darkMode = ReaderInput.DARK_MODE_NONE
         self.darkDir  = ''
@@ -1005,7 +1007,6 @@ GE reader is supported.
     def _check(self):
         """Check that input is ok for making a reader instance
 """
-        # * Empty frames = 0 for single frame mode
         return
     #
     # ============================== API
@@ -1091,63 +1092,12 @@ GE reader is supported.
         return n
 
     def makeReader(self):
-        """Return a reader instance based on self
-"""
+        """Return a reader instance based on self"""
         # check validity of input
         self._check()
-        #
-        # Set up image names in right format
-        #
-        fullPath = lambda fn: os.path.join(self.imageDir, fn)
-        numEmpty = lambda fn: self.imageNameD[fn][0]
-        imgInfo = [(fullPath(f), numEmpty(f)) for f in self.imageNames]
 
-        ref_reader = self.RC(imgInfo)
-        #
-        # Check for omega info
-        #
-        nfile = len(imgInfo)
-        dinfo = [self.imageNameD[f] for f in self.imageNames]
-        omin = dinfo[0][1]
-        if omin is not None:
-            odel = dinfo[nfile - 1][3]
-            print "omega min and delta: ", omin, odel
-            omargs = (valunits.valWUnit('omin', 'angle', float(omin), 'degrees'),
-                      valunits.valWUnit('odel', 'angle', float(odel), 'degrees'))
-        else:
-            omargs = ()
-            pass
-        print 'omargs:  ', omargs
-        #
-        # Dark file
-        #
-        subDark = not (self.darkMode == ReaderInput.DARK_MODE_NONE)
-        if (self.darkMode == ReaderInput.DARK_MODE_FILE):
-            drkFile = os.path.join(self.darkDir, self.darkName)
-        elif (self.darkMode == ReaderInput.DARK_MODE_ARRAY):
-            drkFileName = os.path.join(self.darkDir, self.darkName)
-            drkFile     = ref_reader.frame(
-                buffer=numpy.fromfile(drkFileName,
-                                      dtype=ref_reader.dtypeRead
-                                      )
-                )
-        else:
-            drkFile = None
-            pass
-        #
-        # Flip options
-        #
-        doFlip  = not (self.flipMode == ReaderInput.FLIP_NONE)
-        flipArg = ReaderInput.FLIP_DICT[self.flipMode]
-        #
-        # Make the reader
-        #
-        print 'reader:  \n', imgInfo, subDark, drkFile, doFlip, flipArg
-        r = self.RC(imgInfo, *omargs,
-                    subtractDark = subDark,
-                    dark         = drkFile,
-                    doFlip       = doFlip,
-                    flipArg      = flipArg)
+        imagePath = os.path.join(self.imageDir, self.imageNames[0])
+        r = self.RC(imagePath, fmt=self.imageFmt, **self.imageOpts)
 
         return r
     #

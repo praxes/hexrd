@@ -82,7 +82,7 @@ class RootConfig(Config):
                 if multiproc > ncpus:
                     logger.warning(
                         'Resuested %s processes, %d available',
-                        multiproc, ncpus, ncpus
+                        multiproc, ncpus
                         )
                     res = ncpus
                 else:
