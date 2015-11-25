@@ -3611,25 +3611,6 @@ if USE_NUMBA:
         return _coo_build_window_jit(frame_i.row, frame_i.col, frame_i.data,
                                      min_row, max_row, min_col, max_col,
                                      window)
-
-    
-    @numba.jit
-    def compute_areas_2(xy_eval_vtx, conn):
-        areas = num.empty(len(conn))
-        for i in range(len(conn)):
-            c0, c1, c2, c3 = conn[i]
-            vtx0x, vtx0y = xy_eval_vtx[conn[i,0]]
-            vtx1x, vtx1y = xy_eval_vtx[conn[i,1]]
-            v0x, v0y = vtx1x-vtx0x, vtx1y-vtx0y
-            acc = 0
-            for j in range(2, 4):
-                vtx_x, vtx_y = xy_eval_vtx[conn[i,j]]
-                v1x = vtx_x - vtx0x
-                v1y = vtx_y - vtx0y
-                acc += v0x*v1y - v1x*v0y
-    
-            areas[i] = 0.5 * acc
-        return areas
 else: # not USE_NUMBA
     def _coo_build_window(frame_i, min_row, max_row, min_col, max_col):
         mask = ((min_row <= frame_i.row) & (frame_i.row <= max_row) &
@@ -3649,7 +3630,7 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
                             tth_tol=0.2, eta_tol=1.0,
                             rMat_c=num.eye(3), tVec_c=num.zeros((3, 1)),
                             distortion=None,
-                            npdiv=1, quiet=False, compute_areas_func=compute_areas_2):
+                            npdiv=1, quiet=False, compute_areas_func=gutil.compute_areas):
     """
     prototype function for making angular patches on a detector
 
@@ -3733,6 +3714,8 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
         # FOR ANGULAR MESH
         conn = gutil.cellConnectivity( sdims[0], sdims[1], origin='ll')
 
+        rMat_s = xfcapi.makeOscillRotMat([num.radians(chi), angs[2]])
+
         # make G-vectors
         gVec_c = xfcapi.anglesToGVec(gVec_angs_vtx, chi=chi, rMat_c=rMat_c)
         xy_eval_vtx = xfcapi.gvecToDetectorXY(gVec_c,
@@ -3759,6 +3742,7 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
         row_indices   = gutil.cellIndices(row_edges, xy_eval[:, 1])
         col_indices   = gutil.cellIndices(col_edges, xy_eval[:, 0])
 
+        # append patch data to list
         patches.append(((gVec_angs_vtx[:, 0].reshape(m_tth.shape),
                          gVec_angs_vtx[:, 1].reshape(m_tth.shape)),
                         (xy_eval_vtx[:, 0].reshape(m_tth.shape),
