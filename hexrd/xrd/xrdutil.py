@@ -3714,7 +3714,7 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
         # FOR ANGULAR MESH
         conn = gutil.cellConnectivity( sdims[0], sdims[1], origin='ll')
 
-        rMat_s = xfcapi.makeOscillRotMat([num.radians(chi), angs[2]])
+        rMat_s = xfcapi.makeOscillRotMat([chi, angs[2]])
 
         # make G-vectors
         gVec_c = xfcapi.anglesToGVec(gVec_angs_vtx, chi=chi, rMat_c=rMat_c)
