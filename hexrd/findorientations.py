@@ -157,7 +157,15 @@ def get_supported_clustering_algorithms():
 
 
 def clustering_algorithm(key, fallback=None):
-    """A decorator that registers clustering algorithms automagically"""
+    """A decorator that registers clustering algorithms automagically.
+
+    A valid cluster algorithm must return an array of [int] indices
+    that map each fiber to its corresponding cluster id.
+
+    Valid clusters id are positive integers, with 0 reserved for noise
+    fibers where applicable.
+
+    """
     def wrapper(fn):
         assert key not in _clustering_algorithm_dict
         val = _clustering_option(fn, fallback)
@@ -172,11 +180,11 @@ def cluster_quaternion_im_dbscan(qfib_r, qsym, cl_radius, min_samples):
     if not have_sklearn:
         raise ClusterMethodUnavailableError('required module sklearn >= 0.14 not found.')
 
-    quaternion_im = np.ascontiguousarray(qfib_r[1:,:])
+    quaternion_im = np.ascontiguousarray(qfib_r[1:,:].T)
     _, labels = dbscan(quaternion_im,
                        eps=np.sin(0.5*np.radians(cl_radius)),
                        min_samples=min_samples)
-    return labels + 1
+    return labels.astype(int, copy=False) + 1
 
 
 @clustering_algorithm('omp-dbscan', fallback='homochoric-dbscan')
@@ -188,7 +196,7 @@ def cluster_parallel_dbscan(qfib_r, qsym, cl_radius, min_samples):
         homochoric_coords,
         eps=np.radians(cl_radius),
         min_samples=min_samples)
-    return labels + 1
+    return labels.astype(int, copy=False) + 1
 
 
 @clustering_algorithm('homochoric-dbscan', fallback='dbscan')
@@ -201,7 +209,7 @@ def cluster_homochoric_dbscan(qfib_r, qsym, cl_radius, min_samples):
         homochoric_coords,
         eps=np.radians(cl_radius),
         min_samples=min_samples)
-    return labels + 1
+    return labels.astype(int, copy=False) + 1
 
 
 @clustering_algorithm('fclusterdata')
@@ -216,7 +224,7 @@ def cluster_fcluster(qfib_r, qsym,  cl_radius, min_samples):
         criterion='distance',
         metric=quat_distance
     )
-    return cl
+    return cl.astype(int, copy=False)
 
 
 @clustering_algorithm('dbscan', 'fclusterdata')
@@ -237,7 +245,39 @@ def cluster_dbscan(qfib_r, qsym, cl_radius, min_samples):
         min_samples=min_samples,
         metric='precomputed'
     )
-    return labels + 1
+    return labels.astype(int, copy=False) + 1
+
+
+def compute_centroids(qfib_r, cl, qsym):
+    """compute a centroid quaternion for each cluster.
+
+    qfib_r: array[4, nquat]
+        source quaternion array
+
+    cl: array[nquat]
+        cluster indices
+
+    qsym:
+
+    returns: array[4:nclusters]
+        nclusters is the number of unique cluster ids in cl,
+        ignoring id 0 if present (cluster for noise fibers).
+    """
+    clusters = np.unique(cl)
+    assert clusters[0] >= 0
+    if clusters[0] == 0:
+        # ignore the '0' cluster
+        clusters = clusters[1:]
+
+    qbar = np.zeros((4, len(clusters)))
+    # this can be made more efficient probably... but...
+    for i, cl_id in enumerate(clusters):
+        quats_in_cluster = np.ascontiguousarray(qfib_r[:, cl==cl_id])
+        npts = sum(cl == i + 1)
+
+        qbar[:, i] = rot.quatAverage(quats_in_cluster, qsym).flatten()
+
+    return qbar
 
 
 def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
@@ -266,7 +306,6 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
             "Feeding %d orientations above %.1f%% to clustering",
             qfib_r.shape[1], 100*min_compl
             )
-
         cl_dict = _clustering_algorithm_dict
         cluster_args = [qfib_r, qsym, cl_radius, min_samples]
         while algorithm is not None:
@@ -275,7 +314,10 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
                     "Clustering '{0}' not recognized".format(algorithm)
                     )
             try:
+                logger.info("Trying '%s' over %d orientations",
+                            algorithm, qfib_r.shape[1])
                 cl = cl_dict[algorithm].fn(*cluster_args)
+                algorithm_used = algorithm
                 algorithm = None
             except ClusterMethodUnavailableError as error:
                 logger.info(error.msg)
@@ -289,13 +331,19 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
 
         nblobs = len(np.unique(cl))
 
+        logger.info(
+            "clustering done in %f seconds, computing centroids",
+            time.clock() - start
+        )
+
+        np.savetxt(
+            os.path.join(cfg.working_dir, 'clusters.dat'),
+            cl,
+            fmt='%5u'
+        )
+
         # Compute the quaternion average for the different clusters
-        qbar = np.zeros((4, nblobs))
-        for i in range(nblobs):
-            npts = sum(cl == i + 1)
-            qbar[:, i] = rot.quatAverage(
-                qfib_r[:, cl == i + 1].reshape(4, npts), qsym
-                ).flatten()
+        qbar = compute_centroids(qfib_r, cl, qsym)
 
     logger.info("clustering took %f seconds", time.clock() - start)
     logger.info(
@@ -503,6 +551,7 @@ def find_orientations(cfg, hkls=None, profile=False):
     logger.info("neighborhood size estimate is %d points", (min_samples))
 
     # cluster analysis to identify orientation blobs, the final output:
+    np.savetxt(os.path.join(cfg.working_dir, 'qsym.dat'), pd.getQSym(), fmt='%.18e', delimiter='\t')
     qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, min_samples=min_samples)
     np.savetxt(
         os.path.join(cfg.working_dir, 'accepted_orientations.dat'),
