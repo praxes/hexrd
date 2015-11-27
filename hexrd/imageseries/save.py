@@ -60,6 +60,8 @@ class Writer(object):
 
 class WriteH5(Writer):
     fmt = 'hdf5'
+    dflt_gzip = 4
+    dflt_chrows = 0
 
     def __init__(self, ims, fname, **kwargs):
         """Write imageseries in HDF5 file
@@ -67,6 +69,9 @@ class WriteH5(Writer):
            Required Args:
            path - the path in HDF5 file
 
+           Options:
+           gzip - 0-9; 0 turns off compression; 4 is default
+           chunk_rows - number of rows per chunk; default is all
 """
         Writer.__init__(self, ims, fname, **kwargs)
         self._path = self._opts['path']
@@ -78,35 +83,37 @@ class WriteH5(Writer):
         """Write imageseries to HDF5 file"""
         f = h5py.File(self._fname, "a")
         g = f.create_group(self._path)
-
         s0, s1 = self._shape
-        shape = (self._nframes, s0, s1)
+        chnk = (1,) + self._shape
 
-        # for chunking...  results of experimentation
-        target_chunk_size = 50000
-        bytes_per_pixel = np.dtype(self._dtype).itemsize
-        nbytes_per_row = s1*bytes_per_pixel
-        if nbytes_per_row < target_chunk_size:
-            nrows_to_read = target_chunk_size/nbytes_per_row
-            chunks = (1, min(nrows_to_read, s0), s1)
-        else:
-            ncols_to_read = int(target_chunk_size/float(nbytes_per_row) * s0)
-            chunks = (1, 1, ncols_to_read)
-        
-        # define dataset
-        ds = g.create_dataset('images',
-                              shape,
-                              dtype=self._dtype,
-                              chunks=chunks,
-                              compression="gzip")
-
-        # write images to data_set
+        ds = g.create_dataset('images', (self._nframes, s0, s1), self._dtype,
+                              **self.h5opts)
         for i in range(self._nframes):
             ds[i, :, :] = self._ims[i]
-           
+
         # add metadata
         for k, v in self._meta.items():
             g.attrs[k] = v
+
+    @property
+    def h5opts(self):
+        d = {}
+        # compression
+        compress = self._opts.pop('gzip', self.dflt_gzip)
+        if compress > 9:
+            raise ValueError('gzip compression cannot exceed 9: %s' % compress)
+        if compress > 0:
+            d['compression'] = 'gzip'
+            d['compression_opts'] = compress
+
+        # chunk size
+        s0, s1 = self._shape
+        chrows = self._opts.pop('chunk_rows', self.dflt_chrows)
+        if chrows < 1 or chrows > s0:
+            chrows = s0
+        d['chunks'] = (1, chrows, s1)
+
+        return d
 
     pass # end class
 

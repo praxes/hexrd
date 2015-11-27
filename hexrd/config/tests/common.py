@@ -9,7 +9,7 @@ from hexrd import testing
 test_data = {
     'existing_path': os.path.abspath('..'),
     'nonexistent_path': 'an_unlikely_name_for_a_directory',
-    'existing_file': __file__,
+    'existing_file': os.path.abspath(__file__),
     'nonexistent_file': 'an_unlikely_name_for_a_file.dat',
     'file_stem': 'test_%%05d.dat',
     'tempdir': tempfile.gettempdir(),
