@@ -45,7 +45,7 @@ try:
     import sklearn
     vstring = sklearn.__version__.split('.')
     if vstring[0] == '0' and int(vstring[1]) >= 14:
-        from sklearn.cluster import dbscan
+        import sklearn
         from sklearn.metrics.pairwise import pairwise_distances
         have_sklearn = True
 except ImportError:
@@ -181,6 +181,7 @@ def cluster_quaternion_im_dbscan(qfib_r, qsym, cl_radius, min_samples):
         raise ClusterMethodUnavailableError('required module sklearn >= 0.14 not found.')
 
     quaternion_im = np.ascontiguousarray(qfib_r[1:,:].T)
+    dbscan = sklearn.cluster.dbscan
     _, labels = dbscan(quaternion_im,
                        eps=np.sin(0.5*np.radians(cl_radius)),
                        min_samples=min_samples)
@@ -205,6 +206,7 @@ def cluster_homochoric_dbscan(qfib_r, qsym, cl_radius, min_samples):
         raise ClusterMethodUnavailableError('required module sklearn >= 0.14 not found.')
 
     homochoric_coords = xfcapi.homochoricOfQuat(qfib_r)
+    dbscan = sklearn.cluster.dbscan
     _, labels = dbscan(
         homochoric_coords,
         eps=np.radians(cl_radius),
@@ -227,6 +229,20 @@ def cluster_fcluster(qfib_r, qsym,  cl_radius, min_samples):
     return cl.astype(int, copy=False)
 
 
+@clustering_algorithm('qim-fclusterdata', 'fclusterdata')
+def cluster_qim_fclusterdata(qfib_r, qym, cl_radius, min_samples):
+    if not have_sklearn:
+        raise ClusterMethodUnavailableError('required module sklearn >= 0.14 not found.')
+
+    quaternion_im = np.ascontiguousarray(qfib_r[1:,:].T)
+    dbscan = sklearn.cluster.dbscan
+    labels = cluster.hierarchy.fclusterdata(
+        quaternion_im,
+        np.sin(0.5*np.radians(cl_radius)),
+        criterion='distance')
+    return labels.astype(int, copy=False) + 1
+
+
 @clustering_algorithm('dbscan', 'fclusterdata')
 def cluster_dbscan(qfib_r, qsym, cl_radius, min_samples):
     if not have_sklearn:
@@ -239,6 +255,9 @@ def cluster_dbscan(qfib_r, qsym, cl_radius, min_samples):
     pdist = pairwise_distances(
         qfib_r.T, metric=quat_distance, n_jobs=1
     )
+
+    dbscan = sklearn.cluster.dbscan
+
     _, labels = dbscan(
         pdist,
         eps=np.radians(cl_radius),
