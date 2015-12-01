@@ -1,10 +1,9 @@
 #
-# This script runs alternative cellConnectivity implementations against
-# the one in the hexrd. package. The results are compared against the
-# original using np.allclose() to ensure correctness. Timing
-# information is also gathered used the numbapro.nvtx explicit
-# instrumentation profiler (which happens to be integrated with the
-# nvidia nvvp timeline profiler application).
+# This script runs alternative cellConnectivity implementations against the one
+# in the hexrd. package. The results are compared against the original using
+# np.allclose() to ensure correctness. Timing information is also gathered used
+# the nvtxpy explicit instrumentation profiler (which happens to be integrated
+# with the nvidia nvvp timeline profiler application).
 #
 # In order to run this script, a data file with the arguments for the
 # cellConnectivity function must be passed in (defaults to DEFAULT_ARG_FILE
@@ -26,7 +25,7 @@ import cPickle as pickle
 from scipy import optimize as opt
 import numpy as np
 import numba
-from numbapro import nvtx
+import nvtxpy as nvtx
 # import the reference implementation
 from hexrd.gridutil import cellConnectivity
 
