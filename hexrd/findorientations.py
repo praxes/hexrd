@@ -29,8 +29,6 @@ from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.coreutil import initialize_experiment
 
 from hexrd.xrd import xrdutil
-from hexrd.xrd.detector import ReadGE
-from hexrd.xrd.xrdutil import simulateGVecs
 
 from hexrd.xrd import distortion as dFuncs
 
@@ -53,7 +51,7 @@ except ImportError:
 
 have_parallel_dbscan = False
 try:
-    from parallel_dbscan import omp_dbscan
+    import parallel_dbscan
     have_parallel_dbscan = True
 except ImportError:
     pass
@@ -193,7 +191,7 @@ def cluster_parallel_dbscan(qfib_r, qsym, cl_radius, min_samples):
     if not have_parallel_dbscan:
         raise ClusterMethodUnavailableError('required module parallel_dbscan not found.')
     homochoric_coords = xfcapi.homochoricOfQuat(qfib_r)
-    labels = omp_dbscan(
+    labels = parallel_dbscan.omp_dbscan(
         homochoric_coords,
         eps=np.radians(cl_radius),
         min_samples=min_samples)
@@ -437,8 +435,6 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
     return eta_ome
 
 
-
-
 def find_orientations(cfg, hkls=None, profile=False):
     """
     Takes a config dict as input, generally a yml document
@@ -548,16 +544,17 @@ def find_orientations(cfg, hkls=None, profile=False):
                                       xf.zeroVec.flatten(),
                                       xf.vInv_ref.flatten()
                                       ])
-            sim_results = simulateGVecs(pd,
-                                        detector_params,
-                                        grain_params,
-                                        ome_range=(ome_range,),
-                                        ome_period=(ome_range[0], ome_range[0]+2*np.pi),
-                                        eta_range=np.radians(cfg.find_orientations.eta.range),
-                                        panel_dims=panel_dims,
-                                        pixel_pitch=cfg.instrument.detector.pixels.size,
-                                        distortion=distortion,
-                                        )
+            sim_results = xrdutil.simulateGVecs(
+                pd,
+                detector_params,
+                grain_params,
+                ome_range=(ome_range,),
+                ome_period=(ome_range[0], ome_range[0]+2*np.pi),
+                eta_range=np.radians(cfg.find_orientations.eta.range),
+                panel_dims=panel_dims,
+                pixel_pitch=cfg.instrument.detector.pixels.size,
+                distortion=distortion,
+            )
             num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
             pass
         min_samples = int(max(
@@ -570,8 +567,8 @@ def find_orientations(cfg, hkls=None, profile=False):
     logger.info("neighborhood size estimate is %d points", (min_samples))
 
     # cluster analysis to identify orientation blobs, the final output:
-    np.savetxt(os.path.join(cfg.working_dir, 'qsym.dat'), pd.getQSym(), fmt='%.18e', delimiter='\t')
     qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, min_samples=min_samples)
+
     np.savetxt(
         os.path.join(cfg.working_dir, 'accepted_orientations.dat'),
         qbar.T,
