@@ -1,14 +1,13 @@
 package:
   name: hexrd
-  # requires ".dev" tags following official releases, for now:
-  version: {{ environ.get('GIT_DESCRIBE_TAG', '')[1:] }}
+  version: master
 
 source:
-  git_url: ../
-  git_tag: master # edit to point to specific branch or tag
+  git_url: ../ # if you want to build a particular git commit
+  #path: ../ # if you want to build your working directory
+  git_rev: master # edit to point to specific branch or tag
 
 build:
-  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
   detect_binary_files_with_prefix: true
   osx_is_app: yes
   entry_points:
