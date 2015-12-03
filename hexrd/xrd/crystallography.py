@@ -28,15 +28,15 @@
 import re
 import copy
 from math import pi
-import warnings
 
 import numpy as num
-from scipy import constants as C
-from scipy.linalg import inv
+import csv
+import os
 
-from hexrd.matrixutil import sort, num, array, unique, sqrt, math, unitVector,\
-     ndarray, columnNorm, sum
-from hexrd.xrd.rotations import angleAxisOfRotMat, rotMatOfExpMap, arccosSafe, mapAngle
+from scipy import constants as C
+
+from hexrd.matrixutil import sqrt, unitVector, columnNorm, sum
+from hexrd.xrd.rotations import rotMatOfExpMap, mapAngle
 from hexrd.xrd import symmetry
 from hexrd import valunits
 from hexrd.valunits import toFloat
@@ -63,6 +63,7 @@ def revertOutputDegrees():
     global outputDegrees, outputDegrees_bak
     outputDegrees = outputDegrees_bak
     return
+
 
 def cosineXform(a, b, c):
     """
@@ -549,6 +550,7 @@ class PlaneData(object):
         self.__qsym = symmetry.quatOfLaueGroup(self.__laueGroup)
         self.__hkls = copy.deepcopy(hkls)
         self.__strainMag = strainMag
+        self.__structFact = num.ones(self.__hkls.shape[1])
         self.tThWidth = tThWidth
 
         # ... need to implement tThMin too
@@ -702,6 +704,14 @@ class PlaneData(object):
         self.__calc()
         return
     wavelength = property(get_wavelength, set_wavelength, None)
+    
+    
+    def get_structFact(self):
+        return self.__structFact
+    def set_structFact(self, structFact):
+        print("Setting of structure factor is disabled, use calcStructFact")
+        return
+    structFact = property(get_wavelength, set_wavelength, None)
 
     @staticmethod
     def makePlaneData(hkls, lparms, qsym, symmGroup, strainMag, wavelength): # spots
@@ -1104,6 +1114,55 @@ class PlaneData(object):
             Qs_ang1.append( thisAng1 )
 
         return Qs_vec, Qs_ang0, Qs_ang1
+        
+        
+        
+    def calcStructFactor(self,atominfo):
+        """ Calculates unit cell structure factors as a function of hkl
+    
+        USAGE:
+    
+        FSquared = calcStructFactor(atominfo,hkls,B)
+    
+        INPUTS:
+    
+        1) atominfo (m x 1 float ndarray) the first threee columns of the matrix contain
+        fractional atom positions [uvw] of atoms in the unit cell. The last column
+        contains the number of electrons for a given atom.
+        
+        2) hkls (3 x n float ndarray) is the array of Miller indices for
+        the planes of interest.  The vectors are assumed to be
+        concatenated along the 1-axis (horizontal).
+    
+        3) B (3 x 3 float ndarray) is a matrix of reciprocal lattice basis vectors,
+        where each column contains a reciprocal lattice basis vector ({g}=[B]*{hkl})
+        
+        
+        OUTPUTS:
+        
+        1) FSquared (n x 1 float ndarray) array of structure factors, one for each
+        hkl passed into the function"""       
+        r=atominfo[:,0:3]
+        elecNum=atominfo[:,3]
+        hkls=self.hkls
+        B=self.latVecOps['B']
+        sinThOverLamdaList,ffDataList=LoadFormFactorData()
+        FSquared=num.zeros(hkls.shape[1])
+    
+        for jj in num.arange(0,hkls.shape[1]):
+            G=hkls[0,jj]*B[:,0]+hkls[1,jj]*B[:,1]+hkls[2,jj]*B[:,2]#Calculate G for each hkl       
+            magG=num.sqrt(G[0]**2+G[1]**2+G[2]**2)#Calculate magnitude of G for each hkl
+            F=0
+            for ii in num.arange(0,r.shape[0]): #Begin calculating form factor
+                ff=RetrieveAtomicFormFactor(elecNum[ii],magG,sinThOverLamdaList,ffDataList) 
+                F=F+ff*num.exp(complex(0,2*num.pi*(hkls[0,jj]*r[ii,0]+hkls[1,jj]*r[ii,1]+hkls[2,jj]*r[ii,2])))
+                             
+            """
+            F=sum_atoms(ff(Q)*e^(2*pi*i(hu+kv+lw)))
+            """
+            FSquared[jj]=num.real(F*num.conj(F))
+    
+        return FSquared 
 
 def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     """
@@ -1353,3 +1412,90 @@ def getDparms(lp, lpTag, radians=True):
     """
     latVecOps = latticeVectors(lp, tag=lpTag, radians=radians)
     return latVecOps['dparms']
+    
+
+
+def LoadFormFactorData():
+    """Script to read in a csv file containing information relating the magnitude
+    of Q (sin(th)/lambda) to atomic form factor  
+    
+    
+    Notes:    
+    Atomic form factor data gathered from the International Tables of 
+    Crystallography:
+    
+     P. J. Brown, A. G. Fox,  E. N. Maslen, M. A. O'Keefec and B. T. M. Willis,
+    "Chapter 6.1. Intensity of diffracted intensities", International Tables  
+     for Crystallography (2006). Vol. C, ch. 6.1, pp. 554-595
+    """    
+   
+    
+    dir1=os.path.split(valunits.__file__)
+    dataloc=os.path.join(dir1[0],'data','FormFactorVsQ.csv') 
+    
+    data=num.zeros((62,99),float)
+    
+    jj=0
+    with open(dataloc, 'rU') as csvfile: #FIX THIS
+        datareader=csv.reader(csvfile, dialect=csv.excel)
+        for row in datareader:
+                ii=0            
+                for val in row:                
+                    data[jj,ii]=float(val)
+                    ii+=1
+                jj+=1
+    
+    sinThOverLamdaList=data[:,0]
+    ffDataList=data[:,1:]
+    
+    return sinThOverLamdaList,ffDataList
+
+
+
+def RetrieveAtomicFormFactor(elecNum,magG,sinThOverLamdaList,ffDataList):
+    """ Interpolates between tabulated data to find the atomic form factor
+    for an atom with elecNum electrons for a given magnitude of Q
+
+    USAGE:
+
+    ff = RetrieveAtomicFormFactor(elecNum,magG,sinThOverLamdaList,ffDataList)
+
+    INPUTS:
+
+    1) elecNum, (1 x 1 float) number of electrons for atom of interest
+    
+    2) magG (1 x 1 float) magnitude of G
+
+    3) sinThOverLamdaList (n x 1 float ndarray) form factor data is tabulated in terms of 
+    sin(theta)/lambda (A^-1).
+    
+    3) ffDataList (n x m float ndarray) form factor data is tabulated in terms of 
+    sin(theta)/lambda (A^-1). Each column corresponds to a different number of electrons   
+    
+    OUTPUTS:
+    
+    1) ff (n x 1 float) atomic form factor for atom and hkl of interest
+    
+    NOTES:
+    Data should be calculated in terms of G at some point
+
+    """
+
+    
+    sinThOverLambda=0.5*magG
+    #lambda=2*d*sin(th)
+    #lambda=2*sin(th)/G
+    #1/2*G=sin(th)/lambda
+        
+    ff=num.interp(sinThOverLambda,sinThOverLamdaList,ffDataList[:,(elecNum-1)])
+
+    return ff
+
+
+
+
+      
+    
+
+  
+    

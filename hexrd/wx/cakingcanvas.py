@@ -635,8 +635,8 @@ class sphOpts(wx.Panel):
         # hkldata = ome_eta.getData(self.idata)
         hkldata = ome_eta.dataStore[self.idata]
 
-        omes = ome_eta.omeEdges * 180. / numpy.pi
-        etas = ome_eta.etaEdges * 180. / numpy.pi
+        omes = numpy.degrees(ome_eta.omeEdges)
+        etas = numpy.degrees(ome_eta.etaEdges)
 
         if self.dispm == self.DISP_RAW:
 

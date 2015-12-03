@@ -36,6 +36,7 @@ from hexrd.fitgrains import get_instrument_parameters
 
 logger = logging.getLogger(__name__)
 
+save_as_ascii = False           # FIX LATER...
 
 # TODO: just require scikit-learn?
 have_sklearn = False
@@ -117,9 +118,15 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
                 eta_c = eta_ome.etaEdges[0] \
                         + (0.5 + coms[i][ispot][1])*del_eta
 
-                gVec_s = xrdutil.makeMeasuredScatteringVectors(
-                    tTh[pd_hkl_ids[i]], eta_c, ome_c
-                    )
+                #gVec_s = xrdutil.makeMeasuredScatteringVectors(
+                #    tTh[pd_hkl_ids[i]], eta_c, ome_c
+                #    )
+                gVec_s = xfcapi.anglesToGVec(
+                    np.atleast_2d(
+                        [tTh[pd_hkl_ids[i]], eta_c, ome_c]
+                        )
+                    ).T
+
                 tmp = mutil.uniqueVectors(
                     rot.discreteFiber(
                         pd.hkls[:, pd_hkl_ids[i]].reshape(3, 1),
@@ -297,12 +304,21 @@ def compute_centroids(qfib_r, cl, qsym):
     return qbar
 
 
-def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
+def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, radius=None):
     """
     """
+    algorithm = cfg.find_orientations.clustering.algorithm
+
     cl_radius = cfg.find_orientations.clustering.radius
     min_compl = cfg.find_orientations.clustering.completeness
-    algorithm = cfg.find_orientations.clustering.algorithm
+
+    # check for override on completeness threshold
+    if compl_thresh is not None:
+        min_compl = compl_thresh
+
+    # check for override on radius
+    if radius is not None:
+        cl_radius = radius
 
     start = time.clock() # time this
 
@@ -319,10 +335,12 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
         # just to be safe, must order qsym as C-contiguous
 
         qfib_r = np.ascontiguousarray(qfib[:, np.array(compl) > min_compl])
+
         logger.info(
             "Feeding %d orientations above %.1f%% to clustering",
             qfib_r.shape[1], 100*min_compl
             )
+
         cl_dict = _clustering_algorithm_dict
         cluster_args = [qfib_r, qsym, cl_radius, min_samples]
         while algorithm is not None:
@@ -374,24 +392,29 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None):
     return np.atleast_2d(qbar), cl
 
 
-def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
+def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None, clean=False):
     fn = os.path.join(
         cfg.working_dir,
         cfg.find_orientations.orientation_maps.file
         )
-    try:
-        res = cPickle.load(open(fn, 'r'))
-        pd = res.planeData
-        available_hkls = pd.hkls.T
-        logger.info('loaded eta/ome orientation maps from %s', fn)
-        hkls = [str(i) for i in available_hkls[res.iHKLList]]
-        logger.info(
-            'hkls used to generate orientation maps: %s', hkls)
-        return res
-    except (AttributeError, IOError):
+    
+    if not clean:
+        try:
+            res = cPickle.load(open(fn, 'r'))
+            pd = res.planeData
+            available_hkls = pd.hkls.T
+            logger.info('loaded eta/ome orientation maps from %s', fn)
+            hkls = [str(i) for i in available_hkls[res.iHKLList]]
+            logger.info(
+                'hkls used to generate orientation maps: %s', hkls)
+            return res
+        except (AttributeError, IOError):
+            return generate_eta_ome_maps(cfg, pd, reader, detector, hkls)
+    else:
+        logger.info('clean option specified; recomputing eta/ome orientation maps')
         return generate_eta_ome_maps(cfg, pd, reader, detector, hkls)
 
-
+    
 def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
 
     available_hkls = pd.hkls.T
@@ -435,7 +458,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
     return eta_ome
 
 
-def find_orientations(cfg, hkls=None, profile=False):
+def find_orientations(cfg, hkls=None, clean=False, profile=False):
     """
     Takes a config dict as input, generally a yml document
 
@@ -470,7 +493,7 @@ def find_orientations(cfg, hkls=None, profile=False):
     logger.info("beginning analysis '%s'", cfg.analysis_name)
 
     # load the eta_ome orientation maps
-    eta_ome = load_eta_ome_maps(cfg, pd, reader, detector, hkls)
+    eta_ome = load_eta_ome_maps(cfg, pd, reader, detector, hkls=hkls, clean=clean)
 
     ome_range = (np.min(eta_ome.omeEdges),
                  np.max(eta_ome.omeEdges)
@@ -500,12 +523,13 @@ def find_orientations(cfg, hkls=None, profile=False):
             cfg.find_orientations.seed_search.hkl_seeds,
             cfg.find_orientations.seed_search.fiber_ndiv
             )
-        np.savetxt(
-            os.path.join(cfg.working_dir, 'trial_orientations.dat'),
-            quats.T,
-            fmt="%.18e",
-            delimiter="\t"
-            )
+        if save_as_ascii:
+            np.savetxt(
+                os.path.join(cfg.working_dir, 'trial_orientations.dat'),
+                quats.T,
+                fmt="%.18e",
+                delimiter="\t"
+                )
 
     # generate the completion maps
     logger.info("Running paintgrid on %d trial orientations", (quats.shape[1]))
@@ -528,43 +552,56 @@ def find_orientations(cfg, hkls=None, profile=False):
         doMultiProc=ncpus > 1,
         nCPUs=ncpus
         )
-    np.savetxt(os.path.join(cfg.working_dir, 'completeness.dat'), compl)
+
+    if save_as_ascii:
+        np.savetxt(os.path.join(cfg.working_dir, 'completeness.dat'), compl)
+    else:
+        np.save(os.path.join(cfg.working_dir, 'scored_orientations.npy'),
+                np.vstack([quats, compl])
+                )
 
     ##########################################################
     ##   Simulate N random grains to get neighborhood size  ##
     ##########################################################
     if hkl_ids is not None:
-        ngrains = 10
+        ngrains = 100
         rand_q = mutil.unitVector(np.random.randn(4, ngrains))
         rand_e = np.tile(2.*np.arccos(rand_q[0, :]), (3, 1)) \
           * mutil.unitVector(rand_q[1:, :])
+        refl_per_grain = np.zeros(ngrains)
         num_seed_refls = np.zeros(ngrains)
         for i in range(ngrains):
             grain_params = np.hstack([rand_e[:, i],
                                       xf.zeroVec.flatten(),
                                       xf.vInv_ref.flatten()
                                       ])
-            sim_results = xrdutil.simulateGVecs(
-                pd,
-                detector_params,
-                grain_params,
-                ome_range=(ome_range,),
-                ome_period=(ome_range[0], ome_range[0]+2*np.pi),
-                eta_range=np.radians(cfg.find_orientations.eta.range),
-                panel_dims=panel_dims,
-                pixel_pitch=cfg.instrument.detector.pixels.size,
-                distortion=distortion,
-            )
+
+            eta_range = np.radians(cfg.find_orientations.eta.range)
+            pixel_pitch = cfg.instrument.detector.pixels.size
+            sim_results = xrdutil.simulateGVecs(pd,
+                                                detector_params,
+                                                grain_params,
+                                                ome_range=(ome_range,),
+                                                ome_period=(ome_range[0],
+                                                            ome_range[0]+2*np.pi),
+                                                eta_range=eta_range,
+                                                panel_dims=panel_dims,
+                                                pixel_pitch=pixel_pitch,
+                                                distortion=distortion,
+                                                )
+            refl_per_grain[i] = len(sim_results[0])
             num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
             pass
-        min_samples = int(max(
-            cfg.find_orientations.clustering.completeness*np.floor(np.average(num_seed_refls)),
-            4
-            ))
+        
+        cfg_completeness = cfg.find_orientations.clustering.completeness
+        min_samples = max(cfg_completeness*np.floor(np.average(num_seed_refls)), 2)
+        mean_rpg = int(np.round(np.average(refl_per_grain)))
     else:
         min_samples = 1
+        mean_rpg = 1
 
-    logger.info("neighborhood size estimate is %d points", (min_samples))
+    logger.info("mean number of reflections per grain is %d", mean_rpg)
+    logger.info("neighborhood size estimate is %d points", min_samples)
 
     # cluster analysis to identify orientation blobs, the final output:
     qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, min_samples=min_samples)
@@ -575,3 +612,4 @@ def find_orientations(cfg, hkls=None, profile=False):
         fmt="%.18e",
         delimiter="\t"
         )
+    return
