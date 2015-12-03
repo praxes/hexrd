@@ -320,7 +320,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
     if radius is not None:
         cl_radius = radius
 
-    start = time.clock() # time this
+    t0 = time.clock() # time this
 
     num_above = sum(np.array(compl) > min_compl)
     if num_above == 0:
@@ -366,21 +366,14 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
 
         nblobs = len(np.unique(cl))
 
-        logger.info(
-            "clustering done in %f seconds, computing centroids",
-            time.clock() - start
-        )
-
-        np.savetxt(
-            os.path.join(cfg.working_dir, 'clusters.dat'),
-            cl,
-            fmt='%5u'
-        )
+        t1 = time.clock()
+        logger.info("clustering took %f seconds, computing centroids", t1 - t0)
 
         # Compute the quaternion average for the different clusters
         qbar = compute_centroids(qfib_r, cl, qsym)
+        logger.info("computing centroids took %f seconds.", time.clock() - t1)
 
-    logger.info("clustering took %f seconds", time.clock() - start)
+    logger.info("clustering took %f seconds", time.clock() - t0)
     logger.info(
         "Found %d orientation clusters with >=%.1f%% completeness"
         " and %2f misorientation",
