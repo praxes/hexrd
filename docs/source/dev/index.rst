@@ -9,3 +9,4 @@ Contents:
 
    getting_started
    releases
+   imageseries
