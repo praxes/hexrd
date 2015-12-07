@@ -193,6 +193,19 @@ def cluster_quaternion_im_dbscan(qfib_r, qsym, cl_radius, min_samples):
     return labels.astype(int, copy=False) + 1
 
 
+@clustering_algorithm('omp-qim-dbscan')
+def cluster_parallel_quaternion_im_dbscan(qfib_r, qsym, cl_radius, min_samples):
+    if not have_parallel_dbscan:
+        raise ClusterMethodUnavailableError('required module parallel_dbscan not found.')
+
+    quaternion_im = np.ascontiguousarray(qfib_r[1:,:].T)
+    labels = parallel_dbscan.omp_dbscan(
+        quaternion_im,
+        eps=np.sin(0.5*np.radians(cl_radius)),
+        min_samples=min_samples)
+    return labels.astype(int, copy=False) + 1
+
+
 @clustering_algorithm('omp-dbscan', fallback='homochoric-dbscan')
 def cluster_parallel_dbscan(qfib_r, qsym, cl_radius, min_samples):
     if not have_parallel_dbscan:
@@ -390,7 +403,7 @@ def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None, clean=False):
         cfg.working_dir,
         cfg.find_orientations.orientation_maps.file
         )
-    
+
     if not clean:
         try:
             res = cPickle.load(open(fn, 'r'))
@@ -407,7 +420,7 @@ def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None, clean=False):
         logger.info('clean option specified; recomputing eta/ome orientation maps')
         return generate_eta_ome_maps(cfg, pd, reader, detector, hkls)
 
-    
+
 def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
 
     available_hkls = pd.hkls.T
@@ -585,7 +598,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
             refl_per_grain[i] = len(sim_results[0])
             num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
             pass
-        
+
         cfg_completeness = cfg.find_orientations.clustering.completeness
         min_samples = int(max(cfg_completeness*np.floor(np.average(num_seed_refls)), 2))
         mean_rpg = int(np.round(np.average(refl_per_grain)))
