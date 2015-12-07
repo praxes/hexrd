@@ -587,7 +587,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
             pass
         
         cfg_completeness = cfg.find_orientations.clustering.completeness
-        min_samples = max(cfg_completeness*np.floor(np.average(num_seed_refls)), 2)
+        min_samples = int(max(cfg_completeness*np.floor(np.average(num_seed_refls)), 2))
         mean_rpg = int(np.round(np.average(refl_per_grain)))
     else:
         min_samples = 1
