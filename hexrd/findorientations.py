@@ -50,7 +50,7 @@ except ImportError:
     pass
 
 
-def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
+def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndiv):
     """
     From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
@@ -117,7 +117,8 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
                 gVec_s = xfcapi.anglesToGVec(
                     np.atleast_2d(
                         [tTh[pd_hkl_ids[i]], eta_c, ome_c]
-                        )
+                        ),
+                    chi=chi
                     ).T
 
                 tmp = mutil.uniqueVectors(
@@ -369,6 +370,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
             )
         quats = generate_orientation_fibers(
             eta_ome,
+            detector_params[6],
             cfg.find_orientations.threshold,
             cfg.find_orientations.seed_search.hkl_seeds,
             cfg.find_orientations.seed_search.fiber_ndiv
