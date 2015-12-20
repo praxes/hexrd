@@ -50,7 +50,7 @@ except ImportError:
     pass
 
 
-def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndiv):
+def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndiv, filt_stdev=0.8):
     """
     From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
@@ -81,13 +81,16 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
     numSpots = []
     coms     = []
     for i in seed_hkl_ids:
+        # First apply filter
+        this_map_f = ndimage.filters.gaussian_laplace(eta_ome.dataStore[i], filt_stdev)
+        
         labels_t, numSpots_t = ndimage.label(
-            eta_ome.dataStore[i] > threshold,
+            this_map_f > threshold,
             structureNDI_label
             )
         coms_t = np.atleast_2d(
             ndimage.center_of_mass(
-                eta_ome.dataStore[i],
+                this_map_f,
                 labels=labels_t,
                 index=np.arange(1, np.amax(labels_t)+1)
                 )
