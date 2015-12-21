@@ -83,7 +83,7 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
     for i in seed_hkl_ids:
         # First apply filter
         this_map_f = ndimage.filters.gaussian_laplace(eta_ome.dataStore[i], filt_stdev)
-        
+
         labels_t, numSpots_t = ndimage.label(
             this_map_f > threshold,
             structureNDI_label
@@ -180,8 +180,11 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
         qfib_r = qfib[:, np.array(compl) > min_compl]
 
         if qfib_r.shape[1] > 10000:
-            raise RuntimeError, \
-                "Requested clustering of %d orientations, which would be too slow!" %qfib_r.shape[1]
+            if algorithm == 'dbscan' or algorithm == 'fclusterdata':
+                logger.info("defaulting to orthographic DBSCAN")
+                algorithm = 'ort-dbscan'
+            #raise RuntimeError, \
+            #    "Requested clustering of %d orientations, which would be too slow!" %qfib_r.shape[1]
 
         logger.info(
             "Feeding %d orientations above %.1f%% to clustering",
@@ -197,15 +200,37 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             if min_samples is None or cfg.find_orientations.use_quaternion_grid is None:
                 min_samples = 1
             # compute distance matrix
-            pdist = pairwise_distances(
-                qfib_r.T, metric=quat_distance, n_jobs=cfg.multiprocessing
-                )
+            #pdist = pairwise_distances(
+            #    qfib_r.T, metric=quat_distance, n_jobs=1
+            #    )
+            # run dbscan
+            #core_samples, labels = dbscan(
+            #    pdist,
+            #    eps=np.radians(cl_radius),
+            #    min_samples=min_samples,
+            #    metric='precomputed'
+            #    )
+            core_samples, labels = dbscan(
+               qfib_r.T,
+               eps=np.radians(cl_radius),
+               min_samples=min_samples,
+               metric=quat_distance
+               )
+
+            cl = np.array(labels, dtype=int) # convert to array
+            noise_points = cl == -1 # index for marking noise
+            cl += 1 # move index to 1-based instead of 0
+            cl[noise_points] = -1 # re-mark noise as -1
+            logger.info("dbscan found %d noise points", sum(noise_points))
+        elif algorithm == 'ort-dbscan':
+            if min_samples is None or cfg.find_orientations.use_quaternion_grid is None:
+                min_samples = 1
             # run dbscan
             core_samples, labels = dbscan(
-                pdist,
-                eps=np.radians(cl_radius),
+                qfib_r[1:, :].T,
+                eps=np.sin(0.5*np.radians(cl_radius)),
                 min_samples=min_samples,
-                metric='precomputed'
+                metric='l2'
                 )
             cl = np.array(labels, dtype=int) # convert to array
             noise_points = cl == -1 # index for marking noise
@@ -230,7 +255,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
         for i in range(nblobs):
             npts = sum(cl == i + 1) # cluster lables should be 1-based
             # compute quaternion average
-            qbar[:, i] = rot.quatAverage(
+            qbar[:, i] = rot.quatAverageCluster(
                 qfib_r[:, cl == i + 1].reshape(4, npts), qsym
                 ).flatten()
             pass
@@ -252,7 +277,7 @@ def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None, clean=False):
         cfg.working_dir,
         cfg.find_orientations.orientation_maps.file
         )
-    
+
     if not clean:
         try:
             res = cPickle.load(open(fn, 'r'))
