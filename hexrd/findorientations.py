@@ -176,7 +176,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
 
         qfib_r = qfib[:, np.array(compl) > min_compl]
 
-        if qfib_r.shape[1] > 10000:
+        if qfib_r.shape[1] > 30000:
             raise RuntimeError, \
                 "Requested clustering of %d orientations, which would be too slow!" %qfib_r.shape[1]
 
