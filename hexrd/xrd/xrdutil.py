@@ -53,7 +53,7 @@ from hexrd import USE_NUMBA
 import hexrd.orientations as ors
 
 from hexrd.xrd import crystallography
-from hexrd.xrd.crystallography import latticeParameters, latticeVectors
+from hexrd.xrd.crystallography import latticeParameters, latticeVectors, processWavelength
 
 from hexrd.xrd import detector
 from hexrd.xrd.detector import Framer2DRC, getCMap
@@ -3490,6 +3490,120 @@ def simulateGVecs(pd, detector_params, grain_params,
                                      tVec_d, tVec_s, tVec_c,
                                      distortion=distortion)
     return valid_ids, valid_hkl, valid_ang, valid_xy, ang_ps
+
+
+
+def simulateLauePattern(hkls, bMat,
+                        rmat_d, tvec_d, 
+                        panel_dims, panel_buffer=5, 
+                        minEnergy=8, maxEnergy=24,
+                        rmat_s=num.eye(3),
+                        grain_params=None, 
+                        distortion=None):
+
+    # parse energy ranges
+    multipleEnergyRanges = False
+    if hasattr(maxEnergy, '__len__'):
+        assert len(maxEnergy) == len(minEnergy), 'energy cutoff ranges must have the same length'
+        multipleEnergyRanges = True; lmin = []; lmax = []
+        for i in range(len(maxEnergy)):
+            lmin.append(processWavelength(maxEnergy[i]))
+            lmax.append(processWavelength(minEnergy[i]))
+    else:
+        lmin = processWavelength(maxEnergy)
+        lmax = processWavelength(minEnergy)
+
+    # process crystal rmats and inverse stretches
+    if grain_params is None:
+        grain_params = num.atleast_2d([0., 0., 0., 0., 0., 0., 1., 1., 1., 0., 0., 0.])
+    n_grains = len(grain_params)
+    
+    # dummy translation vector... make input
+    tvec_s = num.zeros((3, 1))
+
+    # number of hkls
+    nhkls_tot = hkls.shape[1]
+
+    # unit G-vectors in crystal frame
+    ghat_c = mutil.unitVector(num.dot(bMat, hkls))
+    
+    # pre-allocate output arrays
+    xy_det = num.nan*num.ones((n_grains, nhkls_tot, 2))
+    hkls_in = num.nan*num.ones((n_grains, 3, nhkls_tot))
+    angles = num.nan*num.ones((n_grains, nhkls_tot, 2))
+    dspacing = num.nan*num.ones((n_grains, nhkls_tot))
+    energy = num.nan*num.ones((n_grains, nhkls_tot))
+    
+    """
+    LOOP OVER GRAINS
+    """
+    for iG, gp in enumerate(grain_params):
+        rmat_c = xfcapi.makeRotMatOfExpMap(gp[:3])
+        tvec_c = gp[3:6].reshape(3, 1)
+        vInv_s = mutil.vecMVToSymm(gp[6:].reshape(6, 1))
+
+        # stretch them: V^(-1) * R * Gc
+        ghat_s_str = mutil.unitVector(
+            num.dot( vInv_s, num.dot( rmat_c, ghat_c ) ) )
+        ghat_c_str = num.dot(rmat_c.T, ghat_s_str)
+        ghat_l_str = num.dot(rmat_s, ghat_s_str)
+        dpts = xfcapi.gvecToDetectorXY(ghat_c_str.T,
+                                       rmat_d, rmat_s, rmat_c,
+                                       tvec_d, tvec_s, tvec_c).T
+
+        # check intersections with detector plane
+        canIntersect = ~num.isnan(dpts[0, :])
+        npts_in = sum(canIntersect)
+        if num.any(canIntersect):
+            dpts = dpts[:, canIntersect].reshape(2, npts_in)
+            dhkl = hkls[:, canIntersect].reshape(3, npts_in)
+
+            # back to angles
+            tth_eta, gvec_l = xfcapi.detectorXYToGvec(dpts.T,
+                                                      rmat_d, rmat_s,
+                                                      tvec_d, tvec_s, tvec_c
+                                                      )
+            tth_eta = num.vstack(tth_eta).T
+            
+            # warp measured points
+            if distortion is not None:
+                if len(distortion) == 2:
+                    dpts = distortion[0](dpts, distortion[1], invert=True)
+            
+            # plane spacings and energies
+            dsp = 1. / mutil.columnNorm(num.dot(bMat, dhkl))
+            wlen  = 2*dsp*num.sin(0.5*tth_eta[:, 0])
+
+            # find on spatial extent of detector
+            xTest = num.logical_and(dpts[0, :] >= -0.5*panel_dims[1] + panel_buffer, 
+                                    dpts[0, :] <=  0.5*panel_dims[1] - panel_buffer)
+            yTest = num.logical_and(dpts[1, :] >= -0.5*panel_dims[0] + panel_buffer, 
+                                    dpts[1, :] <=  0.5*panel_dims[0] - panel_buffer)
+
+            onDetector  = num.logical_and(xTest, yTest)
+            if multipleEnergyRanges:
+                validEnergy = num.zeros(len(wlen), dtype=bool)
+                for i in range(len(lmin)):
+                    validEnergy = validEnergy | num.logical_and(wlen >= lmin[i], wlen <= lmax[i])
+                    pass
+            else:
+                validEnergy = num.logical_and(wlen >= lmin, wlen <= lmax)
+                pass
+
+            # index for valid reflections
+            keepers = num.logical_and(onDetector, validEnergy)
+
+            # assign output arrays
+            xy_det[iG][keepers, :] = dpts[:, keepers].T
+            hkls_in[iG][:, keepers] = dhkl[:, keepers]
+            angles[iG][keepers, :] = tth_eta[keepers, :]
+            dspacing[iG, keepers] = dsp[keepers]
+            energy[iG, keepers] = processWavelength(wlen[keepers])
+            pass
+        pass
+    return xy_det, hkls_in, angles, dspacing, energy
+
+
 
 if USE_NUMBA:
     @numba.njit
