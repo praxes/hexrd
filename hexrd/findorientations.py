@@ -4,29 +4,23 @@ import cPickle
 import logging
 import multiprocessing as mp
 import os
-import shelve
-import sys
 import time
 
 import numpy as np
 #np.seterr(over='ignore', invalid='ignore')
 
 import scipy.cluster as cluster
-import scipy.optimize as opt
 from scipy import ndimage
 
-import yaml
-
 from hexrd import matrixutil as mutil
-from hexrd.xrd import experiment as expt
 from hexrd.xrd import indexer as idx
 from hexrd.xrd import rotations as rot
+from hexrd.xrd import symmetry as sym
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.coreutil import initialize_experiment
 
 from hexrd.xrd import xrdutil
-from hexrd.xrd.detector import ReadGE
 from hexrd.xrd.xrdutil import simulateGVecs
 
 from hexrd.xrd import distortion as dFuncs
@@ -35,9 +29,9 @@ from hexrd.fitgrains import get_instrument_parameters
 
 logger = logging.getLogger(__name__)
 
-save_as_ascii = False           # FIX LATER...
+save_as_ascii = False # FIX LATER...
 
-# TODO: just require scikit-learn?
+# just require scikit-learn?
 have_sklearn = False
 try:
     import sklearn
@@ -63,14 +57,13 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
     del_eta = eta_ome.etas[1] - eta_ome.etas[0]
 
     # labeling mask
-    structureNDI_label = ndimage.generate_binary_structure(2, 2)
+    structureNDI_label = ndimage.generate_binary_structure(2, 1)
 
     # crystallography data from the pd object
     pd = eta_ome.planeData
     tTh  = pd.getTTh()
     bMat = pd.latVecOps['B']
     csym = pd.getLaueGroup()
-    qsym = pd.getQSym()
 
     ############################################
     ##    Labeling of spots from seed hkls    ##
@@ -82,7 +75,7 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
     coms     = []
     for i in seed_hkl_ids:
         # First apply filter
-        this_map_f = ndimage.filters.gaussian_laplace(eta_ome.dataStore[i], filt_stdev)
+        this_map_f = -ndimage.filters.gaussian_laplace(eta_ome.dataStore[i], filt_stdev)
 
         labels_t, numSpots_t = ndimage.label(
             this_map_f > threshold,
@@ -178,9 +171,10 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
 
         qfib_r = qfib[:, np.array(compl) > min_compl]
-
-        if qfib_r.shape[1] > 10000:
-            if algorithm == 'dbscan' or algorithm == 'fclusterdata':
+        num_ors = qfib_r.shape[1]
+        
+        if num_ors > 12000:
+            if algorithm == 'sph-dbscan' or algorithm == 'fclusterdata':
                 logger.info("defaulting to orthographic DBSCAN")
                 algorithm = 'ort-dbscan'
             #raise RuntimeError, \
@@ -188,77 +182,89 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
 
         logger.info(
             "Feeding %d orientations above %.1f%% to clustering",
-            qfib_r.shape[1], 100*min_compl
+            num_ors, 100*min_compl
             )
 
         if algorithm == 'dbscan' and not have_sklearn:
             algorithm = 'fclusterdata'
             logger.warning(
-                "sklearn >= 0.14 required for dbscan, using fclusterdata"
+                "sklearn >= 0.14 required for dbscan; using fclusterdata"
                 )
-        if algorithm == 'dbscan':
-            if min_samples is None or cfg.find_orientations.use_quaternion_grid is None:
+                
+        if algorithm == 'dbscan' or algorithm == 'ort-dbscan' or algorithm == 'sph-dbscan':
+            # munge min_samples according to options
+            if min_samples is None or cfg.find_orientations.use_quaternion_grid is not None:
                 min_samples = 1
-            # compute distance matrix
-            #pdist = pairwise_distances(
-            #    qfib_r.T, metric=quat_distance, n_jobs=1
-            #    )
-            # run dbscan
-            #core_samples, labels = dbscan(
-            #    pdist,
-            #    eps=np.radians(cl_radius),
-            #    min_samples=min_samples,
-            #    metric='precomputed'
-            #    )
-            core_samples, labels = dbscan(
-               qfib_r.T,
-               eps=np.radians(cl_radius),
-               min_samples=min_samples,
-               metric=quat_distance
-               )
+            
+            if algorithm == 'sph-dbscan':
+                # compute distance matrix
+                pdist = pairwise_distances(
+                    qfib_r.T, metric=quat_distance, n_jobs=1
+                    )
+    
+                # run dbscan
+                core_samples, labels = dbscan(
+                    pdist,
+                    eps=np.radians(cl_radius),
+                    min_samples=min_samples,
+                    metric='precomputed'
+                    )
+            else:
+                if algorithm == 'ort-dbscan':
+                    pts = qfib_r[1:, :].T
+                else:
+                    pts = qfib_r.T
 
+                # run dbscan
+                core_samples, labels = dbscan(
+                    pts,
+                    eps=0.5*np.radians(cl_radius),
+                    min_samples=min_samples,
+                    metric='minkowski', p=2,
+                    )
+
+            # extract cluster labels    
             cl = np.array(labels, dtype=int) # convert to array
             noise_points = cl == -1 # index for marking noise
             cl += 1 # move index to 1-based instead of 0
             cl[noise_points] = -1 # re-mark noise as -1
-            logger.info("dbscan found %d noise points", sum(noise_points))
-        elif algorithm == 'ort-dbscan':
-            if min_samples is None or cfg.find_orientations.use_quaternion_grid is None:
-                min_samples = 1
-            # run dbscan
-            core_samples, labels = dbscan(
-                qfib_r[1:, :].T,
-                eps=np.sin(0.5*np.radians(cl_radius)),
-                min_samples=min_samples,
-                metric='l2'
-                )
-            cl = np.array(labels, dtype=int) # convert to array
-            noise_points = cl == -1 # index for marking noise
-            cl += 1 # move index to 1-based instead of 0
-            cl[noise_points] = -1 # re-mark noise as -1
-            logger.info("dbscan found %d noise points", sum(noise_points))
+            logger.info("dbscan found %d noise points", sum(noise_points))     
         elif algorithm == 'fclusterdata':
             cl = cluster.hierarchy.fclusterdata(
                 qfib_r.T,
                 np.radians(cl_radius),
                 criterion='distance',
                 metric=quat_distance
-                )
+                )      
         else:
             raise RuntimeError(
                 "Clustering algorithm %s not recognized" % algorithm
                 )
 
-        nblobs = len(np.unique(cl))
-
+        # extract number of clusters
+        if np.any(cl == -1):
+            nblobs = len(np.unique(cl)) - 1
+        else:
+            nblobs = len(np.unique(cl))
+        
+        #import pdb; pdb.set_trace()
+        
+        """ PERFORM AVERAGING TO GET CLUSTER CENTROIDS """
         qbar = np.zeros((4, nblobs))
-        for i in range(nblobs):
-            npts = sum(cl == i + 1) # cluster lables should be 1-based
-            # compute quaternion average
-            qbar[:, i] = rot.quatAverageCluster(
-                qfib_r[:, cl == i + 1].reshape(4, npts), qsym
-                ).flatten()
-            pass
+        if algorithm == 'sph-dbscan' or algorithm == 'fclusterdata':
+            # here clusters can be split across fr
+            for i in range(nblobs):
+                npts = sum(cl == i + 1) 
+                qbar[:, i] = rot.quatAverageCluster(
+                    qfib_r[:, cl == i + 1].reshape(4, npts), qsym
+                    ).flatten()
+                pass
+        else:
+            # here clusters are ompact by construction
+            for i in range(nblobs):
+                qbar[:, i] = np.average(np.atleast_2d(qfib_r[:, cl == i + 1]), axis=1)
+                pass
+            qbar = sym.toFundamentalRegion(mutil.unitVector(qbar), crysSym=qsym)
 
     logger.info("clustering took %f seconds", time.clock() - start)
     logger.info(
@@ -469,7 +475,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
             num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
             pass
         min_samples = max(
-            cfg.find_orientations.clustering.completeness*np.floor(np.average(num_seed_refls)),
+            np.floor(cfg.find_orientations.clustering.completeness*np.average(num_seed_refls)),
             2
             )
         mean_rpg = int(np.round(np.average(refl_per_grain)))
