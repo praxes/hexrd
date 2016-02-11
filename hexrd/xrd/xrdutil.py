@@ -31,6 +31,7 @@ import time
 import math
 from math import pi
 import shelve
+from IPython import embed
 
 import numpy as num
 from scipy import sparse
@@ -3402,6 +3403,7 @@ def _project_on_detector_plane(allHKLs, allAngs, bMat,
     tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs.T, rMat_d, rMat_ss, rMat_c,
                                            tVec_d, tVec_s, tVec_c)
     valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
+    
     if distortion is None or len(distortion) == 0:
         det_xy = tmp_xys[valid_mask]
     else:
@@ -3464,6 +3466,7 @@ def simulateGVecs(pd, detector_params, grain_params,
     # first find valid G-vectors
     angList = num.vstack(xfcapi.oscillAnglesOfHKLs(full_hkls[:, 1:], chi, rMat_c, bMat, wlen, vInv=vInv_s))
     allAngs, allHKLs = _filter_hkls_eta_ome(full_hkls, angList, eta_range, ome_range)
+    print 'ping'
     
     if len(allAngs) == 0:
         valid_ids = []
@@ -3476,6 +3479,8 @@ def simulateGVecs(pd, detector_params, grain_params,
         det_xy, rMat_s = _project_on_detector_plane(allHKLs[:, 1:], allAngs, bMat,
                                                     rMat_d, rMat_c, chi,
                                                     tVec_d, tVec_c, tVec_s, distortion)
+                                                    
+        
         #
         on_panel_x = num.logical_and(det_xy[:, 0] >= panel_dims[0][0], det_xy[:, 0] <= panel_dims[1][0])
         on_panel_y = num.logical_and(det_xy[:, 1] >= panel_dims[0][1], det_xy[:, 1] <= panel_dims[1][1])
@@ -3489,6 +3494,8 @@ def simulateGVecs(pd, detector_params, grain_params,
                                      rMat_d, rMat_s,
                                      tVec_d, tVec_s, tVec_c,
                                      distortion=distortion)
+                                     
+        embed()
     return valid_ids, valid_hkl, valid_ang, valid_xy, ang_ps
 
 
