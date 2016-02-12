@@ -71,9 +71,9 @@ class ImageSeriesConfig(Config):
             )
         if temp is None or os.path.exists(temp):
             return temp
-        #raise IOError(
-        #    '"image_series:dark": "%s" does not exist' % temp
-        #    )
+        raise IOError(
+            '"image_series:dark": "%s" does not exist' % temp
+            )
 
 
     @property
