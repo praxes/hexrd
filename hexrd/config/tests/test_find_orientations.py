@@ -93,7 +93,7 @@ class TestFindOrientationsConfig(TestConfig):
             )
         self.assertEqual(
             self.cfgs[2].find_orientations.threshold,
-            1
+            0
             )
 
 
