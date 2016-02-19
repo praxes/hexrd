@@ -31,7 +31,6 @@ import time
 import math
 from math import pi
 import shelve
-from IPython import embed
 
 import numpy as num
 from scipy import sparse
@@ -3466,7 +3465,6 @@ def simulateGVecs(pd, detector_params, grain_params,
     # first find valid G-vectors
     angList = num.vstack(xfcapi.oscillAnglesOfHKLs(full_hkls[:, 1:], chi, rMat_c, bMat, wlen, vInv=vInv_s))
     allAngs, allHKLs = _filter_hkls_eta_ome(full_hkls, angList, eta_range, ome_range)
-    print 'ping'
     
     if len(allAngs) == 0:
         valid_ids = []
@@ -3495,7 +3493,6 @@ def simulateGVecs(pd, detector_params, grain_params,
                                      tVec_d, tVec_s, tVec_c,
                                      distortion=distortion)
                                      
-        embed()
     return valid_ids, valid_hkl, valid_ang, valid_xy, ang_ps
 
 
