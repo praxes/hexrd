@@ -98,7 +98,7 @@ class Material(object):
             #
             self.sgnum       = Material.DFLT_SGNUM
             #
-            self._atominfo      = Material.DFLT_ATOMINFO
+            self._atominfo   = Material.DFLT_ATOMINFO
             #
             pass
         return

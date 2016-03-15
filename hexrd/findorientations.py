@@ -173,7 +173,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
         qfib_r = qfib[:, np.array(compl) > min_compl]
         num_ors = qfib_r.shape[1]
         
-        if num_ors > 12000:
+        if num_ors > 25000:
             if algorithm == 'sph-dbscan' or algorithm == 'fclusterdata':
                 logger.info("defaulting to orthographic DBSCAN")
                 algorithm = 'ort-dbscan'

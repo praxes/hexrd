@@ -3591,7 +3591,7 @@ def simulateLauePattern(hkls, bMat,
                 pass
 
             # index for valid reflections
-            keepers = num.logical_and(onDetector, validEnergy)
+            keepers = num.where(num.logical_and(onDetector, validEnergy))[0]
 
             # assign output arrays
             xy_det[iG][keepers, :] = dpts[:, keepers].T
@@ -3905,7 +3905,6 @@ def pullSpots(pd, detector_params, grain_params, reader,
     tVec_s = num.ascontiguousarray(detector_params[7:10])
     rMat_c = xfcapi.makeRotMatOfExpMap(grain_params[:3])
     tVec_c = num.ascontiguousarray(grain_params[3:6])
-    vInv_s = num.ascontiguousarray(grain_params[6:12])
 
     reader_as_list = False
     if hasattr(reader, '__len__'):
@@ -3964,7 +3963,6 @@ def pullSpots(pd, detector_params, grain_params, reader,
     else:
         labelStructure = ndimage.generate_binary_structure(3,3)
 
-    pixel_area = pixel_pitch[0]*pixel_pitch[1] # mm^2
     pdim_buffered = [(panel_dims[0][0] + panel_buff[0], panel_dims[0][1] + panel_buff[1]),
                      (panel_dims[1][0] - panel_buff[0], panel_dims[1][1] - panel_buff[1])]
     # results: hkl, ang, xy, pix
@@ -4104,7 +4102,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 f1 = rdr.read(nframes=len(oidx1), nskip=oidx1[0])
                 r2 = rdr.makeNew()
                 f2 = r2.read(nframes=len(oidx2), nskip=oidx2[0])
-                frames = num.zeros(sdim, dtype=f1.dtype)
+                frames = num.zeros(sdims, dtype=f1.dtype)
                 frames[:len(oidx1), :, :] = f1
                 frames[len(oidx1):, :, :] = f2
             else:

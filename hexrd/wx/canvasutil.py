@@ -99,7 +99,7 @@ class cmapPanel(wx.Panel):
                                         'Colormap:  ',
                                         style=wx.ALIGN_RIGHT)
 
-        self.cmap_nameList = ['autumn', 'bone', 'bone_r', 'cool', 'copper',
+        self.cmap_nameList = ['autumn', 'bone', 'bone_r', 'bwr', 'cool', 'copper',
                               'flag', 'gray', 'gray_r', 'hot', 'hot_r',
                               'hsv', 'jet', 'pink', 'prism', 'spring',
                               'summer', 'winter', 'spectral']
@@ -111,22 +111,31 @@ class cmapPanel(wx.Panel):
 
         self.cmin_val = 0
         self.cmin_lab = wx.StaticText(self, wx.NewId(),
-                                        'Minimum:  ',
-                                        style=wx.ALIGN_RIGHT)
+                                      'Minimum:  ',
+                                      style=wx.ALIGN_RIGHT)
         self.cmin_txt = wx.TextCtrl(self, wx.NewId(),
-                                       value=str(self.cmin_val),
-                                       style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
+                                    value=str(self.cmin_val),
+                                    style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
         self.cmUnder_box = wx.CheckBox(self, wx.NewId(), 'show under')
 
         self.cmax_val = 2000
         self.cmax_lab = wx.StaticText(self, wx.NewId(),
-                                        'Maximum:  ',
-                                        style=wx.ALIGN_RIGHT)
+                                      'Maximum:  ',
+                                      style=wx.ALIGN_RIGHT)
         self.cmax_txt = wx.TextCtrl(self, wx.NewId(),
-                                       value=str(self.cmax_val),
-                                       style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
+                                    value=str(self.cmax_val),
+                                    style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
         self.cmOver_box = wx.CheckBox(self, wx.NewId(), 'show over')
 
+        self.apply_filter = False
+        self.filter_val = 0.8
+        self.applyFilter_txt = wx.TextCtrl(self, wx.NewId(),
+                                           value=str(self.filter_val),
+                                           style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
+        self.applyFilter_lab =  wx.StaticText(self, wx.NewId(),
+                                              'Apply filter:  ',
+                                              style=wx.ALIGN_RIGHT)
+        self.applyFilter_box = wx.CheckBox(self, wx.NewId(), 'apply filter')
 
         return
 
@@ -140,6 +149,8 @@ class cmapPanel(wx.Panel):
         self.Bind(wx.EVT_CHECKBOX, self.OnSetUnder,      self.cmUnder_box)
         self.Bind(wx.EVT_CHECKBOX, self.OnSetOver,       self.cmOver_box)
 
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnSetFilterVal, self.applyFilter_txt)
+        self.Bind(wx.EVT_CHECKBOX, self.OnApplyFilter, self.applyFilter_box)
         return
 
     def __makeSizers(self):
@@ -147,7 +158,7 @@ class cmapPanel(wx.Panel):
         #
         #  colormap sizer
         #
-        nrow = 3; ncol = 3; padx = 5; pady = 5
+        nrow = 4; ncol = 3; padx = 5; pady = 5
         self.cmSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
 
         self.cmSizer.Add(self.cmap_lab, 0, wx.EXPAND | wx.ALIGN_RIGHT)
@@ -161,6 +172,11 @@ class cmapPanel(wx.Panel):
         self.cmSizer.Add(self.cmax_lab, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.Add(self.cmax_txt, 0, wx.EXPAND | wx.ALIGN_RIGHT)
         self.cmSizer.Add(self.cmOver_box, 0, wx.EXPAND | wx.ALIGN_RIGHT)
+
+        self.cmSizer.Add(self.applyFilter_lab, 0, wx.EXPAND | wx.ALIGN_RIGHT)
+        self.cmSizer.Add(self.applyFilter_txt, 0, wx.EXPAND | wx.ALIGN_RIGHT)
+        self.cmSizer.Add(self.applyFilter_box, 0, wx.EXPAND | wx.ALIGN_RIGHT)
+
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
@@ -213,6 +229,27 @@ class cmapPanel(wx.Panel):
 
         if e.IsChecked():
             self.cmap.set_over('r')
+            pass
+
+        self.update(updateImage=True)
+
+        return
+
+    def OnSetFilterVal(self, e):
+        """set std dev for filter"""
+
+        self.filter_val = float(self.applyFilter_txt.GetValue())
+        self.update(updateImage=True)
+
+        return
+
+    def OnApplyFilter(self, e):
+        """toggle application of gauss-laplace filter in display"""
+
+        if e.IsChecked():
+            self.apply_filter = True
+        else:
+            self.apply_filter = False
             pass
 
         self.update(updateImage=True)

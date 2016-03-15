@@ -45,7 +45,7 @@ class FindOrientationsConfig(Config):
 
     @property
     def threshold(self):
-        return self._cfg.get('find_orientations:threshold', 0)
+        return self._cfg.get('find_orientations:threshold', 1)
 
 
     @property

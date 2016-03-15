@@ -487,6 +487,11 @@ class FitGrainsWorker(object):
                                                   refit_tol=self._p['refit_tol'])
             if compl == 0:
                 break
+            pass
+        
+        # final pull spots if enabled
+        if not self._p['fit_only']:
+            self.pull_spots(id, grain_params, -1)
 
         eMat = self.get_e_mat(grain_params)
         resd = self.get_residuals(grain_params)
