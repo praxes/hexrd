@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>Dialog</string>
   </property>
+  <property name="styleSheet">
+   <string notr="true">QDoubleSpinBox:disabled {background-color: LightGray;}
+</string>
+  </property>
   <layout class="QHBoxLayout" name="horizontalLayout_2">
    <item>
     <layout class="QVBoxLayout" name="verticalLayout">
@@ -277,6 +281,9 @@
         </item>
         <item row="3" column="3">
          <widget class="QDoubleSpinBox" name="doubleSpinBox_4">
+          <property name="autoFillBackground">
+           <bool>true</bool>
+          </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
           </property>
