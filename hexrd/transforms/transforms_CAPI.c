@@ -388,6 +388,7 @@ static PyObject * detectorXYToGvec(PyObject * self, PyObject * args)
 		*tVec_d, *tVec_s, *tVec_c,
                 *beamVec, *etaVec;
   PyArrayObject *tTh, *eta, *gVec_l;
+  PyObject *inner_tuple, *outer_tuple;
 
   int dxy, drd, drs, dtd, dts, dtc, dbv, dev;
   npy_intp npts, dims[2];
@@ -464,7 +465,14 @@ static PyObject * detectorXYToGvec(PyObject * self, PyObject * args)
 			 tTh_Ptr, eta_Ptr, gVec_l_Ptr);
 
   /* Build and return the nested data structure */
-  return(Py_BuildValue("OO",Py_BuildValue("OO",tTh,eta),gVec_l));
+  /* Note that Py_BuildValue with 'O' increases reference count */
+  inner_tuple = Py_BuildValue("OO",tTh,eta);
+  outer_tuple = Py_BuildValue("OO", inner_tuple, gVec_l);
+  Py_DECREF(inner_tuple);
+  Py_DECREF(tTh);
+  Py_DECREF(eta);
+  Py_DECREF(gVec_l);
+  return outer_tuple;
 }
 
 static PyObject * oscillAnglesOfHKLs(PyObject * self, PyObject * args)
