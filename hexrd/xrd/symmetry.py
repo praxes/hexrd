@@ -179,7 +179,7 @@ def quatOfLaueGroup(tag):
 
     if tag.lower() == 'ci' or tag.lower() == 's2':
         # TRICLINIC
-        angleAxis = vstack([0., 1, 0, 0]) # identity
+        angleAxis = vstack([0., 1., 0., 0.]) # identity
     elif tag.lower() == 'c2h':
         # MONOCLINIC
         angleAxis = c_[
@@ -324,7 +324,8 @@ def applySym(vec, qsym, csFlag=False, cullPM=False, tol=1e-8):
     """
     nsym  = qsym.shape[1]
     Rsym  = rotMatOfQuat(qsym)
-
+    if nsym == 1:
+        Rsym = array([Rsym,])
     allhkl = multMatArray(Rsym, tile(vec, (nsym, 1, 1))).swapaxes(1, 2).reshape(nsym, 3).T
 
     if csFlag:
