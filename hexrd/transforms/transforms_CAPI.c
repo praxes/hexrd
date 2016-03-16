@@ -58,7 +58,7 @@ static PyObject * anglesToGVec(PyObject * self, PyObject * args)
 
   double *angs_ptr, *bHat_l_ptr, *eHat_l_ptr, *rMat_c_ptr;
   double *gVec_c_ptr;
-  
+
   /* Parse arguments */
   if ( !PyArg_ParseTuple(args,"OOOdO",
 			 &angs,
@@ -71,7 +71,7 @@ static PyObject * anglesToGVec(PyObject * self, PyObject * args)
   nbhat = PyArray_NDIM(bHat_l);
   nehat = PyArray_NDIM(eHat_l);
   nrmat = PyArray_NDIM(rMat_c);
-  
+
   assert( nangs==2 && nbhat==1 && nehat==1 && nrmat==2 );
 
   /* Verify dimensions of input arrays */
@@ -86,7 +86,7 @@ static PyObject * anglesToGVec(PyObject * self, PyObject * args)
   assert( da1 == 3 );
   assert( db1 == 3 && de1 == 3);
   assert( dr1 == 3 && dr2 == 3);
-    
+
   /* Allocate C-style array for return data */
   rdims[0] = nvecs; rdims[1] = 3;
   gVec_c = (PyArrayObject*)PyArray_EMPTY(2,rdims,NPY_DOUBLE,0);
@@ -103,7 +103,7 @@ static PyObject * anglesToGVec(PyObject * self, PyObject * args)
 		     bHat_l_ptr, eHat_l_ptr,
 		     chi, rMat_c_ptr,
 		     gVec_c_ptr);
-    
+
   /* Build and return the nested data structure */
   return((PyObject*)gVec_c);
 }
@@ -257,7 +257,7 @@ static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
 {
   PyArrayObject *gVec_c,
                 *rMat_d, *rMat_s, *rMat_c,
-                *tVec_d, *tVec_s, *tVec_c, 
+                *tVec_d, *tVec_s, *tVec_c,
                 *beamVec;
   PyArrayObject *result;
 
@@ -481,6 +481,7 @@ static PyObject * oscillAnglesOfHKLs(PyObject * self, PyObject * args)
                 *vInv_s, *beamVec, *etaVec;
   PyFloatObject *chi, *wavelength;
   PyArrayObject *oangs0, *oangs1;
+  PyObject *return_tuple;
 
   int dhkls, drc, dbm, dvi, dbv, dev;
   npy_intp npts, dims[2];
@@ -553,7 +554,11 @@ np.ascontiguousarray(hkls),chi,rMat_c,bMat,wavelength,
                                                beamVec.flatten(),etaVec.flatten()
   */
   /* Build and return the list data structure */
-  return(Py_BuildValue("OO",oangs0,oangs1));
+  return_tuple = Py_BuildValue("OO",oangs0,oangs1);
+  Py_DECREF(oangs1);
+  Py_DECREF(oangs0);
+
+  return return_tuple;
 }
 
 /******************************************************************************/
