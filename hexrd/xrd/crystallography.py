@@ -33,6 +33,8 @@ import numpy as num
 import csv
 import os
 
+from IPython import embed
+
 from scipy import constants as C
 
 from hexrd.matrixutil import sqrt, unitVector, columnNorm, sum
@@ -379,7 +381,7 @@ def latticeVectors(lparms, tag='cubic', radians=False, debug=False):
     elif tag == lattStrings[6]: # monoclinic
         cellparms = num.r_[lparms[0], lparms[1], lparms[2], deg90, angConv*lparms[3], deg90]
     elif tag == lattStrings[7]: # triclinic
-        cellparms = lparms
+        cellparms = num.r_[lparms[0], lparms[1], lparms[2], angConv*lparms[3], angConv*lparms[4], angConv*lparms[5]] #fixed DP 2/24/16
     else:
         raise RuntimeError('lattice tag \'%s\' is not recognized' % (tag))
 
