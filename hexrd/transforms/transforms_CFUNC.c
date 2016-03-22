@@ -11,6 +11,7 @@ static double sqrt_epsf = 1.5e-8;
 
 static double Zl[3] = {0.0,0.0,1.0};
 
+
 /******************************************************************************/
 /* Funtions */
 
@@ -20,26 +21,26 @@ void anglesToGvec_cfunc(long int nvecs, double * angs,
 			double * gVec_c)
 {
   /*
-   *  takes an angle spec (2*theta, eta, omega) for nvecs g-vectors and 
+   *  takes an angle spec (2*theta, eta, omega) for nvecs g-vectors and
    *  returns the unit g-vector components in the crystal frame
-   * 
-   *  For unit g-vector in the lab frame, spec rMat_c = Identity and 
+   *
+   *  For unit g-vector in the lab frame, spec rMat_c = Identity and
    *  overwrite the omega values with zeros
    */
   int i, j, k, l;
   double rMat_e[9], rMat_s[9], rMat_ctst[9];
   double gVec_e[3], gVec_c_tmp[3] = {0.0, 0.0, 0.0};
-  
+
   /* Need eta frame cob matrix (could omit for standard setting) */
   makeEtaFrameRotMat_cfunc(bHat_l, eHat_l, rMat_e);
-  
+
   /* make vector array */
   for (i=0; i<nvecs; i++) {
     /* components in lab frame */
     gVec_e[0] = cos(0.5*angs[3*i]) * cos(angs[3*i+1]);
     gVec_e[1] = cos(0.5*angs[3*i]) * sin(angs[3*i+1]);
     gVec_e[2] = sin(0.5*angs[3*i]);
-    
+
     /* need pointwise rMat_s according to omega */
     makeOscillRotMat_cfunc(chi, angs[3*i+2], rMat_s);
 
@@ -52,7 +53,7 @@ void anglesToGvec_cfunc(long int nvecs, double * angs,
 	}
       }
       gVec_c_tmp[j] = 0.0;
-      for (k=0; k<3; k++) {      
+      for (k=0; k<3; k++) {
 	gVec_c_tmp[j] += rMat_ctst[3*j+k]*gVec_e[k];
       }
       gVec_c[3*i+j] = gVec_c_tmp[j];
@@ -224,90 +225,178 @@ void gvecToDetectorXYArray_cfunc(long int npts, double * gVec_c,
   }
 }
 
+/*
+ * detectorXYToGVec
+ * ----------------
+ * Two versions, one for an array of points and a single rMat_s, other for
+ * array of points and array of rMat_s
+ */
+inline void
+detectorXYToGVecOne_cfunc(const double *xy, /* source point, just one */
+                          const double *rMat_d,
+                          const double *rMat_e,
+                          const double *tVec1,
+                          const double *bVec,
+                          double *tTh_out, /* out, scalar */
+                          double *eta_out, /* out, scalar */
+                          double *gVec_l_out /* out, vector 3 */
+                          )
+{
+    int j, k;
+    double nrm = 0.0;
+
+    /* Compute dHat_l vector */
+    double dHat_l[3];
+    for (j=0; j<3; j++) {
+        double acc = tVec1[j];
+        dHat_l[j] = tVec1[j];
+        for (k=0; k<2; k++) {
+            acc += rMat_d[3*j+k]*xy[k];
+        }
+        nrm += acc*acc;
+        dHat_l[j] = acc;
+    }
+    if ( nrm > epsf ) {
+        double nrm_factor = 1.0/sqrt(nrm);
+        for (j=0; j<3; j++) {
+            dHat_l[j] *= nrm_factor;
+        }
+    }
+
+    /* Compute tTh */
+    double b_dot_dHat_l = 0.0;
+    for (j=0; j<3; j++) {
+        b_dot_dHat_l += bVec[j]*dHat_l[j];
+    }
+    double tTh = acos(b_dot_dHat_l);
+
+    /* Compute eta */
+    double tVec2[2];
+    for (j=0; j<2; j++) {
+        tVec2[j] = 0.0;
+        for (k=0; k<3; k++) {
+            tVec2[j] += rMat_e[3*k+j]*dHat_l[k];
+        }
+    }
+    double eta = atan2(tVec2[1], tVec2[0]);
+
+    /* Compute n_g vector */
+    double n_g[3];
+    nrm = 0.0;
+    for (j=0; j<3; j++) {
+        double val;
+        int j1 = j < 2 ? j+1 : 0;
+        int j2 = j > 0 ? j-1 : 2;
+        val = bVec[j1] * dHat_l[j2] - bVec[j2] * dHat_l[j1];
+        nrm += val*val;
+        n_g[j] = val;
+    }
+    if ( nrm > epsf ) {
+        double nrm_factor = 1.0/sqrt(nrm);
+        for (j=0; j<3; j++) {
+            n_g[j] *= nrm_factor;
+        }
+    }
+
+    /* Rotate dHat_l vector */
+    double phi = 0.5*(M_PI-tTh);
+    *tTh_out = tTh;
+    *eta_out = eta;
+    rotate_vecs_about_axis_cfunc(1, &phi, 1, n_g, 1, dHat_l, gVec_l_out);
+}
+
 void detectorXYToGvec_cfunc(long int npts, double * xy,
                             double * rMat_d, double * rMat_s,
                             double * tVec_d, double * tVec_s, double * tVec_c,
                             double * beamVec, double * etaVec,
                             double * tTh, double * eta, double * gVec_l)
 {
-  long int i;
-  int j, k;
-  double nrm, phi, bVec[3], tVec1[3], tVec2[3], dHat_l[3], n_g[3];
-  double rMat_e[9];
+    long int i;
+    int j, k;
+    double nrm, bVec[3], tVec1[3];
+    double rMat_e[9];
 
-  /* Fill rMat_e */
-  makeEtaFrameRotMat_cfunc(beamVec,etaVec,rMat_e);
+    /* Fill rMat_e */
+    makeEtaFrameRotMat_cfunc(beamVec, etaVec, rMat_e);
 
-  /* Normalize the beam vector */
-  nrm = 0.0;
-  for (j=0; j<3; j++) {
-    nrm += beamVec[j]*beamVec[j];
-  }
-  nrm = sqrt(nrm);
-  if ( nrm > epsf ) {
-    for (j=0; j<3; j++)
-      bVec[j] = beamVec[j]/nrm;
-  } else {
-    for (j=0; j<3; j++)
-      bVec[j] = beamVec[j];
-  }
-
-  /* Compute shift vector */
-  for (j=0; j<3; j++) {
-    tVec1[j] = tVec_d[j]-tVec_s[j];
-    for (k=0; k<3; k++) {
-      tVec1[j] -= rMat_s[3*j+k]*tVec_c[k];
-    }
-  }
-
-  for (i=0; i<npts; i++) {
-    /* Compute dHat_l vector */
+    /* Normalize the beam vector */
     nrm = 0.0;
     for (j=0; j<3; j++) {
-      dHat_l[j] = tVec1[j];
-      for (k=0; k<2; k++) {
-        dHat_l[j] += rMat_d[3*j+k]*xy[2*i+k];
-      }
-      nrm += dHat_l[j]*dHat_l[j];
+        nrm += beamVec[j]*beamVec[j];
     }
+
     if ( nrm > epsf ) {
-      for (j=0; j<3; j++) {
-        dHat_l[j] /= sqrt(nrm);
-      }
+        double nrm_factor = 1.0/sqrt(nrm);
+        for (j=0; j<3; j++)
+            bVec[j] = beamVec[j]*nrm_factor;
+    } else {
+        for (j=0; j<3; j++)
+            bVec[j] = beamVec[j];
     }
 
-    /* Compute tTh */
+    /* Compute shift vector */
+    for (j=0; j<3; j++) {
+        tVec1[j] = tVec_d[j]-tVec_s[j];
+        for (k=0; k<3; k++) {
+            tVec1[j] -= rMat_s[3*j+k]*tVec_c[k];
+        }
+    }
+
+    for (i=0; i<npts; i++) {
+        detectorXYToGVecOne_cfunc(xy+2*i, rMat_d, rMat_e, tVec1, bVec, tTh + i, eta + i, gVec_l + 3*i);
+    }
+}
+
+/*
+ * In this version, rMat_s is an array
+ */
+void detectorXYToGvecArray_cfunc(long int npts, double * xy,
+                                 double * rMat_d, double * rMat_s,
+                                 double * tVec_d, double * tVec_s, double * tVec_c,
+                                 double * beamVec, double * etaVec,
+                                 double * tTh, double * eta, double * gVec_l)
+{
+    long int i;
+    int j, k;
+    double nrm, bVec[3], tVec1[3];
+    double rMat_e[9];
+
+    /* Fill rMat_e */
+    makeEtaFrameRotMat_cfunc(beamVec, etaVec, rMat_e);
+
+    /* Normalize the beam vector */
     nrm = 0.0;
     for (j=0; j<3; j++) {
-      nrm += bVec[j]*dHat_l[j];
+        nrm += beamVec[j]*beamVec[j];
     }
-    tTh[i] = acos(nrm);
 
-    /* Compute eta */
-    for (j=0; j<2; j++) {
-      tVec2[j] = 0.0;
-      for (k=0; k<3; k++) {
-        tVec2[j] += rMat_e[3*k+j]*dHat_l[k];
-      }
+    if ( nrm > epsf ) {
+        double nrm_factor = 1.0/sqrt(nrm);
+        for (j=0; j<3; j++)
+            bVec[j] = beamVec[j]*nrm_factor;
+    } else {
+        for (j=0; j<3; j++)
+            bVec[j] = beamVec[j];
     }
-    eta[i] = atan2(tVec2[1],tVec2[0]);
 
-    /* Compute n_g vector */
-    nrm = 0.0;
     for (j=0; j<3; j++) {
-      n_g[j] = bVec[(j+1)%3]*dHat_l[(j+2)%3]-bVec[(j+2)%3]*dHat_l[(j+1)%3];
-      nrm += n_g[j]*n_g[j];
-    }
-    nrm = sqrt(nrm);
-    for (j=0; j<3; j++) {
-      n_g[j] /= nrm;
+        tVec1[j] = tVec_d[j]-tVec_s[j];
+        for (k=0; k<3; k++) {
+            tVec1[j] -= rMat_s[3*j+k]*tVec_c[k];
+        }
     }
 
-    /* Rotate dHat_l vector */
-    // rotateVectorAboutAxis_cfunc(tTh[i], n_g, dHat_l, &gVec_l[3*i]);
-    phi = 0.5*(M_PI-tTh[i]);
-    rotate_vecs_about_axis_cfunc(1, &phi, 1, n_g, 1, dHat_l, &gVec_l[3*i]);
-  }
+    for (i=0; i<npts; i++) {
+        /* Compute shift vector */
+        for (j=0; j<3; j++) {
+            tVec1[j] = tVec_d[j]-tVec_s[j];
+            for (k=0; k<3; k++) {
+                tVec1[j] -= rMat_s[3*j+k]*tVec_c[k];
+            }
+        }
+        detectorXYToGVecOne_cfunc(xy+2*i, rMat_d, rMat_e, tVec1, bVec,
+                                  tTh + i, eta + i, gVec_l + 3*i);
+    }
 }
 
 void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
@@ -945,7 +1034,7 @@ void homochoricOfQuat_cfunc(int nq, double * qPtr, double * hPtr)
     else {
       hPtr[3*i+0] = 0.;
       hPtr[3*i+1] = 0.;
-      hPtr[3*i+2] = 0.;      
+      hPtr[3*i+2] = 0.;
     }
   }
 }

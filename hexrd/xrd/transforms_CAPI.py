@@ -121,6 +121,9 @@ def gvecToDetectorXY(gVec_c,
     (m, 2) ndarray containing the intersections of m <= n diffracted beams
     associated with gVecs
     """
+    rMat_d  = np.ascontiguousarray( rMat_d )
+    rMat_s  = np.ascontiguousarray( rMat_s )
+    rMat_c  = np.ascontiguousarray( rMat_c )
     gVec_c  = np.ascontiguousarray( np.atleast_2d( gVec_c ) )
     tVec_d  = np.ascontiguousarray( tVec_d.flatten()  )
     tVec_s  = np.ascontiguousarray( tVec_s.flatten()  )
@@ -156,7 +159,9 @@ def gvecToDetectorXYArray(gVec_c,
     associated with gVecs
     """
     gVec_c  = np.ascontiguousarray( gVec_c )
+    rMat_d  = np.ascontiguousarray( rMat_d )
     rMat_s  = np.ascontiguousarray( rMat_s )
+    rMat_c  = np.ascontiguousarray( rMat_c )
     tVec_d  = np.ascontiguousarray( tVec_d.flatten()  )
     tVec_s  = np.ascontiguousarray( tVec_s.flatten()  )
     tVec_c  = np.ascontiguousarray( tVec_c.flatten()  )
@@ -193,6 +198,8 @@ def detectorXYToGvec(xy_det,
     associated with gVecs
     """
     xy_det  = np.ascontiguousarray( np.atleast_2d(xy_det) )
+    rMat_d  = np.ascontiguousarray( rMat_d )
+    rMat_s  = np.ascontiguousarray( rMat_s )
     tVec_d  = np.ascontiguousarray( tVec_d.flatten() )
     tVec_s  = np.ascontiguousarray( tVec_s.flatten() )
     tVec_c  = np.ascontiguousarray( tVec_c.flatten() )
@@ -202,6 +209,46 @@ def detectorXYToGvec(xy_det,
                                              rMat_d, rMat_s,
                                              tVec_d, tVec_s, tVec_c,
                                              beamVec, etaVec)
+
+def detectorXYToGvecArray(xy_det,
+                          rMat_d, rMat_s,
+                          tVec_d, tVec_s, tVec_c,
+                          beamVec=bVec_ref, etaVec=eta_ref):
+    """
+    Takes a list cartesian (x, y) pairs in the detector coordinates and calculates
+    the associated reciprocal lattice (G) vectors and (bragg angle, azimuth) pairs
+    with respect to the specified beam and azimth (eta) reference directions
+
+    Required Arguments:
+    xy_det -- (n, 2) ndarray or list-like input of n detector (x, y) points
+    rMat_d -- (3, 3) ndarray, the COB taking DETECTOR FRAME components to LAB FRAME
+    rMat_s -- (n, 3, 3) ndarray, the COB taking SAMPLE FRAME components to LAB FRAME
+    tVec_d -- (3, 1) ndarray, the translation vector connecting LAB to DETECTOR in LAB
+    tVec_s -- (3, 1) ndarray, the translation vector connecting LAB to SAMPLE in LAB
+    tVec_c -- (3, 1) ndarray, the translation vector connecting SAMPLE to CRYSTAL in SAMPLE
+
+    Optional Keyword Arguments:
+    beamVec -- (3, 1) mdarray containing the incident beam direction components in the LAB FRAME
+    etaVec  -- (3, 1) mdarray containing the reference azimuth direction components in the LAB FRAME
+
+    Outputs:
+    (n, 2) ndarray containing the (tTh, eta) pairs associated with each (x, y)
+    (n, 3) ndarray containing the associated G vector directions in the LAB FRAME
+    associated with gVecs
+    """
+    xy_det  = np.ascontiguousarray( np.atleast_2d(xy_det) )
+    rMat_d  = np.ascontiguousarray( rMat_d )
+    rMat_s  = np.ascontiguousarray( rMat_s )
+    tVec_d  = np.ascontiguousarray( tVec_d.flatten() )
+    tVec_s  = np.ascontiguousarray( tVec_s.flatten() )
+    tVec_c  = np.ascontiguousarray( tVec_c.flatten() )
+    beamVec = np.ascontiguousarray( beamVec.flatten() )
+    etaVec  = np.ascontiguousarray( etaVec.flatten() )
+    return _transforms_CAPI.detectorXYToGvec(xy_det,
+                                             rMat_d, rMat_s,
+                                             tVec_d, tVec_s, tVec_c,
+                                             beamVec, etaVec)
+
 
 def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
                        vInv=None, beamVec=bVec_ref, etaVec=eta_ref):

@@ -57,9 +57,29 @@ gVec3  = dangs3[1]
 elapsed3 = (time.clock() - start3)
 print "Time for CAPI detectorXYToGvec: %f"%(elapsed3)
 
+rMat_s_array = rMat_s[np.newaxis]
+start4 = time.clock()
+dangs4 = xfcapi.detectorXYToGvecArray(XY, rMat_d, rMat_s_array,
+                                      tVec_d.flatten(), tVec_s.flatten(),
+                                      tVec_c.flatten(),
+                                      beamVec=bVec_ref.flatten(),
+                                      etaVec=np.array([1.0, 0.0, 0.0]))
+tTh_d4 = dangs4[0][0]
+eta_d4 = dangs4[0][1]
+gVec4  = dangs4[1]
+elapsed4 = (time.clock() - start4)
+print "Time for CAPI detectorXYToGvecArray: %f"%(elapsed4)
+
 maxDiff_tTh = np.linalg.norm(tTh_d1-tTh_d3,np.inf)
 print "Maximum disagreement in tTh:  %f"%maxDiff_tTh
 maxDiff_eta = np.linalg.norm(eta_d1-eta_d3,np.inf)
 print "Maximum disagreement in eta:  %f"%maxDiff_eta
 maxDiff_gVec = np.linalg.norm(np.sqrt(np.sum(np.asarray(gVec1.T-gVec3)**2,1)),np.inf)
 print "Maximum disagreement in gVec: %f"%maxDiff_gVec
+
+maxDiff_tTh = np.linalg.norm(tTh_d1-tTh_d4,np.inf)
+print "(array)Maximum disagreement in tTh:  %f"%maxDiff_tTh
+maxDiff_eta = np.linalg.norm(eta_d1-eta_d4,np.inf)
+print "(array)Maximum disagreement in eta:  %f"%maxDiff_eta
+maxDiff_gVec = np.linalg.norm(np.sqrt(np.sum(np.asarray(gVec1.T-gVec4)**2,1)),np.inf)
+print "(array)Maximum disagreement in gVec: %f"%maxDiff_gVec
