@@ -455,7 +455,7 @@ class imgOpts(wx.Panel):
             p.axes.set_aspect('auto')
         else:
             p.axes.imshow(intensity, origin='upper',
-                          interpolation='nearest',
+                          interpolation='none',
                           aspect='auto',
                           cmap=self.cmPanel.cmap,
                           vmin=self.cmPanel.cmin_val,
@@ -646,9 +646,14 @@ class sphOpts(wx.Panel):
             p.axes.hold(True)
             p.axes.images = []
 
+            if self.cmPanel.apply_filter:
+                img = -ndimage.filters.gaussian_laplace(hkldata, self.cmPanel.filter_val)
+            else:
+                img = hkldata
+            
             # show new image
-            p.axes.imshow(hkldata, origin='upper',
-                          interpolation='nearest',
+            p.axes.imshow(img, origin='upper',
+                          interpolation='none',
                           aspect='auto',
                           cmap=self.cmPanel.cmap,
                           vmin=self.cmPanel.cmin_val,

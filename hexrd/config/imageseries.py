@@ -71,9 +71,9 @@ class ImageSeriesConfig(Config):
             )
         if temp is None or os.path.exists(temp):
             return temp
-        #raise IOError(
-        #    '"image_series:dark": "%s" does not exist' % temp
-        #    )
+        raise IOError(
+            '"image_series:dark": "%s" does not exist' % temp
+            )
 
 
     @property
@@ -110,7 +110,7 @@ class ImageSeriesConfig(Config):
         if temp is None:
             return
         temp = temp.lower()
-        if temp not in ['h', 'v', 'hv', 'vh', 'cw', 'ccw']:
+        if temp not in ['h', 'v', 'hv', 'vh', 'cw90', 'ccw90']:
             raise RuntimeError(
                 'image_series:flip setting "%s" is not valid' % temp
                 )

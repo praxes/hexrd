@@ -1351,16 +1351,16 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
 
     nchi = num.c_[0., cchi, schi].T
 
-    gHat0_l = num.vstack([ceta * ctht,
-                          seta * ctht,
-                          stht])
+    gHat0_l = -num.vstack([ceta * ctht,
+                           seta * ctht,
+                           stht])
 
-    a = cchi*ceta*ctht
-    b = cchi*schi*seta*ctht + schi*schi*stht - stht
-    c = stht + cchi*schi*seta*ctht + schi*schi*stht
+    a =  cchi*ceta*ctht
+    b = -cchi*stht
+    c =  stht + schi*seta*ctht
 
     # form solution
-    abMag    = num.sqrt(a*a + b*b); assert num.all(abMag > 0), "Beam vector specification is infealible!"
+    abMag    = num.sqrt(a*a + b*b); assert num.all(abMag > 0), "Beam vector specification is infeasible!"
     phaseAng = num.arctan2(b, a)
     rhs      = c / abMag; rhs[abs(rhs) > 1.] = num.nan
     rhsAng   = num.arcsin(rhs)

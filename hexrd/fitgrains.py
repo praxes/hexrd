@@ -34,7 +34,6 @@ if USE_NUMBA:
 
 logger = logging.getLogger(__name__)
 
-
 # grain parameter refinement flags
 gFlag = np.array([1, 1, 1,
                   1, 1, 1,
@@ -475,9 +474,13 @@ class FitGrainsWorker(object):
     def loop(self):
         id, grain_params = self._jobs.get(False)
 
-        # skips the first loop if have_estimate is True
-        have_estimate = not np.all(grain_params[-9] == [0,0,0,1,1,1,0,0,0])
-        iterations = (have_estimate, len(self._p['eta_tol']))
+        # slated for removal ## skips the first loop if have_estimate is True
+        # slated for removal #if self._p['skip_on_estimate']:
+        # slated for removal #    have_estimate = not np.all(grain_params[-9:] == [0,0,0,1,1,1,0,0,0])
+        # slated for removal #    iterations = (have_estimate, len(self._p['eta_tol']))
+        # slated for removal #else:
+        # slated for removal #    iterations = (0, len(self._p['eta_tol']))
+        iterations = (0, len(self._p['eta_tol']))
         for iteration in range(*iterations):
             # pull spots if asked to, otherwise just fit
             if not self._p['fit_only']:
@@ -487,6 +490,11 @@ class FitGrainsWorker(object):
                                                   refit_tol=self._p['refit_tol'])
             if compl == 0:
                 break
+            pass
+        
+        # final pull spots if enabled
+        if not self._p['fit_only']:
+            self.pull_spots(id, grain_params, -1)
 
         eMat = self.get_e_mat(grain_params)
         resd = self.get_residuals(grain_params)
