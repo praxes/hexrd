@@ -32,6 +32,8 @@ import math
 from math import pi
 import shelve
 
+
+
 import numpy as num
 from scipy import sparse
 from scipy.linalg import svd
@@ -3531,6 +3533,8 @@ def simulateLauePattern(hkls, bMat,
     # unit G-vectors in crystal frame
     ghat_c = mutil.unitVector(num.dot(bMat, hkls))
     
+    
+    
     # pre-allocate output arrays
     xy_det = num.nan*num.ones((n_grains, nhkls_tot, 2))
     hkls_in = num.nan*num.ones((n_grains, 3, nhkls_tot))
@@ -3540,11 +3544,14 @@ def simulateLauePattern(hkls, bMat,
     
     """
     LOOP OVER GRAINS
-    """
+    """   
+    
+    
     for iG, gp in enumerate(grain_params):
         rmat_c = xfcapi.makeRotMatOfExpMap(gp[:3])
         tvec_c = gp[3:6].reshape(3, 1)
         vInv_s = mutil.vecMVToSymm(gp[6:].reshape(6, 1))
+        
 
         # stretch them: V^(-1) * R * Gc
         ghat_s_str = mutil.unitVector(
@@ -3554,14 +3561,21 @@ def simulateLauePattern(hkls, bMat,
         dpts = xfcapi.gvecToDetectorXY(ghat_c_str.T,
                                        rmat_d, rmat_s, rmat_c,
                                        tvec_d, tvec_s, tvec_c).T
+                                       
+        
+                
+        #print dpts
 
         # check intersections with detector plane
         canIntersect = ~num.isnan(dpts[0, :])
         npts_in = sum(canIntersect)
+        
+        
         if num.any(canIntersect):
             dpts = dpts[:, canIntersect].reshape(2, npts_in)
             dhkl = hkls[:, canIntersect].reshape(3, npts_in)
-
+            
+            
             # back to angles
             tth_eta, gvec_l = xfcapi.detectorXYToGvec(dpts.T,
                                                       rmat_d, rmat_s,
@@ -3577,6 +3591,8 @@ def simulateLauePattern(hkls, bMat,
             # plane spacings and energies
             dsp = 1. / mutil.columnNorm(num.dot(bMat, dhkl))
             wlen  = 2*dsp*num.sin(0.5*tth_eta[:, 0])
+            
+            #print wlen
 
             # find on spatial extent of detector
             xTest = num.logical_and(dpts[0, :] >= -0.5*panel_dims[1] + panel_buffer, 
@@ -3596,15 +3612,22 @@ def simulateLauePattern(hkls, bMat,
 
             # index for valid reflections
             keepers = num.logical_and(onDetector, validEnergy)
-
+            nkeepers= sum(keepers)
+            
+            #This code was changed by DP 2/24/16, there was a boolean mismatch error
+            #now valid reflections are placed at the front of the array
             # assign output arrays
-            xy_det[iG][keepers, :] = dpts[:, keepers].T
-            hkls_in[iG][:, keepers] = dhkl[:, keepers]
-            angles[iG][keepers, :] = tth_eta[keepers, :]
-            dspacing[iG, keepers] = dsp[keepers]
-            energy[iG, keepers] = processWavelength(wlen[keepers])
+            xy_det[iG][:nkeepers, :] = dpts[:, keepers].T
+            hkls_in[iG][:, :nkeepers] = dhkl[:, keepers]
+            angles[iG][:nkeepers, :] = tth_eta[keepers, :]
+            dspacing[iG, :nkeepers] = dsp[keepers]
+            energy[iG, :nkeepers] = processWavelength(wlen[keepers])
+
             pass
         pass
+    
+    
+    
     return xy_det, hkls_in, angles, dspacing, energy
 
 

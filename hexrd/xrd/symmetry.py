@@ -324,6 +324,13 @@ def applySym(vec, qsym, csFlag=False, cullPM=False, tol=1e-8):
     """
     nsym  = qsym.shape[1]
     Rsym  = rotMatOfQuat(qsym)
+    
+
+    
+    #Monoclinic Fix DP 2/26/14
+    if nsym==1:
+        Rsym=array([Rsym]) #fix dimensionality
+         
 
     allhkl = multMatArray(Rsym, tile(vec, (nsym, 1, 1))).swapaxes(1, 2).reshape(nsym, 3).T
 
