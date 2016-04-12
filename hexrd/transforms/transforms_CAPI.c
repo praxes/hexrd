@@ -386,7 +386,7 @@ static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
 static PyObject * detectorXYToGvec(PyObject * self, PyObject * args)
 {
   PyArrayObject *xy_det, *rMat_d, *rMat_s,
-		*tVec_d, *tVec_s, *tVec_c,
+		        *tVec_d, *tVec_s, *tVec_c,
                 *beamVec, *etaVec;
   PyArrayObject *tTh, *eta, *gVec_l;
   PyObject *inner_tuple, *outer_tuple;
@@ -418,7 +418,7 @@ static PyObject * detectorXYToGvec(PyObject * self, PyObject * args)
   dtc = PyArray_NDIM(tVec_c);
   dbv = PyArray_NDIM(beamVec);
   dev = PyArray_NDIM(etaVec);
-  assert( dxy == 2 && drd == 2 && drs == 3 &&
+  assert( dxy == 2 && drd == 2 && drs == 2 &&
 	  dtd == 1 && dts == 1 && dtc == 1 &&
 	  dbv == 1 && dev == 1);
 
@@ -427,7 +427,7 @@ static PyObject * detectorXYToGvec(PyObject * self, PyObject * args)
 
   assert( PyArray_DIMS(xy_det)[1]  == 2 );
   assert( PyArray_DIMS(rMat_d)[0]  == 3 && PyArray_DIMS(rMat_d)[1] == 3 );
-  assert( PyArray_DIMS(rMat_s)[1]  == 3 && PyArray_DIMS(rMat_s)[2] == 3 );
+  assert( PyArray_DIMS(rMat_s)[0]  == 3 && PyArray_DIMS(rMat_s)[1] == 3 );
   assert( PyArray_DIMS(tVec_d)[0]  == 3 );
   assert( PyArray_DIMS(tVec_s)[0]  == 3 );
   assert( PyArray_DIMS(tVec_c)[0]  == 3 );
@@ -599,7 +599,7 @@ static PyObject * detectorXYToGvecArray(PyObject * self, PyObject * args)
 static PyObject * oscillAnglesOfHKLs(PyObject * self, PyObject * args)
 {
   PyArrayObject *hkls, *rMat_c, *bMat,
-                *vInv_s, *beamVec, *etaVec;
+		*vInv_s, *beamVec, *etaVec;
   PyFloatObject *chi, *wavelength;
   PyArrayObject *oangs0, *oangs1;
   PyObject *return_tuple;
@@ -608,8 +608,8 @@ static PyObject * oscillAnglesOfHKLs(PyObject * self, PyObject * args)
   npy_intp npts, dims[2];
 
   double *hkls_Ptr, chi_d,
-         *rMat_c_Ptr, *bMat_Ptr, wavelen_d,
-         *vInv_s_Ptr, *beamVec_Ptr, *etaVec_Ptr;
+	 *rMat_c_Ptr, *bMat_Ptr, wavelen_d,
+	 *vInv_s_Ptr, *beamVec_Ptr, *etaVec_Ptr;
   double *oangs0_Ptr, *oangs1_Ptr;
 
   /* Parse arguments */
@@ -672,7 +672,7 @@ static PyObject * oscillAnglesOfHKLs(PyObject * self, PyObject * args)
   // printf("chi = %g, wavelength = %g\n",PyFloat_AsDouble((PyObject*)chi),PyFloat_AsDouble((PyObject*)wavelength));
   /*
 np.ascontiguousarray(hkls),chi,rMat_c,bMat,wavelength,
-                                               beamVec.flatten(),etaVec.flatten()
+					       beamVec.flatten(),etaVec.flatten()
   */
   /* Build and return the list data structure */
   return_tuple = Py_BuildValue("OO",oangs0,oangs1);

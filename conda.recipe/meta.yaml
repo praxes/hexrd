@@ -20,20 +20,20 @@ app:
 
 requirements:
   build:
-    - numpy ==1.9.3
+    - numpy #==1.9.3
     - python
     - setuptools
   run:
     - dill
     - matplotlib
     - numba
-    - numpy ==1.9.3
+    - numpy #==1.9.3
     - progressbar >=2.3
     - python
     - python.app # [osx]
     - pyyaml
     - qtconsole
-    - scikit-learn ==0.15.2
+    - scikit-learn #==0.15.2
     - scipy
     - wxpython
 

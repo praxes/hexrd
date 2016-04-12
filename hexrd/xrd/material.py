@@ -67,8 +67,8 @@ class Material(object):
     """Fractional Atom Position of an atom in the unit cell followed by the
     number of electrons within that atom. The max number of electrons is 96.
     """
-    
-    
+
+
     #
     def __init__(self, name=DFLT_NAME, cfgP=None):
         """Constructor for Material
@@ -77,8 +77,8 @@ class Material(object):
         cfgP -- (instance) configuration file parser with
              -- the material name as a section
         """
-        
-        
+
+
         #
         self.name = name
         self.description = ''
@@ -98,7 +98,7 @@ class Material(object):
             #
             self.sgnum       = Material.DFLT_SGNUM
             #
-            self._atominfo      = Material.DFLT_ATOMINFO
+            self._atominfo   = Material.DFLT_ATOMINFO
             #
             pass
         return
@@ -191,7 +191,7 @@ class Material(object):
             pass
 
         return lp6
-        
+
     #
     # ============================== API
     #
@@ -288,8 +288,8 @@ The values have units attached, i.e. they are valWunit instances.
 """
     latticeParameters = property(_get_latticeParameters, _set_latticeParameters,
                                  None, lpdoc)
-                                 
-                                 
+
+
 
     # property:  "name"
 
@@ -305,27 +305,27 @@ The values have units attached, i.e. they are valWunit instances.
 
     name = property(_get_name, _set_name, None,
                     "Name of material" )
-    
-    
-    
-    # property: "atominfo"   
+
+
+
+    # property: "atominfo"
     def _get_atominfo(self):
         """Set method for name"""
         return self._atominfo
 
     def _set_atominfo(self, v):
         """Set method for name"""
-        if v.shape[1]==4:        
+        if v.shape[1]==4:
             self._atominfo= v
         else:
-            print("Improper syntax, array must be n x 4")            
+            print("Improper syntax, array must be n x 4")
 
         return
 
     atominfo = property(_get_atominfo, _set_atominfo, None,
-                    "Information about atomic positions and electron number" )    
-    
-    
+                    "Information about atomic positions and electron number" )
+
+
     #
     #  ========== Methods
     #

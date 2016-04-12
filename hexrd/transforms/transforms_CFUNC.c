@@ -178,9 +178,9 @@ void gvecToDetectorXY_cfunc(long int npts, double * gVec_c,
  * of a single matrix.
  */
 void gvecToDetectorXYArray_cfunc(long int npts, double * gVec_c,
-                            double * rMat_d, double * rMat_s, double * rMat_c,
-                            double * tVec_d, double * tVec_s, double * tVec_c,
-                            double * beamVec, double * result)
+				 double * rMat_d, double * rMat_s, double * rMat_c,
+				 double * tVec_d, double * tVec_s, double * tVec_c,
+				 double * beamVec, double * result)
 {
   long int i;
   int j, k, l;
