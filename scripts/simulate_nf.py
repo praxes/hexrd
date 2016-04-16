@@ -30,7 +30,8 @@ from hexrd.xrd.transforms_CAPI import anglesToGVec, \
                                       makeRotMatOfExpMap, makeDetectorRotMat, makeOscillRotMat, \
                                       gvecToDetectorXY, detectorXYToGvec
 from hexrd.xrd.xrdutil import angularPixelSize, make_reflection_patches, \
-                              simulateGVecs, _project_on_detector_plane
+                              simulateGVecs, _project_on_detector_plane, \
+                              _fetch_hkls_from_planedata
 
 from hexrd.xrd.crystallography import processWavelength
 from hexrd import valunits
@@ -219,9 +220,11 @@ j_dil = np.array([j_dil.flatten()], dtype=int)
 
 # now the grand loop...
 confidence = np.zeros((n_grains, len(test_crds)))
+bMat = pd.latVecOps['B']
+full_hkls = _fetch_hkls_from_planedata(pd)
 for icrd in range(len(test_crds)):
     for igrn in range(n_grains):
-        det_xy, rMat_ss = _project_on_detector_plane(all_angles[igrn],
+        det_xy, rMat_ss = _project_on_detector_plane(full_hkls[:, 1:], all_angles[igrn], bMat,
                                                      rMat_d, rMat_c[igrn], chi,
                                                      tVec_d, test_crds[icrd, :], tVec_s, 
                                                      distortion)
