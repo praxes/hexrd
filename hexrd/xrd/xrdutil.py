@@ -3169,7 +3169,7 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     return reflInRange
 
 def tVec_d_from_old_parfile(old_par, detOrigin):
-    beamXYD = ge[:3, 0]
+    beamXYD = old_par[:3, 0]
     rMat_d  = xf.makeDetectorRotMat(old_par[3:6, 0])
     bVec_ref = num.c_[0., 0., -1.].T
     args=(rMat_d, beamXYD, detOrigin, bVec_ref)
@@ -3193,7 +3193,7 @@ def beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, detOrigin):
     Zd_l = num.dot(rMat_d, num.c_[0, 0, 1].T)
     bScl = num.dot(Zd_l.T, tVec_d) / num.dot(Zd_l.T, bVec_ref)
     beamPos_l = bScl*bVec_ref
-    return num.dot(rMat_d.T, beamPos_l - tVec_d_ref) + num.hstack([detOrigin, -tVec_d[2]]).reshape(3, 1)
+    return num.dot(rMat_d.T, beamPos_l - tVec_d) + num.hstack([detOrigin, -tVec_d[2]]).reshape(3, 1)
 
 def write_old_parfile(filename, results):
     if isinstance(filename, file):
@@ -3394,12 +3394,13 @@ def _filter_hkls_eta_ome(hkls, angles, eta_range, ome_range):
     return allAngs, allHKLs
 
 
-def _project_on_detector_plane(allHKLs, allAngs, bMat,
+def _project_on_detector_plane(allAngs,
                                rMat_d, rMat_c, chi,
                                tVec_d, tVec_c, tVec_s, distortion):
-    gVec_cs = num.dot(bMat, allHKLs.T)
+    # hkls not needed # gVec_cs = num.dot(bMat, allHKLs.T)
+    gVec_cs = xfcapi.anglesToGVec(allAngs, chi=chi, rMat_c=rMat_c)
     rMat_ss = xfcapi.makeOscillRotMatArray(chi, num.ascontiguousarray(allAngs[:,2]))
-    tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs.T, rMat_d, rMat_ss, rMat_c,
+    tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs, rMat_d, rMat_ss, rMat_c,
                                            tVec_d, tVec_s, tVec_c)
     valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
     if distortion is None or len(distortion) == 0:
@@ -3473,7 +3474,7 @@ def simulateGVecs(pd, detector_params, grain_params,
         ang_ps = []
     else:
         #...preallocate for speed...?
-        det_xy, rMat_s = _project_on_detector_plane(allHKLs[:, 1:], allAngs, bMat,
+        det_xy, rMat_s = _project_on_detector_plane(allAngs,
                                                     rMat_d, rMat_c, chi,
                                                     tVec_d, tVec_c, tVec_s, distortion)
         #
@@ -3546,7 +3547,8 @@ def simulateLauePattern(hkls, bMat,
         ghat_s_str = mutil.unitVector(
             num.dot( vInv_s, num.dot( rmat_c, ghat_c ) ) )
         ghat_c_str = num.dot(rmat_c.T, ghat_s_str)
-        ghat_l_str = num.dot(rmat_s, ghat_s_str)
+
+        # project
         dpts = xfcapi.gvecToDetectorXY(ghat_c_str.T,
                                        rmat_d, rmat_s, rmat_c,
                                        tvec_d, tvec_s, tvec_c).T
@@ -4025,20 +4027,22 @@ def pullSpots(pd, detector_params, grain_params, reader,
         rMat_s = xfcapi.makeOscillRotMat([chi, angs[2]])
 
         if doClipping:
-            gVec_c = xf.anglesToGVec(gVec_angs_vtx,
-                                     bVec, eVec,
-                                     rMat_s=rMat_s,
-                                     rMat_c=rMat_c)
+            gVec_c = xfcapi.anglesToGVec(gVec_angs_vtx,
+                                         bhat_l=bVec, 
+                                         ehat_l=eVec,
+                                         chi=chi,
+                                         rMat_c=rMat_c)
         else:
             # evaluation points...
             #   * for lack of a better option will use centroids
             tth_eta_cen = gutil.cellCentroids( num.atleast_2d(gVec_angs_vtx[:, :2]), conn )
             gVec_angs  = num.hstack([tth_eta_cen,
                                      num.tile(angs[2], (len(tth_eta_cen), 1))])
-            gVec_c = xf.anglesToGVec(gVec_angs,
-                                     bVec, eVec,
-                                     rMat_s=rMat_s,
-                                     rMat_c=rMat_c)
+            gVec_c = xfcapi.anglesToGVec(gVec_angs,
+                                         bhat_l=bVec, 
+                                         ehat_l=eVec,
+                                         chi=chi,
+                                         rMat_c=rMat_c)
             pass
         xy_eval = xfcapi.gvecToDetectorXY(gVec_c.T,
                                           rMat_d, rMat_s, rMat_c,

@@ -28,22 +28,30 @@ void anglesToGvec_cfunc(long int nvecs, double * angs,
    */
   int i, j, k, l;
   double rMat_e[9], rMat_s[9], rMat_ctst[9];
-  double gVec_e[3], gVec_c_tmp[3] = {0.0, 0.0, 0.0};
+  double gVec_e[3], gVec_l[3], gVec_c_tmp[3];
   
   /* Need eta frame cob matrix (could omit for standard setting) */
   makeEtaFrameRotMat_cfunc(bHat_l, eHat_l, rMat_e);
   
   /* make vector array */
   for (i=0; i<nvecs; i++) {
-    /* components in lab frame */
+    /* components in BEAM frame */
     gVec_e[0] = cos(0.5*angs[3*i]) * cos(angs[3*i+1]);
     gVec_e[1] = cos(0.5*angs[3*i]) * sin(angs[3*i+1]);
     gVec_e[2] = sin(0.5*angs[3*i]);
     
+    /* take from beam frame to lab frame */
+    for (j=0; j<3; j++) {
+      gVec_l[j] = 0.0;
+      for (k=0; k<3; k++) {
+	gVec_l[j] += rMat_e[3*j+k]*gVec_e[k];
+	}
+    }
+
     /* need pointwise rMat_s according to omega */
     makeOscillRotMat_cfunc(chi, angs[3*i+2], rMat_s);
-
-    /* Compute dot(rMat_c.T, rMat_s.T) and hit against gVec_e */
+    
+    /* Compute dot(rMat_c.T, rMat_s.T) and hit against gVec_l */
     for (j=0; j<3; j++) {
       for (k=0; k<3; k++) {
 	rMat_ctst[3*j+k] = 0.0;
@@ -53,7 +61,7 @@ void anglesToGvec_cfunc(long int nvecs, double * angs,
       }
       gVec_c_tmp[j] = 0.0;
       for (k=0; k<3; k++) {      
-	gVec_c_tmp[j] += rMat_ctst[3*j+k]*gVec_e[k];
+	gVec_c_tmp[j] += rMat_ctst[3*j+k]*gVec_l[k];
       }
       gVec_c[3*i+j] = gVec_c_tmp[j];
     }
@@ -656,6 +664,10 @@ void makeBinaryRotMat_cfunc(double * aPtr, double * rPtr)
 
 void makeEtaFrameRotMat_cfunc(double * bPtr, double * ePtr, double * rPtr)
 {
+  /* 
+   * This function generates a COB matrix that takes components in the
+   * BEAM frame to the LAB frame
+   */
   int i;
   double dotZe, nrmZ, nrmX;
 
