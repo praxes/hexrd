@@ -21,30 +21,38 @@ void anglesToGvec_cfunc(long int nvecs, double * angs,
 			double * gVec_c)
 {
   /*
-   *  takes an angle spec (2*theta, eta, omega) for nvecs g-vectors and
+   *  takes an angle spec (2*theta, eta, omega) for nvecs g-vectors and 
    *  returns the unit g-vector components in the crystal frame
-   *
-   *  For unit g-vector in the lab frame, spec rMat_c = Identity and
+   * 
+   *  For unit g-vector in the lab frame, spec rMat_c = Identity and 
    *  overwrite the omega values with zeros
    */
   int i, j, k, l;
   double rMat_e[9], rMat_s[9], rMat_ctst[9];
-  double gVec_e[3], gVec_c_tmp[3] = {0.0, 0.0, 0.0};
-
+  double gVec_e[3], gVec_l[3], gVec_c_tmp[3];
+  
   /* Need eta frame cob matrix (could omit for standard setting) */
   makeEtaFrameRotMat_cfunc(bHat_l, eHat_l, rMat_e);
-
+  
   /* make vector array */
   for (i=0; i<nvecs; i++) {
-    /* components in lab frame */
+    /* components in BEAM frame */
     gVec_e[0] = cos(0.5*angs[3*i]) * cos(angs[3*i+1]);
     gVec_e[1] = cos(0.5*angs[3*i]) * sin(angs[3*i+1]);
     gVec_e[2] = sin(0.5*angs[3*i]);
+    
+    /* take from beam frame to lab frame */
+    for (j=0; j<3; j++) {
+      gVec_l[j] = 0.0;
+      for (k=0; k<3; k++) {
+	gVec_l[j] += rMat_e[3*j+k]*gVec_e[k];
+	}
+    }
 
     /* need pointwise rMat_s according to omega */
     makeOscillRotMat_cfunc(chi, angs[3*i+2], rMat_s);
-
-    /* Compute dot(rMat_c.T, rMat_s.T) and hit against gVec_e */
+    
+    /* Compute dot(rMat_c.T, rMat_s.T) and hit against gVec_l */
     for (j=0; j<3; j++) {
       for (k=0; k<3; k++) {
 	rMat_ctst[3*j+k] = 0.0;
@@ -53,8 +61,8 @@ void anglesToGvec_cfunc(long int nvecs, double * angs,
 	}
       }
       gVec_c_tmp[j] = 0.0;
-      for (k=0; k<3; k++) {
-	gVec_c_tmp[j] += rMat_ctst[3*j+k]*gVec_e[k];
+      for (k=0; k<3; k++) {      
+	gVec_c_tmp[j] += rMat_ctst[3*j+k]*gVec_l[k];
       }
       gVec_c[3*i+j] = gVec_c_tmp[j];
     }
@@ -311,38 +319,38 @@ void detectorXYToGvec_cfunc(long int npts, double * xy,
                             double * beamVec, double * etaVec,
                             double * tTh, double * eta, double * gVec_l)
 {
-    long int i;
-    int j, k;
+  long int i;
+  int j, k;
     double nrm, bVec[3], tVec1[3];
-    double rMat_e[9];
+  double rMat_e[9];
 
-    /* Fill rMat_e */
-    makeEtaFrameRotMat_cfunc(beamVec, etaVec, rMat_e);
+  /* Fill rMat_e */
+  makeEtaFrameRotMat_cfunc(beamVec,etaVec,rMat_e);
 
-    /* Normalize the beam vector */
-    nrm = 0.0;
-    for (j=0; j<3; j++) {
-        nrm += beamVec[j]*beamVec[j];
-    }
+  /* Normalize the beam vector */
+  nrm = 0.0;
+  for (j=0; j<3; j++) {
+    nrm += beamVec[j]*beamVec[j];
+  }
 
-    if ( nrm > epsf ) {
+  if ( nrm > epsf ) {
         double nrm_factor = 1.0/sqrt(nrm);
-        for (j=0; j<3; j++)
+    for (j=0; j<3; j++)
             bVec[j] = beamVec[j]*nrm_factor;
-    } else {
-        for (j=0; j<3; j++)
-            bVec[j] = beamVec[j];
-    }
+  } else {
+    for (j=0; j<3; j++)
+      bVec[j] = beamVec[j];
+  }
 
-    /* Compute shift vector */
-    for (j=0; j<3; j++) {
-        tVec1[j] = tVec_d[j]-tVec_s[j];
-        for (k=0; k<3; k++) {
-            tVec1[j] -= rMat_s[3*j+k]*tVec_c[k];
-        }
+  /* Compute shift vector */
+  for (j=0; j<3; j++) {
+    tVec1[j] = tVec_d[j]-tVec_s[j];
+    for (k=0; k<3; k++) {
+      tVec1[j] -= rMat_s[3*j+k]*tVec_c[k];
     }
+  }
 
-    for (i=0; i<npts; i++) {
+  for (i=0; i<npts; i++) {
         detectorXYToGVecOne_cfunc(xy+2*i, rMat_d, rMat_e, tVec1, bVec, tTh + i, eta + i, gVec_l + 3*i);
     }
 }
@@ -368,7 +376,7 @@ void detectorXYToGvecArray_cfunc(long int npts, double * xy,
     nrm = 0.0;
     for (j=0; j<3; j++) {
         nrm += beamVec[j]*beamVec[j];
-    }
+      }
 
     if ( nrm > epsf ) {
         double nrm_factor = 1.0/sqrt(nrm);
@@ -377,26 +385,26 @@ void detectorXYToGvecArray_cfunc(long int npts, double * xy,
     } else {
         for (j=0; j<3; j++)
             bVec[j] = beamVec[j];
-    }
+      }
 
     for (j=0; j<3; j++) {
         tVec1[j] = tVec_d[j]-tVec_s[j];
-        for (k=0; k<3; k++) {
+      for (k=0; k<3; k++) {
             tVec1[j] -= rMat_s[3*j+k]*tVec_c[k];
-        }
+      }
     }
 
     for (i=0; i<npts; i++) {
         /* Compute shift vector */
-        for (j=0; j<3; j++) {
+    for (j=0; j<3; j++) {
             tVec1[j] = tVec_d[j]-tVec_s[j];
             for (k=0; k<3; k++) {
                 tVec1[j] -= rMat_s[3*j+k]*tVec_c[k];
-            }
-        }
+    }
+    }
         detectorXYToGVecOne_cfunc(xy+2*i, rMat_d, rMat_e, tVec1, bVec,
                                   tTh + i, eta + i, gVec_l + 3*i);
-    }
+  }
 }
 
 void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
@@ -745,6 +753,10 @@ void makeBinaryRotMat_cfunc(double * aPtr, double * rPtr)
 
 void makeEtaFrameRotMat_cfunc(double * bPtr, double * ePtr, double * rPtr)
 {
+  /* 
+   * This function generates a COB matrix that takes components in the
+   * BEAM frame to the LAB frame
+   */
   int i;
   double dotZe, nrmZ, nrmX;
 
@@ -1034,7 +1046,7 @@ void homochoricOfQuat_cfunc(int nq, double * qPtr, double * hPtr)
     else {
       hPtr[3*i+0] = 0.;
       hPtr[3*i+1] = 0.;
-      hPtr[3*i+2] = 0.;
+      hPtr[3*i+2] = 0.;      
     }
   }
 }

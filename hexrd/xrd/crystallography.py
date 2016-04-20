@@ -815,7 +815,7 @@ class PlaneData(object):
                 retval = False
         if self.__tThMax is not None:
             # if hklData['tThetaHi'] > self.__tThMax: continue
-            if hklData['tTheta'] > self.__tThMax:
+            if hklData['tTheta'] > self.__tThMax or num.isnan(hklData['tTheta']):
                 retval = False
         return retval
     def __getTThRange(self,iHKLr):
