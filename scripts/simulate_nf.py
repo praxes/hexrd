@@ -189,13 +189,10 @@ def get_simulate_diffractions(grain_params):
 #==============================================================================
 # %% ORIENTATION TESTING
 #==============================================================================
-def test_orientations(image_stack):
+def _evaluate_diffraction_angles(exp_maps):
     panel_dims_expanded = [(-10, -10), (10, 10)]
-    panel_buffer = 0.05 # mm
-
     pbar = ProgressBar(widgets=['evaluate diffraction angles', Percentage(), Bar()],
                        maxval=n_grains).start()
-    # first evaluate diffraction angles from orientation list (fixed)
     all_angles = []
     for i in range(n_grains):
         gparams = np.hstack([exp_maps[i, :].flatten(), ref_gparams])
@@ -211,6 +208,30 @@ def test_orientations(image_stack):
         pbar.update(i+1)
         pass
     pbar.finish()
+
+    return all_angles
+
+def _confidence_check(image_stack,
+                      frame_indices, row_indices, col_indices,
+                      i_dil, j_dil):
+    count = len(frame_indices)
+    tmp_confidence = np.zeros(count, dtype=bool)
+    for current in range(count):
+        i_sup = row_indices[current] + i_dil
+        j_sup = col_indices[current] + j_dil
+        idx_mask = np.where(
+            np.logical_and(np.logical_and(i_sup >= 0, i_sup < nrows),
+                           np.logical_and(j_sup >= 0, j_sup < ncols))
+        )[0]
+        tmp_confidence[current] = np.any(image_stack[frame_indices[current]][i_sup[idx_mask], j_sup[idx_mask]])
+        pass
+    return sum(tmp_confidence)/float(len(tmp_confidence))
+    
+def test_orientations(image_stack):
+    panel_buffer = 0.05 # mm
+
+    # first evaluate diffraction angles from orientation list (fixed)
+    all_angles = _evaluate_diffraction_angles(exp_maps)
 
     # form test grid and make main loop over spatial coordinates.  
     #   ** base 5-micron grid for 250x250x250 micron search space
@@ -257,17 +278,9 @@ def test_orientations(image_stack):
             frame_indices = gridutil.cellIndices(ome_edges, all_angles[igrn][onDetector, 2])
 
             # perform check
-            tmp_confidence = np.zeros(len(frame_indices), dtype=bool)
-            for iref, indices in enumerate(zip(frame_indices, row_indices, col_indices)):
-                i_sup = indices[1] + i_dil
-                j_sup = indices[2] + j_dil
-                idx_mask = np.where(
-                    np.logical_and(np.logical_and(i_sup >= 0, i_sup < nrows),
-                                   np.logical_and(j_sup >= 0, j_sup < ncols))
-                                   )[0]
-                tmp_confidence[iref] = np.any(image_stack[indices[0]][i_sup[idx_mask], j_sup[idx_mask]])
-                pass
-            confidence[igrn, icrd] = sum(tmp_confidence)/float(len(tmp_confidence))
+            confidence[igrn, icrd] = _confidence_check(image_stack,
+                                                       frame_indices, row_indices, col_indices,
+                                                       i_dil, j_dil)
             pass
         pbar.update(icrd + 1)
         pass
