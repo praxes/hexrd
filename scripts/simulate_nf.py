@@ -211,20 +211,34 @@ def _evaluate_diffraction_angles(exp_maps):
 
     return all_angles
 
+@numba.jit
+def _check_with_dilation(image_stack,
+                         frame_index, row_index, col_index,
+                         row_dilation, col_dilation):
+    min_row = max(row_index-row_dilation, 0)
+    max_row = min(row_index+row_dilation + 1, nrows)
+    min_col = max(col_index-col_dilation, 0)
+    max_col = min(col_index+col_dilation + 1, ncols)
+
+    for r in range(min_row, max_row):
+        for c in range(min_col, max_col):
+            if image_stack[frame_index, r, c]:
+                return 1.0 # found, win!
+    return 0.0 # not found, lose!
+
+
+
 def _confidence_check(image_stack,
                       frame_indices, row_indices, col_indices,
                       i_dil, j_dil):
     count = len(frame_indices)
     tmp_confidence = np.zeros(count, dtype=bool)
+    row_dilation = -i_dil[0,0]
+    col_dilation = -j_dil[0,0]
     for current in range(count):
-        i_sup = row_indices[current] + i_dil
-        j_sup = col_indices[current] + j_dil
-        idx_mask = np.where(
-            np.logical_and(np.logical_and(i_sup >= 0, i_sup < nrows),
-                           np.logical_and(j_sup >= 0, j_sup < ncols))
-        )[0]
-        tmp_confidence[current] = np.any(image_stack[frame_indices[current]][i_sup[idx_mask], j_sup[idx_mask]])
-        pass
+        val = _check_with_dilation(image_stack, frame_indices[current], row_indices[current], col_indices[current], row_dilation, col_dilation)
+        tmp_confidence[current] = val
+
     return sum(tmp_confidence)/float(len(tmp_confidence))
     
 def test_orientations(image_stack):
