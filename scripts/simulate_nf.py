@@ -227,19 +227,17 @@ def _check_with_dilation(image_stack,
     return 0.0 # not found, lose!
 
 
-
+@numba.jit
 def _confidence_check(image_stack,
                       frame_indices, row_indices, col_indices,
-                      i_dil, j_dil):
+                      row_dilation, col_dilation):
     count = len(frame_indices)
-    tmp_confidence = np.zeros(count, dtype=bool)
-    row_dilation = -i_dil[0,0]
-    col_dilation = -j_dil[0,0]
+    acc_confidence = 0.0
     for current in range(count):
         val = _check_with_dilation(image_stack, frame_indices[current], row_indices[current], col_indices[current], row_dilation, col_dilation)
-        tmp_confidence[current] = val
+        acc_confidence += val
 
-    return sum(tmp_confidence)/float(len(tmp_confidence))
+    return acc_confidence/float(count)
     
 def test_orientations(image_stack):
     panel_buffer = 0.05 # mm
@@ -259,16 +257,11 @@ def test_orientations(image_stack):
     row_dilation = np.ceil( 0.5*max_diameter/float(pixel_size[0]) )
     col_dilation = np.ceil( 0.5*max_diameter/float(pixel_size[1]) )
 
-    i_dil, j_dil = np.meshgrid(np.arange(-row_dilation, row_dilation + 1),
-                               np.arange(-col_dilation, col_dilation + 1))
-    i_dil = np.array([i_dil.flatten()], dtype=int)
-    j_dil = np.array([j_dil.flatten()], dtype=int)
-
     # now the grand loop...
     confidence = np.zeros((n_grains, len(test_crds)))
     n_coords = len(test_crds)
     print('Grand loop over {0} test coords and {1} grains.'.format(len(test_crds), n_grains))
-    n_coords = 100
+    n_coords = n_coords // 100
     pbar = ProgressBar(widgets=['grand loop', Percentage(), Bar()],
                        maxval=n_coords).start()
     for icrd in range(n_coords):
@@ -294,7 +287,7 @@ def test_orientations(image_stack):
             # perform check
             confidence[igrn, icrd] = _confidence_check(image_stack,
                                                        frame_indices, row_indices, col_indices,
-                                                       i_dil, j_dil)
+                                                       row_dilation, col_dilation)
             pass
         pbar.update(icrd + 1)
         pass
