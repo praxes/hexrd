@@ -113,8 +113,8 @@ pixel_size = instr_cfg['detector']['pixels']['size']
 nrows = instr_cfg['detector']['pixels']['rows']
 ncols = instr_cfg['detector']['pixels']['columns']
 
-row_dim = pixel_size[0]*nrows # in mm 
-col_dim = pixel_size[1]*ncols # in mm 
+row_dim = pixel_size[0]*nrows # in mm
+col_dim = pixel_size[1]*ncols # in mm
 
 x_col_edges = pixel_size[1]*(np.arange(ncols+1) - 0.5*ncols)
 y_row_edges = pixel_size[0]*(np.arange(nrows+1) - 0.5*nrows)[::-1]
@@ -238,14 +238,43 @@ def _confidence_check(image_stack,
         acc_confidence += val
 
     return acc_confidence/float(count)
-    
+
+def _cell_indices(val, base, inv_delta):
+    return int(floor((val - base) * inv_delta))
+
+@numba.njit
+def _quant_and_clip(coords, angles, base, inv_deltas, clip_vals):
+    count = len(coords)
+    a = np.zeros((count, 3), dtype=np.int32)
+
+    curr = 0
+    for i in range(count):
+        x = int(np.floor((coords[i, 0] - base[0]) * inv_deltas[0]))
+
+        if x < 0 or x >= clip_vals[0]:
+            continue
+
+        y = int(np.floor((coords[i, 1] - base[1]) * inv_deltas[1]))
+
+        if y < 0 or y >= clip_vals[1]:
+            continue
+
+        z = int(np.floor((angles[i] - base[2]) * inv_deltas[2]))
+
+        a[curr, 0] = x
+        a[curr, 1] = y
+        a[curr, 2] = z
+        curr += 1
+
+    return a[:curr,:]
+
 def test_orientations(image_stack):
     panel_buffer = 0.05 # mm
 
     # first evaluate diffraction angles from orientation list (fixed)
     all_angles = _evaluate_diffraction_angles(exp_maps)
 
-    # form test grid and make main loop over spatial coordinates.  
+    # form test grid and make main loop over spatial coordinates.
     #   ** base 5-micron grid for 250x250x250 micron search space
     cvec_s = 0.001*np.arange(-250, 251)[::5]
     Xs, Ys, Zs = np.meshgrid(cvec_s, cvec_s, cvec_s)
@@ -261,30 +290,44 @@ def test_orientations(image_stack):
     confidence = np.zeros((n_grains, len(test_crds)))
     n_coords = len(test_crds)
     print('Grand loop over {0} test coords and {1} grains.'.format(len(test_crds), n_grains))
-    n_coords = n_coords // 100
+    n_coords = n_coords//10
+
+    # note: it is better to use a description for the sensor based on this:
+    base = np.array([x_col_edges[0], y_row_edges[0], ome_edges[0]])
+    deltas = np.array([x_col_edges[1] - x_col_edges[0],
+                       y_row_edges[1] - y_row_edges[0],
+                       ome_edges[1] - ome_edges[0]])
+    inv_deltas = 1.0/deltas
+    clip_vals = np.array([ncols, nrows])
     pbar = ProgressBar(widgets=['grand loop', Percentage(), Bar()],
                        maxval=n_coords).start()
     for icrd in range(n_coords):
         for igrn in range(n_grains):
-            det_xy, rMat_ss = xrdutil._project_on_detector_plane(all_angles[igrn],
+            angles = all_angles[igrn]
+            det_xy, rMat_ss = xrdutil._project_on_detector_plane(angles,
                                                                  rMat_d, rMat_c[igrn], chi,
-                                                                 tVec_d, test_crds[icrd, :], tVec_s, 
+                                                                 tVec_d, test_crds[icrd, :], tVec_s,
                                                                  distortion)
 
-            # find on spatial extent of detector
-            xTest = np.logical_and(det_xy[:, 0] >= panel_dims[0][0] + panel_buffer,
-                                   det_xy[:, 0] <= panel_dims[1][0] - panel_buffer)
-            yTest = np.logical_and(det_xy[:, 1] >= panel_dims[0][1] + panel_buffer,
-                                   det_xy[:, 1] <= panel_dims[1][1] - panel_buffer)
+            # # find on spatial extent of detector
+            # xTest = np.logical_and(det_xy[:, 0] >= panel_dims[0][0] + panel_buffer,
+            #                        det_xy[:, 0] <= panel_dims[1][0] - panel_buffer)
+            # yTest = np.logical_and(det_xy[:, 1] >= panel_dims[0][1] + panel_buffer,
+            #                        det_xy[:, 1] <= panel_dims[1][1] - panel_buffer)
 
-            onDetector = np.where(np.logical_and(xTest, yTest))[0]
+            # onDetector = np.where(np.logical_and(xTest, yTest))[0]
 
-            # pick who's valid
-            row_indices = gridutil.cellIndices(y_row_edges, det_xy[onDetector, 1])
-            col_indices = gridutil.cellIndices(x_col_edges, det_xy[onDetector, 0])
-            frame_indices = gridutil.cellIndices(ome_edges, all_angles[igrn][onDetector, 2])
+            # # pick who's valid
+            # row_indices = gridutil.cellIndices(y_row_edges, det_xy[onDetector, 1])
+            # col_indices = gridutil.cellIndices(x_col_edges, det_xy[onDetector, 0])
+            # frame_indices = gridutil.cellIndices(ome_edges, all_angles[igrn][onDetector, 2])
 
             # perform check
+            indices = _quant_and_clip(det_xy, angles[: , 2],
+                                      base, inv_deltas, clip_vals)
+            col_indices = indices[:, 0]
+            row_indices = indices[:, 1]
+            frame_indices = indices[:, 2]
             confidence[igrn, icrd] = _confidence_check(image_stack,
                                                        frame_indices, row_indices, col_indices,
                                                        row_dilation, col_dilation)
