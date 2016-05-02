@@ -4028,8 +4028,8 @@ def pullSpots(pd, detector_params, grain_params, reader,
 
         if doClipping:
             gVec_c = xfcapi.anglesToGVec(gVec_angs_vtx,
-                                         bhat_l=bVec, 
-                                         ehat_l=eVec,
+                                         bHat_l=bVec,
+                                         eHat_l=eVec,
                                          chi=chi,
                                          rMat_c=rMat_c)
         else:
@@ -4039,12 +4039,12 @@ def pullSpots(pd, detector_params, grain_params, reader,
             gVec_angs  = num.hstack([tth_eta_cen,
                                      num.tile(angs[2], (len(tth_eta_cen), 1))])
             gVec_c = xfcapi.anglesToGVec(gVec_angs,
-                                         bhat_l=bVec, 
-                                         ehat_l=eVec,
+                                         bHat_l=bVec,
+                                         eHat_l=eVec,
                                          chi=chi,
                                          rMat_c=rMat_c)
             pass
-        xy_eval = xfcapi.gvecToDetectorXY(gVec_c.T,
+        xy_eval = xfcapi.gvecToDetectorXY(gVec_c,
                                           rMat_d, rMat_s, rMat_c,
                                           tVec_d, tVec_s, tVec_c)
         if distortion is not None and len(distortion) == 2:
