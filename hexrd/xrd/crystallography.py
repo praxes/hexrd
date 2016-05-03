@@ -1003,7 +1003,9 @@ class PlaneData(object):
         """
         # arg munging
         if chiTilt is None:
-            chiTilt = 0.
+            chi = 0.
+        else:
+            chi = float(chiTilt)
         rMat_c = rMat_c.squeeze()
 
         # these are the reciprocal lattice vectors in the SAMPLE FRAME
@@ -1016,7 +1018,7 @@ class PlaneData(object):
         assert dim0 == 3, "Looks like something is wrong with your lattice plane normals son!"
 
         # call model from transforms now
-        oangs0, oangs1 = xfcapi.oscillAnglesOfHKLs(hkls.T, chiTilt, rMat_c, bMat, wavelength)
+        oangs0, oangs1 = xfcapi.oscillAnglesOfHKLs(hkls.T, chi, rMat_c, bMat, wavelength)
 
         return gVec_s, oangs0.T, oangs1.T
 
