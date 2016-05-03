@@ -38,6 +38,7 @@ from scipy import constants as C
 from hexrd.matrixutil import sqrt, unitVector, columnNorm, sum
 from hexrd.xrd.rotations import rotMatOfExpMap, mapAngle
 from hexrd.xrd import symmetry
+from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd import valunits
 from hexrd.valunits import toFloat
 
@@ -996,100 +997,28 @@ class PlaneData(object):
     @staticmethod
     def makeScatteringVectors(hkls, rMat_c, bMat, wavelength, chiTilt=None):
         """
-        modeled after QFromU.m
+        Static method for calculating g-vectors and scattering vector angles for
+        specified hkls, subject to the bragg conditions specified by lattice vectors, 
+        orientation matrix, and wavelength
         """
+        # arg munging
+        if chiTilt is None:
+            chiTilt = 0.
+        rMat_c = rMat_c.squeeze()
 
-        # basis vectors
-        bHat_l = num.c_[ 0.,  0., -1.].T
-        eHat_l = num.c_[ 1.,  0.,  0.].T
-
-        zTol = 1.0e-7                       # zero tolerance for checking vectors
-
-        gVec_s = []
-        oangs0 = []
-        oangs1 = []
-
-        # these are the reciprocal lattice vectors in the CRYSTAL FRAME
+        # these are the reciprocal lattice vectors in the SAMPLE FRAME
         # ** NOTE **
         #   if strained, assumes that you handed it a bMat calculated from
-        #   strained [a, b, c]
-        gVec_c = num.dot( bMat, hkls )
-        gHat_c = unitVector(gVec_c)
+        #   strained [a, b, c] in the CRYSTAL FRAME
+        gVec_s = num.dot(rMat_c, num.dot(bMat, hkls))
 
-        dim0, nRefl = gVec_c.shape
+        dim0, nRefl = gVec_s.shape
         assert dim0 == 3, "Looks like something is wrong with your lattice plane normals son!"
 
-        # extract 1/dspacing and sin of bragg angle
-        dSpacingi = columnNorm(gVec_c).flatten()
-        sintht    = 0.5 * wavelength * dSpacingi
+        # call model from transforms now
+        oangs0, oangs1 = xfcapi.oscillAnglesOfHKLs(hkls.T, chiTilt, rMat_c, bMat, wavelength)
 
-        # move reciprocal lattice vectors to sample frame
-        gHat_s = num.dot(rMat_c.squeeze(), gHat_c)
-
-        if chiTilt is None:
-            cchi = 1.
-            schi = 0.
-            rchi = num.eye(3)
-        else:
-            cchi = num.cos(chiTilt)
-            schi = num.sin(chiTilt)
-            rchi = num.array([[   1.,    0.,    0.],
-                              [   0.,  cchi, -schi],
-                              [   0.,  schi,  cchi]])
-            pass
-
-        a =  cchi * gHat_s[0, :]
-        b = -cchi * gHat_s[2, :]
-        c =  schi * gHat_s[1, :] - sintht
-
-        # form solution
-        abMag    = num.sqrt(a*a + b*b); assert num.all(abMag > 0), "Beam vector specification is infealible!"
-        phaseAng = num.arctan2(b, a)
-        rhs      = c / abMag; rhs[abs(rhs) > 1.] = num.nan
-        rhsAng   = num.arcsin(rhs)
-
-        # write ome angle output arrays (NaNs persist here)
-        ome0 =          rhsAng - phaseAng
-        ome1 = num.pi - rhsAng - phaseAng
-
-        goodOnes_s = -num.isnan(ome0)
-
-        eta0 = num.nan * num.ones_like(ome0)
-        eta1 = num.nan * num.ones_like(ome1)
-
-        # mark feasible reflections
-        goodOnes   = num.tile(goodOnes_s, (1, 2)).flatten()
-
-        numGood_s  = sum(goodOnes_s)
-        numGood    = 2 * numGood_s
-        tmp_eta    = num.empty(numGood)
-        tmp_gvec   = num.tile(gHat_c, (1, 2))[:, goodOnes]
-        allome     = num.hstack([ome0, ome1])
-
-        for i in range(numGood):
-            come = num.cos(allome[goodOnes][i])
-            some = num.sin(allome[goodOnes][i])
-            rome = num.array([[ come,    0.,  some],
-                              [   0.,    1.,    0.],
-                              [-some,    0.,  come]])
-            rMat_s = num.dot(rchi, rome)
-    	    gVec_l = num.dot(rMat_s,
-                       num.dot(rMat_c, tmp_gvec[:, i].reshape(3, 1)
-                       ) )
-            tmp_eta[i] = num.arctan2(gVec_l[1], gVec_l[0])
-            pass
-        eta0[goodOnes_s] = tmp_eta[:numGood_s]
-        eta1[goodOnes_s] = tmp_eta[numGood_s:]
-
-        # make assoc tTh array
-        tTh  = 2.*num.arcsin(sintht).flatten()
-        tTh0 = tTh; tTh0[-goodOnes_s] = num.nan
-
-        gVec_s = num.tile(dSpacingi, (3, 1)) * gHat_s
-        oangs0 = num.vstack([tTh0.flatten(), eta0.flatten(), ome0.flatten()])
-        oangs1 = num.vstack([tTh0.flatten(), eta1.flatten(), ome1.flatten()])
-
-        return gVec_s, oangs0, oangs1
+        return gVec_s, oangs0.T, oangs1.T
 
     def __makeScatteringVectors(self, rMat, bMat=None, chiTilt=None):
         """
