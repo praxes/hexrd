@@ -32,6 +32,8 @@ import math
 from math import pi
 import shelve
 
+
+
 import numpy as num
 from scipy import sparse
 from scipy.linalg import svd
@@ -3403,6 +3405,7 @@ def _project_on_detector_plane(allAngs,
     tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs, rMat_d, rMat_ss, rMat_c,
                                            tVec_d, tVec_s, tVec_c)
     valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
+    
     if distortion is None or len(distortion) == 0:
         det_xy = tmp_xys[valid_mask]
     else:
@@ -3477,6 +3480,8 @@ def simulateGVecs(pd, detector_params, grain_params,
         det_xy, rMat_s = _project_on_detector_plane(allAngs,
                                                     rMat_d, rMat_c, chi,
                                                     tVec_d, tVec_c, tVec_s, distortion)
+                                                    
+        
         #
         on_panel_x = num.logical_and(det_xy[:, 0] >= panel_dims[0][0], det_xy[:, 0] <= panel_dims[1][0])
         on_panel_y = num.logical_and(det_xy[:, 1] >= panel_dims[0][1], det_xy[:, 1] <= panel_dims[1][1])
@@ -3490,6 +3495,7 @@ def simulateGVecs(pd, detector_params, grain_params,
                                      rMat_d, rMat_s,
                                      tVec_d, tVec_s, tVec_c,
                                      distortion=distortion)
+                                     
     return valid_ids, valid_hkl, valid_ang, valid_xy, ang_ps
 
 
@@ -3537,11 +3543,14 @@ def simulateLauePattern(hkls, bMat,
 
     """
     LOOP OVER GRAINS
-    """
+    """   
+    
+    
     for iG, gp in enumerate(grain_params):
         rmat_c = xfcapi.makeRotMatOfExpMap(gp[:3])
         tvec_c = gp[3:6].reshape(3, 1)
         vInv_s = mutil.vecMVToSymm(gp[6:].reshape(6, 1))
+        
 
         # stretch them: V^(-1) * R * Gc
         ghat_s_str = mutil.unitVector(
@@ -3552,14 +3561,21 @@ def simulateLauePattern(hkls, bMat,
         dpts = xfcapi.gvecToDetectorXY(ghat_c_str.T,
                                        rmat_d, rmat_s, rmat_c,
                                        tvec_d, tvec_s, tvec_c).T
+                                       
+        
+                
+        #print dpts
 
         # check intersections with detector plane
         canIntersect = ~num.isnan(dpts[0, :])
         npts_in = sum(canIntersect)
+        
+        
         if num.any(canIntersect):
             dpts = dpts[:, canIntersect].reshape(2, npts_in)
             dhkl = hkls[:, canIntersect].reshape(3, npts_in)
-
+            
+            
             # back to angles
             tth_eta, gvec_l = xfcapi.detectorXYToGvec(dpts.T,
                                                       rmat_d, rmat_s,
@@ -3575,6 +3591,8 @@ def simulateLauePattern(hkls, bMat,
             # plane spacings and energies
             dsp = 1. / mutil.columnNorm(num.dot(bMat, dhkl))
             wlen  = 2*dsp*num.sin(0.5*tth_eta[:, 0])
+            
+            #print wlen
 
             # find on spatial extent of detector
             xTest = num.logical_and(dpts[0, :] >= -0.5*panel_dims[1] + panel_buffer,
@@ -3601,8 +3619,12 @@ def simulateLauePattern(hkls, bMat,
             angles[iG][keepers, :] = tth_eta[keepers, :]
             dspacing[iG, keepers] = dsp[keepers]
             energy[iG, keepers] = processWavelength(wlen[keepers])
+
             pass
         pass
+    
+    
+    
     return xy_det, hkls_in, angles, dspacing, energy
 
 

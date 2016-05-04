@@ -171,6 +171,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
 
         qfib_r = qfib[:, np.array(compl) > min_compl]
+
         num_ors = qfib_r.shape[1]
         
         if num_ors > 25000:
