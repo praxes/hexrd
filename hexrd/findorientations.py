@@ -213,13 +213,15 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             else:
                 if algorithm == 'ort-dbscan':
                     pts = qfib_r[1:, :].T
+                    eps = 0.9*np.radians(cl_radius)
                 else:
                     pts = qfib_r.T
+                    eps = np.radians(cl_radius)
 
                 # run dbscan
                 core_samples, labels = dbscan(
                     pts,
-                    eps=0.5*np.radians(cl_radius),
+                    eps=eps,
                     min_samples=min_samples,
                     metric='minkowski', p=2,
                     )

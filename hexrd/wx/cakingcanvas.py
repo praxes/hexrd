@@ -877,8 +877,11 @@ class sphOpts(wx.Panel):
         self.idata = self.hkl_cho.GetSelection()
         p = self.GetParent()
 
-        this_map = p.data.getData(self.idata)
-
+        #this_map = p.data.getData(self.idata)
+        this_map = p.data.dataStore[self.idata]
+        if self.cmPanel.apply_filter:
+            this_map = -ndimage.filters.gaussian_laplace(this_map, self.cmPanel.filter_val)
+            
         threshold = self.cmPanel.cmin_val
 
         structureNDI_label = numpy.array([[1,1,1],

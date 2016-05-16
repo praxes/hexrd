@@ -3400,10 +3400,16 @@ def _project_on_detector_plane(allAngs,
                                rMat_d, rMat_c, chi,
                                tVec_d, tVec_c, tVec_s, distortion):
     # hkls not needed # gVec_cs = num.dot(bMat, allHKLs.T)
-    gVec_cs = xfcapi.anglesToGVec(allAngs, chi=chi, rMat_c=rMat_c)
-    rMat_ss = xfcapi.makeOscillRotMatArray(chi, num.ascontiguousarray(allAngs[:,2]))
-    tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs, rMat_d, rMat_ss, rMat_c,
-                                           tVec_d, tVec_s, tVec_c)
+    gVec_cs = xfcapi.anglesToGVec(
+        allAngs, chi=chi, rMat_c=rMat_c
+        )
+    rMat_ss = xfcapi.makeOscillRotMatArray(
+        chi, num.ascontiguousarray(allAngs[:,2])
+        )
+    tmp_xys = xfcapi.gvecToDetectorXYArray(
+        gVec_cs, rMat_d, rMat_ss, rMat_c, 
+        tVec_d, tVec_s, tVec_c
+        )
     valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
     
     if distortion is None or len(distortion) == 0:
@@ -3416,7 +3422,8 @@ def _project_on_detector_plane(allAngs,
 
 
 def simulateGVecs(pd, detector_params, grain_params,
-                  ome_range=[(-num.pi, num.pi), ], ome_period=(-num.pi, num.pi),
+                  ome_range=[(-num.pi, num.pi), ], 
+                  ome_period=(-num.pi, num.pi),
                   eta_range=[(-num.pi, num.pi), ],
                   panel_dims=[(-204.8, -204.8), (204.8, 204.8)],
                   pixel_pitch=(0.2, 0.2),
@@ -3444,13 +3451,14 @@ def simulateGVecs(pd, detector_params, grain_params,
         - eta (azimuth) ranges
 
     pd................a hexrd.xrd.crystallography.PlaneData instance
-    detector_params...a (10,) ndarray containing the tilt angles (3), translation (3),
-                      chi (1), and sample frame translation (3) parameters
+    detector_params...a (10,) ndarray containing the tilt angles (3), 
+                      translation (3), chi (1), and sample frame translation 
+                      (3) parameters
     grain_params......a (12,) ndarray containing the exponential map (3),
                       translation (3), and inverse stretch tensor compnents
                       in Mandel-Voigt notation (6).
 
-    * currently only one panel is supported, but this will likely change very soon
+    * currently only one panel is supported, but this will likely change soon
     """
     bMat      = pd.latVecOps['B']
     wlen      = pd.wavelength
@@ -3466,8 +3474,14 @@ def simulateGVecs(pd, detector_params, grain_params,
     vInv_s = num.ascontiguousarray(grain_params[6:12])
 
     # first find valid G-vectors
-    angList = num.vstack(xfcapi.oscillAnglesOfHKLs(full_hkls[:, 1:], chi, rMat_c, bMat, wlen, vInv=vInv_s))
-    allAngs, allHKLs = _filter_hkls_eta_ome(full_hkls, angList, eta_range, ome_range)
+    angList = num.vstack(
+        xfcapi.oscillAnglesOfHKLs(
+            full_hkls[:, 1:], chi, rMat_c, bMat, wlen, vInv=vInv_s
+            )
+        )
+    allAngs, allHKLs = _filter_hkls_eta_ome(
+        full_hkls, angList, eta_range, ome_range
+        )
 
     if len(allAngs) == 0:
         valid_ids = []
@@ -3477,17 +3491,25 @@ def simulateGVecs(pd, detector_params, grain_params,
         ang_ps = []
     else:
         #...preallocate for speed...?
-        det_xy, rMat_s = _project_on_detector_plane(allAngs,
-                                                    rMat_d, rMat_c, chi,
-                                                    tVec_d, tVec_c, tVec_s, distortion)
-                                                    
-        
+        det_xy, rMat_s = _project_on_detector_plane(
+            allAngs,
+            rMat_d, rMat_c, chi,
+            tVec_d, tVec_c, tVec_s, 
+            distortion
+            )
         #
-        on_panel_x = num.logical_and(det_xy[:, 0] >= panel_dims[0][0], det_xy[:, 0] <= panel_dims[1][0])
-        on_panel_y = num.logical_and(det_xy[:, 1] >= panel_dims[0][1], det_xy[:, 1] <= panel_dims[1][1])
+        on_panel_x = num.logical_and(
+            det_xy[:, 0] >= panel_dims[0][0], 
+            det_xy[:, 0] <= panel_dims[1][0]
+            )
+        on_panel_y = num.logical_and(
+            det_xy[:, 1] >= panel_dims[0][1], 
+            det_xy[:, 1] <= panel_dims[1][1]
+            )
         on_panel   = num.logical_and(on_panel_x, on_panel_y)
         #
-        valid_ang = allAngs[on_panel, :]; valid_ang[:, 2] = xf.mapAngle(valid_ang[:, 2], ome_period)
+        valid_ang = allAngs[on_panel, :]
+        valid_ang[:, 2] = xf.mapAngle(valid_ang[:, 2], ome_period)
         valid_ids = allHKLs[on_panel, 0]
         valid_hkl = allHKLs[on_panel, 1:]
         valid_xy  = det_xy[on_panel, :]
@@ -3506,12 +3528,14 @@ def simulateLauePattern(hkls, bMat,
                         minEnergy=8, maxEnergy=24,
                         rmat_s=num.eye(3),
                         grain_params=None,
-                        distortion=None):
+                        distortion=None
+                        ):
 
     # parse energy ranges
     multipleEnergyRanges = False
     if hasattr(maxEnergy, '__len__'):
-        assert len(maxEnergy) == len(minEnergy), 'energy cutoff ranges must have the same length'
+        assert len(maxEnergy) == len(minEnergy), \
+            'energy cutoff ranges must have the same length'
         multipleEnergyRanges = True; lmin = []; lmax = []
         for i in range(len(maxEnergy)):
             lmin.append(processWavelength(maxEnergy[i]))
@@ -3522,7 +3546,13 @@ def simulateLauePattern(hkls, bMat,
 
     # process crystal rmats and inverse stretches
     if grain_params is None:
-        grain_params = num.atleast_2d([0., 0., 0., 0., 0., 0., 1., 1., 1., 0., 0., 0.])
+        grain_params = num.atleast_2d(
+            [0., 0., 0., 
+             0., 0., 0., 
+             1., 1., 1., 0., 0., 0.
+             ]             
+        )
+
     n_grains = len(grain_params)
 
     # dummy translation vector... make input
@@ -4309,3 +4339,24 @@ def pullSpots(pd, detector_params, grain_params, reader,
     fid.close()
 
     return spot_list
+
+def extract_detector_transformation(detector_params):
+    """
+    goes from 10 vector of detector parames OR instrument config dictionary 
+    (from YAML spec) to affine transformation arrays
+    """    # extract variables for convenience
+    if isinstance(detector_params, dict):
+        rMat_d = xfcapi.makeDetectorRotMat(
+            instr_cfg['detector']['transform']['tilt_angles']
+            )
+        tVec_d = num.r_[instr_cfg['detector']['transform']['t_vec_d']]
+        chi = instr_cfg['oscillation_stage']['chi']
+        tVec_s = num.r_[instr_cfg['oscillation_stage']['t_vec_s']]
+    else:
+        assert len(detector_params >= 10), \
+            "list of detector parameters must have length >= 10"
+        rMat_d = xfcapi.makeDetectorRotMat(detector_params[:3])
+        tVec_d = num.ascontiguousarray(detector_params[3:6])
+        chi    = detector_params[6]
+        tVec_s = num.ascontiguousarray(detector_params[7:10])
+    return rMat_d, tVec_d, chi, tVec_s

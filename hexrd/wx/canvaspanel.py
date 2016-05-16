@@ -156,7 +156,7 @@ class CanvasPanel(wx.Panel):
                 cy = (carty - det.yc)/det.pixelPitch
                 rho = numpy.sqrt(cx*cx + cy*cy)
                 dsp = 0.5*pd.wavelength/numpy.sin(0.5*tth)
-                intens = img[yadj, xadj]
+                intens = img[yint, xint]
                 hkls = str(pd.getHKLs(asStr=True, allHKLs=True, thisTTh=tth))
                 statText = "px=%g, py=%g, x=%g, y=%g, rho=%g, d=%g, "\
                            "tth=%g, eta=%g, int=%g, HKLs=%s" %\
