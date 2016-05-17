@@ -124,7 +124,7 @@ class TestClusteringConfig(TestConfig):
     def test_algorithm(self):
         self.assertEqual(
             self.cfgs[0].find_orientations.clustering.algorithm,
-            'dbscan'
+            'ort-dbscan'
             )
         self.assertEqual(
             self.cfgs[1].find_orientations.clustering.algorithm,
