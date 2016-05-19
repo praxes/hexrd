@@ -1,8 +1,8 @@
 /*
- gcc -c -I/opt/local/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7 -I/opt/local/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages/numpy/core/include/numpy transforms_CAPI.c
-
-gcc -bundle -flat_namespace -undefined suppress -o _transforms_CAPI.so transforms_CAPI.o
-*/
+ * gcc -c -I/opt/local/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7 -I/opt/local/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages/numpy/core/include/numpy transforms_CAPI.c
+ *
+ * gcc -bundle -flat_namespace -undefined suppress -o _transforms_CAPI.so transforms_CAPI.o
+ */
 
 #include "transforms_CAPI.h"
 #include "transforms_CFUNC.h"
@@ -34,8 +34,6 @@ static PyMethodDef _transform_methods[] = {
   {"homochoricOfQuat",homochoricOfQuat,METH_VARARGS,"Compute homochoric parameterization of list of unit quaternions"},
   {NULL,NULL}
 };
-
-/* static double epsf = 2.2e-16; */
 
 void init_transforms_CAPI(void)
 {
@@ -188,7 +186,6 @@ static PyObject * gvecToDetectorXY(PyObject * self, PyObject * args)
   assert( PyArray_DIMS(beamVec)[0] == 3 );
 
   /* Allocate C-style array for return data */
-  // result_Ptr  = malloc(2*npts*sizeof(double));
   dims[0] = npts; dims[1] = 2;
   result = (PyArrayObject*)PyArray_EMPTY(2,dims,NPY_DOUBLE,0);
 
@@ -213,21 +210,6 @@ static PyObject * gvecToDetectorXY(PyObject * self, PyObject * args)
 			 tVec_d_Ptr, tVec_s_Ptr, tVec_c_Ptr,
 			 beamVec_Ptr,
 			 result_Ptr);
-
-  /* Use the returned pointer to build the result object */
-  /* We do this since nadm may be less than npts and the result_Ptr
-     may not be the same as the one allocated earlier. */
-
-  /* if ( nadm < npts ) { */
-  /*   new_result_Ptr = (double*)realloc(result_Ptr,2*nadm*sizeof(double)); */
-  /*   if ( new_result_Ptr != NULL ) result_Ptr = new_result_Ptr; */
-  /*   else */
-  /*     assert( false ); /\* This really should never happen *\/ */
-  /* } */
-
-  /* dims[0] = nadm; */
-  /* dims[1] = 2; */
-  /* result = (PyArrayObject*)PyArray_SimpleNewFromData(2,dims,NPY_DOUBLE,result_Ptr); */
 
   /* Build and return the nested data structure */
   return((PyObject*)result);
@@ -313,7 +295,6 @@ static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
   assert( PyArray_DIMS(beamVec)[0] == 3 );
 
   /* Allocate C-style array for return data */
-  // result_Ptr  = malloc(2*npts*sizeof(double));
   dims[0] = npts; dims[1] = 2;
   result = (PyArrayObject*)PyArray_EMPTY(2,dims,NPY_DOUBLE,0);
 
@@ -338,23 +319,6 @@ static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
 			 tVec_d_Ptr, tVec_s_Ptr, tVec_c_Ptr,
 			 beamVec_Ptr,
 			 result_Ptr);
-
-  /* Use the returned pointer to build the result object */
-  /* We do this since nadm may be less than npts and the result_Ptr
-     may not be the same as the one allocated earlier. */
-
-  /* if ( nadm < npts ) { */
-  /*   new_result_Ptr = (double*)realloc(result_Ptr,2*nadm*sizeof(double)); */
-  /*   if ( new_result_Ptr != NULL ) result_Ptr = new_result_Ptr; */
-  /*   else */
-  /*     assert( false ); /\* This really should never happen *\/ */
-  /* } */
-  /*     assert( false ); /\* This really should never happen *\/ */
-  /* } */
-
-  /* dims[0] = nadm; */
-  /* dims[1] = 2; */
-  /* result = (PyArrayObject*)PyArray_SimpleNewFromData(2,dims,NPY_DOUBLE,result_Ptr); */
 
   /* Build and return the nested data structure */
   return((PyObject*)result);
@@ -548,11 +512,6 @@ static PyObject * oscillAnglesOfHKLs(PyObject * self, PyObject * args)
 			   vInv_s_Ptr, beamVec_Ptr, etaVec_Ptr,
 			   oangs0_Ptr, oangs1_Ptr);
 
-  // printf("chi = %g, wavelength = %g\n",PyFloat_AsDouble((PyObject*)chi),PyFloat_AsDouble((PyObject*)wavelength));
-  /*
-np.ascontiguousarray(hkls),chi,rMat_c,bMat,wavelength,
-					       beamVec.flatten(),etaVec.flatten()
-  */
   /* Build and return the list data structure */
   return_tuple = Py_BuildValue("OO",oangs0,oangs1);
   Py_DECREF(oangs1);

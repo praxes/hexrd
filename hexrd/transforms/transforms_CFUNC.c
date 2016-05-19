@@ -84,7 +84,10 @@ void gvecToDetectorXYOne_cfunc(double * gVec_c, double * rMat_d,
   /* Compute unit reciprocal lattice vector in crystal frame w/o translation */
   unitRowVector_cfunc(3,gVec_c,gHat_c);
 
-  /* Compute unit reciprocal lattice vector in lab frame and dot with beam vector */
+  /*
+	 * Compute unit reciprocal lattice vector in lab frame
+	 * and dot with beam vector
+	 */
   bDot = 0.0;
   for (j=0; j<3; j++) {
     gVec_l[j] = 0.0;
@@ -95,7 +98,10 @@ void gvecToDetectorXYOne_cfunc(double * gVec_c, double * rMat_d,
   }
 
   if ( bDot >= ztol && bDot <= 1.0-ztol ) {
-    /* If we are here diffraction is possible so increment the number of admissable vectors */
+    /*
+		 * If we are here diffraction is possible so increment
+		 * the number of admissable vectors
+		 */
     makeBinaryRotMat_cfunc(gVec_l,brMat);
 
     denom = 0.0;
@@ -812,39 +818,6 @@ void validateAngleRanges_cfunc(int na, double * aPtr, int nr,
   }
 }
 
-/* This function is similar to the Python method rotate_vectors_about_axis but not the same.
-Calling this function with tTh and the other with 0.5*(M_PI-tTh) yield the same results.
- */
-/*
-void rotateVectorAboutAxis_cfunc(double tTh, double * n_g, double * dHat_l, double * gVec_l)
-{
-  double phi, c, s;
-
-  gVec_l[0] = dHat_l[0];
-  gVec_l[1] = dHat_l[1];
-  gVec_l[2] = dHat_l[2];
-
-  phi = 0.5*(M_PI-tTh);
-
-  if ( fabs(phi) > 2.2e-16 ) {
-    s = sin(phi);
-    c = 1.0-cos(phi);
-
-    gVec_l[0] += s*(n_g[1]*dHat_l[2]-n_g[2]*dHat_l[1]);
-    gVec_l[1] += s*(n_g[2]*dHat_l[0]-n_g[0]*dHat_l[2]);
-    gVec_l[2] += s*(n_g[0]*dHat_l[1]-n_g[1]*dHat_l[0]);
-
-    gVec_l[0] -= c*(n_g[1]*n_g[1]+n_g[2]*n_g[2])*dHat_l[0];
-    gVec_l[1] -= c*(n_g[2]*n_g[2]+n_g[0]*n_g[0])*dHat_l[1];
-    gVec_l[2] -= c*(n_g[0]*n_g[0]+n_g[1]*n_g[1])*dHat_l[2];
-
-    gVec_l[0] += c*(n_g[0]*n_g[1]*dHat_l[1]+n_g[0]*n_g[2]*dHat_l[2]);
-    gVec_l[1] += c*(n_g[1]*n_g[2]*dHat_l[2]+n_g[1]*n_g[0]*dHat_l[0]);
-    gVec_l[2] += c*(n_g[2]*n_g[0]*dHat_l[0]+n_g[2]*n_g[1]*dHat_l[1]);
-  }
-
-}
-*/
 void rotate_vecs_about_axis_cfunc(long int na, double * angles,
 				  long int nax, double * axes,
 				  long int nv, double * vecs,
