@@ -863,15 +863,15 @@ class PlaneData(object):
 
         # if you end exlcusions in a doublet (or multiple close rings)
         # then this will 'fail'.  May need to revisit...
-        nonoverlapNexts = np.hstack((tThRanges[:-1,1] < tThRanges[1:,0], True))
+        nonoverlapNexts = num.hstack((tThRanges[:-1,1] < tThRanges[1:,0], True))
         iHKLLists = []
         mergedRanges = []
         hklsCur = []
         tThLoIdx = 0
-        tThLoCur = tThHiCur = 0.
+        tThHiCur = 0.
         for iHKL, nonoverlapNext in enumerate(nonoverlapNexts):
             print tThLoIdx
-            ThHi = tThRanges[iHKL, -1]
+            tThHi = tThRanges[iHKL, -1]
             if not nonoverlapNext:
                 if cullDupl and abs(tThs[iHKL] - tThs[iHKL+1]) < sqrt_epsf:
                   continue

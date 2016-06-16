@@ -3170,53 +3170,6 @@ def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
                     reflInRange = reflInRange | num.logical_and(zStart >= 0, zStop <= 0)
     return reflInRange
 
-def tVec_d_from_old_parfile(old_par, detOrigin):
-    beamXYD = old_par[:3, 0]
-    rMat_d  = xf.makeDetectorRotMat(old_par[3:6, 0])
-    bVec_ref = num.c_[0., 0., -1.].T
-    args=(rMat_d, beamXYD, detOrigin, bVec_ref)
-    tvd_xy = opt.leastsq(objFun_tVec_d, -beamXYD[:2], args=args)[0]
-    return num.hstack([tvd_xy, -beamXYD[2]]).reshape(3, 1)
-
-def objFun_tVec_d(tvd_xy, rMat_d, beamXYD, detOrigin, bHat_l):
-    """
-    """
-    xformed_xy = beamXYD[:2] - detOrigin
-    tVec_d = num.hstack([tvd_xy, -beamXYD[2]]).T
-    n_d    = rMat_d[:, 2]
-
-    bVec_l = (num.dot(n_d, tVec_d) / num.dot(n_d, bHat_l)) * bHat_l
-    bVec_d = num.hstack([xformed_xy, 0.]).T
-
-    return num.dot(rMat_d, bVec_d).flatten() + tVec_d.flatten() - bVec_l.flatten()
-
-def beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, detOrigin):
-    # calculate beam position
-    Zd_l = num.dot(rMat_d, num.c_[0, 0, 1].T)
-    bScl = num.dot(Zd_l.T, tVec_d) / num.dot(Zd_l.T, bVec_ref)
-    beamPos_l = bScl*bVec_ref
-    return num.dot(rMat_d.T, beamPos_l - tVec_d) + num.hstack([detOrigin, -tVec_d[2]]).reshape(3, 1)
-
-def write_old_parfile(filename, results):
-    if isinstance(filename, file):
-        fid = filename
-    elif isinstance(filename, str) or isinstance(filename, unicode):
-        fid = open(filename, 'w')
-        pass
-    rMat_d = xf.makeDetectorRotMat(results['tiltAngles'])
-    tVec_d = results['tVec_d'] - results['tVec_s']
-    beamXYD = beamXYD_from_tVec_d(rMat_d, tVec_d, bVec_ref, detOrigin)
-    det_plist = num.zeros(12)
-    det_plist[:3]  = beamXYD.flatten()
-    det_plist[3:6] = results['tiltAngles']
-    det_plist[6:]  = results['dParams']
-    print >> fid, "# DETECTOR PARAMETERS (from new geometry model fit)"
-    print >> fid, "# \n# <class 'hexrd.xrd.detector.DetectorGeomGE'>\n#"
-    for i in range(len(det_plist)):
-        print >> fid, "%1.8e\t%d" % (det_plist[i], 0)
-    fid.close()
-    return
-
 def simulateOmeEtaMaps(omeEdges, etaEdges, planeData, expMaps,
                        chi=0.,
                        etaTol=None, omeTol=None,
@@ -3429,7 +3382,7 @@ def simulateGVecs(pd, detector_params, grain_params,
                   pixel_pitch=(0.2, 0.2),
                   distortion=(dFunc_ref, dParams_ref)):
     """
-    returns valid_hkl, valid_ang, valid_xy, ang_ps
+    returns valid_ids, valid_hkl, valid_ang, valid_xy, ang_ps
 
     panel_dims are [(xmin, ymin), (xmax, ymax)] in mm
 
@@ -3506,17 +3459,19 @@ def simulateGVecs(pd, detector_params, grain_params,
             det_xy[:, 1] >= panel_dims[0][1], 
             det_xy[:, 1] <= panel_dims[1][1]
             )
-        on_panel   = num.logical_and(on_panel_x, on_panel_y)
+        on_panel = num.logical_and(on_panel_x, on_panel_y)
         #
-        valid_ang = allAngs[on_panel, :]
+        op_idx = num.where(on_panel)[0]
+        #
+        valid_ang = allAngs[op_idx, :]
         valid_ang[:, 2] = xf.mapAngle(valid_ang[:, 2], ome_period)
-        valid_ids = allHKLs[on_panel, 0]
-        valid_hkl = allHKLs[on_panel, 1:]
-        valid_xy  = det_xy[on_panel, :]
-        ang_ps    = angularPixelSize(valid_xy, pixel_pitch,
-                                     rMat_d, rMat_s,
-                                     tVec_d, tVec_s, tVec_c,
-                                     distortion=distortion)
+        valid_ids = allHKLs[op_idx, 0]
+        valid_hkl = allHKLs[op_idx, 1:]
+        valid_xy = det_xy[op_idx, :]
+        ang_ps = angularPixelSize(valid_xy, pixel_pitch,
+                                  rMat_d, rMat_s,
+                                  tVec_d, tVec_s, tVec_c,
+                                  distortion=distortion)
                                      
     return valid_ids, valid_hkl, valid_ang, valid_xy, ang_ps
 
@@ -3574,7 +3529,6 @@ def simulateLauePattern(hkls, bMat,
     """
     LOOP OVER GRAINS
     """   
-    
     
     for iG, gp in enumerate(grain_params):
         rmat_c = xfcapi.makeRotMatOfExpMap(gp[:3])

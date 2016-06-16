@@ -70,7 +70,7 @@ class ClusteringConfig(Config):
     def algorithm(self):
         key = 'find_orientations:clustering:algorithm'
         choices = ['dbscan', 'ort-dbscan', 'sph-dbscan', 'fclusterdata']
-        temp = self._cfg.get(key, 'ort-dbscan').lower()
+        temp = self._cfg.get(key, 'dbscan').lower()
         if temp in choices:
             return temp
         raise RuntimeError(

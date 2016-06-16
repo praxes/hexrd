@@ -352,18 +352,10 @@ def quatAverageCluster(q_in, qsym):
             q_bar = quatProduct(q_in[:, 0].reshape(4, 1),
                                 quatOfExpMap(0.5*ma*unitVector(mq[1:].reshape(3, 1))))
     else:
-        # use first quat as initial guess
-        phi = 2. * arccos(q_in[0, 0])
-        if phi <= finfo(float).eps:
-            x0 = zeros(3)
-        else:
-            n = unitVector(q_in[1:, 0].reshape(3, 1))
-            x0 = phi*n.flatten()
-
         # first drag to origin using first quat (arb!)
         q0 = q_in[:, 0].reshape(4, 1)
         qrot = dot(
-            quatProductMatrix( invertQuat( q0 ), mult='right' ),
+            quatProductMatrix( invertQuat( q0 ), mult='left' ),
             q_in)
 
         # second, re-cast to FR
@@ -374,7 +366,7 @@ def quatAverageCluster(q_in, qsym):
 
         # unrotate!
         q_bar = dot(
-            quatProductMatrix( q0, mult='right' ),
+            quatProductMatrix( q0, mult='left' ),
             q_bar)
 
         # re-map
