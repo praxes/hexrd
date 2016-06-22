@@ -556,6 +556,8 @@ def _quant_and_clip(coords, angles, base, inv_deltas, clip_vals):
 # ==============================================================================
 def main(args, controller):
     grain_params, experiment = mockup_experiment()
+    controller.handle_result('experiment', experiment)
+    controller.handle_result('grain_params', grain_params)
     image_stack = get_simulate_diffractions(grain_params, experiment,
                                             controller=controller)
     test_orientations(image_stack, grain_params, experiment,
