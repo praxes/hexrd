@@ -20,7 +20,7 @@ from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.xrd import rotations as rot # for rotMatOfQuat
 from hexrd.xrd import xrdutil
 from hexrd.xrd import material
-from skimage.filters.rank import maximum as ski_maximum
+from skimage.morphology import dilation as ski_dilation
 
 class ProcessController(object):
     """This is a 'controller' that provides the necessary hooks to
@@ -175,6 +175,9 @@ def checking_result_handler(filename):
             self.reference_results = np.load(open(reference_file, 'rb'))
 
         def handle_result(self, key, value):
+            if key in ['experiment', 'image_stack']:
+                return #ignore these
+
             try:
                 reference = self.reference_results[key]
             except KeyError as e:
@@ -395,10 +398,15 @@ def simulate_diffractions(grain_params, experiment, controller):
 from hexrd.xrd.xrdutil import _project_on_detector_plane
 
 def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
+    n_grains = experiment.n_grains
+    n_coords = controller.limit('coords', len(test_crds))
+
     confidence = np.empty((n_grains, n_coords))
     subprocess = 'grand_loop'
 
-    controller.start(subprocess, n_coords, n_grains)
+    _project = _project_on_detector_plane
+
+    controller.start(subprocess, n_coords * n_grains)
     for icrd in range(n_coords):
         for igrn in range(n_grains):
             angles = all_angles[igrn]
@@ -410,8 +418,10 @@ def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
                                        test_crds[icrd],
                                        experiment.tVec_s,
                                        experiment.distortion)
-            indices = _quant_and_clip(det_xy, angles[:,2], base,
-                                      inv_deltas, clip_vals)
+            indices = _quant_and_clip(det_xy, angles[:,2], 
+                                      experiment.base,
+                                      experiment.inv_deltas,
+                                      experiment.clip_vals)
             col_indices = indices[:, 0]
             row_indices = indices[:, 1]
             frame_indices = indices[:, 2]
@@ -423,7 +433,55 @@ def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
                                                        experiment.col_dilation,
                                                        experiment.nrows,
                                                        experiment.ncols)
-            controller.update(icrd*n_grains+igrn)
+        controller.update(icrd*n_grains)
+    controller.finish(subprocess)
+    controller.handle_result("confidence", confidence)
+
+def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controller):
+    """grand loop precomputing the grown image stack"""
+    subprocess = 'dilate image_stack'
+
+    dilation_shape = np.ones((2*experiment.row_dilation + 1,
+                              2*experiment.col_dilation + 1),
+                             dtype=np.uint8)
+    image_stack_dilated = np.empty_like(image_stack)
+    n_images = len(image_stack)
+    controller.start(subprocess, n_images)
+    for i_image in range(n_images):
+        ski_dilation(image_stack[i_image], dilation_shape, out=image_stack_dilated[i_image])
+        controller.update(i_image+1)
+    controller.finish(subprocess)
+
+    n_grains = experiment.n_grains
+    n_coords = controller.limit('coords', len(test_crds))
+    confidence = np.empty((n_grains, n_coords))
+    subprocess = 'grand_loop'
+    _project = _project_on_detector_plane
+    controller.start(subprocess, n_coords * n_grains)
+    for icrd in range(n_coords):
+        for igrn in range(n_grains):
+            angles = all_angles[igrn]
+            det_xy, rMat_ss = _project(angles,
+                                       experiment.rMat_d,
+                                       experiment.rMat_c[igrn],
+                                       experiment.chi,
+                                       experiment.tVec_d,
+                                       test_crds[icrd],
+                                       experiment.tVec_s,
+                                       experiment.distortion)
+            indices = _quant_and_clip(det_xy, angles[:,2], 
+                                      experiment.base,
+                                      experiment.inv_deltas,
+                                      experiment.clip_vals)
+            col_indices = indices[:, 0]
+            row_indices = indices[:, 1]
+            frame_indices = indices[:, 2]
+            confidence[igrn, icrd] = _confidence_check_dilated(image_stack_dilated,
+                                                       frame_indices,
+                                                       row_indices,
+                                                       col_indices)
+
+        controller.update(icrd*n_grains)
     controller.finish(subprocess)
     controller.handle_result("confidence", confidence)
 
@@ -444,52 +502,18 @@ def test_orientations(image_stack, grain_params, experiment,
     # compute required dilation
 
     # projection function
-    _project = _project_on_detector_plane
-
-    n_grains = experiment.n_grains
-    n_coords = controller.limit('coords', len(test_crds))
 
     # a more parametric description of the sensor:
-    base = np.array([experiment.x_col_edges[0],
+    experiment.base = np.array([experiment.x_col_edges[0],
                      experiment.y_row_edges[0],
                      experiment.ome_edges[0]])
     deltas = np.array([experiment.x_col_edges[1] - experiment.x_col_edges[0],
                        experiment.y_row_edges[1] - experiment.y_row_edges[0],
                        experiment.ome_edges[1] - experiment.ome_edges[0]])
-    inv_deltas = 1.0/deltas
-    clip_vals = np.array([experiment.ncols, experiment.nrows])
+    experiment.inv_deltas = 1.0/deltas
+    experiment.clip_vals = np.array([experiment.ncols, experiment.nrows])
 
-    confidence = np.empty((n_grains, n_coords))
-    subprocess = 'grand loop'
-    controller.start(subprocess, n_coords * n_grains)
-    for icrd in range(n_coords):
-        for igrn in range(n_grains):
-            angles = all_angles[igrn]
-            det_xy, rMat_ss = _project(angles, 
-                                       experiment.rMat_d, 
-                                       experiment.rMat_c[igrn], 
-                                       experiment.chi,
-                                       experiment.tVec_d,
-                                       test_crds[icrd],
-                                       experiment.tVec_s,
-                                       experiment.distortion)
-
-            indices = _quant_and_clip(det_xy, angles[:,2], base,
-                                      inv_deltas, clip_vals)
-            col_indices = indices[:, 0]
-            row_indices = indices[:, 1]
-            frame_indices = indices[:, 2]
-            confidence[igrn, icrd] = _confidence_check(image_stack,
-                                                       frame_indices,
-                                                       row_indices,
-                                                       col_indices,
-                                                       experiment.row_dilation,
-                                                       experiment.col_dilation,
-                                                       experiment.nrows,
-                                                       experiment.ncols)
-            controller.update(icrd*n_grains+igrn)
-    controller.finish(subprocess)
-    controller.handle_result("confidence", confidence)
+    _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controller)
 
 
 def evaluate_diffraction_angles(experiment , controller=None):
@@ -544,6 +568,18 @@ def _confidence_check(image_stack,
                                    row_indices[current], col_indices[current],
                                    row_dilation, col_dilation, nrows, ncols)
         acc_confidence += val
+
+    return acc_confidence/float(count)
+
+@numba.jit
+def _confidence_check_dilated(image_stack_dilated,
+                              frame_indices, row_indices, col_indices):
+    count = len(frame_indices)
+    acc_confidence = 0.0
+    for current in range(count):
+        acc_confidence += image_stack_dilated[frame_indices[current],
+                                              row_indices[current],
+                                              col_indices[current]]
 
     return acc_confidence/float(count)
 
