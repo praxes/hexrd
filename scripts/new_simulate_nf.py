@@ -20,7 +20,7 @@ from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.xrd import rotations as rot # for rotMatOfQuat
 from hexrd.xrd import xrdutil
 from hexrd.xrd import material
-
+from skimage.filters.rank import maximum as ski_maximum
 
 class ProcessController(object):
     """This is a 'controller' that provides the necessary hooks to
@@ -276,8 +276,10 @@ def mockup_experiment():
     panel_dims = [(-0.5*ncols*col_ps, -0.5*nrows*row_ps),
                   ( 0.5*ncols*col_ps,  0.5*nrows*row_ps)]
 
-    x_col_edges = np.arange(panel_dims[0][0], panel_dims[1][0], col_ps)
-    y_row_edges = np.arange(panel_dims[0][1], panel_dims[1][1], row_ps)
+    x_col_edges = col_ps * (np.arange(ncols + 1) - 0.5*ncols)
+    y_row_edges = row_ps * (np.arange(nrows, -1, -1) - 0.5*nrows)
+    #x_col_edges = np.arange(panel_dims[0][0], panel_dims[1][0] + 0.5*col_ps, col_ps)
+    #y_row_edges = np.arange(panel_dims[0][1], panel_dims[1][1] + 0.5*row_ps, row_ps)
     rx, ry = np.meshgrid(x_col_edges, y_row_edges)
 
     gcrds = xfcapi.detectorXYToGvec(np.vstack([rx.flatten(), ry.flatten()]).T,
@@ -288,6 +290,11 @@ def mockup_experiment():
     detector_params = np.hstack([tiltAngles, tVec_d.flatten(), chi,
                                  tVec_s.flatten()])
     distortion = None
+
+    # dilation
+    max_diameter = np.sqrt(3)*0.005
+    row_dilation = np.ceil(0.5 * max_diameter/row_ps)
+    col_dilation = np.ceil(0.5 * max_diameter/col_ps)
 
     # crystallography data
     from hexrd import valunits
@@ -323,7 +330,8 @@ def mockup_experiment():
     # ns.rMat_s = rMat_s
     # ns.tVec_s = tVec_s
     ns.rMat_c = rMat_c
-
+    ns.row_dilation = row_dilation
+    ns.col_dilation = col_dilation
     ns.distortion = distortion
 
     return grain_params, ns
@@ -386,6 +394,40 @@ def simulate_diffractions(grain_params, experiment, controller):
 # TODO: Expand this, as this part requires tweaking
 from hexrd.xrd.xrdutil import _project_on_detector_plane
 
+def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
+    confidence = np.empty((n_grains, n_coords))
+    subprocess = 'grand_loop'
+
+    controller.start(subprocess, n_coords, n_grains)
+    for icrd in range(n_coords):
+        for igrn in range(n_grains):
+            angles = all_angles[igrn]
+            det_xy, rMat_ss = _project(angles,
+                                       experiment.rMat_d,
+                                       experiment.rMat_c[igrn],
+                                       experiment.chi,
+                                       experiment.tVec_d,
+                                       test_crds[icrd],
+                                       experiment.tVec_s,
+                                       experiment.distortion)
+            indices = _quant_and_clip(det_xy, angles[:,2], base,
+                                      inv_deltas, clip_vals)
+            col_indices = indices[:, 0]
+            row_indices = indices[:, 1]
+            frame_indices = indices[:, 2]
+            confidence[igrn, icrd] = _confidence_check(image_stack,
+                                                       frame_indices,
+                                                       row_indices,
+                                                       col_indices,
+                                                       experiment.row_dilation,
+                                                       experiment.col_dilation,
+                                                       experiment.nrows,
+                                                       experiment.ncols)
+            controller.update(icrd*n_grains+igrn)
+    controller.finish(subprocess)
+    controller.handle_result("confidence", confidence)
+
+
 def test_orientations(image_stack, grain_params, experiment,
                       controller):
 
@@ -400,9 +442,6 @@ def test_orientations(image_stack, grain_params, experiment,
     test_crds = np.vstack([Xs.flatten(), Ys.flatten(), Zs.flatten()]).T
 
     # compute required dilation
-    max_diameter = np.sqrt(3)*0.005
-    row_dilation = np.ceil(0.5 * max_diameter/float(experiment.pixel_size[0]))
-    col_dilation = np.ceil(0.5 * max_diameter/float(experiment.pixel_size[1]))
 
     # projection function
     _project = _project_on_detector_plane
@@ -444,8 +483,8 @@ def test_orientations(image_stack, grain_params, experiment,
                                                        frame_indices,
                                                        row_indices,
                                                        col_indices,
-                                                       row_dilation,
-                                                       col_dilation,
+                                                       experiment.row_dilation,
+                                                       experiment.col_dilation,
                                                        experiment.nrows,
                                                        experiment.ncols)
             controller.update(icrd*n_grains+igrn)
@@ -560,6 +599,7 @@ def main(args, controller):
     controller.handle_result('grain_params', grain_params)
     image_stack = get_simulate_diffractions(grain_params, experiment,
                                             controller=controller)
+
     test_orientations(image_stack, grain_params, experiment,
                       controller=controller)
 
