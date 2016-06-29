@@ -12,6 +12,7 @@ import numba
 import yaml
 import argparse
 import time
+import itertools as it
 # import of hexrd modules
 
 from hexrd import matrixutil as mutil
@@ -47,7 +48,7 @@ class ProcessController(object):
         self.po.finish()
         entry = self.timing.pop()
         assert name==entry[0]
-        total = t - entry[2] 
+        total = t - entry[2]
         logging.info("%s took %8.3fs (%8.6fs per item).", entry[0], total, total/entry[1])
 
 
@@ -215,7 +216,7 @@ def checking_result_handler(filename):
 # ==============================================================================
 def mockup_experiment():
     # user options
-    # each grain is provided in the form of a quaternion. 
+    # each grain is provided in the form of a quaternion.
     # The following array contains the quaternions for the array. Note that the quaternions are
     # in the columns, with the first row (row 0) being the real part w. We assume that we are
     # dealing with unit quaternions
@@ -311,7 +312,7 @@ def mockup_experiment():
 
 
     ns = argparse.Namespace()
-    # grains related information 
+    # grains related information
     ns.n_grains = n_grains # this can be derived from other values...
     ns.rMat_c = rMat_c # n_grains rotation matrices (one per grain)
     ns.exp_maps = exp_maps # n_grains exp_maps -angle * rotation axis- (one per grain)
@@ -418,7 +419,7 @@ def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
                                        test_crds[icrd],
                                        experiment.tVec_s,
                                        experiment.distortion)
-            indices = _quant_and_clip(det_xy, angles[:,2], 
+            indices = _quant_and_clip(det_xy, angles[:,2],
                                       experiment.base,
                                       experiment.inv_deltas,
                                       experiment.clip_vals)
@@ -436,6 +437,30 @@ def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
         controller.update(icrd*n_grains)
     controller.finish(subprocess)
     controller.handle_result("confidence", confidence)
+
+def _grand_loop_inner(confidence, image_stack, angles, coords, experiment, start=0, stop=None):
+    n_coords = len(coords)
+    n_angles = len(angles)
+    _project = _project_on_detector_plane
+    rD = experiment.rMat_d
+    rCn = experiment.rMat_c
+    chi = experiment.chi
+    tD = experiment.tVec_d
+    tS = experiment.tVec_s
+    distortion = experiment.distortion
+
+    stop = stop if stop is not None else n_coords
+
+    for icrd, igrn in it.product(xrange(start, stop), xrange(n_angles)):
+        angs = angles[igrn]
+        det_xy, rMat_ss = _project(angs, rD, rCn[igrn], chi, tD,
+                                   coords[icrd], tS, distortion)
+        c = _quant_and_clip_confidence(det_xy, angs[:,2],
+                                       image_stack, experiment.base,
+                                       experiment.inv_deltas,
+                                       experiment.clip_vals)
+        confidence[igrn, icrd] = c
+
 
 def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controller):
     """grand loop precomputing the grown image stack"""
@@ -457,31 +482,15 @@ def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controll
     confidence = np.empty((n_grains, n_coords))
     subprocess = 'grand_loop'
     _project = _project_on_detector_plane
-    controller.start(subprocess, n_coords * n_grains)
-    for icrd in range(n_coords):
-        for igrn in range(n_grains):
-            angles = all_angles[igrn]
-            det_xy, rMat_ss = _project(angles,
-                                       experiment.rMat_d,
-                                       experiment.rMat_c[igrn],
-                                       experiment.chi,
-                                       experiment.tVec_d,
-                                       test_crds[icrd],
-                                       experiment.tVec_s,
-                                       experiment.distortion)
-            indices = _quant_and_clip(det_xy, angles[:,2], 
-                                      experiment.base,
-                                      experiment.inv_deltas,
-                                      experiment.clip_vals)
-            col_indices = indices[:, 0]
-            row_indices = indices[:, 1]
-            frame_indices = indices[:, 2]
-            confidence[igrn, icrd] = _confidence_check_dilated(image_stack_dilated,
-                                                       frame_indices,
-                                                       row_indices,
-                                                       col_indices)
+    controller.start(subprocess, n_coords)
 
-        controller.update(icrd*n_grains)
+    # split on coords
+    chunk_size = 100
+    for chunk_start in xrange(0, n_coords, chunk_size):
+        chunk_stop = min(chunk_start + chunk_size, n_coords)
+        _grand_loop_inner(confidence, image_stack_dilated, all_angles,
+                          test_crds, experiment, start=chunk_start, stop=chunk_stop)
+        controller.update(chunk_stop)
     controller.finish(subprocess)
     controller.handle_result("confidence", confidence)
 
@@ -625,6 +634,45 @@ def _quant_and_clip(coords, angles, base, inv_deltas, clip_vals):
 
     return a[:curr,:]
 
+@numba.njit
+def _quant_and_clip_confidence(coords, angles, image, base, inv_deltas, clip_vals):
+    """quantize and clip the parametric coordinates in coords + angles
+
+    coords - (..., 2) array: input 2d parametric coordinates
+    angles - (...) array: additional dimension for coordinates
+    base   - (3,) array: base value for quantization (for each dimension)
+    inv_deltas - (3,) array: inverse of the quantum size (for each dimension)
+    clip_vals - (2,) array: clip size (only applied to coords dimensions)
+
+    clipping is performed on ranges [0, clip_vals[0]] for x and
+    [0, clip_vals[1]] for y
+
+    returns an array with the quantized coordinates, with coordinates
+    falling outside the clip zone filtered out.
+
+    """
+    count = len(coords)
+
+    in_sensor = 0
+    matches = 0
+    for i in range(count):
+        x = int(np.floor((coords[i, 0] - base[0]) * inv_deltas[0]))
+
+        if x < 0 or x >= clip_vals[0]:
+            continue
+
+        y = int(np.floor((coords[i, 1] - base[1]) * inv_deltas[1]))
+
+        if y < 0 or y >= clip_vals[1]:
+            continue
+
+        z = int(np.floor((angles[i] - base[2]) * inv_deltas[2]))
+
+        in_sensor += 1
+        matches += image[z, y, x]
+
+    return float(matches)/float(in_sensor)
+
 
 # ==============================================================================
 # %% SCRIPT ENTRY AND PARAMETER HANDLING
@@ -662,7 +710,7 @@ def parse_args():
 def build_controller(args):
     # builds the controller to use based on the args
 
-    # result handle 
+    # result handle
     progress_handler = progressbar_progress_observer()
 
     if args.check is not None:
@@ -674,7 +722,7 @@ def build_controller(args):
         result_handler = saving_result_handler(args.generate)
     else:
         result_handler = forgetful_result_handler()
-        
+
     controller = ProcessController(result_handler, progress_handler)
     if args.limit is not None:
         controller.set_limit('coords', lambda x: min(x, args.limit))
