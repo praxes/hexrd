@@ -60,18 +60,28 @@ dFlag_ref   = np.array([0, 0, 0, 0, 0, 0], dtype=bool)
 dScl_ref    = np.array([1, 1, 1, 1, 1, 1], dtype=float)
 
 # for sx detector cal
-pFlag_ref   = np.array([1, 1, 1,
-                        1, 1, 1,
-                        0,
-                        0, 0, 0,
-                        0, 0, 0,
-                        0, 0, 0], dtype=bool)
-pScl_ref    = np.array([1, 1, 1,
-                        1, 1, 1,
-                        1,
-                        1, 1, 1,
-                        1, 1, 1,
-                        1, 1, 1])
+pFlag_ref = np.array(
+    [
+        0,
+        1, 1, 1,
+        1, 1, 1,
+        0,
+        0, 0, 0,
+        0, 0, 0,
+        0, 0, 0
+    ], dtype=bool
+)
+pScl_ref = np.array(
+    [
+        0.1,
+        0.1., 0.1, 0.1,
+        1., 1., 100.,
+        0.1,
+        1., 1., 1.,
+        1., 1., 1.,
+        1., 1., 1.
+    ]
+)
 
 # for grain parameters
 gFlag_ref   = np.ones(12, dtype=bool)
