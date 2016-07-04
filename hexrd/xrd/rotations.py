@@ -31,7 +31,8 @@
 import sys, os, time
 import numpy
 from numpy import \
-     arange, array, asarray, atleast_1d, ndarray, diag, empty, ones, zeros, \
+     arange, array, asarray, atleast_1d, average, \
+     ndarray, diag, empty, ones, zeros, \
      cross, dot, pi, arccos, arcsin, cos, sin, sqrt, \
      sort, squeeze, tile, vstack, hstack, r_, c_, ix_, \
      abs, mod, sign, \
@@ -330,6 +331,47 @@ def quatOfRotMat(R):
         cos(0.5 * angs),
         tile(sin(0.5 * angs), (3, 1)) * axxs ] )
     return quats
+
+def quatAverageCluster(q_in, qsym):
+    """
+    """
+    from symmetry import toFundamentalRegion
+
+    assert q_in.ndim == 2, 'input must be 2-s hstacked quats'
+
+    # renormalize
+    q_in = unitVector(q_in)
+
+    # check to see num of quats is > 1
+    if q_in.shape[1] < 3:
+        if q_in.shape[1] == 1:
+            q_bar = q_in
+        else:
+            ma, mq = misorientation(q_in[:, 0].reshape(4, 1),
+                                    q_in[:, 1].reshape(4, 1), (qsym,))
+            q_bar = quatProduct(q_in[:, 0].reshape(4, 1),
+                                quatOfExpMap(0.5*ma*unitVector(mq[1:].reshape(3, 1))))
+    else:
+        # first drag to origin using first quat (arb!)
+        q0 = q_in[:, 0].reshape(4, 1)
+        qrot = dot(
+            quatProductMatrix( invertQuat( q0 ), mult='left' ),
+            q_in)
+
+        # second, re-cast to FR
+        qrot = toFundamentalRegion(qrot.squeeze(), crysSym=qsym)
+
+        # compute arithmetic average
+        q_bar = unitVector(average(qrot, axis=1).reshape(4, 1))
+
+        # unrotate!
+        q_bar = dot(
+            quatProductMatrix( q0, mult='left' ),
+            q_bar)
+
+        # re-map
+        q_bar = toFundamentalRegion(q_bar, crysSym=qsym)
+    return q_bar
 
 def quatAverage(q_in, qsym):
     """

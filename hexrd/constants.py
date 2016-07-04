@@ -30,43 +30,44 @@ import numpy as np
 from scipy import constants as sc
 
 # pi related
-pi    = np.pi
+pi = np.pi
 piby2 = 0.5 * pi
 piby3 = pi / 3.
 piby4 = 0.25 * pi
 piby6 = pi / 6.
 
 # misc radicals
-sq2    = np.sqrt(2.)
-sq3    = np.sqrt(3.)
-sq3by2 = 0.5 * sq3
+sqrt2 = np.sqrt(2.)
+sqrt3 = np.sqrt(3.)
+sqrt3by2 = 0.5 * sqrt3
 
 # tolerancing
-epsf      = np.finfo(float).eps      # ~2.2e-16
-ten_epsf  = 10 * epsf                # ~2.2e-15
-sqrt_epsf = np.sqrt(epsf)            # ~1.5e-8
+epsf = np.finfo(float).eps      # ~2.2e-16
+ten_epsf = 10 * epsf            # ~2.2e-15
+sqrt_epsf = np.sqrt(epsf)       # ~1.5e-8
 
 # for angles
-periodDict = {'degrees': 360.0, 'radians': 2*pi}
-angularUnits = 'radians' # module-level angle units
-d2r = deg2rad = pi / 180.
-r2d = rad2deg = 180. / pi
+period_dict  = {'degrees': 360.0, 'radians': 2*pi}
+angular_units = 'radians' # module-level angle units
+d2r = pi / 180.
+r2d = 180. / pi
+
+# identity arrays
+identity_3x3 = np.eye(3) # (3, 3) identity
+identity_6x1 = np.r_[1., 1., 1., 0., 0., 0.]
 
 # basis vectors
-I3    = np.eye(3) # (3, 3) identity
-X = np.array(I3[:, 0].reshape(3, 1), order='C') # X in the lab frame
-Y = np.array(I3[:, 1].reshape(3, 1), order='C') # Y in the lab frame
-Z = np.array(I3[:, 2].reshape(3, 1), order='C') # Z in the lab frame
+lab_x = np.r_[1., 0., 0.] # X in the lab frame
+lab_y = np.r_[0., 1., 0.] # Y in the lab frame
+lab_z = np.r_[0., 0., 1.] # Z in the lab frame
 
+zeros_3   = np.zeros(3)
 zeros_3x1 = np.zeros((3, 1))
 zeros_6x1 = np.zeros((6, 1))
 
 # reference beam direction and eta=0 ref in LAB FRAME for standard geometry
-bVec = -Z
-eVec =  X
-
-# for strain
-vInv = np.array(np.r_[1., 1., 1., 0., 0., 0.].reshape(6, 1), order='C')
+beam_vec = -lab_z
+eta_vec = lab_x
 
 # for energy/wavelength conversions
-keVToAngstrom = lambda x: (1e7*sc.c*sc.h/sc.e) / x
+keVToAngstrom = lambda x: (1e7*sc.c*sc.h/sc.e) / float(x)

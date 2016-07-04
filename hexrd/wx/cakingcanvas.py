@@ -455,7 +455,7 @@ class imgOpts(wx.Panel):
             p.axes.set_aspect('auto')
         else:
             p.axes.imshow(intensity, origin='upper',
-                          interpolation='nearest',
+                          interpolation='none',
                           aspect='auto',
                           cmap=self.cmPanel.cmap,
                           vmin=self.cmPanel.cmin_val,
@@ -646,9 +646,14 @@ class sphOpts(wx.Panel):
             p.axes.hold(True)
             p.axes.images = []
 
+            if self.cmPanel.apply_filter:
+                img = -ndimage.filters.gaussian_laplace(hkldata, self.cmPanel.filter_val)
+            else:
+                img = hkldata
+            
             # show new image
-            p.axes.imshow(hkldata, origin='upper',
-                          interpolation='nearest',
+            p.axes.imshow(img, origin='upper',
+                          interpolation='none',
                           aspect='auto',
                           cmap=self.cmPanel.cmap,
                           vmin=self.cmPanel.cmin_val,
@@ -872,8 +877,11 @@ class sphOpts(wx.Panel):
         self.idata = self.hkl_cho.GetSelection()
         p = self.GetParent()
 
-        this_map = p.data.getData(self.idata)
-
+        #this_map = p.data.getData(self.idata)
+        this_map = p.data.dataStore[self.idata]
+        if self.cmPanel.apply_filter:
+            this_map = -ndimage.filters.gaussian_laplace(this_map, self.cmPanel.filter_val)
+            
         threshold = self.cmPanel.cmin_val
 
         structureNDI_label = numpy.array([[1,1,1],

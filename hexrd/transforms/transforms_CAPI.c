@@ -1,8 +1,8 @@
 /*
- gcc -c -I/opt/local/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7 -I/opt/local/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages/numpy/core/include/numpy transforms_CAPI.c
-
-gcc -bundle -flat_namespace -undefined suppress -o _transforms_CAPI.so transforms_CAPI.o
-*/
+ * gcc -c -I/opt/local/Library/Frameworks/Python.framework/Versions/2.7/include/python2.7 -I/opt/local/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages/numpy/core/include/numpy transforms_CAPI.c
+ *
+ * gcc -bundle -flat_namespace -undefined suppress -o _transforms_CAPI.so transforms_CAPI.o
+ */
 
 #include "transforms_CAPI.h"
 #include "transforms_CFUNC.h"
@@ -35,8 +35,6 @@ static PyMethodDef _transform_methods[] = {
   {NULL,NULL}
 };
 
-/* static double epsf = 2.2e-16; */
-
 void init_transforms_CAPI(void)
 {
   (void)Py_InitModule("_transforms_CAPI",_transform_methods);
@@ -58,7 +56,7 @@ static PyObject * anglesToGVec(PyObject * self, PyObject * args)
 
   double *angs_ptr, *bHat_l_ptr, *eHat_l_ptr, *rMat_c_ptr;
   double *gVec_c_ptr;
-  
+
   /* Parse arguments */
   if ( !PyArg_ParseTuple(args,"OOOdO",
 			 &angs,
@@ -71,7 +69,7 @@ static PyObject * anglesToGVec(PyObject * self, PyObject * args)
   nbhat = PyArray_NDIM(bHat_l);
   nehat = PyArray_NDIM(eHat_l);
   nrmat = PyArray_NDIM(rMat_c);
-  
+
   assert( nangs==2 && nbhat==1 && nehat==1 && nrmat==2 );
 
   /* Verify dimensions of input arrays */
@@ -86,7 +84,7 @@ static PyObject * anglesToGVec(PyObject * self, PyObject * args)
   assert( da1 == 3 );
   assert( db1 == 3 && de1 == 3);
   assert( dr1 == 3 && dr2 == 3);
-    
+
   /* Allocate C-style array for return data */
   rdims[0] = nvecs; rdims[1] = 3;
   gVec_c = (PyArrayObject*)PyArray_EMPTY(2,rdims,NPY_DOUBLE,0);
@@ -103,7 +101,7 @@ static PyObject * anglesToGVec(PyObject * self, PyObject * args)
 		     bHat_l_ptr, eHat_l_ptr,
 		     chi, rMat_c_ptr,
 		     gVec_c_ptr);
-    
+
   /* Build and return the nested data structure */
   return((PyObject*)gVec_c);
 }
@@ -136,18 +134,18 @@ static PyObject * makeGVector(PyObject * self, PyObject * args)
 static PyObject * gvecToDetectorXY(PyObject * self, PyObject * args)
 {
   PyArrayObject *gVec_c,
-                *rMat_d, *rMat_s, *rMat_c,
-                *tVec_d, *tVec_s, *tVec_c,
-                *beamVec;
+		*rMat_d, *rMat_s, *rMat_c,
+		*tVec_d, *tVec_s, *tVec_c,
+		*beamVec;
   PyArrayObject *result;
 
   int dgc, drd, drs, drc, dtd, dts, dtc, dbv;
   npy_intp npts, dims[2];
 
   double *gVec_c_Ptr,
-         *rMat_d_Ptr, *rMat_s_Ptr, *rMat_c_Ptr,
-         *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
-         *beamVec_Ptr;
+	 *rMat_d_Ptr, *rMat_s_Ptr, *rMat_c_Ptr,
+	 *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
+	 *beamVec_Ptr;
   double *result_Ptr;
 
   /* Parse arguments */
@@ -188,7 +186,6 @@ static PyObject * gvecToDetectorXY(PyObject * self, PyObject * args)
   assert( PyArray_DIMS(beamVec)[0] == 3 );
 
   /* Allocate C-style array for return data */
-  // result_Ptr  = malloc(2*npts*sizeof(double));
   dims[0] = npts; dims[1] = 2;
   result = (PyArrayObject*)PyArray_EMPTY(2,dims,NPY_DOUBLE,0);
 
@@ -213,21 +210,6 @@ static PyObject * gvecToDetectorXY(PyObject * self, PyObject * args)
 			 tVec_d_Ptr, tVec_s_Ptr, tVec_c_Ptr,
 			 beamVec_Ptr,
 			 result_Ptr);
-
-  /* Use the returned pointer to build the result object */
-  /* We do this since nadm may be less than npts and the result_Ptr
-     may not be the same as the one allocated earlier. */
-
-  /* if ( nadm < npts ) { */
-  /*   new_result_Ptr = (double*)realloc(result_Ptr,2*nadm*sizeof(double)); */
-  /*   if ( new_result_Ptr != NULL ) result_Ptr = new_result_Ptr; */
-  /*   else */
-  /*     assert( false ); /\* This really should never happen *\/ */
-  /* } */
-
-  /* dims[0] = nadm; */
-  /* dims[1] = 2; */
-  /* result = (PyArrayObject*)PyArray_SimpleNewFromData(2,dims,NPY_DOUBLE,result_Ptr); */
 
   /* Build and return the nested data structure */
   return((PyObject*)result);
@@ -256,18 +238,18 @@ static PyObject * gvecToDetectorXY(PyObject * self, PyObject * args)
 static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
 {
   PyArrayObject *gVec_c,
-                *rMat_d, *rMat_s, *rMat_c,
-                *tVec_d, *tVec_s, *tVec_c, 
-                *beamVec;
+		*rMat_d, *rMat_s, *rMat_c,
+		*tVec_d, *tVec_s, *tVec_c,
+		*beamVec;
   PyArrayObject *result;
 
   int dgc, drd, drs, drc, dtd, dts, dtc, dbv;
   npy_intp npts, dims[2];
 
   double *gVec_c_Ptr,
-         *rMat_d_Ptr, *rMat_s_Ptr, *rMat_c_Ptr,
-         *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
-         *beamVec_Ptr;
+	 *rMat_d_Ptr, *rMat_s_Ptr, *rMat_c_Ptr,
+	 *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
+	 *beamVec_Ptr;
   double *result_Ptr;
 
   /* Parse arguments */
@@ -300,7 +282,7 @@ static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
 
   if (npts != PyArray_DIM(rMat_s, 0)) {
     PyErr_Format(PyExc_ValueError, "gVec_c and rMat_s length mismatch %d vs %d",
-                 (int)PyArray_DIM(gVec_c, 0), (int)PyArray_DIM(rMat_s, 0));
+		 (int)PyArray_DIM(gVec_c, 0), (int)PyArray_DIM(rMat_s, 0));
     return NULL;
   }
   assert( PyArray_DIMS(gVec_c)[1]  == 3 );
@@ -313,7 +295,6 @@ static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
   assert( PyArray_DIMS(beamVec)[0] == 3 );
 
   /* Allocate C-style array for return data */
-  // result_Ptr  = malloc(2*npts*sizeof(double));
   dims[0] = npts; dims[1] = 2;
   result = (PyArrayObject*)PyArray_EMPTY(2,dims,NPY_DOUBLE,0);
 
@@ -338,23 +319,6 @@ static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
 			 tVec_d_Ptr, tVec_s_Ptr, tVec_c_Ptr,
 			 beamVec_Ptr,
 			 result_Ptr);
-
-  /* Use the returned pointer to build the result object */
-  /* We do this since nadm may be less than npts and the result_Ptr
-     may not be the same as the one allocated earlier. */
-
-  /* if ( nadm < npts ) { */
-  /*   new_result_Ptr = (double*)realloc(result_Ptr,2*nadm*sizeof(double)); */
-  /*   if ( new_result_Ptr != NULL ) result_Ptr = new_result_Ptr; */
-  /*   else */
-  /*     assert( false ); /\* This really should never happen *\/ */
-  /* } */
-  /*     assert( false ); /\* This really should never happen *\/ */
-  /* } */
-
-  /* dims[0] = nadm; */
-  /* dims[1] = 2; */
-  /* result = (PyArrayObject*)PyArray_SimpleNewFromData(2,dims,NPY_DOUBLE,result_Ptr); */
 
   /* Build and return the nested data structure */
   return((PyObject*)result);
@@ -386,15 +350,16 @@ static PyObject * detectorXYToGvec(PyObject * self, PyObject * args)
 {
   PyArrayObject *xy_det, *rMat_d, *rMat_s,
 		*tVec_d, *tVec_s, *tVec_c,
-                *beamVec, *etaVec;
+		*beamVec, *etaVec;
   PyArrayObject *tTh, *eta, *gVec_l;
+  PyObject *inner_tuple, *outer_tuple;
 
   int dxy, drd, drs, dtd, dts, dtc, dbv, dev;
   npy_intp npts, dims[2];
 
   double *xy_Ptr, *rMat_d_Ptr, *rMat_s_Ptr,
-         *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
-         *beamVec_Ptr, *etaVec_Ptr;
+	 *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
+	 *beamVec_Ptr, *etaVec_Ptr;
   double *tTh_Ptr, *eta_Ptr, *gVec_l_Ptr;
 
   /* Parse arguments */
@@ -464,22 +429,30 @@ static PyObject * detectorXYToGvec(PyObject * self, PyObject * args)
 			 tTh_Ptr, eta_Ptr, gVec_l_Ptr);
 
   /* Build and return the nested data structure */
-  return(Py_BuildValue("OO",Py_BuildValue("OO",tTh,eta),gVec_l));
+  /* Note that Py_BuildValue with 'O' increases reference count */
+  inner_tuple = Py_BuildValue("OO",tTh,eta);
+  outer_tuple = Py_BuildValue("OO", inner_tuple, gVec_l);
+  Py_DECREF(inner_tuple);
+  Py_DECREF(tTh);
+  Py_DECREF(eta);
+  Py_DECREF(gVec_l);
+  return outer_tuple;
 }
 
 static PyObject * oscillAnglesOfHKLs(PyObject * self, PyObject * args)
 {
   PyArrayObject *hkls, *rMat_c, *bMat,
-                *vInv_s, *beamVec, *etaVec;
+		*vInv_s, *beamVec, *etaVec;
   PyFloatObject *chi, *wavelength;
   PyArrayObject *oangs0, *oangs1;
+  PyObject *return_tuple;
 
   int dhkls, drc, dbm, dvi, dbv, dev;
   npy_intp npts, dims[2];
 
   double *hkls_Ptr, chi_d,
-         *rMat_c_Ptr, *bMat_Ptr, wavelen_d,
-         *vInv_s_Ptr, *beamVec_Ptr, *etaVec_Ptr;
+	 *rMat_c_Ptr, *bMat_Ptr, wavelen_d,
+	 *vInv_s_Ptr, *beamVec_Ptr, *etaVec_Ptr;
   double *oangs0_Ptr, *oangs1_Ptr;
 
   /* Parse arguments */
@@ -539,13 +512,12 @@ static PyObject * oscillAnglesOfHKLs(PyObject * self, PyObject * args)
 			   vInv_s_Ptr, beamVec_Ptr, etaVec_Ptr,
 			   oangs0_Ptr, oangs1_Ptr);
 
-  // printf("chi = %g, wavelength = %g\n",PyFloat_AsDouble((PyObject*)chi),PyFloat_AsDouble((PyObject*)wavelength));
-  /*
-np.ascontiguousarray(hkls),chi,rMat_c,bMat,wavelength,
-                                               beamVec.flatten(),etaVec.flatten()
-  */
   /* Build and return the list data structure */
-  return(Py_BuildValue("OO",oangs0,oangs1));
+  return_tuple = Py_BuildValue("OO",oangs0,oangs1);
+  Py_DECREF(oangs1);
+  Py_DECREF(oangs0);
+
+  return return_tuple;
 }
 
 /******************************************************************************/

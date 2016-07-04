@@ -3,9 +3,8 @@ package:
   version: master
 
 source:
-  git_url: ../ # if you want to build a particular git commit
-  #path: ../ # if you want to build your working directory
-  git_rev: master # edit to point to specific branch or tag
+  git_url: https://github.com/joelvbernier/hexrd.git
+  git_tag: master # edit to point to specific branch or tag
 
 build:
   detect_binary_files_with_prefix: true
@@ -19,14 +18,14 @@ app:
 
 requirements:
   build:
-    - numpy
+    - numpy ==1.10.4
     - python
     - setuptools
   run:
     - dill
     - matplotlib
     - numba
-    - numpy
+    - numpy ==1.10.4
     - progressbar >=2.3
     - python
     - python.app # [osx]
