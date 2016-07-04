@@ -131,25 +131,6 @@ def forgetful_result_handler():
 def saving_result_handler(filename):
     """returns a result handler that saves the resulting arrays into a file
     with name filename"""
-    # class SavingResultHandler(object):
-    #     def __init__(self, file_name):
-    #         try:
-    #             self.fildes = open(file_name, "wb")
-    #         except IOError:
-    #             str = "Failed to open %(file_name)s for writting. Results will be discarded"
-    #             logging.error(str, locals())
-    #             self.fildes = None
-
-    #     def handle_result(self, key, value):
-    #         if self.fildes is not None:
-    #             try:
-    #                 save_dict = { key: value }
-    #                 np.savez_compressed(self.fildes, **save_dict)
-    #             except Exception as e:
-    #                 msg = "Failed to save %(key)s.\n%(e)s"
-    #                 logging.error(msg, locals())
-    #                 print
-
     class SavingResultHandler(object):
         def __init__(self, file_name):
             self.filename = file_name
@@ -488,7 +469,6 @@ def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controll
 
     n_grains = experiment.n_grains
     n_coords = controller.limit('coords', len(test_crds))
-    confidence = np.empty((n_grains, n_coords))
     subprocess = 'grand_loop'
     _project = _project_on_detector_plane
     chunk_size = controller.get_chunk_size()
@@ -500,15 +480,20 @@ def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controll
     controller.start(subprocess, len(chunks))
     finished = 0
     if ncpus > 1:
-        with multiproc_state(chunk_size, confidence, image_stack, all_angles, test_crds, experiment):
+        shared_arr = multiprocessing.Array('d', n_grains * n_coords)
+        confidence = np.ctypeslib.as_array(shared_arr.get_obj()).reshape(n_grains, n_coords)
+        with multiproc_state(chunk_size, confidence, image_stack_dilated, all_angles, test_crds, experiment):
             pool = multiprocessing.Pool(ncpus)
             for i in pool.imap_unordered(multiproc_inner_loop, chunks):
                 finished += 1
                 controller.update(finished)
+            del pool
     else:
+        confidence = np.empty((n_grains, n_coords))
         for chunk_start in chunks:
+            chunk_stop = min(n_coords, chunk_start+chunk_size)
             _grand_loop_inner(confidence, image_stack_dilated, all_angles,
-                              test_crds, experiment, start=chunk_start)
+                              test_crds, experiment, start=chunk_start, stop=chunk_stop)
             finished += 1
             controller.update(finished)
 
