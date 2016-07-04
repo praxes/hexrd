@@ -13,6 +13,8 @@ import yaml
 import argparse
 import time
 import itertools as it
+from contextlib import contextmanager
+import multiprocessing
 # import of hexrd modules
 
 from hexrd import matrixutil as mutil
@@ -77,6 +79,13 @@ class ProcessController(object):
             logging.warn("Could not apply limit to '%(key)s'", locals())
 
         return value
+
+    # configuration  -----------------------------------------------------------
+    def get_process_count(self):
+        return 8
+
+    def get_chunk_size(self):
+        return 100
 
 
 def null_progress_observer():
@@ -482,17 +491,49 @@ def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controll
     confidence = np.empty((n_grains, n_coords))
     subprocess = 'grand_loop'
     _project = _project_on_detector_plane
-    controller.start(subprocess, n_coords)
+    chunk_size = controller.get_chunk_size()
+    ncpus = controller.get_process_count()
+
 
     # split on coords
-    chunk_size = 100
-    for chunk_start in xrange(0, n_coords, chunk_size):
-        chunk_stop = min(chunk_start + chunk_size, n_coords)
-        _grand_loop_inner(confidence, image_stack_dilated, all_angles,
-                          test_crds, experiment, start=chunk_start, stop=chunk_stop)
-        controller.update(chunk_stop)
+    chunks = xrange(0, n_coords, chunk_size)
+    controller.start(subprocess, len(chunks))
+    finished = 0
+    if ncpus > 1:
+        with multiproc_state(chunk_size, confidence, image_stack, all_angles, test_crds, experiment):
+            pool = multiprocessing.Pool(ncpus)
+            for i in pool.imap_unordered(multiproc_inner_loop, chunks):
+                finished += 1
+                controller.update(finished)
+    else:
+        for chunk_start in chunks:
+            _grand_loop_inner(confidence, image_stack_dilated, all_angles,
+                              test_crds, experiment, start=chunk_start)
+            finished += 1
+            controller.update(finished)
+
     controller.finish(subprocess)
     controller.handle_result("confidence", confidence)
+
+
+def multiproc_inner_loop(chunk):
+    chunk_size = _mp_state[0]
+    n_coords = len(_mp_state[4])
+    chunk_stop = min(n_coords, chunk+chunk_size)
+    _grand_loop_inner(*_mp_state[1:], start=chunk, stop=chunk_stop)
+
+@contextmanager
+def multiproc_state(chunk_size, confidence, image_stack, angles, coords, experiment):
+    save = ( chunk_size,
+             confidence,
+             image_stack,
+             angles,
+             coords,
+             experiment )
+    global _mp_state
+    _mp_state = save
+    yield
+    del(_mp_state)
 
 
 def test_orientations(image_stack, grain_params, experiment,
