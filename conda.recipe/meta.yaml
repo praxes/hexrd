@@ -20,14 +20,14 @@ app:
 
 requirements:
   build:
-    - numpy ==1.10.4
+    - numpy
     - python
     - setuptools
   run:
     - dill
     - matplotlib
     - numba
-    - numpy ==1.10.4
+    - numpy
     - progressbar >=2.3
     - python
     - python.app # [osx]
