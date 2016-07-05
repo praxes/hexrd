@@ -22,6 +22,8 @@ from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.xrd import rotations as rot # for rotMatOfQuat
 from hexrd.xrd import xrdutil
+import hexrd.gridutil as gridutil
+
 from hexrd.xrd import material
 from skimage.morphology import dilation as ski_dilation
 
@@ -317,6 +319,7 @@ def mockup_experiment():
     ns.ome_edges = ome_edges
     ns.ncols = ncols
     ns.nrows = nrows
+    ns.nframes = nframes # used only in simulate...
     ns.rMat_d = rMat_d
     ns.tVec_d = tVec_d
     ns.chi = chi # note this is used to compute S... why is it needed?
@@ -327,7 +330,8 @@ def mockup_experiment():
     ns.row_dilation = row_dilation
     ns.col_dilation = col_dilation
     ns.distortion = distortion
-
+    ns.panel_dims = panel_dims # used only in simulate...
+    
     return grain_params, ns
 
 
@@ -354,7 +358,7 @@ def get_simulate_diffractions(grain_params, experiment,
 def simulate_diffractions(grain_params, experiment, controller):
     """actual forward simulation of the diffraction"""
 
-    image_stack = np.zeros((nframes, nrows, ncols), dtype=bool)
+    image_stack = np.zeros((experiment.nframes, experiment.nrows, experiment.ncols), dtype=bool)
     count = len(grain_params)
     subprocess = 'simulate diffractions'
     controller.start(subprocess, count)
@@ -369,9 +373,9 @@ def simulate_diffractions(grain_params, experiment, controller):
                                             ome_period=experiment.ome_period,
                                             distortion=experiment.distortion)
         valid_ids, valid_hkl, valid_ang, valid_xy, ang_ps = sim_results
-        j_pix = gridutil.cellIndices(x_col_edges, valid_xy[:, 0])
-        i_pix = gridutil.cellIndices(y_row_edges, valid_xy[:, 1])
-        k_frame = gridutil.cellIndices(ome_edges, valid_ang[:, 2])
+        j_pix = gridutil.cellIndices(experiment.x_col_edges, valid_xy[:, 0])
+        i_pix = gridutil.cellIndices(experiment.y_row_edges, valid_xy[:, 1])
+        k_frame = gridutil.cellIndices(experiment.ome_edges, valid_ang[:, 2])
 
         for j in range(len(k_frame)):
             image_stack[k_frame[j], i_pix[j], j_pix[j]] = True
@@ -379,6 +383,7 @@ def simulate_diffractions(grain_params, experiment, controller):
         controller.update(i+1)
 
     controller.finish(subprocess)
+    return image_stack
 
 
 # ==============================================================================
