@@ -74,7 +74,7 @@ pFlag_ref = np.array(
 pScl_ref = np.array(
     [
         0.1,
-        0.1., 0.1, 0.1,
+        0.1, 0.1, 0.1,
         1., 1., 100.,
         0.1,
         1., 1., 1.,
@@ -129,7 +129,7 @@ def matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength,
 
     return match_omes, calc_omes
 
-def geomParamsToInput(wavelength, 
+def geomParamsToInput(wavelength,
                       tiltAngles, chi, expMap_c,
                       tVec_d, tVec_s, tVec_c,
                       dParams):
@@ -188,8 +188,8 @@ def calibrateDetectorFromSX(
     distortion=(dFunc_ref, dParams_ref, dFlag_ref, dScl_ref),
     pFlag=pFlag_ref, pScl=pScl_ref,
     omePeriod=None,
-    factor=0.1, 
-    xtol=sqrt_epsf, ftol=sqrt_epsf, 
+    factor=0.1,
+    xtol=sqrt_epsf, ftol=sqrt_epsf,
     ):
     """
     """
@@ -224,7 +224,7 @@ def calibrateDetectorFromSX(
     # pFull = np.hstack([p, dParams])
 
     pFull = geomParamsToInput(
-        wavelength, 
+        wavelength,
         tiltAngles, chi, expMap_c,
         tVec_d, tVec_s, tVec_c,
         dParams
@@ -236,7 +236,7 @@ def calibrateDetectorFromSX(
     fitArgs    = (pFull, pFlag, dFunc, dFlag, xyo_det, hkls_idx,
                   bMat, vInv, beamVec, etaVec, omePeriod)
 
-    results = optimize.leastsq(objFuncSX, pFit, args=fitArgs, 
+    results = optimize.leastsq(objFuncSX, pFit, args=fitArgs,
                                diag=1./scl[refineFlag].flatten(),
                                factor=factor, xtol=xtol, ftol=ftol)
 
@@ -264,7 +264,7 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
 
     # detector quantities
     wavelength = pFull[0]
-    
+
     rMat_d = xf.makeDetectorRotMat(pFull[1:4])
     tVec_d = pFull[4:7].reshape(3, 1)
 
@@ -314,7 +314,7 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
             else:
                 nu_fac = 1.
             nu_fac = 1 / (npts - len(pFit) - 1.)
-            retval = nu_fac * sum(retval**2 / abs(np.hstack([calc_xy, calc_omes.reshape(npts, 1)]).flatten())) 
+            retval = nu_fac * sum(retval**2 / abs(np.hstack([calc_xy, calc_omes.reshape(npts, 1)]).flatten()))
     return retval
 
 """
