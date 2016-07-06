@@ -254,8 +254,6 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
         else:
             nblobs = len(np.unique(cl))
 
-        #import pdb; pdb.set_trace()
-
         """ PERFORM AVERAGING TO GET CLUSTER CENTROIDS """
         qbar = np.zeros((4, nblobs))
         for i in range(nblobs):
@@ -265,6 +263,30 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             ).flatten()
             pass
         pass
+    
+    if (algorithm == 'dbscan' or algorithm == 'ort-dbscan') \
+      and qbar.size/4 > 1:
+        logger.info("\tchecking for duplicate orientations...")
+        cl = cluster.hierarchy.fclusterdata(
+            qbar.T,
+            np.radians(cl_radius),
+            criterion='distance',
+            metric=quat_distance)
+        nblobs_new = len(unique(cl)) 
+        if nblobs_new < nblobs:
+            logger.info("\tfound %d duplicates within %f degrees" \
+                        %(nblobs-nblobs_new, cl_radius))
+            tmp = np.zeros((4, nblobs_new))
+            for i in range(nblobs_new):
+                npts = sum(cl == i + 1)
+                tmp[:, i] = rot.quatAverageCluster(
+                    qbar[:, cl == i + 1].reshape(4, npts), qsym
+                ).flatten()
+                pass
+            qbar = tmp
+            pass
+        pass
+    
     logger.info("clustering took %f seconds", time.clock() - start)
     logger.info(
         "Found %d orientation clusters with >=%.1f%% completeness"
