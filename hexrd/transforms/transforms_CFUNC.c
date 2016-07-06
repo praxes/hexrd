@@ -672,35 +672,33 @@ void makeEtaFrameRotMat_cfunc(double * bPtr, double * ePtr, double * rPtr)
 {
   /*
    * This function generates a COB matrix that takes components in the
-   * BEAM frame to the LAB frame
+   * BEAM frame to LAB frame
+   *
+   * NOTE: the beam and eta vectors MUST NOT BE COLINEAR!!!!
    */
   int i;
-  double dotZe, nrmZ, nrmX;
+  double yPtr[3], bHat[3], yHat[3], xHat[3];
 
-  /* Determine norm of bHat */
-  nrmZ = 0.0;
-  for (i=0; i<3; i++) nrmZ += bPtr[i]*bPtr[i];
-  nrmZ = sqrt(nrmZ);
+  /* find Y as e ^ b */
+  yPtr[0] = ePtr[1]*bPtr[2] - bPtr[1]*ePtr[2];
+  yPtr[1] = ePtr[2]*bPtr[0] - bPtr[2]*ePtr[0];
+  yPtr[2] = ePtr[0]*bPtr[1] - bPtr[0]*ePtr[1];
 
-  /* Assign Z column */
-  for (i=0; i<3; i++) rPtr[3*i+2] = -bPtr[i]/nrmZ;
+  /* Normalize beam (-Z) and Y vectors */
+  unitRowVector_cfunc(3,bPtr,bHat);
+  unitRowVector_cfunc(3,yPtr,yHat);
 
-  /* Determine dot product of Z column and eHat */
-  dotZe = 0.0;
-  for (i=0; i<3; i++) dotZe += rPtr[3*i+2]*ePtr[i];
+  /* Find X as b ^ Y */
+  xHat[0] = bHat[1]*yHat[2] - yHat[1]*bHat[2];
+  xHat[1] = bHat[2]*yHat[0] - yHat[2]*bHat[0];
+  xHat[2] = bHat[0]*yHat[1] - yHat[0]*bHat[1];
 
-  /* Assign X column */
-  for (i=0; i<3; i++) rPtr[3*i+0] = ePtr[i]-dotZe*rPtr[3*i+2];
-
-  /* Normalize X column */
-  nrmX = 0.0;
-  for (i=0; i<3; i++) nrmX += rPtr[3*i+0]*rPtr[3*i+0];
-  nrmX = sqrt(nrmX);
-
-  /* Assign Y column */
-  for (i=0; i<3; i++)
-    rPtr[3*i+1] = rPtr[3*((i+1)%3)+2]*rPtr[3*((i+2)%3)+0] -
-		  rPtr[3*((i+2)%3)+2]*rPtr[3*((i+1)%3)+0];
+  /* Assign columns */
+  for (i=0; i<3; i++) {
+    rPtr[3*i] = xHat[i];
+    rPtr[3*i+1] = yHat[i];
+    rPtr[3*i+2] = -bHat[i];
+  }
 }
 
 void validateAngleRanges_old_cfunc(int na, double * aPtr, int nr, double * minPtr, double * maxPtr, bool * rPtr)
