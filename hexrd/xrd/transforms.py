@@ -893,21 +893,26 @@ if USE_NUMBA:
         # bHat_l and eHat_l CANNOT have 0 magnitude!
         # must catch this case as well as colinear bHat_l/eHat_l elsewhere...
         bHat_mag = np.sqrt(bHat_l[0]**2 + bHat_l[1]**2 + bHat_l[2]**2)
-        eHat_mag = np.sqrt(eHat_l[0]**2 + eHat_l[1]**2 + eHat_l[2]**2)
         
         # assign Ze as -bHat_l
         for i in range(3):
-            out[2, i] = -bHat_l[i] / bHat_mag
+            out[i, 2] = -bHat_l[i] / bHat_mag
 
         # find Ye as Ze ^ eHat_l
-        out[1, 0] = out[2, 1]*eHat_l[2]/eHat_mag - eHat_l[1]*out[2, 2]/eHat_mag
-        out[1, 1] = out[2, 2]*eHat_l[0]/eHat_mag - eHat_l[2]*out[2, 0]/eHat_mag
-        out[1, 2] = out[2, 0]*eHat_l[1]/eHat_mag - eHat_l[0]*out[2, 1]/eHat_mag
+        Ye0 = out[1, 2]*eHat_l[2] - eHat_l[1]*out[2, 2]
+        Ye1 = out[2, 2]*eHat_l[0] - eHat_l[2]*out[0, 2]
+        Ye2 = out[0, 2]*eHat_l[1] - eHat_l[0]*out[1, 2]
+
+        Ye_mag = np.sqrt(Ye0**2 + Ye1**2 + Ye2**2)
+
+        out[0, 1] = Ye0 / Ye_mag
+        out[1, 1] = Ye1 / Ye_mag
+        out[2, 1] = Ye2 / Ye_mag
 
         # find Xe as Ye ^ Ze
-        out[0, 0] = out[1, 1]*out[2, 2] - out[2, 1]*out[1, 2]
-        out[0, 1] = out[1, 2]*out[2, 0] - out[2, 2]*out[1, 0]
-        out[0, 2] = out[1, 0]*out[2, 1] - out[2, 0]*out[1, 1]
+        out[0, 0] = out[1, 1]*out[2, 2] - out[1, 2]*out[2, 1]
+        out[1, 0] = out[2, 1]*out[0, 2] - out[2, 2]*out[0, 1]
+        out[2, 0] = out[0, 1]*out[1, 2] - out[0, 2]*out[1, 1]
 
 
     def makeEtaFrameRotMat(bHat_l, eHat_l):
