@@ -3360,11 +3360,11 @@ def _project_on_detector_plane(allAngs,
         chi, num.ascontiguousarray(allAngs[:,2])
         )
     tmp_xys = xfcapi.gvecToDetectorXYArray(
-        gVec_cs, rMat_d, rMat_ss, rMat_c, 
+        gVec_cs, rMat_d, rMat_ss, rMat_c,
         tVec_d, tVec_s, tVec_c
         )
     valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
-    
+
     if distortion is None or len(distortion) == 0:
         det_xy = tmp_xys[valid_mask]
     else:
@@ -3375,7 +3375,7 @@ def _project_on_detector_plane(allAngs,
 
 
 def simulateGVecs(pd, detector_params, grain_params,
-                  ome_range=[(-num.pi, num.pi), ], 
+                  ome_range=[(-num.pi, num.pi), ],
                   ome_period=(-num.pi, num.pi),
                   eta_range=[(-num.pi, num.pi), ],
                   panel_dims=[(-204.8, -204.8), (204.8, 204.8)],
@@ -3404,8 +3404,8 @@ def simulateGVecs(pd, detector_params, grain_params,
         - eta (azimuth) ranges
 
     pd................a hexrd.xrd.crystallography.PlaneData instance
-    detector_params...a (10,) ndarray containing the tilt angles (3), 
-                      translation (3), chi (1), and sample frame translation 
+    detector_params...a (10,) ndarray containing the tilt angles (3),
+                      translation (3), chi (1), and sample frame translation
                       (3) parameters
     grain_params......a (12,) ndarray containing the exponential map (3),
                       translation (3), and inverse stretch tensor compnents
@@ -3447,16 +3447,16 @@ def simulateGVecs(pd, detector_params, grain_params,
         det_xy, rMat_s = _project_on_detector_plane(
             allAngs,
             rMat_d, rMat_c, chi,
-            tVec_d, tVec_c, tVec_s, 
+            tVec_d, tVec_c, tVec_s,
             distortion
             )
         #
         on_panel_x = num.logical_and(
-            det_xy[:, 0] >= panel_dims[0][0], 
+            det_xy[:, 0] >= panel_dims[0][0],
             det_xy[:, 0] <= panel_dims[1][0]
             )
         on_panel_y = num.logical_and(
-            det_xy[:, 1] >= panel_dims[0][1], 
+            det_xy[:, 1] >= panel_dims[0][1],
             det_xy[:, 1] <= panel_dims[1][1]
             )
         on_panel = num.logical_and(on_panel_x, on_panel_y)
@@ -3472,7 +3472,7 @@ def simulateGVecs(pd, detector_params, grain_params,
                                   rMat_d, rMat_s,
                                   tVec_d, tVec_s, tVec_c,
                                   distortion=distortion)
-                                     
+
     return valid_ids, valid_hkl, valid_ang, valid_xy, ang_ps
 
 
@@ -3502,10 +3502,10 @@ def simulateLauePattern(hkls, bMat,
     # process crystal rmats and inverse stretches
     if grain_params is None:
         grain_params = num.atleast_2d(
-            [0., 0., 0., 
-             0., 0., 0., 
+            [0., 0., 0.,
+             0., 0., 0.,
              1., 1., 1., 0., 0., 0.
-             ]             
+             ]
         )
 
     n_grains = len(grain_params)
@@ -3528,13 +3528,13 @@ def simulateLauePattern(hkls, bMat,
 
     """
     LOOP OVER GRAINS
-    """   
-    
+    """
+
     for iG, gp in enumerate(grain_params):
         rmat_c = xfcapi.makeRotMatOfExpMap(gp[:3])
         tvec_c = gp[3:6].reshape(3, 1)
         vInv_s = mutil.vecMVToSymm(gp[6:].reshape(6, 1))
-        
+
 
         # stretch them: V^(-1) * R * Gc
         ghat_s_str = mutil.unitVector(
@@ -3545,21 +3545,21 @@ def simulateLauePattern(hkls, bMat,
         dpts = xfcapi.gvecToDetectorXY(ghat_c_str.T,
                                        rmat_d, rmat_s, rmat_c,
                                        tvec_d, tvec_s, tvec_c).T
-                                       
-        
-                
+
+
+
         #print dpts
 
         # check intersections with detector plane
         canIntersect = ~num.isnan(dpts[0, :])
         npts_in = sum(canIntersect)
-        
-        
+
+
         if num.any(canIntersect):
             dpts = dpts[:, canIntersect].reshape(2, npts_in)
             dhkl = hkls[:, canIntersect].reshape(3, npts_in)
-            
-            
+
+
             # back to angles
             tth_eta, gvec_l = xfcapi.detectorXYToGvec(dpts.T,
                                                       rmat_d, rmat_s,
@@ -3575,7 +3575,7 @@ def simulateLauePattern(hkls, bMat,
             # plane spacings and energies
             dsp = 1. / mutil.columnNorm(num.dot(bMat, dhkl))
             wlen  = 2*dsp*num.sin(0.5*tth_eta[:, 0])
-            
+
             #print wlen
 
             # find on spatial extent of detector
@@ -3606,9 +3606,9 @@ def simulateLauePattern(hkls, bMat,
 
             pass
         pass
-    
-    
-    
+
+
+
     return xy_det, hkls_in, angles, dspacing, energy
 
 
@@ -3653,7 +3653,7 @@ if USE_NUMBA:
     def angularPixelSize(xy_det, xy_pixelPitch,
                  rMat_d, rMat_s,
                  tVec_d, tVec_s, tVec_c,
-                 distortion=(dFunc_ref, dParams_ref)):
+                 distortion=None, beamVec=None, etaVec=None):
         """
         * choices to beam vector and eta vector specs have been supressed
         * assumes xy_det in UNWARPED configuration
@@ -3661,18 +3661,26 @@ if USE_NUMBA:
         xy_det = num.atleast_2d(xy_det)
         if distortion is not None and len(distortion) == 2:
             xy_det = distortion[0](xy_det, distortion[1])
+        if beamVec is None: beamVec = xfcapi.bVec_ref
+        if etaVec is None: etaVec = xfcapi.eta_ref
 
         xy_expanded = num.empty((len(xy_det) * 4, 2), dtype=xy_det.dtype)
-        xy_expanded = _expand_pixels(xy_det, xy_pixelPitch[0], xy_pixelPitch[1], xy_expanded)
-        gvec_space, _ = xfcapi.detectorXYToGvec(xy_expanded, rMat_d, rMat_s,
-                                                tVec_d, tVec_s, tVec_c)
+        xy_expanded = _expand_pixels(
+            xy_det,
+            xy_pixelPitch[0], xy_pixelPitch[1],
+            xy_expanded)
+        gvec_space, _ = xfcapi.detectorXYToGvec(
+            xy_expanded,
+            rMat_d, rMat_s,
+            tVec_d, tVec_s, tVec_c,
+            beamVec=beamVec, etaVec=etaVec)
         result = num.empty_like(xy_det)
         return _compute_max(gvec_space[0], gvec_space[1], result)
 else:
     def angularPixelSize(xy_det, xy_pixelPitch,
                          rMat_d, rMat_s,
                          tVec_d, tVec_s, tVec_c,
-                         distortion=(dFunc_ref, dParams_ref)):
+                         distortion=None, beamVec=None, etaVec=None):
         """
         * choices to beam vector and eta vector specs have been supressed
         * assumes xy_det in UNWARPED configuration
@@ -3681,6 +3689,8 @@ else:
         xy_det = num.atleast_2d(xy_det)
         if distortion is not None and len(distortion) == 2:
             xy_det = distortion[0](xy_det, distortion[1])
+        if beamVec is None: beamVec = xfcapi.bVec_ref
+        if etaVec is None: etaVec = xfcapi.eta_ref
 
         xp = num.r_[-0.5,  0.5,  0.5, -0.5] * xy_pixelPitch[0]
         yp = num.r_[-0.5, -0.5,  0.5,  0.5] * xy_pixelPitch[1]
@@ -3694,10 +3704,11 @@ else:
             xc = xp + xy[0]
             yc = yp + xy[1]
 
-            tth_eta, gHat_l = xfcapi.detectorXYToGvec(num.vstack([xc, yc]).T,
-                                                      rMat_d, rMat_s,
-                                                      tVec_d, tVec_s, tVec_c)
-
+            tth_eta, gHat_l = xfcapi.detectorXYToGvec(
+                num.vstack([xc, yc]).T,
+                rMat_d, rMat_s,
+                tVec_d, tVec_s, tVec_c,
+                beamVec=beamVec, etaVec=etaVec)
             delta_tth = num.zeros(4)
             delta_eta = num.zeros(4)
             for j in range(4):
@@ -4296,7 +4307,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
 
 def extract_detector_transformation(detector_params):
     """
-    goes from 10 vector of detector parames OR instrument config dictionary 
+    goes from 10 vector of detector parames OR instrument config dictionary
     (from YAML spec) to affine transformation arrays
     """    # extract variables for convenience
     if isinstance(detector_params, dict):
