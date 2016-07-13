@@ -3482,7 +3482,8 @@ def simulateGVecs(pd, detector_params, grain_params,
         on_panel_y = num.logical_and(det_xy[:, 1] >= panel_dims[0][1], det_xy[:, 1] <= panel_dims[1][1])
         on_panel   = num.logical_and(on_panel_x, on_panel_y)
         #
-        valid_ang = allAngs[on_panel, :]; valid_ang[:, 2] = xf.mapAngle(valid_ang[:, 2], ome_period)
+        valid_ang = allAngs[on_panel, :]
+        valid_ang[:, 2] = xf.mapAngle(valid_ang[:, 2], ome_period)
         valid_ids = allHKLs[on_panel, 0]
         valid_hkl = allHKLs[on_panel, 1:]
         valid_xy  = det_xy[on_panel, :]
@@ -3491,7 +3492,6 @@ def simulateGVecs(pd, detector_params, grain_params,
                                      tVec_d, tVec_s, tVec_c,
                                      distortion=distortion)
     return valid_ids, valid_hkl, valid_ang, valid_xy, ang_ps
-
 
 
 def simulateLauePattern(hkls, bMat,
