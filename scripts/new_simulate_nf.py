@@ -27,6 +27,10 @@ import hexrd.gridutil as gridutil
 from hexrd.xrd import material
 from skimage.morphology import dilation as ski_dilation
 
+# TODO: Expand this, as this part requires tweaking
+from hexrd.xrd.xrdutil import _project_on_detector_plane
+
+
 class ProcessController(object):
     """This is a 'controller' that provides the necessary hooks to
     track the results of the process as well as to provide clues of
@@ -287,6 +291,18 @@ def mockup_experiment():
                                  tVec_s.flatten()])
     distortion = None
 
+    # a different parametrization for the sensor (makes for faster quantization)
+    base = np.array([x_col_edges[0],
+                     y_row_edges[0],
+                     ome_edges[0]])
+    deltas = np.array([x_col_edges[1] - x_col_edges[0],
+                       y_row_edges[1] - y_row_edges[0],
+                       ome_edges[1] - ome_edges[0]])
+    inv_deltas = 1.0/deltas
+    clip_vals = np.array([ncols, nrows])
+
+
+
     # dilation
     max_diameter = np.sqrt(3)*0.005
     row_dilation = np.ceil(0.5 * max_diameter/row_ps)
@@ -331,7 +347,10 @@ def mockup_experiment():
     ns.col_dilation = col_dilation
     ns.distortion = distortion
     ns.panel_dims = panel_dims # used only in simulate...
-    
+    ns.base = base
+    ns.inv_deltas = inv_deltas
+    ns.clip_vals = clip_vals
+
     return grain_params, ns
 
 
@@ -355,30 +374,66 @@ def get_simulate_diffractions(grain_params, experiment,
     return image_stack
 
 
+@numba.njit
+def _write_pixels(coords, angles, image, base, inv_deltas, clip_vals):
+    count = len(coords)
+    for i in range(count):
+        x = int(np.floor((coords[i, 0] - base[0]) * inv_deltas[0]))
+
+        if x < 0 or x >= clip_vals[0]:
+            continue
+
+        y = int(np.floor((coords[i, 1] - base[1]) * inv_deltas[1]))
+
+        if y < 0 or y >= clip_vals[1]:
+            continue
+
+        z = int(np.floor((angles[i] - base[2]) * inv_deltas[2]))
+
+        image[z, y, x] = True
+
+
 def simulate_diffractions(grain_params, experiment, controller):
     """actual forward simulation of the diffraction"""
 
     image_stack = np.zeros((experiment.nframes, experiment.nrows, experiment.ncols), dtype=bool)
     count = len(grain_params)
     subprocess = 'simulate diffractions'
+
+    _project = _project_on_detector_plane
+    rD = experiment.rMat_d
+    chi = experiment.chi
+    tD = experiment.tVec_d
+    tS = experiment.tVec_s
+    distortion = experiment.distortion
+
+    eta_range = [(-np.pi, np.pi), ]
+    ome_range = experiment.ome_range
+    ome_period = (-np.pi, np.pi)
+
+    full_hkls = xrdutil._fetch_hkls_from_planedata(experiment.plane_data)
+    bMat = experiment.plane_data.latVecOps['B']
+    wlen = experiment.plane_data.wavelength
+
     controller.start(subprocess, count)
-
     for i in range(count):
-        sim_results = xrdutil.simulateGVecs(experiment.plane_data,
-                                            experiment.detector_params,
-                                            grain_params[i],
-                                            panel_dims=experiment.panel_dims,
-                                            pixel_pitch=experiment.pixel_size,
-                                            ome_range=experiment.ome_range,
-                                            ome_period=experiment.ome_period,
-                                            distortion=experiment.distortion)
-        valid_ids, valid_hkl, valid_ang, valid_xy, ang_ps = sim_results
-        j_pix = gridutil.cellIndices(experiment.x_col_edges, valid_xy[:, 0])
-        i_pix = gridutil.cellIndices(experiment.y_row_edges, valid_xy[:, 1])
-        k_frame = gridutil.cellIndices(experiment.ome_edges, valid_ang[:, 2])
+        rC = xfcapi.makeRotMatOfExpMap(grain_params[i][0:3])
+        tC = np.ascontiguousarray(grain_params[i][3:6])
+        vInv_s = np.ascontiguousarray(grain_params[i][6:12])
+        ang_list = np.vstack(xfcapi.oscillAnglesOfHKLs(full_hkls[:, 1:], chi,
+                                                       rC, bMat, wlen,
+                                                       vInv=vInv_s))
+        # hkls not needed here
+        all_angs, _ = xrdutil._filter_hkls_eta_ome(full_hkls, ang_list,
+                                                   eta_range, ome_range)
+        all_angs[:, 2] =xf.mapAngle(all_angs[:, 2], ome_period)
 
-        for j in range(len(k_frame)):
-            image_stack[k_frame[j], i_pix[j], j_pix[j]] = True
+        
+        det_xy, _ = _project(all_angs, rD, rC, chi, tD,
+                             tC, tS, distortion)
+
+        _write_pixels(det_xy, all_angs[:,2], image_stack, experiment.base,
+                      experiment.inv_deltas, experiment.clip_vals)
 
         controller.update(i+1)
 
@@ -390,8 +445,6 @@ def simulate_diffractions(grain_params, experiment, controller):
 # %% ORIENTATION TESTING
 # ==============================================================================
 
-# TODO: Expand this, as this part requires tweaking
-from hexrd.xrd.xrdutil import _project_on_detector_plane
 
 def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
     n_grains = experiment.n_grains
@@ -544,15 +597,6 @@ def test_orientations(image_stack, grain_params, experiment,
     # projection function
 
     # a more parametric description of the sensor:
-    experiment.base = np.array([experiment.x_col_edges[0],
-                     experiment.y_row_edges[0],
-                     experiment.ome_edges[0]])
-    deltas = np.array([experiment.x_col_edges[1] - experiment.x_col_edges[0],
-                       experiment.y_row_edges[1] - experiment.y_row_edges[0],
-                       experiment.ome_edges[1] - experiment.ome_edges[0]])
-    experiment.inv_deltas = 1.0/deltas
-    experiment.clip_vals = np.array([experiment.ncols, experiment.nrows])
-
     _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controller)
 
 
