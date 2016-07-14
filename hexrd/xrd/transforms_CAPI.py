@@ -476,7 +476,7 @@ def makeOscillRotMatArray(chi, omeArray):
     chi value and an array of omega values.
     """
     arg = np.ascontiguousarray(omeArray)
-    return _transforms_CAPI.makeOscillRotMatArray(chi, omeArray)
+    return _transforms_CAPI.makeOscillRotMatArray(chi, arg)
 
 def makeRotMatOfExpMap(expMap):
     """

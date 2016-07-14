@@ -3399,7 +3399,7 @@ def _project_on_detector_plane(allAngs,
                                tVec_d, tVec_c, tVec_s, distortion):
     # hkls not needed # gVec_cs = num.dot(bMat, allHKLs.T)
     gVec_cs = xfcapi.anglesToGVec(allAngs, chi=chi, rMat_c=rMat_c)
-    rMat_ss = xfcapi.makeOscillRotMatArray(chi, num.ascontiguousarray(allAngs[:,2]))
+    rMat_ss = xfcapi.makeOscillRotMatArray(chi, allAngs[:,2])
     tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs, rMat_d, rMat_ss, rMat_c,
                                            tVec_d, tVec_s, tVec_c)
     valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
