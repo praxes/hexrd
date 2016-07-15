@@ -27,9 +27,10 @@ import hexrd.gridutil as gridutil
 from hexrd.xrd import material
 from skimage.morphology import dilation as ski_dilation
 
-# TODO: Expand this, as this part requires tweaking
-from hexrd.xrd.xrdutil import _project_on_detector_plane
 
+# ==============================================================================
+# %% SOME SCAFFOLDING
+# ==============================================================================
 
 class ProcessController(object):
     """This is a 'controller' that provides the necessary hooks to
@@ -213,9 +214,11 @@ def checking_result_handler(filename):
 def mockup_experiment():
     # user options
     # each grain is provided in the form of a quaternion.
-    # The following array contains the quaternions for the array. Note that the quaternions are
-    # in the columns, with the first row (row 0) being the real part w. We assume that we are
-    # dealing with unit quaternions
+
+    # The following array contains the quaternions for the array. Note that the
+    # quaternions are in the columns, with the first row (row 0) being the real
+    # part w. We assume that we are dealing with unit quaternions
+
     quats = np.array([[ 0.91836393,  0.90869942],
                       [ 0.33952917,  0.1834835 ],
                       [ 0.17216207,  0.10095837],
@@ -355,6 +358,38 @@ def mockup_experiment():
 
 
 # ==============================================================================
+# %% OPTIMIZED BITS
+# ==============================================================================
+
+@numba.njit
+def _filter_nans(tmp_xys):
+    result = np.empty_like(tmp_xys)
+
+    pivot = 0
+    for i in range(len(tmp_xys)):
+        if np.isfinite(tmp_xys[i, 0]) and np.isfinite(tmp_xys[i,1]):
+            result[pivot, 0] = tmp_xys[i, 0]
+            result[pivot, 1] = tmp_xys[i, 1]
+            pivot += 1
+
+    return result[0:pivot,:]
+
+
+def _opt_project_on_detector(angs, rD, rC, chi, tD, tC, tS, distortion):
+    gVec_cs = xfcapi.anglesToGVec(angs, chi=chi, rMat_c=rC)
+    rMat_ss = xfcapi.makeOscillRotMatArray(chi, angs[:,2])
+    tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs, rD, rMat_ss, rC, tD, tS, tC)
+
+    # do not filter nans, let the code after it handle that.
+    # filter nans...
+    #tmp_xys = _filter_nans(tmp_xys)
+
+    if distortion is not None and len(distortion) > 0:
+        tmp_xys = distortion[0](tmp_xys, distortion[1], invert=True)
+
+    return tmp_xys, None
+
+# ==============================================================================
 # %% DIFFRACTION SIMULATION
 # ==============================================================================
 
@@ -400,7 +435,7 @@ def simulate_diffractions(grain_params, experiment, controller):
     count = len(grain_params)
     subprocess = 'simulate diffractions'
 
-    _project = _project_on_detector_plane
+    _project = xrdutil._project_on_detector_plane
     rD = experiment.rMat_d
     chi = experiment.chi
     tD = experiment.tVec_d
@@ -453,7 +488,7 @@ def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
     confidence = np.empty((n_grains, n_coords))
     subprocess = 'grand_loop'
 
-    _project = _project_on_detector_plane
+    _project = xrdutil._project_on_detector_plane
 
     controller.start(subprocess, n_coords * n_grains)
     for icrd in range(n_coords):
@@ -489,7 +524,7 @@ def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
 def _grand_loop_inner(confidence, image_stack, angles, coords, experiment, start=0, stop=None):
     n_coords = len(coords)
     n_angles = len(angles)
-    _project = _project_on_detector_plane
+    _project = _opt_project_on_detector
     rD = experiment.rMat_d
     rCn = experiment.rMat_c
     chi = experiment.chi
@@ -501,8 +536,8 @@ def _grand_loop_inner(confidence, image_stack, angles, coords, experiment, start
 
     for icrd, igrn in it.product(xrange(start, stop), xrange(n_angles)):
         angs = angles[igrn]
-        det_xy, rMat_ss = _project(angs, rD, rCn[igrn], chi, tD,
-                                   coords[icrd], tS, distortion)
+        det_xy, _ = _project(angs, rD, rCn[igrn], chi, tD, coords[icrd], tS,
+                             distortion)
         c = _quant_and_clip_confidence(det_xy, angs[:,2],
                                        image_stack, experiment.base,
                                        experiment.inv_deltas,
@@ -528,7 +563,7 @@ def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controll
     n_grains = experiment.n_grains
     n_coords = controller.limit('coords', len(test_crds))
     subprocess = 'grand_loop'
-    _project = _project_on_detector_plane
+    _project = xrdutil._project_on_detector_plane
     chunk_size = controller.get_chunk_size()
     ncpus = controller.get_process_count()
 
@@ -731,20 +766,26 @@ def _quant_and_clip_confidence(coords, angles, image, base, inv_deltas, clip_val
     in_sensor = 0
     matches = 0
     for i in range(count):
-        x = int(np.floor((coords[i, 0] - base[0]) * inv_deltas[0]))
-
-        if x < 0 or x >= clip_vals[0]:
+        xf = coords[i, 0]
+        yf = coords[i, 1] 
+        
+        xf = np.floor((xf - base[0]) * inv_deltas[0])
+        if not xf >= 0.0:
+            continue
+        if not xf < clip_vals[0]:
             continue
 
-        y = int(np.floor((coords[i, 1] - base[1]) * inv_deltas[1]))
+        yf = np.floor((yf - base[1]) * inv_deltas[1])
 
-        if y < 0 or y >= clip_vals[1]:
+        if not yf >= 0.0:
+            continue
+        if not yf < clip_vals[1]:
             continue
 
-        z = int(np.floor((angles[i] - base[2]) * inv_deltas[2]))
+        zf = np.floor((angles[i] - base[2]) * inv_deltas[2])
 
         in_sensor += 1
-        matches += image[z, y, x]
+        matches += image[int(zf), int(yf), int(xf)]
 
     return float(matches)/float(in_sensor)
 
