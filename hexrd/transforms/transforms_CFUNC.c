@@ -15,6 +15,132 @@ static double Zl[3] = {0.0,0.0,1.0};
 /******************************************************************************/
 /* Funtions */
 
+static inline
+double *m33_inplace_transpose(double *m)
+{
+    double e1 = m[1];
+    double e3 = m[2];
+    double e5 = m[5];
+    m[1] = m[3];
+    m[2] = m[6];
+    m[5] = m[7];
+    m[3] = e1;
+    m[6] = e3;
+    m[7] = e5;
+
+    return m;
+}
+
+static inline
+double *m33_transpose(double *m, double * restrict dst)
+{
+    dst[0] = m[0]; dst[1] = m[3]; dst[2] = m[6];
+    dst[3] = m[1]; dst[4] = m[4]; dst[5] = m[7];
+    dst[7] = m[2]; dst[8] = m[5]; dst[9] = m[9];
+    return dst;
+}
+
+/* 3x3 matrix by strided 3 vector product --------------------------------------
+   hopefully a constant stride will be optimized
+ */
+static inline
+double * m33_v3s_multiply(double *m, double *v, int stride,
+                      double * restrict dst)
+{
+    dst[0] = m[0]*v[0] + m[1]*v[stride] + m[2]*v[2*stride];
+    dst[1] = m[3]*v[0] + m[4]*v[stride] + m[5]*v[2*stride];
+    dst[2] = m[6]*v[0] + m[7]*v[stride] + m[8]*v[2*stride];
+    return dst;
+}
+
+/* transposed 3x3 matrix by strided 3 vector product ---------------------------
+ */
+static inline
+double *m33t_v3s_multiply(double *m, double *v, int stride,
+                          double *restrict dst)
+{
+    dst[0] = m[0]*v[0] + m[3]*v[stride] + m[6]*v[2*stride];
+    dst[1] = m[1]*v[0] + m[4]*v[stride] + m[7]*v[2*stride];
+    dst[2] = m[2]*v[0] + m[5]*v[stride] + m[8]*v[2*stride];
+    return dst;
+}
+
+static inline
+double *m33_m33_multiply(double *src1, double *src2, double * restrict dst)
+{
+    m33_v3s_multiply(src1+0, src2+0, 3, dst+0);
+    m33_v3s_multiply(src1+3, src2+1, 3, dst+3);
+    m33_v3s_multiply(src1+6, src2+2, 3, dst+6);
+    return dst;
+}
+
+static inline
+double *m33_m33t_multiply(double *src1, double *src2, double * restrict dst)
+{
+    m33_v3s_multiply(src1+0, src2+0, 1, dst+0);
+    m33_v3s_multiply(src1+3, src2+3, 1, dst+3);
+    m33_v3s_multiply(src1+6, src2+6, 1, dst+6);
+    return dst;
+}
+
+static inline
+double *m33t_m33_multiply(double *src1, double *src2, double * restrict dst)
+{
+    return m33_inplace_transpose(m33_m33t_multiply(src2, src1, dst));
+}
+
+static inline
+double *m33t_m33t_multiply(double *src1, double *src2, double * restrict dst)
+{
+    return m33_inplace_transpose(m33_m33_multiply(src2, src1, dst));
+}
+
+static inline
+void anglesToGvec_single(double *v3_ang, double *m33_e,
+                         double chi, double *m33_c,
+                         double * restrict v3_c)
+{
+    double v3_g[3], v3_tmp1[3], v3_tmp2[3], m33_s[9], m33_ctst[9];
+
+    /* build g */
+    double cx = cos(0.5*v3_ang[0]);
+    double sx = sin(0.5*v3_ang[0]);
+    double cy = cos(v3_ang[1]);
+    double sy = sin(v3_ang[1]);
+    v3_g[0] = cx*cy;
+    v3_g[1] = cx*sy;
+    v3_g[2] = sx;
+
+    /* build S */
+    makeOscillRotMat_cfunc(chi, v3_ang[2], m33_s);
+
+    /* beam frame to lab frame */
+    /* eval the chain:
+       C.T _dot_ S.T _dot_ E _dot_ g
+     */
+    m33_v3s_multiply (m33_e, v3_g,    1, v3_tmp1); /* E _dot_ g */
+    m33t_v3s_multiply(m33_s, v3_tmp1, 1, v3_tmp2); /* S.T _dot_ E _dot_ g */
+    m33t_v3s_multiply(m33_c, v3_tmp2, 1, v3_c); /* the whole lot */
+}
+
+#if 1
+void anglesToGvec_cfunc(long int nvecs, double *angs,
+                        double * bHat_l, double *eHat_l,
+                        double chi, double * rMat_c,
+                        double * gVec_c)
+{
+    double m33_e[9];
+
+    makeEtaFrameRotMat_cfunc(bHat_l, eHat_l, m33_e);
+
+    for (int i = 0; i<nvecs; i++) {
+        double * ang = angs + 3*i;
+        double * restrict v3_c = gVec_c + 3*i;
+
+        anglesToGvec_single(ang, m33_e, chi, rMat_c, v3_c);
+    }
+}
+#else
 void anglesToGvec_cfunc(long int nvecs, double * angs,
                         double * bHat_l, double * eHat_l,
                         double chi, double * rMat_c,
@@ -68,6 +194,7 @@ void anglesToGvec_cfunc(long int nvecs, double * angs,
     }
   }
 }
+#endif
 
 void gvecToDetectorXYOne_cfunc(double * gVec_c, double * rMat_d,
                                double * rMat_sc, double * tVec_d,
