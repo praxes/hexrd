@@ -6,26 +6,104 @@
 
 #include "transforms_CFUNC.h"
 
-static double epsf      = 2.2e-16;
-static double sqrt_epsf = 1.5e-8;
 
+#define USE_C99_CODE 1
+
+static double epsf = 2.2e-16;
+static double sqrt_epsf = 1.5e-8;
 static double Zl[3] = {0.0,0.0,1.0};
 
 
 /******************************************************************************/
 /* Funtions */
+#if !USE_C99_CODE
+#  define restrict
+#endif
+
+static inline
+double *v3_v3s_inplace_add(double *dst_src1, double *src2, int stride)
+{
+    dst_src1[0] += src2[0];
+    dst_src1[1] += src2[1*stride];
+    dst_src1[2] += src2[2*stride];
+    return dst_src1;
+}
+
+static inline
+double *v3_v3s_add(double *src1, double *src2, int stride, double * restrict dst)
+{
+    dst[0] = src1[0] + src2[0];
+    dst[1] = src1[1] + src2[1*stride];
+    dst[2] = src1[2] + src2[2*stride];
+
+    return dst;
+}
+
+static inline
+double *v3_v3s_inplace_sub(double *dst_src1, double *src2, int stride)
+{
+    dst_src1[0] -= src2[0];
+    dst_src1[1] -= src2[1*stride];
+    dst_src1[2] -= src2[2*stride];
+    return dst_src1;
+}
+
+static inline
+double *v3_v3s_sub(double *src1, double *src2, int stride, double * restrict dst)
+{
+    dst[0] = src1[0] - src2[0];
+    dst[1] = src1[1] - src2[1*stride];
+    dst[2] = src1[2] - src2[2*stride];
+
+    return dst;
+}
+
+static inline
+double *v3_inplace_normalize(double *v)
+{
+    double sqr_norm = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
+
+    if (sqr_norm > epsf) {
+        double normalize_factor = 1./sqrt(sqr_norm);
+        v[0] *= normalize_factor;
+        v[1] *= normalize_factor;
+        v[2] *= normalize_factor;
+    }
+
+    return v;
+}
+
+static inline
+double *v3_normalize(double *in, double * restrict out)
+{
+    double in0 = in[0], in1 = in[1], in2 = in[2];
+    double sqr_norm = in0*in0 + in1*in1 + in2*in2;
+
+    if (sqr_norm > epsf) {
+        double normalize_factor = 1./sqrt(sqr_norm);
+        out[0] = in0 * normalize_factor;
+        out[1] = in1 * normalize_factor;
+        out[2] = in2 * normalize_factor;
+    } else {
+        out[0] = in0;
+        out[1] = in1;
+        out[2] = in2;
+    }
+
+    return out;
+}
 
 static inline
 double *m33_inplace_transpose(double *m)
 {
     double e1 = m[1];
-    double e3 = m[2];
+    double e2 = m[2];
     double e5 = m[5];
     m[1] = m[3];
     m[2] = m[6];
     m[5] = m[7];
     m[3] = e1;
-    m[6] = e3;
+    m[6] = e2;
     m[7] = e5;
 
     return m;
@@ -39,6 +117,13 @@ double *m33_transpose(double *m, double * restrict dst)
     dst[7] = m[2]; dst[8] = m[5]; dst[9] = m[9];
     return dst;
 }
+
+static inline
+double v3_v3s_dot(double *v1, double *v2, int stride)
+{
+    return v1[0]*v2[0] + v1[1]*v2[stride] + v1[2]*v2[2*stride];
+}
+
 
 /* 3x3 matrix by strided 3 vector product --------------------------------------
    hopefully a constant stride will be optimized
@@ -56,8 +141,30 @@ double * m33_v3s_multiply(double *m, double *v, int stride,
 /* transposed 3x3 matrix by strided 3 vector product ---------------------------
  */
 static inline
+double *v3s_m33t_multiply(double *v, int stride, double *m,
+                          double * restrict dst)
+{
+    double v0 = v[0]; double v1 = v[stride]; double v2 = v[2*stride];
+    dst[0] = v0*m[0] + v1*m[1] + v2*m[2];
+    dst[1] = v0*m[3] + v1*m[4] + v2*m[5];
+    dst[2] = v0*m[6] + v1*m[7] + v2*m[8];
+    return dst;
+}
+
+static inline
+double *v3s_m33_multiply(double *v, int stride, double *m,
+                          double * restrict dst)
+{
+    double v0 = v[0]; double v1 = v[stride]; double v2 = v[2*stride];
+    dst[0] = v0*m[0] + v1*m[3] + v2*m[6];
+    dst[1] = v0*m[1] + v1*m[4] + v2*m[7];
+    dst[2] = v0*m[2] + v1*m[5] + v2*m[8];
+    return dst;
+}
+
+static inline
 double *m33t_v3s_multiply(double *m, double *v, int stride,
-                          double *restrict dst)
+                          double * restrict dst)
 {
     dst[0] = m[0]*v[0] + m[3]*v[stride] + m[6]*v[2*stride];
     dst[1] = m[1]*v[0] + m[4]*v[stride] + m[7]*v[2*stride];
@@ -68,25 +175,25 @@ double *m33t_v3s_multiply(double *m, double *v, int stride,
 static inline
 double *m33_m33_multiply(double *src1, double *src2, double * restrict dst)
 {
-    m33_v3s_multiply(src1+0, src2+0, 3, dst+0);
-    m33_v3s_multiply(src1+3, src2+1, 3, dst+3);
-    m33_v3s_multiply(src1+6, src2+2, 3, dst+6);
-    return dst;
-}
-
-static inline
-double *m33_m33t_multiply(double *src1, double *src2, double * restrict dst)
-{
-    m33_v3s_multiply(src1+0, src2+0, 1, dst+0);
-    m33_v3s_multiply(src1+3, src2+3, 1, dst+3);
-    m33_v3s_multiply(src1+6, src2+6, 1, dst+6);
+    v3s_m33_multiply(src1 + 0, 1, src2, dst+0);
+    v3s_m33_multiply(src1 + 3, 1, src2, dst+3);
+    v3s_m33_multiply(src1 + 6, 1, src2, dst+6);
     return dst;
 }
 
 static inline
 double *m33t_m33_multiply(double *src1, double *src2, double * restrict dst)
 {
-    return m33_inplace_transpose(m33_m33t_multiply(src2, src1, dst));
+    v3s_m33_multiply(src1 + 0, 3, src2, dst+0);
+    v3s_m33_multiply(src1 + 1, 3, src2, dst+3);
+    v3s_m33_multiply(src1 + 2, 3, src2, dst+6);
+    return dst;
+}
+
+static inline
+double *m33_m33t_multiply(double *src1, double *src2, double * restrict dst)
+{
+    return m33_inplace_transpose(m33t_m33_multiply(src2, src1, dst));
 }
 
 static inline
@@ -95,6 +202,7 @@ double *m33t_m33t_multiply(double *src1, double *src2, double * restrict dst)
     return m33_inplace_transpose(m33_m33_multiply(src2, src1, dst));
 }
 
+#if USE_C99_CODE
 static inline
 void anglesToGvec_single(double *v3_ang, double *m33_e,
                          double chi, double *m33_c,
@@ -123,7 +231,6 @@ void anglesToGvec_single(double *v3_ang, double *m33_e,
     m33t_v3s_multiply(m33_c, v3_tmp2, 1, v3_c); /* the whole lot */
 }
 
-#if 1
 void anglesToGvec_cfunc(long int nvecs, double *angs,
                         double * bHat_l, double *eHat_l,
                         double chi, double * rMat_c,
@@ -196,6 +303,127 @@ void anglesToGvec_cfunc(long int nvecs, double * angs,
 }
 #endif
 
+
+#if USE_C99_CODE
+static inline
+void gvecToDetectorXYOne_cfunc(double * gVec_c, double * rMat_d,
+                               double * rMat_sc, double * tVec_d,
+                               double * bHat_l,
+                               double * nVec_l, double num, double * P0_l,
+                               double * restrict result)
+{
+    /* Compute unit reciprocal lattice vector in crystal frame w/o translation */
+    double gHat_c[3];
+    v3_normalize(gVec_c, gHat_c);
+
+    /* Compute unit reciprocal lattice vector in lab frame and dot with beam vector */
+    double gVec_l[3];
+    m33_v3s_multiply(rMat_sc, gHat_c, 1, gVec_l);
+
+    double bDot = -v3_v3s_dot(bHat_l, gVec_l, 1);
+    double ztol = epsf;
+    if ( bDot >= ztol && bDot <= 1.0-ztol ) {
+        /* If we are here diffraction is possible so increment the number of admissable vectors */
+        double brMat[9];
+        makeBinaryRotMat_cfunc(gVec_l, brMat);
+
+        double dVec_l[3];
+        m33_v3s_multiply(brMat, bHat_l, 1, dVec_l);
+        double denom = v3_v3s_dot(nVec_l, dVec_l, 1);
+
+        if (denom > ztol) {
+            double u = num/denom;
+            double v3_tmp[3];
+
+            /* v3_tmp = P0_l + u*dVec_l - tVec_d */
+            for (int j=0; j<3; j++)
+                v3_tmp[j] = P0_l[j] + u*dVec_l[j] - tVec_d[j];
+
+            result[0] = v3_v3s_dot(v3_tmp, rMat_d + 0, 3);
+            result[1] = v3_v3s_dot(v3_tmp, rMat_d + 1, 3);
+
+            /* result when computation can be finished */
+            return;
+        }
+    }
+
+    /* default result when computation can't be finished */
+    result[0] = NAN;
+    result[1] = NAN;
+}
+
+/*
+ * The only difference between this and the non-Array version
+ * is that rMat_s is an array of matrices of length npts instead
+ * of a single matrix.
+ */
+void gvecToDetectorXYArray_cfunc(long int npts, double * gVec_c_array,
+                                 double * rMat_d, double * rMat_s_array, double * rMat_c,
+                                 double * tVec_d, double * tVec_s, double * tVec_c,
+                                 double * beamVec, double * result_array)
+{
+    /* Normalize the beam vector */
+    double bHat_l[3];
+    v3_normalize(beamVec, bHat_l);
+    double nVec_l[3];
+    m33_v3s_multiply(rMat_d, Zl, 1, nVec_l);
+
+    for (size_t i = 0; i < npts; i++) {
+        double *rMat_s = rMat_s_array + 9*i;
+        double *gVec_c = gVec_c_array + 3*i;
+        double * restrict result = result_array + 2*i;
+        /* Initialize the detector normal and frame origins */
+
+        double P0_l[3];
+        m33_v3s_multiply(rMat_s, tVec_c, 1, P0_l);
+        v3_v3s_inplace_add(P0_l, tVec_s, 1);
+
+        double P3_l_minus_P0_l[3];
+        v3_v3s_sub(tVec_d, P0_l, 1, P3_l_minus_P0_l);
+        double num = v3_v3s_dot(nVec_l, P3_l_minus_P0_l, 1);
+
+        double gHat_c[3];
+        v3_normalize(gVec_c, gHat_c);
+        /*
+        double rMat_sc[9];
+        m33_m33_multiply(rMat_s, rMat_c, rMat_sc);
+        double gVec_l[3];
+        m33_v3s_multiply(rMat_sc, gHat_c, 1, gVec_l);
+        */
+        double tmp_vec[3], gVec_l[3];
+        m33_v3s_multiply(rMat_c, gHat_c, 1, tmp_vec);
+        m33_v3s_multiply(rMat_s, tmp_vec, 1, gVec_l);
+
+        double bDot = -v3_v3s_dot(bHat_l, gVec_l, 1);
+        double ztol = epsf;
+
+        if (bDot < ztol || bDot > 1.0-ztol) {
+            result[0] = NAN; result[1] = NAN;
+            continue;
+        }
+
+        double brMat[9];
+        makeBinaryRotMat_cfunc(gVec_l, brMat);
+
+        double dVec_l[3];
+        m33_v3s_multiply(brMat, bHat_l, 1, dVec_l);
+        double denom = v3_v3s_dot(nVec_l, dVec_l, 1);
+        if (denom < ztol) {
+            result[0] = NAN; result[1] = NAN;
+            continue;
+        }
+
+        double u = num/denom;
+        double v3_tmp[3];
+        for (int j=0; j < 3; j++)
+            v3_tmp[j] = u*dVec_l[j] - P3_l_minus_P0_l[j];
+
+        result[0] = v3_v3s_dot(v3_tmp, rMat_d + 0, 3);
+        result[1] = v3_v3s_dot(v3_tmp, rMat_d + 1, 3);
+    }
+}
+
+#else
 void gvecToDetectorXYOne_cfunc(double * gVec_c, double * rMat_d,
                                double * rMat_sc, double * tVec_d,
                                double * bHat_l,
@@ -248,17 +476,70 @@ void gvecToDetectorXYOne_cfunc(double * gVec_c, double * rMat_d,
           P2_d[j] += rMat_d[3*k+j]*(P2_l[k]-tVec_d[k]);
         result[j] = P2_d[j];
       }
-    } else {
-      result[0] = NAN;
-      result[1] = NAN;
+      /* result when computation can be finished */
+      return;
+    }
+  }
+
+  /* default result when computation can't be finished */
+  result[0] = NAN;
+  result[1] = NAN;
+}
+
+/*
+ * The only difference between this and the non-Array version
+ * is that rMat_s is an array of matrices of length npts instead
+ * of a single matrix.
+ */
+void gvecToDetectorXYArray_cfunc(long int npts, double * gVec_c,
+                                 double * rMat_d, double * rMat_s, double * rMat_c,
+                                 double * tVec_d, double * tVec_s, double * tVec_c,
+                                 double * beamVec, double * result)
+{
+  long int i;
+  int j, k, l;
+
+  double num;
+  double nVec_l[3], bHat_l[3], P0_l[3], P3_l[3];
+  double rMat_sc[9];
+
+  /* Normalize the beam vector */
+  unitRowVector_cfunc(3,beamVec,bHat_l);
+
+  for (i=0L; i<npts; i++) {
+    /* Initialize the detector normal and frame origins */
+    num = 0.0;
+    for (j=0; j<3; j++) {
+      nVec_l[j] = 0.0;
+      P0_l[j]   = tVec_s[j];
+
+      for (k=0; k<3; k++) {
+        nVec_l[j] += rMat_d[3*j+k]*Zl[k];
+        P0_l[j]   += rMat_s[9*i + 3*j+k]*tVec_c[k];
+      }
+
+      P3_l[j] = tVec_d[j];
+
+      num += nVec_l[j]*(P3_l[j]-P0_l[j]);
     }
 
-  } else {
-    result[0] = NAN;
-    result[1] = NAN;
+    /* Compute the matrix product of rMat_s and rMat_c */
+    for (j=0; j<3; j++) {
+      for (k=0; k<3; k++) {
+        rMat_sc[3*j+k] = 0.0;
+        for (l=0; l<3; l++) {
+          rMat_sc[3*j+k] += rMat_s[9*i + 3*j+l]*rMat_c[3*l+k];
+        }
+      }
+    }
+
+    gvecToDetectorXYOne_cfunc(&gVec_c[3*i], rMat_d, rMat_sc, tVec_d,
+                              bHat_l, nVec_l, num,
+                              P0_l, &result[2*i]);
   }
 }
 
+#endif
 void gvecToDetectorXY_cfunc(long int npts, double * gVec_c,
                             double * rMat_d, double * rMat_s, double * rMat_c,
                             double * tVec_d, double * tVec_s, double * tVec_c,
@@ -307,58 +588,6 @@ void gvecToDetectorXY_cfunc(long int npts, double * gVec_c,
   }
 }
 
-/*
- * The only difference between this and the non-Array version
- * is that rMat_s is an array of matrices of length npts instead
- * of a single matrix.
- */
-void gvecToDetectorXYArray_cfunc(long int npts, double * gVec_c,
-                                 double * rMat_d, double * rMat_s, double * rMat_c,
-                                 double * tVec_d, double * tVec_s, double * tVec_c,
-                                 double * beamVec, double * result)
-{
-  long int i;
-  int j, k, l;
-
-  double num;
-  double nVec_l[3], bHat_l[3], P0_l[3], P3_l[3];
-  double rMat_sc[9];
-
-  /* Normalize the beam vector */
-  unitRowVector_cfunc(3,beamVec,bHat_l);
-
-  for (i=0L; i<npts; i++) {
-      /* Initialize the detector normal and frame origins */
-      num = 0.0;
-      for (j=0; j<3; j++) {
-        nVec_l[j] = 0.0;
-        P0_l[j]   = tVec_s[j];
-
-        for (k=0; k<3; k++) {
-          nVec_l[j] += rMat_d[3*j+k]*Zl[k];
-          P0_l[j]   += rMat_s[9*i + 3*j+k]*tVec_c[k];
-        }
-
-        P3_l[j] = tVec_d[j];
-
-        num += nVec_l[j]*(P3_l[j]-P0_l[j]);
-      }
-
-    /* Compute the matrix product of rMat_s and rMat_c */
-    for (j=0; j<3; j++) {
-      for (k=0; k<3; k++) {
-        rMat_sc[3*j+k] = 0.0;
-        for (l=0; l<3; l++) {
-          rMat_sc[3*j+k] += rMat_s[9*i + 3*j+l]*rMat_c[3*l+k];
-        }
-      }
-    }
-
-    gvecToDetectorXYOne_cfunc(&gVec_c[3*i], rMat_d, rMat_sc, tVec_d,
-                              bHat_l, nVec_l, num,
-                              P0_l, &result[2*i]);
-  }
-}
 
 /*
  * detectorXYToGVec
@@ -366,7 +595,7 @@ void gvecToDetectorXYArray_cfunc(long int npts, double * gVec_c,
  * Two versions, one for an array of points and a single rMat_s, other for
  * array of points and array of rMat_s
  */
-inline void
+static inline void
 detectorXYToGVecOne_cfunc(const double *xy, /* source point, just one */
                           const double *rMat_d,
                           const double *rMat_e,
@@ -503,7 +732,7 @@ void detectorXYToGvecArray_cfunc(long int npts, double * xy,
     nrm = 0.0;
     for (j=0; j<3; j++) {
         nrm += beamVec[j]*beamVec[j];
-      }
+    }
 
     if ( nrm > epsf ) {
         double nrm_factor = 1.0/sqrt(nrm);
@@ -512,26 +741,26 @@ void detectorXYToGvecArray_cfunc(long int npts, double * xy,
     } else {
         for (j=0; j<3; j++)
             bVec[j] = beamVec[j];
-      }
+    }
 
     for (j=0; j<3; j++) {
         tVec1[j] = tVec_d[j]-tVec_s[j];
-      for (k=0; k<3; k++) {
+        for (k=0; k<3; k++) {
             tVec1[j] -= rMat_s[3*j+k]*tVec_c[k];
-      }
+        }
     }
 
     for (i=0; i<npts; i++) {
         /* Compute shift vector */
-    for (j=0; j<3; j++) {
+        for (j=0; j<3; j++) {
             tVec1[j] = tVec_d[j]-tVec_s[j];
             for (k=0; k<3; k++) {
                 tVec1[j] -= rMat_s[3*j+k]*tVec_c[k];
-    }
-    }
+            }
+        }
         detectorXYToGVecOne_cfunc(xy+2*i, rMat_d, rMat_e, tVec1, bVec,
                                   tTh + i, eta + i, gVec_l + 3*i);
-  }
+    }
 }
 
 void oscillAnglesOfHKLs_cfunc(long int npts, double * hkls, double chi,
