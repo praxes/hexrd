@@ -37,9 +37,12 @@ class ProcessController(object):
     track the results of the process as well as to provide clues of
     the progress of the process"""
 
-    def __init__(self, result_handler=None, progress_observer=None):
+    def __init__(self, result_handler=None, progress_observer=None, ncpus = 1,
+                 chunk_size = 100):
         self.rh = result_handler
         self.po = progress_observer
+        self.ncpus = ncpus
+        self.chunk_size = chunk_size
         self.limits = {}
         self.timing = []
 
@@ -89,10 +92,10 @@ class ProcessController(object):
 
     # configuration  -----------------------------------------------------------
     def get_process_count(self):
-        return 8
+        return self.ncpus
 
     def get_chunk_size(self):
-        return 100
+        return self.chunk_size
 
 
 def null_progress_observer():
@@ -521,6 +524,7 @@ def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
     controller.finish(subprocess)
     controller.handle_result("confidence", confidence)
 
+
 def _grand_loop_inner(confidence, image_stack, angles, coords, experiment, start=0, stop=None):
     n_coords = len(coords)
     n_angles = len(angles)
@@ -805,6 +809,11 @@ def main(args, controller):
 
 
 def parse_args():
+    try:
+        default_ncpus = multiprocessing.cpu_count()
+    except NotImplementedError:
+        default_ncpus = 1
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--inst-profile", action='append',
                         help="instrumented profile")
@@ -814,9 +823,13 @@ def parse_args():
                         help="check against an file with intermediate results")
     parser.add_argument("--limit", type=int,
                         help="limit the size of the run")
+    parser.add_argument("--ncpus", type=int, default=default_ncpus,
+                        help="number of processes to use")
+    parser.add_argument("--chunk-size", type=int, default=100,
+                        help="chunk size for use in multiprocessing/reporting")
     args = parser.parse_args()
 
-    keys = ['inst_profile', 'generate', 'check', 'limit']
+    keys = ['inst_profile', 'generate', 'check', 'limit', 'ncpus', 'chunk_size']
 
     print('\n'.join([': '.join([key, str(getattr(args, key))]) for key in keys]))
 
@@ -839,7 +852,8 @@ def build_controller(args):
     else:
         result_handler = forgetful_result_handler()
 
-    controller = ProcessController(result_handler, progress_handler)
+    controller = ProcessController(result_handler, progress_handler,
+                                   ncpus=args.ncpus, chunk_size=args.chunk_size)
     if args.limit is not None:
         controller.set_limit('coords', lambda x: min(x, args.limit))
 
