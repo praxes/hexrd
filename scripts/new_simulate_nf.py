@@ -365,6 +365,45 @@ def mockup_experiment():
 # ==============================================================================
 
 @numba.njit
+def __anglesToGVec(angs, rMat_ss, rMat_c):
+    result = np.empty_like(angs)
+    tmp_g = np.empty((3,))
+    for i in range(len(angs)):
+        cx = np.cos(0.5*angs[i,0])
+        sx = np.sin(0.5*angs[i,0])
+        cy = np.cos(angs[i,1])
+        sy = np.sin(angs[i,1])
+        tmp_g[0] = cx*cy
+        tmp_g[1] = cx*sy
+        tmp_g[2] = sx
+        np.dot(rMat_c, np.dot(rMat_ss[i], tmp_g), out=result[i])
+
+    return result
+
+@numba.njit
+def _anglesToGVec(angs, rMat_ss, rMat_c):
+    result = np.empty_like(angs)
+    for i in range(len(angs)):
+        cx = np.cos(0.5*angs[i, 0])
+        sx = np.sin(0.5*angs[i, 0])
+        cy = np.cos(angs[i,1])
+        sy = np.sin(angs[i,1])
+        g0 = cx*cy
+        g1 = cx*sy
+        g2 = sx
+
+        t0_0 = rMat_ss[ i, 0, 0]*g0 + rMat_ss[ i, 1, 0]*g1 + rMat_ss[ i, 2, 0]*g2
+        t0_1 = rMat_ss[ i, 0, 1]*g0 + rMat_ss[ i, 1, 1]*g1 + rMat_ss[ i, 2, 1]*g2
+        t0_2 = rMat_ss[ i, 0, 2]*g0 + rMat_ss[ i, 1, 2]*g1 + rMat_ss[ i, 2, 2]*g2
+
+        result[i, 0] = rMat_c[0, 0]*t0_0 + rMat_c[ 1, 0]*t0_1 + rMat_c[ 2, 0]*t0_2
+        result[i, 1] = rMat_c[0, 1]*t0_0 + rMat_c[ 1, 1]*t0_1 + rMat_c[ 2, 1]*t0_2
+        result[i, 2] = rMat_c[0, 2]*t0_0 + rMat_c[ 1, 2]*t0_1 + rMat_c[ 2, 2]*t0_2
+
+    return result
+
+
+@numba.njit
 def _filter_nans(tmp_xys):
     result = np.empty_like(tmp_xys)
 
@@ -379,8 +418,8 @@ def _filter_nans(tmp_xys):
 
 
 def _opt_project_on_detector(angs, rD, rC, chi, tD, tC, tS, distortion):
-    gVec_cs = xfcapi.anglesToGVec(angs, chi=chi, rMat_c=rC)
     rMat_ss = xfcapi.makeOscillRotMatArray(chi, angs[:,2])
+    gVec_cs = _anglesToGVec(angs, rMat_ss, rC)
     tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs, rD, rMat_ss, rC, tD, tS, tC)
 
     # do not filter nans, let the code after it handle that.
@@ -466,7 +505,7 @@ def simulate_diffractions(grain_params, experiment, controller):
                                                    eta_range, ome_range)
         all_angs[:, 2] =xf.mapAngle(all_angs[:, 2], ome_period)
 
-        
+
         det_xy, _ = _project(all_angs, rD, rC, chi, tD,
                              tC, tS, distortion)
 
@@ -771,8 +810,8 @@ def _quant_and_clip_confidence(coords, angles, image, base, inv_deltas, clip_val
     matches = 0
     for i in range(count):
         xf = coords[i, 0]
-        yf = coords[i, 1] 
-        
+        yf = coords[i, 1]
+
         xf = np.floor((xf - base[0]) * inv_deltas[0])
         if not xf >= 0.0:
             continue
