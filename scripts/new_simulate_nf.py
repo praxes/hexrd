@@ -417,9 +417,7 @@ def _filter_nans(tmp_xys):
     return result[0:pivot,:]
 
 
-def _opt_project_on_detector(angs, rD, rC, chi, tD, tC, tS, distortion):
-    rMat_ss = xfcapi.makeOscillRotMatArray(chi, angs[:,2])
-    gVec_cs = _anglesToGVec(angs, rMat_ss, rC)
+def _opt_project_on_detector(angs, rD, rC, gVec_cs, rMat_ss, tD, tC, tS, distortion):
     tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs, rD, rMat_ss, rC, tD, tS, tC)
 
     # do not filter nans, let the code after it handle that.
@@ -564,13 +562,13 @@ def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
     controller.handle_result("confidence", confidence)
 
 
-def _grand_loop_inner(confidence, image_stack, angles, coords, experiment, start=0, stop=None):
+def _grand_loop_inner(confidence, image_stack, angles, precomp, coords,
+                      experiment, start=0, stop=None):
     n_coords = len(coords)
     n_angles = len(angles)
     _project = _opt_project_on_detector
     rD = experiment.rMat_d
     rCn = experiment.rMat_c
-    chi = experiment.chi
     tD = experiment.tVec_d
     tS = experiment.tVec_s
     distortion = experiment.distortion
@@ -579,7 +577,8 @@ def _grand_loop_inner(confidence, image_stack, angles, coords, experiment, start
 
     for icrd, igrn in it.product(xrange(start, stop), xrange(n_angles)):
         angs = angles[igrn]
-        det_xy, _ = _project(angs, rD, rCn[igrn], chi, tD, coords[icrd], tS,
+        gvec_cs, rMat_ss = precomp[igrn]
+        det_xy, _ = _project(angs, rD, rCn[igrn], gvec_cs, rMat_ss, tD, coords[icrd], tS,
                              distortion)
         c = _quant_and_clip_confidence(det_xy, angs[:,2],
                                        image_stack, experiment.base,
@@ -605,20 +604,30 @@ def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controll
 
     n_grains = experiment.n_grains
     n_coords = controller.limit('coords', len(test_crds))
-    subprocess = 'grand_loop'
     _project = xrdutil._project_on_detector_plane
     chunk_size = controller.get_chunk_size()
     ncpus = controller.get_process_count()
 
+    # precompute per-grain stuff
+    subprocess = 'precompute gVec_cs'
+    controller.start(subprocess, len(all_angles))
+    gvec_cs_precomp = []
+    for i, angs in enumerate(all_angles):
+        rMat_ss = xfcapi.makeOscillRotMatArray(experiment.chi, angs[:,2])
+        gvec_cs = _anglesToGVec(angs, rMat_ss, experiment.rMat_c[i])
+        gvec_cs_precomp.append((gvec_cs, rMat_ss))
+    controller.finish(subprocess)
 
     # split on coords
     chunks = xrange(0, n_coords, chunk_size)
+    subprocess = 'grand_loop'
     controller.start(subprocess, len(chunks))
     finished = 0
     if ncpus > 1:
         shared_arr = multiprocessing.Array('d', n_grains * n_coords)
         confidence = np.ctypeslib.as_array(shared_arr.get_obj()).reshape(n_grains, n_coords)
-        with multiproc_state(chunk_size, confidence, image_stack_dilated, all_angles, test_crds, experiment):
+        with multiproc_state(chunk_size, confidence, image_stack_dilated, all_angles,
+                             gvec_cs_precomp, test_crds, experiment):
             pool = multiprocessing.Pool(ncpus)
             for i in pool.imap_unordered(multiproc_inner_loop, chunks):
                 finished += 1
@@ -628,7 +637,7 @@ def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controll
         confidence = np.empty((n_grains, n_coords))
         for chunk_start in chunks:
             chunk_stop = min(n_coords, chunk_start+chunk_size)
-            _grand_loop_inner(confidence, image_stack_dilated, all_angles,
+            _grand_loop_inner(confidence, image_stack_dilated, all_angles, gvec_cs_precomp,
                               test_crds, experiment, start=chunk_start, stop=chunk_stop)
             finished += 1
             controller.update(finished)
@@ -639,20 +648,20 @@ def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controll
 
 def multiproc_inner_loop(chunk):
     chunk_size = _mp_state[0]
-    n_coords = len(_mp_state[4])
+    n_coords = len(_mp_state[5])
     chunk_stop = min(n_coords, chunk+chunk_size)
     _grand_loop_inner(*_mp_state[1:], start=chunk, stop=chunk_stop)
 
 @contextmanager
-def multiproc_state(chunk_size, confidence, image_stack, angles, coords, experiment):
-    save = ( chunk_size,
-             confidence,
-             image_stack,
-             angles,
-             coords,
-             experiment )
+def multiproc_state(*args): #chunk_size, confidence, image_stack, angles, coords, experiment):
+    # save = ( chunk_size,
+    #          confidence,
+    #          image_stack,
+    #          angles,
+    #          coords,
+    #          experiment )
     global _mp_state
-    _mp_state = save
+    _mp_state = args
     yield
     del(_mp_state)
 
