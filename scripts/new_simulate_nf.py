@@ -190,6 +190,10 @@ def checking_result_handler(filename):
                 logging.warn(msg.format(key))
 
             try:
+                if key=="confidence":
+                    reference = reference.T
+                    value = value.T
+
                 check_len = min(len(reference), len(value))
                 test_passed = np.allclose(value[:check_len], reference[:check_len])
 
@@ -363,6 +367,19 @@ def mockup_experiment():
 # ==============================================================================
 # %% OPTIMIZED BITS
 # ==============================================================================
+@numba.njit
+def _v3_dot(a, b):
+    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
+
+@numba.njit
+def _m33_v3_multiply(m, v, dst):
+    v0 = v[0]; v1 = v[1]; v2 = v[2]
+    dst[0] = m[0, 0]*v0 + m[0, 1]*v1 + m[0, 2]*v2
+    dst[1] = m[1, 0]*v0 + m[1, 1]*v1 + m[1, 2]*v2
+    dst[2] = m[2, 0]*v0 + m[2, 1]*v1 + m[2, 2]*v2
+
+    return dst
+
 
 @numba.njit
 def __anglesToGVec(angs, rMat_ss, rMat_c):
@@ -382,6 +399,7 @@ def __anglesToGVec(angs, rMat_ss, rMat_c):
 
 @numba.njit
 def _anglesToGVec(angs, rMat_ss, rMat_c):
+    """From a set of angles return them in crystal space"""
     result = np.empty_like(angs)
     for i in range(len(angs)):
         cx = np.cos(0.5*angs[i, 0])
@@ -562,30 +580,134 @@ def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
     controller.handle_result("confidence", confidence)
 
 
+@numba.njit
+def _v3_normalized(src, dst):
+    v0 = src[0]
+    v1 = src[1]
+    v2 = src[2]
+    sqr_norm = v0*v0 + v1*v1 + v2*v2
+    inv_norm = 1.0 if sqr_norm == 0.0 else 1./np.sqrt(sqr_norm)
+
+    dst[0] = v0 * inv_norm
+    dst[1] = v1 * inv_norm
+    dst[2] = v2 * inv_norm
+
+    return dst
+
+@numba.njit
+def _make_binary_rot_mat(src, dst):
+    v0 = src[0]; v1 = src[1]; v2 = src[2]
+
+    dst[0,0] = 2.0*v0*v0 - 1.0
+    dst[0,1] = 2.0*v0*v1
+    dst[0,2] = 2.0*v0*v2
+    dst[1,0] = 2.0*v1*v0
+    dst[1,1] = 2.0*v1*v1 - 1.0
+    dst[1,2] = 2.0*v1*v2
+    dst[2,0] = 2.0*v2*v0
+    dst[2,1] = 2.0*v2*v1
+    dst[2,2] = 2.0*v2*v2 - 1.0
+
+    return dst
+
+
+# tC varies per coord
+# gvec_cs, rSm varies per grain
+#
+# gvec_cs
+beam = xf.bVec_ref[:, 0]
+Z_l = xf.Zl[:,0]
+@numba.jit()
+def _gvec_to_detector_array(vG_sn, rD, rSn, rC, tD, tS, tC):
+    """ beamVec is the beam vector: (0, 0, -1) in this case """
+    ztol = xrdutil.epsf
+    p3_l = np.empty((3,))
+    tmp_vec = np.empty((3,))
+    vG_l = np.empty((3,))
+    tD_l = np.empty((3,))
+    norm_vG_s = np.empty((3,))
+    norm_beam = np.empty((3,))
+    tZ_l = np.empty((3,))
+    brMat = np.empty((3,3))
+    result = np.empty((len(rSn), 2))
+
+    _v3_normalized(beam, norm_beam)
+    _m33_v3_multiply(rD, Z_l, tZ_l)
+
+    for i in xrange(len(rSn)):
+        _m33_v3_multiply(rSn[i], tC, p3_l)
+        p3_l += tS
+        p3_minus_p1_l = tD - p3_l
+
+        num = _v3_dot(tZ_l, p3_minus_p1_l)
+        _v3_normalized(vG_sn[i], norm_vG_s)
+
+        _m33_v3_multiply(rC, norm_vG_s, tmp_vec)
+        _m33_v3_multiply(rSn[i], tmp_vec, vG_l)
+
+        bDot = -_v3_dot(norm_beam, vG_l)
+
+        if bDot < ztol or bDot > 1.0 - ztol:
+            result[i, 0] = np.nan
+            result[i, 1] = np.nan
+            continue
+
+        _make_binary_rot_mat(vG_l, brMat)
+        _m33_v3_multiply(brMat, norm_beam, tD_l)
+        denom = _v3_dot(tZ_l, tD_l)
+
+        if denom < ztol:
+            result[i, 0] = np.nan
+            result[i, 1] = np.nan
+            continue
+
+        u = num/denom
+        tmp_res = u*tD_l - p3_minus_p1_l
+        result[i,0] = _v3_dot(tmp_res, rD[:,0])
+        result[i,1] = _v3_dot(tmp_res, rD[:,1])
+
+    return result
+
 def _grand_loop_inner(confidence, image_stack, angles, precomp, coords,
                       experiment, start=0, stop=None):
     n_coords = len(coords)
     n_angles = len(angles)
-    _project = _opt_project_on_detector
     rD = experiment.rMat_d
     rCn = experiment.rMat_c
-    tD = experiment.tVec_d
-    tS = experiment.tVec_s
+    tD = experiment.tVec_d[:,0]
+    tS = experiment.tVec_s[:,0]
     distortion = experiment.distortion
-
+    _to_detector = xfcapi.gvecToDetectorXYArray
+    #_to_detector = _gvec_to_detector_array
     stop = stop if stop is not None else n_coords
 
-    for icrd, igrn in it.product(xrange(start, stop), xrange(n_angles)):
-        angs = angles[igrn]
-        gvec_cs, rMat_ss = precomp[igrn]
-        det_xy, _ = _project(angs, rD, rCn[igrn], gvec_cs, rMat_ss, tD, coords[icrd], tS,
-                             distortion)
-        c = _quant_and_clip_confidence(det_xy, angs[:,2],
-                                       image_stack, experiment.base,
-                                       experiment.inv_deltas,
-                                       experiment.clip_vals)
-        confidence[igrn, icrd] = c
+    distortion_fn = None
+    if distortion is not None and len(distortion > 0):
+        distortion_fn, distortion_args = distortion
 
+    if distortion_fn is None:
+        for igrn in xrange(n_angles):
+            angs = angles[igrn]; rC = rCn[igrn]; gvec_cs, rMat_ss = precomp[igrn]
+            for icrd in xrange(start, stop):
+                det_xy = _to_detector(gvec_cs, rD, rMat_ss, rC, tD, tS, coords[icrd])
+                c = _quant_and_clip_confidence(det_xy, angs[:,2],
+                                               image_stack, experiment.base,
+                                               experiment.inv_deltas,
+                                               experiment.clip_vals)
+                confidence[igrn, icrd] = c
+    else:
+        for igrn in xrange(n_angles):
+            angs = angles[igrn]; rC = rCn[igrn]; gvec_cs, rMat_ss = precomp[igrn]
+            for icrd in xrange(start, stop):
+                det_xy = _to_detector(gvec_cs, rD, rMat_ss, rC, tD, tS, coords[icrd])
+                det_xy = distortion_fn(tmp_xys, distortion_args, invert=True)
+                c = _quant_and_clip_confidence(det_xy, angs[:,2],
+                                               image_stack, experiment.base,
+                                               experiment.inv_deltas,
+                                               experiment.clip_vals)
+                confidence[igrn, icrd] = c
+
+    return stop - start
 
 def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controller):
     """grand loop precomputing the grown image stack"""
@@ -621,25 +743,29 @@ def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controll
     # split on coords
     chunks = xrange(0, n_coords, chunk_size)
     subprocess = 'grand_loop'
-    controller.start(subprocess, len(chunks))
+    controller.start(subprocess, n_coords)
     finished = 0
+    ncpus = min(ncpus, len(chunks))
+
     if ncpus > 1:
         shared_arr = multiprocessing.Array('d', n_grains * n_coords)
         confidence = np.ctypeslib.as_array(shared_arr.get_obj()).reshape(n_grains, n_coords)
         with multiproc_state(chunk_size, confidence, image_stack_dilated, all_angles,
                              gvec_cs_precomp, test_crds, experiment):
             pool = multiprocessing.Pool(ncpus)
-            for i in pool.imap_unordered(multiproc_inner_loop, chunks):
-                finished += 1
+            for count in pool.imap_unordered(multiproc_inner_loop, chunks):
+                finished += count
                 controller.update(finished)
             del pool
     else:
         confidence = np.empty((n_grains, n_coords))
         for chunk_start in chunks:
             chunk_stop = min(n_coords, chunk_start+chunk_size)
-            _grand_loop_inner(confidence, image_stack_dilated, all_angles, gvec_cs_precomp,
-                              test_crds, experiment, start=chunk_start, stop=chunk_stop)
-            finished += 1
+            count =_grand_loop_inner(confidence, image_stack_dilated,
+                                     all_angles, gvec_cs_precomp, test_crds,
+                                     experiment, start=chunk_start,
+                                     stop=chunk_stop)
+            finished += count
             controller.update(finished)
 
     controller.finish(subprocess)
@@ -650,7 +776,7 @@ def multiproc_inner_loop(chunk):
     chunk_size = _mp_state[0]
     n_coords = len(_mp_state[5])
     chunk_stop = min(n_coords, chunk+chunk_size)
-    _grand_loop_inner(*_mp_state[1:], start=chunk, stop=chunk_stop)
+    return _grand_loop_inner(*_mp_state[1:], start=chunk, stop=chunk_stop)
 
 @contextmanager
 def multiproc_state(*args): #chunk_size, confidence, image_stack, angles, coords, experiment):
@@ -839,8 +965,7 @@ def _quant_and_clip_confidence(coords, angles, image, base, inv_deltas, clip_val
         in_sensor += 1
         matches += image[int(zf), int(yf), int(xf)]
 
-    return float(matches)/float(in_sensor)
-
+    return 0 if in_sensor == 0 else float(matches)/float(in_sensor)
 
 # ==============================================================================
 # %% SCRIPT ENTRY AND PARAMETER HANDLING
