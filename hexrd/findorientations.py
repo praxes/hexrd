@@ -272,7 +272,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             np.radians(cl_radius),
             criterion='distance',
             metric=quat_distance)
-        nblobs_new = len(unique(cl)) 
+        nblobs_new = len(np.unique(cl)) 
         if nblobs_new < nblobs:
             logger.info("\tfound %d duplicates within %f degrees" \
                         %(nblobs-nblobs_new, cl_radius))

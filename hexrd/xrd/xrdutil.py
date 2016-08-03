@@ -3550,10 +3550,6 @@ def simulateLauePattern(hkls, bMat,
                                        tvec_d, tvec_s, tvec_c,
                                        beamVec=beamVec).T
 
-
-
-        #print dpts
-
         # check intersections with detector plane
         canIntersect = ~num.isnan(dpts[0, :])
         npts_in = sum(canIntersect)
