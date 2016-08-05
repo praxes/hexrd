@@ -409,10 +409,10 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     try:
         # are we searching the full grid of orientation space?
         qgrid_f = cfg.find_orientations.use_quaternion_grid
-        quats = np.loadtxt(qgrid_f).T
+        quats = np.load(qgrid_f)
         logger.info("Using %s for full quaternion search", qgrid_f)
         hkl_ids = None
-    except (IOError, ValueError):
+    except (IOError, ValueError, AttributeError):
         # or doing a seeded search?
         logger.info("Defaulting to seeded search")
         hkl_seeds = cfg.find_orientations.seed_search.hkl_seeds
