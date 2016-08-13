@@ -30,6 +30,11 @@ void anglesToGvec_cfunc(long int nvecs, double * angs,
 			double chi, double * rMat_c,
 			double * gVec_c);
 
+void anglesToDvec_cfunc(long int nvecs, double * angs,
+			double * bHat_l, double * eHat_l,
+			double chi, double * rMat_c,
+			double * gVec_c);
+
 void gvecToDetectorXY_cfunc(long int npts, double * gVec_c_Ptr,
 			    double * rMat_d_Ptr, double * rMat_s_Ptr, double * rMat_c_Ptr,
 			    double * tVec_d_Ptr, double * tVec_s_Ptr, double * tVec_c_Ptr,

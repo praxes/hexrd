@@ -9,6 +9,7 @@
 
 static PyMethodDef _transform_methods[] = {
   {"anglesToGVec",anglesToGVec,METH_VARARGS,"take angle tuples to G-vectors"},
+  {"anglesToDVec",anglesToDVec,METH_VARARGS,"take angle tuples to unit diffraction vectors"},
   {"makeGVector",makeGVector,METH_VARARGS,"Make G-vectors from hkls and B-matrix"},
   {"gvecToDetectorXY",gvecToDetectorXY,METH_VARARGS,""},
   {"gvecToDetectorXYArray",gvecToDetectorXYArray,METH_VARARGS,""},
@@ -104,6 +105,68 @@ static PyObject * anglesToGVec(PyObject * self, PyObject * args)
 
   /* Build and return the nested data structure */
   return((PyObject*)gVec_c);
+}
+
+static PyObject * anglesToDVec(PyObject * self, PyObject * args)
+{
+  PyArrayObject *angs, *bHat_l, *eHat_l, *rMat_c;
+  PyArrayObject *dVec_c;
+  double chi;
+  npy_intp nvecs, rdims[2];
+
+  int nangs, nbhat, nehat, nrmat;
+  int da1, db1, de1, dr1, dr2;
+
+  double *angs_ptr, *bHat_l_ptr, *eHat_l_ptr, *rMat_c_ptr;
+  double *dVec_c_ptr;
+
+  /* Parse arguments */
+  if ( !PyArg_ParseTuple(args,"OOOdO",
+			 &angs,
+			 &bHat_l, &eHat_l,
+			 &chi, &rMat_c)) return(NULL);
+  if ( angs == NULL ) return(NULL);
+
+  /* Verify shape of input arrays */
+  nangs = PyArray_NDIM(angs);
+  nbhat = PyArray_NDIM(bHat_l);
+  nehat = PyArray_NDIM(eHat_l);
+  nrmat = PyArray_NDIM(rMat_c);
+
+  assert( nangs==2 && nbhat==1 && nehat==1 && nrmat==2 );
+
+  /* Verify dimensions of input arrays */
+  nvecs = PyArray_DIMS(angs)[0]; //rows
+  da1   = PyArray_DIMS(angs)[1]; //cols
+
+  db1   = PyArray_DIMS(bHat_l)[0];
+  de1   = PyArray_DIMS(eHat_l)[0];
+  dr1   = PyArray_DIMS(rMat_c)[0];
+  dr2   = PyArray_DIMS(rMat_c)[1];
+
+  assert( da1 == 3 );
+  assert( db1 == 3 && de1 == 3);
+  assert( dr1 == 3 && dr2 == 3);
+
+  /* Allocate C-style array for return data */
+  rdims[0] = nvecs; rdims[1] = 3;
+  dVec_c = (PyArrayObject*)PyArray_EMPTY(2,rdims,NPY_DOUBLE,0);
+
+  /* Grab pointers to the various data arrays */
+  angs_ptr   = (double*)PyArray_DATA(angs);
+  bHat_l_ptr = (double*)PyArray_DATA(bHat_l);
+  eHat_l_ptr = (double*)PyArray_DATA(eHat_l);
+  rMat_c_ptr = (double*)PyArray_DATA(rMat_c);
+  dVec_c_ptr = (double*)PyArray_DATA(dVec_c);
+
+  /* Call the actual function */
+  anglesToDvec_cfunc(nvecs, angs_ptr,
+		     bHat_l_ptr, eHat_l_ptr,
+		     chi, rMat_c_ptr,
+		     dVec_c_ptr);
+
+  /* Build and return the nested data structure */
+  return((PyObject*)dVec_c);
 }
 
 static PyObject * makeGVector(PyObject * self, PyObject * args)

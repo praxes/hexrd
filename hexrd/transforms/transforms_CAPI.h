@@ -25,6 +25,8 @@
 
 static PyObject * anglesToGVec(PyObject * self, PyObject * args);
 
+static PyObject * anglesToDVec(PyObject * self, PyObject * args);
+
 static PyObject * makeGVector(PyObject * self, PyObject * args);
 
 static PyObject * gvecToDetectorXY(PyObject * self, PyObject * args);
