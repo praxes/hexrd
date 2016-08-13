@@ -370,7 +370,12 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
 
     NOTE: single cfg instance, not iterator!
     """
-
+    # ...make this an attribute in cfg?
+    analysis_id = '%s_%s' %(
+        cfg.analysis_name.strip().replace(' ', '-'),
+        cfg.material.active.strip().replace(' ', '-'),
+        )
+    
     # a goofy call, could be replaced with two more targeted calls
     pd, reader, detector = initialize_experiment(cfg)
 
@@ -465,9 +470,13 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     if save_as_ascii:
         np.savetxt(os.path.join(cfg.working_dir, 'completeness.dat'), compl)
     else:
-        np.save(os.path.join(cfg.working_dir, 'scored_orientations.npy'),
-                np.vstack([quats, compl])
-                )
+        np.save(
+            os.path.join(
+                cfg.working_dir,
+                'scored_orientations_%s.npy' %analysis_id
+                ),
+            np.vstack([quats, compl])
+            )
 
     ##########################################################
     ##   Simulate N random grains to get neighborhood size  ##
@@ -512,10 +521,19 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
 
     # cluster analysis to identify orientation blobs, the final output:
     qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, min_samples=min_samples)
+
+    analysis_id = '%s_%s' %(
+        cfg.analysis_name.strip().replace(' ', '-'),
+        cfg.material.active.strip().replace(' ', '-'),
+        )
+                                
     np.savetxt(
-        os.path.join(cfg.working_dir, 'accepted_orientations.dat'),
+        os.path.join(
+            cfg.working_dir,
+            'accepted_orientations_%s.dat' %analysis_id
+            ),
         qbar.T,
         fmt="%.18e",
-        delimiter="\t"
-        )
+        delimiter="\t")
+
     return
