@@ -15,7 +15,9 @@ from scipy.sparse import coo_matrix
 from scipy.linalg.matfuncs import logm
 
 from hexrd.coreutil import (
-    initialize_experiment, migrate_detector_to_instrument_config
+    initialize_experiment, migrate_detector_to_instrument_config,
+    get_instrument_parameters, get_detector_parameters, get_detector_parameters,
+    get_distortion_correction, get_saturation_level, set_planedata_exclusions
     )
 from hexrd.matrixutil import vecMVToSymm
 from hexrd.utils.progressbar import (
@@ -34,7 +36,6 @@ if USE_NUMBA:
 
 logger = logging.getLogger(__name__)
 
-
 # grain parameter refinement flags
 gFlag = np.array([1, 1, 1,
                   1, 1, 1,
@@ -43,61 +44,6 @@ gFlag = np.array([1, 1, 1,
 gScl  = np.array([1., 1., 1.,
                   1., 1., 1.,
                   1., 1., 1., 0.01, 0.01, 0.01])
-
-
-
-def get_instrument_parameters(cfg):
-    # TODO: this needs to be
-    det_p = cfg.instrument.parameters
-    if not os.path.exists(det_p):
-        migrate_detector_to_instrument_config(
-            np.loadtxt(cfg.instrument.detector.parameters_old),
-            cfg.instrument.detector.pixels.rows,
-            cfg.instrument.detector.pixels.columns,
-            cfg.instrument.detector.pixels.size,
-            detID='GE',
-            chi=0.,
-            tVec_s=np.zeros(3),
-            filename=cfg.instrument.parameters
-            )
-    with open(cfg.instrument.parameters, 'r') as f:
-        # only one panel for now
-        # TODO: configurize this
-        return [cfg for cfg in yaml.load_all(f)][0]
-
-
-def get_detector_parameters(instr_cfg):
-    return np.hstack([
-        instr_cfg['detector']['transform']['tilt_angles'],
-        instr_cfg['detector']['transform']['t_vec_d'],
-        instr_cfg['oscillation_stage']['chi'],
-        instr_cfg['oscillation_stage']['t_vec_s'],
-        ])
-
-
-def get_distortion_correction(instrument_cfg):
-    # ***FIX***
-    # at this point we know we have a GE and hardwire the distortion func;
-    # need to pull name from yml file in general case
-    return (
-        dFuncs.GE_41RT,
-        instrument_cfg['detector']['distortion']['parameters']
-        )
-
-
-def get_saturation_level(instr_cfg):
-    return instr_cfg['detector']['saturation_level']
-
-
-
-def set_planedata_exclusions(cfg, detector, pd):
-    tth_max = cfg.fit_grains.tth_max
-    if tth_max is True:
-        pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
-        pd.exclusions = pd.getTTh() > detector.getTThMax()
-    elif tth_max > 0:
-        pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
-        pd.exclusions = pd.getTTh() >= np.radians(tth_max)
 
 
 def get_job_queue(cfg, ids_to_refine=None):
@@ -475,9 +421,13 @@ class FitGrainsWorker(object):
     def loop(self):
         id, grain_params = self._jobs.get(False)
 
-        # skips the first loop if have_estimate is True
-        have_estimate = not np.all(grain_params[-9] == [0,0,0,1,1,1,0,0,0])
-        iterations = (have_estimate, len(self._p['eta_tol']))
+        # slated for removal ## skips the first loop if have_estimate is True
+        # slated for removal #if self._p['skip_on_estimate']:
+        # slated for removal #    have_estimate = not np.all(grain_params[-9:] == [0,0,0,1,1,1,0,0,0])
+        # slated for removal #    iterations = (have_estimate, len(self._p['eta_tol']))
+        # slated for removal #else:
+        # slated for removal #    iterations = (0, len(self._p['eta_tol']))
+        iterations = (0, len(self._p['eta_tol']))
         for iteration in range(*iterations):
             # pull spots if asked to, otherwise just fit
             if not self._p['fit_only']:
@@ -487,6 +437,11 @@ class FitGrainsWorker(object):
                                                   refit_tol=self._p['refit_tol'])
             if compl == 0:
                 break
+            pass
+        
+        # final pull spots if enabled
+        if not self._p['fit_only']:
+            self.pull_spots(id, grain_params, -1)
 
         eMat = self.get_e_mat(grain_params)
         resd = self.get_residuals(grain_params)

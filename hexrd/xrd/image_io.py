@@ -23,7 +23,7 @@ import numpy as np
 
 from hexrd import imageseries
 
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.WARNING)
 warnings.filterwarnings('always', '', DeprecationWarning)
 
 class ReaderDeprecationWarning(DeprecationWarning):

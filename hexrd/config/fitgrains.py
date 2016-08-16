@@ -95,6 +95,20 @@ class FitGrainsConfig(Config):
             return temp
 
 
+    """
+    PROBABLY JUST SCRAP THIS...s
+    """
+    @property
+    def skip_on_estimate(self):
+        key = 'fit_grains:skip_on_estimate'
+        temp = self._cfg.get(key, False)
+        if temp in (True, False):
+            return temp
+        raise RuntimeError(
+            '"%s" must be true or false, got "%s"' % (key, temp)
+            )
+
+
     @property
     def fit_only(self):
         key = 'fit_grains:fit_only'

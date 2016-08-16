@@ -884,7 +884,7 @@ def _normalize_ranges(starts, stops, offset, ccw=False):
     # If there is a range that spans more than 2*pi,
     # return the full range
     two_pi = 2 * num.pi
-    if num.any((starts + two_pi) < stops):
+    if num.any((starts + two_pi) < stops + 1e-8):
         return num.array([offset, two_pi+offset])
 
     starts = num.mod(starts - offset, two_pi) + offset

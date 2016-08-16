@@ -60,18 +60,28 @@ dFlag_ref   = np.array([0, 0, 0, 0, 0, 0], dtype=bool)
 dScl_ref    = np.array([1, 1, 1, 1, 1, 1], dtype=float)
 
 # for sx detector cal
-pFlag_ref   = np.array([1, 1, 1,
-                        1, 1, 1,
-                        0,
-                        0, 0, 0,
-                        0, 0, 0,
-                        0, 0, 0], dtype=bool)
-pScl_ref    = np.array([1, 1, 1,
-                        1, 1, 1,
-                        1,
-                        1, 1, 1,
-                        1, 1, 1,
-                        1, 1, 1])
+pFlag_ref = np.array(
+    [
+        0,
+        1, 1, 1,
+        1, 1, 1,
+        0,
+        0, 0, 0,
+        0, 0, 0,
+        0, 0, 0
+    ], dtype=bool
+)
+pScl_ref = np.array(
+    [
+        0.1,
+        0.1, 0.1, 0.1,
+        1., 1., 100.,
+        0.1,
+        1., 1., 1.,
+        1., 1., 1.,
+        1., 1., 1.
+    ]
+)
 
 # for grain parameters
 gFlag_ref   = np.ones(12, dtype=bool)
@@ -119,29 +129,31 @@ def matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength,
 
     return match_omes, calc_omes
 
-def geomParamsToInput(tiltAngles, chi, expMap_c,
+def geomParamsToInput(wavelength,
+                      tiltAngles, chi, expMap_c,
                       tVec_d, tVec_s, tVec_c,
                       dParams):
     """
     """
-    p = np.zeros(16)
+    p = np.zeros(17)
 
-    p[0]  = tiltAngles[0]
-    p[1]  = tiltAngles[1]
-    p[2]  = tiltAngles[2]
-    p[3]  = tVec_d[0]
-    p[4]  = tVec_d[1]
-    p[5]  = tVec_d[2]
-    p[6]  = chi
-    p[7]  = tVec_s[0]
-    p[8]  = tVec_s[1]
-    p[9]  = tVec_s[2]
-    p[10] = expMap_c[0]
-    p[11] = expMap_c[1]
-    p[12] = expMap_c[2]
-    p[13] = tVec_c[0]
-    p[14] = tVec_c[1]
-    p[15] = tVec_c[2]
+    p[0]  = wavelength
+    p[1]  = tiltAngles[0]
+    p[2]  = tiltAngles[1]
+    p[3]  = tiltAngles[2]
+    p[4]  = tVec_d[0]
+    p[5]  = tVec_d[1]
+    p[6]  = tVec_d[2]
+    p[7]  = chi
+    p[8]  = tVec_s[0]
+    p[9]  = tVec_s[1]
+    p[10] = tVec_s[2]
+    p[11] = expMap_c[0]
+    p[12] = expMap_c[1]
+    p[13] = expMap_c[2]
+    p[14] = tVec_c[0]
+    p[15] = tVec_c[1]
+    p[16] = tVec_c[2]
 
     return np.hstack([p, dParams])
 
@@ -150,13 +162,14 @@ def inputToGeomParams(p):
     """
     retval = {}
 
-    retval['tiltAngles'] = (p[0], p[1], p[2])
-    retval['tVec_d']     = np.c_[p[3], p[4], p[5]].T
-    retval['chi']        = p[6]
-    retval['tVec_s']     = np.c_[p[7], p[8], p[9]].T
-    retval['expMap_c']   = np.c_[p[10], p[11], p[12]].T
-    retval['tVec_c']     = np.c_[p[13], p[14], p[15]].T
-    retval['dParams']    = p[16:]
+    retval['wavelength'] = p[0]
+    retval['tiltAngles'] = (p[1], p[2], p[3])
+    retval['tVec_d']     = np.c_[p[4], p[5], p[6]].T
+    retval['chi']        = p[7]
+    retval['tVec_s']     = np.c_[p[8], p[9], p[10]].T
+    retval['expMap_c']   = np.c_[p[11], p[12], p[13]].T
+    retval['tVec_c']     = np.c_[p[14], p[15], p[16]].T
+    retval['dParams']    = p[17:]
 
     return retval
 
@@ -166,15 +179,18 @@ def inputToGeomParams(p):
 ######################################################################
 """
 
-def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
-                            tiltAngles, chi, expMap_c,
-                            tVec_d, tVec_s, tVec_c,
-                            vInv=vInv_ref,
-                            beamVec=bVec_ref, etaVec=eta_ref,
-                            distortion=(dFunc_ref, dParams_ref, dFlag_ref, dScl_ref),
-                            pFlag=pFlag_ref, pScl=pScl_ref,
-                            omePeriod=None,
-                            factor=0.1, xtol=sqrt_epsf, ftol=sqrt_epsf):
+def calibrateDetectorFromSX(
+    xyo_det, hkls_idx, bMat, wavelength,
+    tiltAngles, chi, expMap_c,
+    tVec_d, tVec_s, tVec_c,
+    vInv=vInv_ref,
+    beamVec=bVec_ref, etaVec=eta_ref,
+    distortion=(dFunc_ref, dParams_ref, dFlag_ref, dScl_ref),
+    pFlag=pFlag_ref, pScl=pScl_ref,
+    omePeriod=None,
+    factor=0.1,
+    xtol=sqrt_epsf, ftol=sqrt_epsf,
+    ):
     """
     """
     if omePeriod is not None:
@@ -185,38 +201,42 @@ def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
     dFlag   = distortion[2]
     dScl    = distortion[3]
 
-    # p = np.zeros(16)
+    # p = np.zeros(17)
     #
-    # p[0]  = tiltAngles[0]
-    # p[1]  = tiltAngles[1]
-    # p[2]  = tiltAngles[2]
-    # p[3]  = tVec_d[0]
-    # p[4]  = tVec_d[1]
-    # p[5]  = tVec_d[2]
-    # p[6]  = chi
-    # p[7]  = tVec_s[0]
-    # p[8]  = tVec_s[1]
-    # p[9]  = tVec_s[2]
-    # p[10] = expMap_c[0]
-    # p[11] = expMap_c[1]
-    # p[12] = expMap_c[2]
-    # p[13] = tVec_c[0]
-    # p[14] = tVec_c[1]
-    # p[15] = tVec_c[2]
+    # p[0]  = wavelength
+    # p[1]  = tiltAngles[0]
+    # p[2]  = tiltAngles[1]
+    # p[3]  = tiltAngles[2]
+    # p[4]  = tVec_d[0]
+    # p[5]  = tVec_d[1]
+    # p[6]  = tVec_d[2]
+    # p[7]  = chi
+    # p[8]  = tVec_s[0]
+    # p[9]  = tVec_s[1]
+    # p[10] = tVec_s[2]
+    # p[11] = expMap_c[0]
+    # p[12] = expMap_c[1]
+    # p[13] = expMap_c[2]
+    # p[14] = tVec_c[0]
+    # p[15] = tVec_c[1]
+    # p[16] = tVec_c[2]
     #
     # pFull = np.hstack([p, dParams])
 
-    pFull = geomParamsToInput(tiltAngles, chi, expMap_c,
-                              tVec_d, tVec_s, tVec_c,
-                              dParams)
+    pFull = geomParamsToInput(
+        wavelength,
+        tiltAngles, chi, expMap_c,
+        tVec_d, tVec_s, tVec_c,
+        dParams
+        )
 
     refineFlag = np.hstack([pFlag, dFlag])
     scl        = np.hstack([pScl, dScl])
     pFit       = pFull[refineFlag]
     fitArgs    = (pFull, pFlag, dFunc, dFlag, xyo_det, hkls_idx,
-                  bMat, vInv, wavelength, beamVec, etaVec, omePeriod)
+                  bMat, vInv, beamVec, etaVec, omePeriod)
 
-    results = optimize.leastsq(objFuncSX, pFit, args=fitArgs, 
+    results = optimize.leastsq(objFuncSX, pFit, args=fitArgs,
                                diag=1./scl[refineFlag].flatten(),
                                factor=factor, xtol=xtol, ftol=ftol)
 
@@ -227,7 +247,7 @@ def calibrateDetectorFromSX(xyo_det, hkls_idx, bMat, wavelength,
     return retval
 
 def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
-              xyo_det, hkls_idx, bMat, vInv, wavelength,
+              xyo_det, hkls_idx, bMat, vInv,
               bVec, eVec, omePeriod,
               simOnly=False, return_value_flag=return_value_flag):
     """
@@ -243,16 +263,18 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
     xy_unwarped = dFunc(xyo_det[:, :2], dParams)
 
     # detector quantities
-    rMat_d = xf.makeDetectorRotMat(pFull[:3])
-    tVec_d = pFull[3:6].reshape(3, 1)
+    wavelength = pFull[0]
+
+    rMat_d = xf.makeDetectorRotMat(pFull[1:4])
+    tVec_d = pFull[4:7].reshape(3, 1)
 
     # sample quantities
-    chi    = pFull[6]
-    tVec_s = pFull[7:10].reshape(3, 1)
+    chi    = pFull[7]
+    tVec_s = pFull[8:11].reshape(3, 1)
 
     # crystal quantities
-    rMat_c = xf.makeRotMatOfExpMap(pFull[10:13])
-    tVec_c = pFull[13:16].reshape(3, 1)
+    rMat_c = xf.makeRotMatOfExpMap(pFull[11:14])
+    tVec_c = pFull[14:17].reshape(3, 1)
 
     gVec_c = np.dot(bMat, hkls_idx)
     vMat_s = mutil.vecMVToSymm(vInv)                # stretch tensor comp matrix from MV notation in SAMPLE frame
@@ -286,13 +308,13 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
         if return_value_flag == 1:
             retval = sum( abs(retval) )
         elif return_value_flag == 2:
-            denom = npts - len(gFit) - 1.
+            denom = npts - len(pFit) - 1.
             if denom != 0:
                 nu_fac = 1. / denom
             else:
                 nu_fac = 1.
             nu_fac = 1 / (npts - len(pFit) - 1.)
-            retval = nu_fac * sum(retval**2 / abs(np.hstack([calc_xy, calc_omes.reshape(npts, 1)]).flatten())) 
+            retval = nu_fac * sum(retval**2 / abs(np.hstack([calc_xy, calc_omes.reshape(npts, 1)]).flatten()))
     return retval
 
 """

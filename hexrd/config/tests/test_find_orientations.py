@@ -28,7 +28,7 @@ find_orientations:
     mask: 10
     tolerance: 2
   clustering:
-    algorithm: dbscan
+    algorithm: sph-dbscan
     completeness: 0.35
     radius: 1
 ---
@@ -128,7 +128,7 @@ class TestClusteringConfig(TestConfig):
             )
         self.assertEqual(
             self.cfgs[1].find_orientations.clustering.algorithm,
-            'dbscan'
+            'sph-dbscan'
             )
         self.assertEqual(
             self.cfgs[2].find_orientations.clustering.algorithm,

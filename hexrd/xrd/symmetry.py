@@ -47,8 +47,10 @@ def toFundamentalRegion(q, crysSym='Oh', sampSym=None):
         l3, m3, n3 = q.shape
         assert m3 == 4, 'your 3-d quaternion array isn\'t the right shape'
         q = q.transpose(0, 2, 1).reshape(l3*n3, 4).T
-
-    qsym_c = quatProductMatrix( quatOfLaueGroup(crysSym), 'right' ) # crystal symmetry operator
+    if isinstance(crysSym, str):
+        qsym_c = quatProductMatrix( quatOfLaueGroup(crysSym), 'right' ) # crystal symmetry operator
+    else:
+        qsym_c = quatProductMatrix( crysSym, 'right' )
 
     n = q.shape[1]              # total number of quats
     m = qsym_c.shape[0]         # number of symmetry operations
@@ -73,7 +75,10 @@ def toFundamentalRegion(q, crysSym='Oh', sampSym=None):
         # store representatives in qr
         qr = qeqv[:, q0maxColInd]
     else:
-        qsym_s = quatProductMatrix( quatOfLaueGroup(sampSym), 'left'  ) #  sample symmetry operator
+        if isinstance(sampSym, str):
+            qsym_s = quatProductMatrix( quatOfLaueGroup(sampSym), 'left'  ) #  sample symmetry operator
+        else:
+            qsym_s = quatProductMatrix( sampSym, 'left'  )
 
         p = qsym_s.shape[0]         # number of sample symmetry operations
 
@@ -174,7 +179,7 @@ def quatOfLaueGroup(tag):
 
     if tag.lower() == 'ci' or tag.lower() == 's2':
         # TRICLINIC
-        angleAxis = vstack([0., 1, 0, 0]) # identity
+        angleAxis = vstack([0., 1., 0., 0.]) # identity
     elif tag.lower() == 'c2h':
         # MONOCLINIC
         angleAxis = c_[
@@ -319,7 +324,8 @@ def applySym(vec, qsym, csFlag=False, cullPM=False, tol=1e-8):
     """
     nsym  = qsym.shape[1]
     Rsym  = rotMatOfQuat(qsym)
-
+    if nsym == 1:
+        Rsym = array([Rsym,])
     allhkl = multMatArray(Rsym, tile(vec, (nsym, 1, 1))).swapaxes(1, 2).reshape(nsym, 3).T
 
     if csFlag:

@@ -26,12 +26,11 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
         with open(self._fname, "r") as f:
             d = yaml.load(f)
         datad = d['data']
-        metad = d['meta']
         self._cache = datad['file']
         self._nframes = datad['nframes']
         self._shape = tuple(datad['shape'])
         self._dtype = np.dtype(datad['dtype'])
-        self._meta = metad
+        self._meta = self.load_metadata(d['meta'])
 
     def _load_cache(self):
         """load into list of csr sparse matrices"""
@@ -49,14 +48,19 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
     @property
     def metadata(self):
         """(read-only) Image sequence metadata
+        """
+        return self._meta
+
+    def load_metadata(self, indict):
+        """(read-only) Image sequence metadata
 
         Currently returns none
         """
         metad = {}
-        for k, v in self._meta.items():
+        for k, v in indict.items():
             if v == '++np.array':
                 newk = k + '-array'
-                metad[k] = np.array(self._meta.pop(newk))
+                metad[k] = np.array(indict.pop(newk))
                 metad.pop(newk, None)
             else:
                 metad[k] = v
