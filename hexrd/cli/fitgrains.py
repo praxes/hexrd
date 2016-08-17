@@ -63,8 +63,17 @@ def execute(args, parser):
     ch.setFormatter(cf)
     logger.addHandler(ch)
 
+    # ...make this an attribute in cfg?
+    analysis_id = '%s_%s' %(
+        cfgs[0].analysis_name.strip().replace(' ', '-'),
+        cfgs[0].material.active.strip().replace(' ', '-'),
+        )
+    
     # if find-orientations has not already been run, do so:
-    quats_f = os.path.join(cfgs[0].working_dir, 'accepted_orientations.dat')
+    quats_f = os.path.join(
+        cfgs[0].working_dir, 
+        'accepted_orientations_%s.dat' %analysis_id
+        )
     if not os.path.exists(quats_f):
         logger.info("Missing %s, running find-orientations", quats_f)
         logger.removeHandler(ch)

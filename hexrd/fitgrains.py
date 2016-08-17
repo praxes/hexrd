@@ -67,10 +67,20 @@ def get_job_queue(cfg, ids_to_refine=None):
     except (ValueError, IOError):
         # no estimate available, use orientations and defaults
         logger.info('fitting grains using default initial estimate')
+        
+        # ...make this an attribute in cfg?
+        analysis_id = '%s_%s' %(
+            cfg.analysis_name.strip().replace(' ', '-'),
+            cfg.material.active.strip().replace(' ', '-'),
+            )
+        
         # load quaternion file
         quats = np.atleast_2d(
             np.loadtxt(
-                os.path.join(cfg.working_dir, 'accepted_orientations.dat')
+                os.path.join(
+                    cfg.working_dir, 
+                    'accepted_orientations_%s.dat' %analysis_id
+                    )
                 )
             )
         n_quats = len(quats)
