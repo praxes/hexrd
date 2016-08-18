@@ -15,7 +15,9 @@ from scipy.sparse import coo_matrix
 from scipy.linalg.matfuncs import logm
 
 from hexrd.coreutil import (
-    initialize_experiment, migrate_detector_to_instrument_config
+    initialize_experiment, migrate_detector_to_instrument_config,
+    get_instrument_parameters, get_detector_parameters, get_detector_parameters,
+    get_distortion_correction, get_saturation_level, set_planedata_exclusions
     )
 from hexrd.matrixutil import vecMVToSymm
 from hexrd.utils.progressbar import (
@@ -44,61 +46,6 @@ gScl  = np.array([1., 1., 1.,
                   1., 1., 1., 0.01, 0.01, 0.01])
 
 
-
-def get_instrument_parameters(cfg):
-    # TODO: this needs to be
-    det_p = cfg.instrument.parameters
-    if not os.path.exists(det_p):
-        migrate_detector_to_instrument_config(
-            np.loadtxt(cfg.instrument.detector.parameters_old),
-            cfg.instrument.detector.pixels.rows,
-            cfg.instrument.detector.pixels.columns,
-            cfg.instrument.detector.pixels.size,
-            detID='GE',
-            chi=0.,
-            tVec_s=np.zeros(3),
-            filename=cfg.instrument.parameters
-            )
-    with open(cfg.instrument.parameters, 'r') as f:
-        # only one panel for now
-        # TODO: configurize this
-        return [cfg for cfg in yaml.load_all(f)][0]
-
-
-def get_detector_parameters(instr_cfg):
-    return np.hstack([
-        instr_cfg['detector']['transform']['tilt_angles'],
-        instr_cfg['detector']['transform']['t_vec_d'],
-        instr_cfg['oscillation_stage']['chi'],
-        instr_cfg['oscillation_stage']['t_vec_s'],
-        ])
-
-
-def get_distortion_correction(instrument_cfg):
-    # ***FIX***
-    # at this point we know we have a GE and hardwire the distortion func;
-    # need to pull name from yml file in general case
-    return (
-        dFuncs.GE_41RT,
-        instrument_cfg['detector']['distortion']['parameters']
-        )
-
-
-def get_saturation_level(instr_cfg):
-    return instr_cfg['detector']['saturation_level']
-
-
-
-def set_planedata_exclusions(cfg, detector, pd):
-    tth_max = cfg.fit_grains.tth_max
-    if tth_max is True:
-        pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
-        pd.exclusions = pd.getTTh() > detector.getTThMax()
-    elif tth_max > 0:
-        pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
-        pd.exclusions = pd.getTTh() >= np.radians(tth_max)
-
-
 def get_job_queue(cfg, ids_to_refine=None):
     job_queue = mp.JoinableQueue()
     # load the queue
@@ -120,10 +67,20 @@ def get_job_queue(cfg, ids_to_refine=None):
     except (ValueError, IOError):
         # no estimate available, use orientations and defaults
         logger.info('fitting grains using default initial estimate')
+        
+        # ...make this an attribute in cfg?
+        analysis_id = '%s_%s' %(
+            cfg.analysis_name.strip().replace(' ', '-'),
+            cfg.material.active.strip().replace(' ', '-'),
+            )
+        
         # load quaternion file
         quats = np.atleast_2d(
             np.loadtxt(
-                os.path.join(cfg.working_dir, 'accepted_orientations.dat')
+                os.path.join(
+                    cfg.working_dir, 
+                    'accepted_orientations_%s.dat' %analysis_id
+                    )
                 )
             )
         n_quats = len(quats)

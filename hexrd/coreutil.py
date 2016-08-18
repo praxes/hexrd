@@ -17,9 +17,9 @@ import yaml
 from hexrd.xrd import experiment as expt
 from hexrd.xrd.transforms import makeDetectorRotMat, unitVector, vInv_ref
 from hexrd.xrd import transforms_CAPI as xfcapi
+from hexrd.xrd import distortion as dFuncs
 
 from hexrd.xrd.detector import ReadGE
-
 
 logger = logging.getLogger('hexrd')
 
@@ -196,3 +196,55 @@ def initialize_experiment(cfg):
         detector = None
 
     return pd, reader, detector
+
+def get_instrument_parameters(cfg):
+    # TODO: this needs to be
+    det_p = cfg.instrument.parameters
+    if not os.path.exists(det_p):
+        migrate_detector_to_instrument_config(
+            np.loadtxt(cfg.instrument.detector.parameters_old),
+            cfg.instrument.detector.pixels.rows,
+            cfg.instrument.detector.pixels.columns,
+            cfg.instrument.detector.pixels.size,
+            detID='GE',
+            chi=0.,
+            tVec_s=np.zeros(3),
+            filename=cfg.instrument.parameters
+            )
+    with open(cfg.instrument.parameters, 'r') as f:
+        # only one panel for now
+        # TODO: configurize this
+        return [cfg for cfg in yaml.load_all(f)][0]
+
+
+def get_detector_parameters(instr_cfg):
+    return np.hstack([
+        instr_cfg['detector']['transform']['tilt_angles'],
+        instr_cfg['detector']['transform']['t_vec_d'],
+        instr_cfg['oscillation_stage']['chi'],
+        instr_cfg['oscillation_stage']['t_vec_s'],
+        ])
+
+
+def get_distortion_correction(instrument_cfg):
+    # ***FIX***
+    # at this point we know we have a GE and hardwire the distortion func;
+    # need to pull name from yml file in general case
+    return (
+        dFuncs.GE_41RT,
+        instrument_cfg['detector']['distortion']['parameters']
+        )
+
+
+def get_saturation_level(instr_cfg):
+    return instr_cfg['detector']['saturation_level']
+
+
+def set_planedata_exclusions(cfg, detector, pd):
+    tth_max = cfg.fit_grains.tth_max
+    if tth_max is True:
+        pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
+        pd.exclusions = pd.getTTh() > detector.getTThMax()
+    elif tth_max > 0:
+        pd.exclusions = np.zeros_like(pd.exclusions, dtype=bool)
+        pd.exclusions = pd.getTTh() >= np.radians(tth_max)

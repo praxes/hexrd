@@ -254,8 +254,6 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
         else:
             nblobs = len(np.unique(cl))
 
-        #import pdb; pdb.set_trace()
-
         """ PERFORM AVERAGING TO GET CLUSTER CENTROIDS """
         qbar = np.zeros((4, nblobs))
         for i in range(nblobs):
@@ -265,6 +263,30 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             ).flatten()
             pass
         pass
+    
+    if (algorithm == 'dbscan' or algorithm == 'ort-dbscan') \
+      and qbar.size/4 > 1:
+        logger.info("\tchecking for duplicate orientations...")
+        cl = cluster.hierarchy.fclusterdata(
+            qbar.T,
+            np.radians(cl_radius),
+            criterion='distance',
+            metric=quat_distance)
+        nblobs_new = len(np.unique(cl)) 
+        if nblobs_new < nblobs:
+            logger.info("\tfound %d duplicates within %f degrees" \
+                        %(nblobs-nblobs_new, cl_radius))
+            tmp = np.zeros((4, nblobs_new))
+            for i in range(nblobs_new):
+                npts = sum(cl == i + 1)
+                tmp[:, i] = rot.quatAverageCluster(
+                    qbar[:, cl == i + 1].reshape(4, npts), qsym
+                ).flatten()
+                pass
+            qbar = tmp
+            pass
+        pass
+    
     logger.info("clustering took %f seconds", time.clock() - start)
     logger.info(
         "Found %d orientation clusters with >=%.1f%% completeness"
@@ -348,7 +370,12 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
 
     NOTE: single cfg instance, not iterator!
     """
-
+    # ...make this an attribute in cfg?
+    analysis_id = '%s_%s' %(
+        cfg.analysis_name.strip().replace(' ', '-'),
+        cfg.material.active.strip().replace(' ', '-'),
+        )
+    
     # a goofy call, could be replaced with two more targeted calls
     pd, reader, detector = initialize_experiment(cfg)
 
@@ -387,10 +414,10 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     try:
         # are we searching the full grid of orientation space?
         qgrid_f = cfg.find_orientations.use_quaternion_grid
-        quats = np.loadtxt(qgrid_f).T
+        quats = np.load(qgrid_f)
         logger.info("Using %s for full quaternion search", qgrid_f)
         hkl_ids = None
-    except (IOError, ValueError):
+    except (IOError, ValueError, AttributeError):
         # or doing a seeded search?
         logger.info("Defaulting to seeded search")
         hkl_seeds = cfg.find_orientations.seed_search.hkl_seeds
@@ -443,9 +470,13 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     if save_as_ascii:
         np.savetxt(os.path.join(cfg.working_dir, 'completeness.dat'), compl)
     else:
-        np.save(os.path.join(cfg.working_dir, 'scored_orientations.npy'),
-                np.vstack([quats, compl])
-                )
+        np.save(
+            os.path.join(
+                cfg.working_dir,
+                'scored_orientations_%s.npy' %analysis_id
+                ),
+            np.vstack([quats, compl])
+            )
 
     ##########################################################
     ##   Simulate N random grains to get neighborhood size  ##
@@ -490,10 +521,19 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
 
     # cluster analysis to identify orientation blobs, the final output:
     qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, min_samples=min_samples)
+
+    analysis_id = '%s_%s' %(
+        cfg.analysis_name.strip().replace(' ', '-'),
+        cfg.material.active.strip().replace(' ', '-'),
+        )
+                                
     np.savetxt(
-        os.path.join(cfg.working_dir, 'accepted_orientations.dat'),
+        os.path.join(
+            cfg.working_dir,
+            'accepted_orientations_%s.dat' %analysis_id
+            ),
         qbar.T,
         fmt="%.18e",
-        delimiter="\t"
-        )
+        delimiter="\t")
+
     return

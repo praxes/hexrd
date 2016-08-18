@@ -68,6 +68,60 @@ void anglesToGvec_cfunc(long int nvecs, double * angs,
   }
 }
 
+void anglesToDvec_cfunc(long int nvecs, double * angs,
+			double * bHat_l, double * eHat_l,
+			double chi, double * rMat_c,
+			double * gVec_c)
+{
+  /*
+   *  takes an angle spec (2*theta, eta, omega) for nvecs g-vectors and
+   *  returns the unit g-vector components in the crystal frame
+   *
+   *  For unit g-vector in the lab frame, spec rMat_c = Identity and
+   *  overwrite the omega values with zeros
+   */
+  int i, j, k, l;
+  double rMat_e[9], rMat_s[9], rMat_ctst[9];
+  double gVec_e[3], gVec_l[3], gVec_c_tmp[3];
+
+  /* Need eta frame cob matrix (could omit for standard setting) */
+  makeEtaFrameRotMat_cfunc(bHat_l, eHat_l, rMat_e);
+
+  /* make vector array */
+  for (i=0; i<nvecs; i++) {
+    /* components in BEAM frame */
+    gVec_e[0] = sin(angs[3*i]) * cos(angs[3*i+1]);
+    gVec_e[1] = sin(angs[3*i]) * sin(angs[3*i+1]);
+    gVec_e[2] = -cos(angs[3*i]);
+
+    /* take from beam frame to lab frame */
+    for (j=0; j<3; j++) {
+      gVec_l[j] = 0.0;
+      for (k=0; k<3; k++) {
+	gVec_l[j] += rMat_e[3*j+k]*gVec_e[k];
+      }
+    }
+
+    /* need pointwise rMat_s according to omega */
+    makeOscillRotMat_cfunc(chi, angs[3*i+2], rMat_s);
+
+    /* Compute dot(rMat_c.T, rMat_s.T) and hit against gVec_l */
+    for (j=0; j<3; j++) {
+      for (k=0; k<3; k++) {
+	rMat_ctst[3*j+k] = 0.0;
+	for (l=0; l<3; l++) {
+	  rMat_ctst[3*j+k] += rMat_c[3*l+j]*rMat_s[3*k+l];
+	}
+      }
+      gVec_c_tmp[j] = 0.0;
+      for (k=0; k<3; k++) {
+	gVec_c_tmp[j] += rMat_ctst[3*j+k]*gVec_l[k];
+      }
+      gVec_c[3*i+j] = gVec_c_tmp[j];
+    }
+  }
+}
+
 void gvecToDetectorXYOne_cfunc(double * gVec_c, double * rMat_d,
 			       double * rMat_sc, double * tVec_d,
 			       double * bHat_l,
@@ -672,35 +726,33 @@ void makeEtaFrameRotMat_cfunc(double * bPtr, double * ePtr, double * rPtr)
 {
   /*
    * This function generates a COB matrix that takes components in the
-   * BEAM frame to the LAB frame
+   * BEAM frame to LAB frame
+   *
+   * NOTE: the beam and eta vectors MUST NOT BE COLINEAR!!!!
    */
   int i;
-  double dotZe, nrmZ, nrmX;
+  double yPtr[3], bHat[3], yHat[3], xHat[3];
 
-  /* Determine norm of bHat */
-  nrmZ = 0.0;
-  for (i=0; i<3; i++) nrmZ += bPtr[i]*bPtr[i];
-  nrmZ = sqrt(nrmZ);
+  /* find Y as e ^ b */
+  yPtr[0] = ePtr[1]*bPtr[2] - bPtr[1]*ePtr[2];
+  yPtr[1] = ePtr[2]*bPtr[0] - bPtr[2]*ePtr[0];
+  yPtr[2] = ePtr[0]*bPtr[1] - bPtr[0]*ePtr[1];
 
-  /* Assign Z column */
-  for (i=0; i<3; i++) rPtr[3*i+2] = -bPtr[i]/nrmZ;
+  /* Normalize beam (-Z) and Y vectors */
+  unitRowVector_cfunc(3,bPtr,bHat);
+  unitRowVector_cfunc(3,yPtr,yHat);
 
-  /* Determine dot product of Z column and eHat */
-  dotZe = 0.0;
-  for (i=0; i<3; i++) dotZe += rPtr[3*i+2]*ePtr[i];
+  /* Find X as b ^ Y */
+  xHat[0] = bHat[1]*yHat[2] - yHat[1]*bHat[2];
+  xHat[1] = bHat[2]*yHat[0] - yHat[2]*bHat[0];
+  xHat[2] = bHat[0]*yHat[1] - yHat[0]*bHat[1];
 
-  /* Assign X column */
-  for (i=0; i<3; i++) rPtr[3*i+0] = ePtr[i]-dotZe*rPtr[3*i+2];
-
-  /* Normalize X column */
-  nrmX = 0.0;
-  for (i=0; i<3; i++) nrmX += rPtr[3*i+0]*rPtr[3*i+0];
-  nrmX = sqrt(nrmX);
-
-  /* Assign Y column */
-  for (i=0; i<3; i++)
-    rPtr[3*i+1] = rPtr[3*((i+1)%3)+2]*rPtr[3*((i+2)%3)+0] -
-		  rPtr[3*((i+2)%3)+2]*rPtr[3*((i+1)%3)+0];
+  /* Assign columns */
+  for (i=0; i<3; i++) {
+    rPtr[3*i] = xHat[i];
+    rPtr[3*i+1] = yHat[i];
+    rPtr[3*i+2] = -bHat[i];
+  }
 }
 
 void validateAngleRanges_old_cfunc(int na, double * aPtr, int nr, double * minPtr, double * maxPtr, bool * rPtr)

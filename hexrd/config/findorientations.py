@@ -164,9 +164,9 @@ class SeedSearchConfig(Config):
         try:
             temp = self._cfg.get(key)
             if isinstance(temp, int):
-                temp = [temp]
+                temp = [temp,]
             return temp
-        except KeyError:
+        except:
             if self._cfg.find_orientations.use_quaternion_grid is None:
                 raise RuntimeError(
                     '"%s" must be defined for seeded search' % key

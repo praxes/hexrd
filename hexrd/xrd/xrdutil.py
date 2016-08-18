@@ -72,7 +72,9 @@ from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 
 from hexrd.xrd import distortion
-#from hexrd.fitgrains import get_frames, get_instrument_parameters
+
+#from hexrd.cacheframes import get_frames
+#from hexrd.coreutil import get_instrument_parameters
 
 try:
     from femODFUtil import pfig as pfigPkg
@@ -1726,11 +1728,11 @@ class EtaOmeMaps(object):
 # not ready # class BaseEtaOme(object):
 # not ready #     """
 # not ready #     eta-ome map base class derived from new YAML config
-# not ready #
+# not ready # 
 # not ready #     ...for now...
-# not ready #
+# not ready # 
 # not ready #     must provide:
-# not ready #
+# not ready # 
 # not ready #     self.dataStore
 # not ready #     self.planeData
 # not ready #     self.iHKLList
@@ -1738,7 +1740,7 @@ class EtaOmeMaps(object):
 # not ready #     self.omeEdges # IN RADIANS
 # not ready #     self.etas     # IN RADIANS
 # not ready #     self.omegas   # IN RADIANS
-# not ready #
+# not ready # 
 # not ready #     This wrapper will provide all but dataStore.
 # not ready #     """
 # not ready #     def __init__(self, cfg, reader=None, eta_step=None):
@@ -1748,34 +1750,34 @@ class EtaOmeMaps(object):
 # not ready #         """
 # not ready #         self.cfg = cfg
 # not ready #         self.instr_cfg = get_instrument_parameters(cfg)
-# not ready #
+# not ready # 
 # not ready #         # currently hard-coded to do reader from npz frame cache
 # not ready #         # kwarg *MUST* be 'new' style reader
 # not ready #         if reader is None:
 # not ready #             self.__reader = get_frames(reader, self.cfg)
 # not ready #         else:
 # not ready #             self.__reader = reader
-# not ready #
+# not ready # 
 # not ready #         # set eta_step IN DEGREES
 # not ready #         if eta_step is None:
 # not ready #             self._eta_step = self.cfg.image_series.omega.step
 # not ready #         else:
 # not ready #             self._eta_step = abs(eta_step) # just in case negative...
-# not ready #
+# not ready # 
 # not ready #         material_list = cPickle.load(open(cfg.material.definitions, 'r'))
 # not ready #         material_names = [material_list[i].name for i in range(len(material_list))]
 # not ready #         material_dict = dict(zip(material_names, material_list))
 # not ready #         self.planeData = material_dict[cfg.material.active].planeData
-# not ready #
+# not ready # 
 # not ready #         self._iHKLList = None
-# not ready #
+# not ready # 
 # not ready #         self._etaEdges = None
 # not ready #         self._omeEdges = None
 # not ready #         self._etas = None
 # not ready #         self._omegas = None
-# not ready #
+# not ready # 
 # not ready #         return
-# not ready #
+# not ready # 
 # not ready #     @property
 # not ready #     def iHKLList(self):
 # not ready #         return self._iHKLList
@@ -1786,7 +1788,7 @@ class EtaOmeMaps(object):
 # not ready #         """
 # not ready #         if ids is not None:
 # not ready #             assert hasattr(ids, '__len__'), "ids must be a list or list-like object"
-# not ready #
+# not ready # 
 # not ready #         # start with all available
 # not ready #         active_hkls = range(pd.hkls.shape[1])
 # not ready #         # check cfg file
@@ -1795,7 +1797,7 @@ class EtaOmeMaps(object):
 # not ready #         active_hkls = active_hkls if temp == 'all' else temp
 # not ready #         # override with hkls from command line, if specified
 # not ready #         return ids if ids is not None else active_hkls
-# not ready #
+# not ready # 
 # not ready #     @property
 # not ready #     def omegas(self):
 # not ready #         return self._omegas
@@ -1808,11 +1810,11 @@ class EtaOmeMaps(object):
 # not ready #         ome_start = self.__reader[1][0]
 # not ready #         ome_step  = self.__reader[1][1]
 # not ready #         return ome_step*(num.arange(num_ome) + 0.5) + ome_start
-# not ready #
+# not ready # 
 # not ready #     @property
 # not ready #     def eta_step(self):
 # not ready #         return self._eta_step
-# not ready #
+# not ready # 
 # not ready #     @property
 # not ready #     def etas(self):
 # not ready #         return self._etas
@@ -1820,12 +1822,12 @@ class EtaOmeMaps(object):
 # not ready #     def etas(self):
 # not ready #         """
 # not ready #         range is forced to be [-180, 180] for now, so step must be positive
-# not ready #
+# not ready # 
 # not ready #         step is same as omega unless specified (in degrees)
 # not ready #         """
 # not ready #         num_eta = int(360/float(abs(self.eta_step)))
 # not ready #         return num.radians(self.eta_step)*(num.arange(num_eta) + 0.5) - num.pi
-# not ready #
+# not ready # 
 # not ready #     @property
 # not ready #     def omeEdges(self):
 # not ready #         return self._omeEdges
@@ -1833,28 +1835,28 @@ class EtaOmeMaps(object):
 # not ready #     def omeEdges(self):
 # not ready #         ome_step = self.omegas[1] - self.omegas[0] # same as self.__reader[1][1]
 # not ready #         return num.hstack([self.omegas - 0.5*ome_step, self.omegas[-1] + 0.5*ome_step])
-# not ready #
+# not ready # 
 # not ready #     @property
 # not ready #     def etaEdges(self):
 # not ready #         return self._etaEdges
 # not ready #     @etaEdges.getter
 # not ready #     def etaEdges(self):
 # not ready #         return num.hstack([self.etas - 0.5*eta_step, self.etas[-1] + 0.5*eta_step])
-# not ready #
+# not ready # 
 # not ready # class EtaOmeMaps(BaseEtaOme):
 # not ready #     """
 # not ready #     """
 # not ready #     def __init__(self, cfg, reader=None, eta_step=None,
 # not ready #                  omega=0., tVec_s=num.zeros(3),
 # not ready #                  npdiv=2):
-# not ready #
+# not ready # 
 # not ready #         # first init the base class
 # not ready #         super( EtaOmeMaps, self ).__init__(cfg, reader=reader, eta_step=eta_step)
-# not ready #
+# not ready # 
 # not ready #         # grac relevant tolerances for patches
 # not ready #         tth_tol = num.degrees(self.planeData.tThWidth)
 # not ready #         eta_tol = num.degrees(abs(self.etas[1]-self.etas[0]))
-# not ready #
+# not ready # 
 # not ready #         # grab distortion
 # not ready #         if instr_cfg['detector']['distortion']['function_name'] is None:
 # not ready #             distortion = None
@@ -1872,28 +1874,28 @@ class EtaOmeMaps(object):
 # not ready #             ])
 # not ready #         pixel_pitch = instr_cfg['detector']['pixels']['size']
 # not ready #         chi = self.instr_cfg['oscillation_stage']['chi'] # in DEGREES
-# not ready #
+# not ready # 
 # not ready #         # 6 detector affine xform parameters
 # not ready #         rMat_d = makeDetectorRotMat(detector_params[:3])
 # not ready #         tVec_d = detector_params[3:6]
-# not ready #
+# not ready # 
 # not ready #         # 'dummy' sample frame rot mat
 # not ready #         rMats_s = makeOscillRotMat(num.radians([chi, omega]))
-# not ready #
+# not ready # 
 # not ready #         # since making maps for all eta, must hand trivial crystal params
 # not ready #         rMat_c = np.eye(3)
 # not ready #         tVec_c = np.zeros(3)
-# not ready #
+# not ready # 
 # not ready #         # make angle arrays for patches
 # not ready #         neta = len(self.etas)
 # not ready #         nome = len(reader[0])
-# not ready #
+# not ready # 
 # not ready #         # make full angs list
 # not ready #         angs = [num.vstack([tth*num.ones(neta),
 # not ready #                            etas,
 # not ready #                            num.zeros(nome)])
 # not ready #                 for tth in self.planeData.getTTh()]
-# not ready #
+# not ready # 
 # not ready #         """SET MAPS CONTAINER AS ATTRIBUTE"""
 # not ready #         self.dataStore = num.zeros((len(angs), nome, neta))
 # not ready #         for i_ring in range(len(angs)):
@@ -1902,7 +1904,7 @@ class EtaOmeMaps(object):
 # not ready #             xydet_ring = xfcapi.gvecToDetectorXY(gVec_ring_l,
 # not ready #                                                  rMat_d, rMat_s, rMat_c,
 # not ready #                                                  tVec_d, tVec_s, tVec_c)
-# not ready #
+# not ready # 
 # not ready #             if distortion is not None:
 # not ready #                 det_xy = distortion[0](xydet_ring,
 # not ready #                                        distortion[1],
@@ -1911,7 +1913,7 @@ class EtaOmeMaps(object):
 # not ready #                                       rMat_d, rMat_s,
 # not ready #                                       tVec_d, tVec_s, tVec_c,
 # not ready #                                       distortion=distortion)
-# not ready #
+# not ready # 
 # not ready #             patches = make_reflection_patches(self.instr_cfg,
 # not ready #                                               angs[i_ring].T[:, :2], ang_ps,
 # not ready #                                               omega=None,
@@ -1919,7 +1921,7 @@ class EtaOmeMaps(object):
 # not ready #                                               distortion=distortion,
 # not ready #                                               npdiv=npdiv, quiet=False,
 # not ready #                                               compute_areas_func=gutil.compute_areas)
-# not ready #
+# not ready # 
 # not ready #             for i in range(nome):
 # not ready #                 this_frame = num.array(reader[0][i].todense())
 # not ready #                 for j in range(neta):
@@ -3360,11 +3362,11 @@ def _project_on_detector_plane(allAngs,
         chi, num.ascontiguousarray(allAngs[:,2])
         )
     tmp_xys = xfcapi.gvecToDetectorXYArray(
-        gVec_cs, rMat_d, rMat_ss, rMat_c, 
+        gVec_cs, rMat_d, rMat_ss, rMat_c,
         tVec_d, tVec_s, tVec_c
         )
     valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
-    
+
     if distortion is None or len(distortion) == 0:
         det_xy = tmp_xys[valid_mask]
     else:
@@ -3375,7 +3377,7 @@ def _project_on_detector_plane(allAngs,
 
 
 def simulateGVecs(pd, detector_params, grain_params,
-                  ome_range=[(-num.pi, num.pi), ], 
+                  ome_range=[(-num.pi, num.pi), ],
                   ome_period=(-num.pi, num.pi),
                   eta_range=[(-num.pi, num.pi), ],
                   panel_dims=[(-204.8, -204.8), (204.8, 204.8)],
@@ -3404,8 +3406,8 @@ def simulateGVecs(pd, detector_params, grain_params,
         - eta (azimuth) ranges
 
     pd................a hexrd.xrd.crystallography.PlaneData instance
-    detector_params...a (10,) ndarray containing the tilt angles (3), 
-                      translation (3), chi (1), and sample frame translation 
+    detector_params...a (10,) ndarray containing the tilt angles (3),
+                      translation (3), chi (1), and sample frame translation
                       (3) parameters
     grain_params......a (12,) ndarray containing the exponential map (3),
                       translation (3), and inverse stretch tensor compnents
@@ -3447,16 +3449,16 @@ def simulateGVecs(pd, detector_params, grain_params,
         det_xy, rMat_s = _project_on_detector_plane(
             allAngs,
             rMat_d, rMat_c, chi,
-            tVec_d, tVec_c, tVec_s, 
+            tVec_d, tVec_c, tVec_s,
             distortion
             )
         #
         on_panel_x = num.logical_and(
-            det_xy[:, 0] >= panel_dims[0][0], 
+            det_xy[:, 0] >= panel_dims[0][0],
             det_xy[:, 0] <= panel_dims[1][0]
             )
         on_panel_y = num.logical_and(
-            det_xy[:, 1] >= panel_dims[0][1], 
+            det_xy[:, 1] >= panel_dims[0][1],
             det_xy[:, 1] <= panel_dims[1][1]
             )
         on_panel = num.logical_and(on_panel_x, on_panel_y)
@@ -3472,7 +3474,7 @@ def simulateGVecs(pd, detector_params, grain_params,
                                   rMat_d, rMat_s,
                                   tVec_d, tVec_s, tVec_c,
                                   distortion=distortion)
-                                     
+
     return valid_ids, valid_hkl, valid_ang, valid_xy, ang_ps
 
 
@@ -3483,8 +3485,11 @@ def simulateLauePattern(hkls, bMat,
                         minEnergy=8, maxEnergy=24,
                         rmat_s=num.eye(3),
                         grain_params=None,
-                        distortion=None
-                        ):
+                        distortion=None,
+                        beamVec=None):
+
+    if beamVec is None:
+        beamVec = xfcapi.bVec_ref
 
     # parse energy ranges
     multipleEnergyRanges = False
@@ -3502,10 +3507,10 @@ def simulateLauePattern(hkls, bMat,
     # process crystal rmats and inverse stretches
     if grain_params is None:
         grain_params = num.atleast_2d(
-            [0., 0., 0., 
-             0., 0., 0., 
+            [0., 0., 0.,
+             0., 0., 0.,
              1., 1., 1., 0., 0., 0.
-             ]             
+             ]
         )
 
     n_grains = len(grain_params)
@@ -3528,13 +3533,13 @@ def simulateLauePattern(hkls, bMat,
 
     """
     LOOP OVER GRAINS
-    """   
-    
+    """
+
     for iG, gp in enumerate(grain_params):
         rmat_c = xfcapi.makeRotMatOfExpMap(gp[:3])
         tvec_c = gp[3:6].reshape(3, 1)
         vInv_s = mutil.vecMVToSymm(gp[6:].reshape(6, 1))
-        
+
 
         # stretch them: V^(-1) * R * Gc
         ghat_s_str = mutil.unitVector(
@@ -3544,27 +3549,25 @@ def simulateLauePattern(hkls, bMat,
         # project
         dpts = xfcapi.gvecToDetectorXY(ghat_c_str.T,
                                        rmat_d, rmat_s, rmat_c,
-                                       tvec_d, tvec_s, tvec_c).T
-                                       
-        
-                
-        #print dpts
+                                       tvec_d, tvec_s, tvec_c,
+                                       beamVec=beamVec).T
 
         # check intersections with detector plane
         canIntersect = ~num.isnan(dpts[0, :])
         npts_in = sum(canIntersect)
-        
-        
+
+
         if num.any(canIntersect):
             dpts = dpts[:, canIntersect].reshape(2, npts_in)
             dhkl = hkls[:, canIntersect].reshape(3, npts_in)
-            
-            
+
+
             # back to angles
-            tth_eta, gvec_l = xfcapi.detectorXYToGvec(dpts.T,
-                                                      rmat_d, rmat_s,
-                                                      tvec_d, tvec_s, tvec_c
-                                                      )
+            tth_eta, gvec_l = xfcapi.detectorXYToGvec(
+                dpts.T,
+                rmat_d, rmat_s,
+                tvec_d, tvec_s, tvec_c,
+                beamVec=beamVec)
             tth_eta = num.vstack(tth_eta).T
 
             # warp measured points
@@ -3575,7 +3578,7 @@ def simulateLauePattern(hkls, bMat,
             # plane spacings and energies
             dsp = 1. / mutil.columnNorm(num.dot(bMat, dhkl))
             wlen  = 2*dsp*num.sin(0.5*tth_eta[:, 0])
-            
+
             #print wlen
 
             # find on spatial extent of detector
@@ -3606,9 +3609,9 @@ def simulateLauePattern(hkls, bMat,
 
             pass
         pass
-    
-    
-    
+
+
+
     return xy_det, hkls_in, angles, dspacing, energy
 
 
@@ -3653,7 +3656,7 @@ if USE_NUMBA:
     def angularPixelSize(xy_det, xy_pixelPitch,
                  rMat_d, rMat_s,
                  tVec_d, tVec_s, tVec_c,
-                 distortion=(dFunc_ref, dParams_ref)):
+                 distortion=None, beamVec=None, etaVec=None):
         """
         * choices to beam vector and eta vector specs have been supressed
         * assumes xy_det in UNWARPED configuration
@@ -3661,18 +3664,26 @@ if USE_NUMBA:
         xy_det = num.atleast_2d(xy_det)
         if distortion is not None and len(distortion) == 2:
             xy_det = distortion[0](xy_det, distortion[1])
+        if beamVec is None: beamVec = xfcapi.bVec_ref
+        if etaVec is None: etaVec = xfcapi.eta_ref
 
         xy_expanded = num.empty((len(xy_det) * 4, 2), dtype=xy_det.dtype)
-        xy_expanded = _expand_pixels(xy_det, xy_pixelPitch[0], xy_pixelPitch[1], xy_expanded)
-        gvec_space, _ = xfcapi.detectorXYToGvec(xy_expanded, rMat_d, rMat_s,
-                                                tVec_d, tVec_s, tVec_c)
+        xy_expanded = _expand_pixels(
+            xy_det,
+            xy_pixelPitch[0], xy_pixelPitch[1],
+            xy_expanded)
+        gvec_space, _ = xfcapi.detectorXYToGvec(
+            xy_expanded,
+            rMat_d, rMat_s,
+            tVec_d, tVec_s, tVec_c,
+            beamVec=beamVec, etaVec=etaVec)
         result = num.empty_like(xy_det)
         return _compute_max(gvec_space[0], gvec_space[1], result)
 else:
     def angularPixelSize(xy_det, xy_pixelPitch,
                          rMat_d, rMat_s,
                          tVec_d, tVec_s, tVec_c,
-                         distortion=(dFunc_ref, dParams_ref)):
+                         distortion=None, beamVec=None, etaVec=None):
         """
         * choices to beam vector and eta vector specs have been supressed
         * assumes xy_det in UNWARPED configuration
@@ -3681,6 +3692,8 @@ else:
         xy_det = num.atleast_2d(xy_det)
         if distortion is not None and len(distortion) == 2:
             xy_det = distortion[0](xy_det, distortion[1])
+        if beamVec is None: beamVec = xfcapi.bVec_ref
+        if etaVec is None: etaVec = xfcapi.eta_ref
 
         xp = num.r_[-0.5,  0.5,  0.5, -0.5] * xy_pixelPitch[0]
         yp = num.r_[-0.5, -0.5,  0.5,  0.5] * xy_pixelPitch[1]
@@ -3694,10 +3707,11 @@ else:
             xc = xp + xy[0]
             yc = yp + xy[1]
 
-            tth_eta, gHat_l = xfcapi.detectorXYToGvec(num.vstack([xc, yc]).T,
-                                                      rMat_d, rMat_s,
-                                                      tVec_d, tVec_s, tVec_c)
-
+            tth_eta, gHat_l = xfcapi.detectorXYToGvec(
+                num.vstack([xc, yc]).T,
+                rMat_d, rMat_s,
+                tVec_d, tVec_s, tVec_c,
+                beamVec=beamVec, etaVec=etaVec)
             delta_tth = num.zeros(4)
             delta_eta = num.zeros(4)
             for j in range(4):
@@ -3752,7 +3766,8 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
                             tth_tol=0.2, eta_tol=1.0,
                             rMat_c=num.eye(3), tVec_c=num.zeros((3, 1)),
                             distortion=None,
-                            npdiv=1, quiet=False, compute_areas_func=gutil.compute_areas):
+                            npdiv=1, quiet=False, compute_areas_func=gutil.compute_areas,
+                            beamVec=None):
     """
     prototype function for making angular patches on a detector
 
@@ -3799,6 +3814,10 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
     chi = instr_cfg['oscillation_stage']['chi']
     tVec_s = num.r_[instr_cfg['oscillation_stage']['t_vec_s']]
 
+    # beam vector
+    if beamVec is None:
+        beamVec = xfcapi.bVec_ref
+    
     # data to loop
     # ...WOULD IT BE CHEAPER TO CARRY ZEROS OR USE CONDITIONAL?
     if omega is None:
@@ -3839,10 +3858,16 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
         rMat_s = xfcapi.makeOscillRotMat([chi, angs[2]])
 
         # make G-vectors
-        gVec_c = xfcapi.anglesToGVec(gVec_angs_vtx, chi=chi, rMat_c=rMat_c)
-        xy_eval_vtx = xfcapi.gvecToDetectorXY(gVec_c,
-                                              rMat_d, rMat_s, rMat_c,
-                                              tVec_d, tVec_s, tVec_c)
+        gVec_c = xfcapi.anglesToGVec(
+            gVec_angs_vtx,
+            chi=chi,
+            rMat_c=rMat_c,
+            bHat_l=beamVec)
+        xy_eval_vtx = xfcapi.gvecToDetectorXY(
+            gVec_c,
+            rMat_d, rMat_s, rMat_c,
+            tVec_d, tVec_s, tVec_c,
+            beamVec=beamVec)
         if distortion is not None and len(distortion) == 2:
             xy_eval_vtx = distortion[0](xy_eval_vtx, distortion[1], invert=True)
             pass
@@ -3854,10 +3879,16 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
         tth_eta_cen = gutil.cellCentroids( num.atleast_2d(gVec_angs_vtx[:, :2]), conn )
         gVec_angs  = num.hstack([tth_eta_cen,
                                  num.tile(angs[2], (len(tth_eta_cen), 1))])
-        gVec_c = xfcapi.anglesToGVec(gVec_angs, chi=chi, rMat_c=rMat_c)
-        xy_eval = xfcapi.gvecToDetectorXY(gVec_c,
-                                          rMat_d, rMat_s, rMat_c,
-                                          tVec_d, tVec_s, tVec_c)
+        gVec_c = xfcapi.anglesToGVec(
+            gVec_angs,
+            chi=chi,
+            rMat_c=rMat_c,
+            bHat_l=beamVec)
+        xy_eval = xfcapi.gvecToDetectorXY(
+            gVec_c,
+            rMat_d, rMat_s, rMat_c,
+            tVec_d, tVec_s, tVec_c,
+            beamVec=beamVec)
         if distortion is not None and len(distortion) == 2:
             xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
             pass
@@ -4296,7 +4327,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
 
 def extract_detector_transformation(detector_params):
     """
-    goes from 10 vector of detector parames OR instrument config dictionary 
+    goes from 10 vector of detector parames OR instrument config dictionary
     (from YAML spec) to affine transformation arrays
     """    # extract variables for convenience
     if isinstance(detector_params, dict):
