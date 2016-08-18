@@ -20,12 +20,14 @@ app:
 
 requirements:
   build:
+    # - nomkl # in case MKL is broken on Linux
     - numpy
     - python
     - setuptools
   run:
     - dill
     - matplotlib
+    # - nomkl # in case MKL is broken on Linux
     - numba
     - numpy
     - progressbar >=2.3
