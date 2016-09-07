@@ -50,12 +50,14 @@ from hexrd import tens
 from hexrd import matrixutil as mutil
 from hexrd import pfigutil
 from hexrd import gridutil as gutil
-from hexrd.valunits import toFloat
+from hexrd.valunits import toFloat, valWUnit
 from hexrd import USE_NUMBA
 import hexrd.orientations as ors
 
 from hexrd.xrd import crystallography
 from hexrd.xrd.crystallography import latticeParameters, latticeVectors, processWavelength
+
+from hexrd.constants import keVToAngstrom
 
 from hexrd.xrd import detector
 from hexrd.xrd.detector import Framer2DRC, getCMap
@@ -1705,34 +1707,272 @@ class CollapseOmeEta(object):
 
 
 
-class EtaOmeMaps(object):
+class GenerateEtaOmeMaps(object):
+    """
+    eta-ome map class derived from new image_series and YAML config
 
+    ...for now...
+
+    must provide:
+
+    self.dataStore
+    self.planeData
+    self.iHKLList
+    self.etaEdges # IN RADIANS
+    self.omeEdges # IN RADIANS
+    self.etas     # IN RADIANS
+    self.omegas   # IN RADIANS
+
+    """
+    def __init__(self, image_series, instrument_params, planeData, active_hkls,
+                 ome_step=0.25, eta_step=None, npdiv=2, threshold=None):
+        """
+        image_series must be OmegaImageSeries class
+        instrument_params must be a dict (loaded from yaml spec)
+        active_hkls must be a list (required for now)
+        """
+        # ome and eta steps are in DEGREES
+        self._ome_step = ome_step
+
+        if eta_step is None:
+            self._eta_step = abs(
+                image_series.omega[0, 1] - image_series.omega[0, 0]
+                )
+        else:
+            self._eta_step = abs(eta_step) # just in case negative...
+
+        # ...TO DO: change name of iHKLList?
+        self._iHKLList = active_hkls
+        self._planeData = planeData
+
+        """
+        eta range is forced to be [-180, 180] for now, so step must be positive
+
+        step is same as omega unless specified (in degrees)
+
+        ...TO DO: FIX FOR GENERAL RANGE ONCE ETA_PERIOD IS SPEC'D
+        """
+        num_eta = int(360./float(abs(self._eta_step)))
+        eta_step_r = num.radians(self._eta_step)
+        self._etas = eta_step_r*(num.arange(num_eta) + 0.5) - num.pi # RADIANS!
+        self._etaEdges = num.hstack([self._etas - 0.5*eta_step_r,
+                                     self._etas[-1] + 0.5*eta_step_r])
+
+        """
+        omegas come from image series directly
+        """
+        self._omegas = num.radians(num.average(image_series.omega, axis=0))
+        self._omeEdges = num.radians(num.hstack([image_series.omega[0, :],
+                                                 image_series.omega[1, -1]
+                                                 ])
+                                    )
+
+        """
+        construct patches in place on init
+
+        ...TO DO: rename to 'maps'?
+        """
+        ij_patches = []
+
+        # grab relevant tolerances for patches
+        tth_tol = num.degrees(self._planeData.tThWidth)
+        eta_tol = num.degrees(abs(self._etas[1] - self._etas[0]))
+
+        # grab distortion
+        if instrument_params['detector']['distortion']['function_name'] is None:
+            distortion = None
+        else:
+            # ...THIS IS STILL A KLUDGE!!!!!
+            distortion = (xf.dFunc_ref,
+                          num.r_[instrument_params['detector']['distortion']['parameters']]
+                          )
+
+        # stack parameters
+        detector_params = num.hstack([
+            instrument_params['detector']['transform']['tilt_angles'],
+            instrument_params['detector']['transform']['t_vec_d'],
+            instrument_params['oscillation_stage']['chi'],
+            instrument_params['oscillation_stage']['t_vec_s'],
+            ])
+        pixel_pitch = instrument_params['detector']['pixels']['size']
+
+        # 6 detector affine xform parameters
+        rMat_d = xfcapi.makeDetectorRotMat(detector_params[:3])
+        tVec_d = detector_params[3:6]
+
+        # 'dummy' sample frame rot mat
+        rMat_s = num.eye(3)
+        tVec_s = num.zeros(3)
+
+        # since making maps for all eta, must hand trivial crystal params
+        rMat_c = num.eye(3)
+        tVec_c = num.zeros(3)
+
+        # make full angs list (tth, eta, 0.)
+        angs = [num.vstack([tth*num.ones(num_eta),
+                            self._etas,
+                            num.zeros(num_eta)]) \
+                for tth in self._planeData.getTTh()[active_hkls]]
+
+        for i_ring in range(len(angs)):
+            # need xy coords and pixel sizes
+            gVec_ring_l = xfcapi.anglesToGVec(angs[i_ring].T)
+            xydet_ring = xfcapi.gvecToDetectorXY(gVec_ring_l,
+                                                 rMat_d, rMat_s, rMat_c,
+                                                 tVec_d, tVec_s, tVec_c)
+
+            if distortion is not None:
+                det_xy = distortion[0](xydet_ring,
+                                       distortion[1],
+                                       invert=True)
+            ang_ps = angularPixelSize(det_xy, pixel_pitch,
+                                      rMat_d, rMat_s,
+                                      tVec_d, tVec_s, tVec_c,
+                                      distortion=distortion)
+
+            patches = make_reflection_patches(instrument_params,
+                                              angs[i_ring].T[:, :2], ang_ps,
+                                              omega=None,
+                                              tth_tol=tth_tol, eta_tol=eta_tol,
+                                              distortion=distortion,
+                                              npdiv=npdiv, quiet=False,
+                                              compute_areas_func=gutil.compute_areas)
+            ij_patches.append(patches)
+        # DEBUGGING # mxf = num.amax([image_series[i] for i in range(image_series.nframes)], axis=0)
+        # DEBUGGING # xs = num.hstack([ij_patches[0][i][-1][1] for i in num.linspace(0, 1436, num=360, dtype=int)])
+        # DEBUGGING # ys = num.hstack([ij_patches[0][i][-1][0] for i in num.linspace(0, 1436, num=360, dtype=int)])
+        # DEBUGGING # import pdb; pdb.set_trace()
+        # initialize maps and loop
+        pbar = ProgressBar(
+            widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
+            maxval=image_series.nframes
+            ).start()
+        maps = num.zeros((len(active_hkls), len(self._omegas), len(self._etas)))
+        for i_ome in range(image_series.nframes):
+            pbar.update(i_ome)
+            this_frame = image_series[i_ome]
+            if threshold is not None:
+                this_frame[this_frame < threshold] = 0
+            for i_ring in range(len(active_hkls)):
+                for j_eta in range(num_eta):
+                    ii = ij_patches[i_ring][j_eta][-1][0]
+                    jj = ij_patches[i_ring][j_eta][-1][1]
+                    areas = ij_patches[i_ring][j_eta][-2]
+                    maps[i_ring, i_ome, j_eta] = num.sum(this_frame[ii, jj] * areas / float(num.sum(areas)))
+                    pass # close eta loop
+                pass # close ring loop
+            pass # close ome loop
+            pbar.finish()
+        self._dataStore = maps
+
+    @property
+    def dataStore(self):
+        return self._dataStore
+
+    @property
+    def planeData(self):
+        return self._planeData
+
+    @property
+    def iHKLList(self):
+        return num.atleast_1d(self._iHKLList).flatten()
+
+    @property
+    def etaEdges(self):
+        return self._etaEdges
+
+    @property
+    def omeEdges(self):
+        return self._omeEdges
+
+    @property
+    def etas(self):
+        return self._etas
+
+    @property
+    def omegas(self):
+        return self._omegas
+
+    def save(self, filename):
+        """
+        self.dataStore
+        self.planeData
+        self.iHKLList
+        self.etaEdges
+        self.omeEdges
+        self.etas
+        self.omegas
+       """
+        args = num.array(self.planeData.getParams())[:4]
+        args[2] = valWUnit('wavelength', 'length', args[2], 'angstrom') # force units...
+        hkls = self.planeData.hkls
+
+        save_dict = {'dataStore':self.dataStore,
+                     'etas':self.etas,
+                     'etaEdges':self.etaEdges,
+                     'iHKLList':self.iHKLList,
+                     'omegas':self.omegas,
+                     'omeEdges':self.omeEdges,
+                     'planeData_args':args,
+                     'planeData_hkls':hkls,
+                     }
+        num.savez(filename, **save_dict)
+        return
+    pass # end of class: GenerateEtaOmeMaps
+
+
+    
+class EtaOmeMaps(object):
     """
     find-orientations loads pickled eta-ome data, but CollapseOmeEta is not
     pickleable, because it holds a list of ReadGE, each of which holds a
     reference to an open file object, which is not pickleable.
     """
+    
+    def __init__(self, ome_eta_archive):
 
-    def __init__(self, ome_eta):
-        self.dataStore = ome_eta.dataStore
-        self.planeData = ome_eta.planeData
-        self.iHKLList = ome_eta.iHKLList
-        self.etaEdges = ome_eta.etaEdges
-        self.omeEdges = ome_eta.omeEdges
-        self.etas = ome_eta.etas
-        self.omegas = ome_eta.omegas
+        ome_eta = num.load(ome_eta_archive)
+        
+        planeData_args = ome_eta['planeData_args']
+        planeData_hkls = ome_eta['planeData_hkls']
+        self.planeData = crystallography.PlaneData(planeData_hkls, *planeData_args)
+
+        self.dataStore = ome_eta['dataStore']
+        self.iHKLList = ome_eta['iHKLList']
+        self.etaEdges = ome_eta['etaEdges']
+        self.omeEdges = ome_eta['omeEdges']
+        self.etas = ome_eta['etas']
+        self.omegas = ome_eta['omegas']
+        
         return
+    pass # end of class: EtaOmeMaps
 
-
+# obselete # class EtaOmeMaps(object):
+# obselete #
+# obselete #     """
+# obselete #     find-orientations loads pickled eta-ome data, but CollapseOmeEta is not
+# obselete #     pickleable, because it holds a list of ReadGE, each of which holds a
+# obselete #     reference to an open file object, which is not pickleable.
+# obselete #     """
+# obselete #
+# obselete #     def __init__(self, ome_eta):
+# obselete #         self.dataStore = ome_eta.dataStore
+# obselete #         self.planeData = ome_eta.planeData
+# obselete #         self.iHKLList = ome_eta.iHKLList
+# obselete #         self.etaEdges = ome_eta.etaEdges
+# obselete #         self.omeEdges = ome_eta.omeEdges
+# obselete #         self.etas = ome_eta.etas
+# obselete #         self.omegas = ome_eta.omegas
+# obselete #         return
 
 # not ready # class BaseEtaOme(object):
 # not ready #     """
 # not ready #     eta-ome map base class derived from new YAML config
 # not ready # 
 # not ready #     ...for now...
-# not ready # 
+# not ready #
 # not ready #     must provide:
-# not ready # 
+# not ready #
 # not ready #     self.dataStore
 # not ready #     self.planeData
 # not ready #     self.iHKLList
@@ -1740,7 +1980,7 @@ class EtaOmeMaps(object):
 # not ready #     self.omeEdges # IN RADIANS
 # not ready #     self.etas     # IN RADIANS
 # not ready #     self.omegas   # IN RADIANS
-# not ready # 
+# not ready #
 # not ready #     This wrapper will provide all but dataStore.
 # not ready #     """
 # not ready #     def __init__(self, cfg, reader=None, eta_step=None):
@@ -1770,14 +2010,14 @@ class EtaOmeMaps(object):
 # not ready #         self.planeData = material_dict[cfg.material.active].planeData
 # not ready # 
 # not ready #         self._iHKLList = None
-# not ready # 
+# not ready #
 # not ready #         self._etaEdges = None
 # not ready #         self._omeEdges = None
 # not ready #         self._etas = None
 # not ready #         self._omegas = None
-# not ready # 
+# not ready #
 # not ready #         return
-# not ready # 
+# not ready #
 # not ready #     @property
 # not ready #     def iHKLList(self):
 # not ready #         return self._iHKLList
@@ -1797,7 +2037,7 @@ class EtaOmeMaps(object):
 # not ready #         active_hkls = active_hkls if temp == 'all' else temp
 # not ready #         # override with hkls from command line, if specified
 # not ready #         return ids if ids is not None else active_hkls
-# not ready # 
+# not ready #
 # not ready #     @property
 # not ready #     def omegas(self):
 # not ready #         return self._omegas
@@ -1810,7 +2050,7 @@ class EtaOmeMaps(object):
 # not ready #         ome_start = self.__reader[1][0]
 # not ready #         ome_step  = self.__reader[1][1]
 # not ready #         return ome_step*(num.arange(num_ome) + 0.5) + ome_start
-# not ready # 
+# not ready #
 # not ready #     @property
 # not ready #     def eta_step(self):
 # not ready #         return self._eta_step
@@ -1822,12 +2062,12 @@ class EtaOmeMaps(object):
 # not ready #     def etas(self):
 # not ready #         """
 # not ready #         range is forced to be [-180, 180] for now, so step must be positive
-# not ready # 
+# not ready #
 # not ready #         step is same as omega unless specified (in degrees)
 # not ready #         """
 # not ready #         num_eta = int(360/float(abs(self.eta_step)))
 # not ready #         return num.radians(self.eta_step)*(num.arange(num_eta) + 0.5) - num.pi
-# not ready # 
+# not ready #
 # not ready #     @property
 # not ready #     def omeEdges(self):
 # not ready #         return self._omeEdges
@@ -1835,14 +2075,14 @@ class EtaOmeMaps(object):
 # not ready #     def omeEdges(self):
 # not ready #         ome_step = self.omegas[1] - self.omegas[0] # same as self.__reader[1][1]
 # not ready #         return num.hstack([self.omegas - 0.5*ome_step, self.omegas[-1] + 0.5*ome_step])
-# not ready # 
+# not ready #
 # not ready #     @property
 # not ready #     def etaEdges(self):
 # not ready #         return self._etaEdges
 # not ready #     @etaEdges.getter
 # not ready #     def etaEdges(self):
 # not ready #         return num.hstack([self.etas - 0.5*eta_step, self.etas[-1] + 0.5*eta_step])
-# not ready # 
+# not ready #
 # not ready # class EtaOmeMaps(BaseEtaOme):
 # not ready #     """
 # not ready #     """
@@ -1856,7 +2096,7 @@ class EtaOmeMaps(object):
 # not ready #         # grac relevant tolerances for patches
 # not ready #         tth_tol = num.degrees(self.planeData.tThWidth)
 # not ready #         eta_tol = num.degrees(abs(self.etas[1]-self.etas[0]))
-# not ready # 
+# not ready #
 # not ready #         # grab distortion
 # not ready #         if instr_cfg['detector']['distortion']['function_name'] is None:
 # not ready #             distortion = None
@@ -1874,14 +2114,14 @@ class EtaOmeMaps(object):
 # not ready #             ])
 # not ready #         pixel_pitch = instr_cfg['detector']['pixels']['size']
 # not ready #         chi = self.instr_cfg['oscillation_stage']['chi'] # in DEGREES
-# not ready # 
+# not ready #
 # not ready #         # 6 detector affine xform parameters
 # not ready #         rMat_d = makeDetectorRotMat(detector_params[:3])
 # not ready #         tVec_d = detector_params[3:6]
-# not ready # 
+# not ready #
 # not ready #         # 'dummy' sample frame rot mat
 # not ready #         rMats_s = makeOscillRotMat(num.radians([chi, omega]))
-# not ready # 
+# not ready #
 # not ready #         # since making maps for all eta, must hand trivial crystal params
 # not ready #         rMat_c = np.eye(3)
 # not ready #         tVec_c = np.zeros(3)
@@ -1889,13 +2129,13 @@ class EtaOmeMaps(object):
 # not ready #         # make angle arrays for patches
 # not ready #         neta = len(self.etas)
 # not ready #         nome = len(reader[0])
-# not ready # 
+# not ready #
 # not ready #         # make full angs list
 # not ready #         angs = [num.vstack([tth*num.ones(neta),
 # not ready #                            etas,
 # not ready #                            num.zeros(nome)])
 # not ready #                 for tth in self.planeData.getTTh()]
-# not ready # 
+# not ready #
 # not ready #         """SET MAPS CONTAINER AS ATTRIBUTE"""
 # not ready #         self.dataStore = num.zeros((len(angs), nome, neta))
 # not ready #         for i_ring in range(len(angs)):

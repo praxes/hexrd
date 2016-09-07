@@ -6,6 +6,8 @@ import multiprocessing as mp
 import os
 import time
 
+import yaml
+
 import numpy as np
 #np.seterr(over='ignore', invalid='ignore')
 
@@ -18,9 +20,13 @@ from hexrd.xrd import rotations as rot
 from hexrd.xrd import symmetry as sym
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
-from hexrd.coreutil import initialize_experiment
+from hexrd.xrd import image_io
 
 from hexrd.xrd import xrdutil
+
+from hexrd.xrd.detector import ReadGE
+from hexrd.xrd.xrdutil import GenerateEtaOmeMaps, EtaOmeMaps, simulateGVecs
+
 from hexrd.xrd.xrdutil import simulateGVecs
 
 from hexrd.xrd import distortion as dFuncs
@@ -107,9 +113,6 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
                 eta_c = eta_ome.etaEdges[0] \
                         + (0.5 + coms[i][ispot][1])*del_eta
 
-                #gVec_s = xrdutil.makeMeasuredScatteringVectors(
-                #    tTh[pd_hkl_ids[i]], eta_c, ome_c
-                #    )
                 gVec_s = xfcapi.anglesToGVec(
                     np.atleast_2d(
                         [tTh[pd_hkl_ids[i]], eta_c, ome_c]
@@ -299,15 +302,19 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
     return np.atleast_2d(qbar), cl
 
 
-def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None, clean=False):
+def load_eta_ome_maps(cfg, pd, image_series, hkls=None, clean=False):
     fn = os.path.join(
         cfg.working_dir,
         cfg.find_orientations.orientation_maps.file
         )
 
+    # ...necessary?
+    if fn.split('.')[-1] != 'npz':
+        fn = fn + '.npz'
+
     if not clean:
         try:
-            res = cPickle.load(open(fn, 'r'))
+            res = EtaOmeMaps(fn)
             pd = res.planeData
             available_hkls = pd.hkls.T
             logger.info('loaded eta/ome orientation maps from %s', fn)
@@ -316,12 +323,12 @@ def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None, clean=False):
                 'hkls used to generate orientation maps: %s', hkls)
             return res
         except (AttributeError, IOError):
-            return generate_eta_ome_maps(cfg, pd, reader, detector, hkls)
+            return generate_eta_ome_maps(cfg, pd, image_series, hkls)
     else:
         logger.info('clean option specified; recomputing eta/ome orientation maps')
-        return generate_eta_ome_maps(cfg, pd, reader, detector, hkls)
+        return generate_eta_ome_maps(cfg, pd, image_series, hkls)
 
-def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
+def generate_eta_ome_maps(cfg, pd, image_series, hkls=None):
 
     available_hkls = pd.hkls.T
     # default to all hkls defined for material
@@ -337,20 +344,17 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
         ', '.join([str(i) for i in available_hkls[active_hkls]])
         )
 
-    # not ready # eta_ome = xrdutil.EtaOmeMaps(cfg, reader=reader, eta_step=None)
     bin_frames = cfg.find_orientations.orientation_maps.bin_frames
-    eta_bins = np.int(2*np.pi / abs(reader.getDeltaOmega())) / bin_frames
-    eta_ome = xrdutil.CollapseOmeEta(
-        reader,
-        pd,
-        pd.hkls[:, active_hkls],
-        detector,
-        nframesLump=bin_frames,
-        nEtaBins=eta_bins,
-        debug=False,
-        threshold=cfg.find_orientations.orientation_maps.threshold
-        ).getEtaOmeMaps()
+    ome_step = cfg.image_series.omega.step*bin_frames
+    instrument_params = yaml.load(open(cfg.instrument.parameters, 'r'))
 
+    # generate maps
+    eta_ome = GenerateEtaOmeMaps(
+        image_series, instrument_params, pd, active_hkls,
+        ome_step=ome_step,
+        threshold=cfg.find_orientations.orientation_maps.threshold
+        )
+    
     fn = os.path.join(
         cfg.working_dir,
         cfg.find_orientations.orientation_maps.file
@@ -358,8 +362,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
     fd = os.path.split(fn)[0]
     if not os.path.isdir(fd):
         os.makedirs(fd)
-    with open(fn, 'w') as f:
-        cPickle.dump(eta_ome, f)
+    eta_ome.save(fn)
     logger.info("saved eta/ome orientation maps to %s", fn)
     return eta_ome
 
@@ -370,15 +373,24 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
 
     NOTE: single cfg instance, not iterator!
     """
+
     # ...make this an attribute in cfg?
     analysis_id = '%s_%s' %(
         cfg.analysis_name.strip().replace(' ', '-'),
         cfg.material.active.strip().replace(' ', '-'),
         )
-    
-    # a goofy call, could be replaced with two more targeted calls
-    pd, reader, detector = initialize_experiment(cfg)
 
+    # grab planeData object
+    matl = cPickle.load(open('materials.cpl', 'r'))
+    md = dict(zip([matl[i].name for i in range(len(matl))], matl))
+    pd = md[cfg.material.active].planeData
+
+    # make image_series, which must be an OmegaImageSeries
+    image_series = image_io.OmegaImageSeries(
+        cfg.image_series.filename,
+        fmt=cfg.image_series.format,
+        **cfg.image_series.args)
+    
     # need instrument cfg later on down...
     instr_cfg = get_instrument_parameters(cfg)
     detector_params = np.hstack([
@@ -406,11 +418,12 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     logger.info("beginning analysis '%s'", cfg.analysis_name)
 
     # load the eta_ome orientation maps
-    eta_ome = load_eta_ome_maps(cfg, pd, reader, detector, hkls=hkls, clean=clean)
+    eta_ome = load_eta_ome_maps(cfg, pd, image_series, hkls=hkls, clean=clean)
 
-    ome_range = (np.min(eta_ome.omeEdges),
-                 np.max(eta_ome.omeEdges)
-                 )
+    ome_range = (
+        np.min(eta_ome.omeEdges),
+        np.max(eta_ome.omeEdges)
+        )
     try:
         # are we searching the full grid of orientation space?
         qgrid_f = cfg.find_orientations.use_quaternion_grid
