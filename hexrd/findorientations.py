@@ -446,7 +446,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
                 )
 
     # generate the completion maps
-    logger.info("Running paintgrid on %d trial orientations", (quats.shape[1]))
+    logger.info("Running paintgrid on %d trial orientations", quats.shape[1])
     if profile:
         logger.info("Profiling mode active, forcing ncpus to 1")
         ncpus = 1
