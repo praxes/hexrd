@@ -21,12 +21,13 @@ app:
 requirements:
   build:
     # - nomkl # in case MKL is broken on Linux
+    - h5py
     - numpy
     - python
     - setuptools
   run:
-    - h5py
     - dill
+    - h5py
     - matplotlib
     # - nomkl # in case MKL is broken on Linux
     - numba
