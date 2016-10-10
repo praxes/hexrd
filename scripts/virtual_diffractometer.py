@@ -43,6 +43,7 @@ output_name='test'#Frame Cache Name
 det_psf_fwhm=2.
 cts_per_event=1000.
 delta_ome = 0.25
+min_I=5.
 
 
 ###############################################################################
@@ -226,10 +227,7 @@ pixd = np.hstack(pixel_data)
 
 
 
-#%%
-#Build Images
-
-frame_cache=[sp.sparse.csc_matrix([2048,2048])]*nframes
+frame_cache_data=[sp.sparse.coo_matrix([2048,2048],dtype='uint16')]*nframes
 
 filter_size=np.round(det_psf_fwhm*5)
 if filter_size % 2 == 0:
@@ -255,7 +253,15 @@ for i in np.arange(nframes):
     
     this_frame_transform=np.fft.fft2(this_frame)
     this_frame_convolved=np.real(np.fft.ifft2(this_frame_transform*filterPadTransform))  
-    
-    frame_cache[i]=sp.sparse.csc_matrix(this_frame_convolved)
+    tmp=np.where(this_frame_convolved<min_I)
+    this_frame_convolved[tmp]=0.
+    frame_cache_data[i]=sp.sparse.coo_matrix(this_frame_convolved,dtype='uint16')
+
+
+#%% Save Frame Cache Data
+frame_cache=[None]*2
+frame_cache[0]=frame_cache_data
+frame_cache[1]=(0.,delta_ome*np.pi/180.)   
     
 np.savez_compressed(os.path.join(output_location,output_name+'.npz'),frame_cache=frame_cache)
+
