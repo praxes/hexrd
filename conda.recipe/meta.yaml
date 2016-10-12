@@ -6,7 +6,7 @@ package:
 source:
   #git_url: https://github.com/joelvbernier/hexrd.git
   #git_tag: master # edit to point to specific branch or tag
-  git_url: /Users/Shared/hexrd
+  git_url: ../
   git_tag: v0.3.x
 
 build:
