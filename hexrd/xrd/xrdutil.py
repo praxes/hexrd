@@ -1918,7 +1918,7 @@ class GenerateEtaOmeMaps(object):
                      'planeData_args':args,
                      'planeData_hkls':hkls,
                      }
-        num.savez(filename, **save_dict)
+        num.savez_compressed(filename, **save_dict)
         return
     pass # end of class: GenerateEtaOmeMaps
 
