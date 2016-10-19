@@ -1761,12 +1761,13 @@ class GenerateEtaOmeMaps(object):
         """
         omegas come from image series directly
         """
-        self._omegas = num.radians(num.average(image_series.omega, axis=0))
-        self._omeEdges = num.radians(num.hstack([image_series.omega[0, :],
-                                                 image_series.omega[1, -1]
-                                                 ])
-                                    )
-
+        # image series omegas have shape (nframes, 2)
+        self._omegas = num.radians(num.average(image_series.omega, axis=1))
+        self._omeEdges = num.radians(
+            num.concatenate(
+                [image_series.omega[:, 0].flatten(), image_series.omega[-1, 1].flatten()]
+                 )
+                )
         """
         construct patches in place on init
 
@@ -1848,6 +1849,7 @@ class GenerateEtaOmeMaps(object):
             maxval=image_series.nframes
             ).start()
         maps = num.zeros((len(active_hkls), len(self._omegas), len(self._etas)))
+        print "maps.shape: ", maps.shape
         for i_ome in range(image_series.nframes):
             pbar.update(i_ome)
             this_frame = image_series[i_ome]
@@ -1921,18 +1923,18 @@ class GenerateEtaOmeMaps(object):
     pass # end of class: GenerateEtaOmeMaps
 
 
-    
+
 class EtaOmeMaps(object):
     """
     find-orientations loads pickled eta-ome data, but CollapseOmeEta is not
     pickleable, because it holds a list of ReadGE, each of which holds a
     reference to an open file object, which is not pickleable.
     """
-    
+
     def __init__(self, ome_eta_archive):
 
         ome_eta = num.load(ome_eta_archive)
-        
+
         planeData_args = ome_eta['planeData_args']
         planeData_hkls = ome_eta['planeData_hkls']
         self.planeData = crystallography.PlaneData(planeData_hkls, *planeData_args)
@@ -1943,7 +1945,7 @@ class EtaOmeMaps(object):
         self.omeEdges = ome_eta['omeEdges']
         self.etas = ome_eta['etas']
         self.omegas = ome_eta['omegas']
-        
+
         return
     pass # end of class: EtaOmeMaps
 
@@ -1968,7 +1970,7 @@ class EtaOmeMaps(object):
 # not ready # class BaseEtaOme(object):
 # not ready #     """
 # not ready #     eta-ome map base class derived from new YAML config
-# not ready # 
+# not ready #
 # not ready #     ...for now...
 # not ready #
 # not ready #     must provide:
@@ -1990,25 +1992,25 @@ class EtaOmeMaps(object):
 # not ready #         """
 # not ready #         self.cfg = cfg
 # not ready #         self.instr_cfg = get_instrument_parameters(cfg)
-# not ready # 
+# not ready #
 # not ready #         # currently hard-coded to do reader from npz frame cache
 # not ready #         # kwarg *MUST* be 'new' style reader
 # not ready #         if reader is None:
 # not ready #             self.__reader = get_frames(reader, self.cfg)
 # not ready #         else:
 # not ready #             self.__reader = reader
-# not ready # 
+# not ready #
 # not ready #         # set eta_step IN DEGREES
 # not ready #         if eta_step is None:
 # not ready #             self._eta_step = self.cfg.image_series.omega.step
 # not ready #         else:
 # not ready #             self._eta_step = abs(eta_step) # just in case negative...
-# not ready # 
+# not ready #
 # not ready #         material_list = cPickle.load(open(cfg.material.definitions, 'r'))
 # not ready #         material_names = [material_list[i].name for i in range(len(material_list))]
 # not ready #         material_dict = dict(zip(material_names, material_list))
 # not ready #         self.planeData = material_dict[cfg.material.active].planeData
-# not ready # 
+# not ready #
 # not ready #         self._iHKLList = None
 # not ready #
 # not ready #         self._etaEdges = None
@@ -2028,7 +2030,7 @@ class EtaOmeMaps(object):
 # not ready #         """
 # not ready #         if ids is not None:
 # not ready #             assert hasattr(ids, '__len__'), "ids must be a list or list-like object"
-# not ready # 
+# not ready #
 # not ready #         # start with all available
 # not ready #         active_hkls = range(pd.hkls.shape[1])
 # not ready #         # check cfg file
@@ -2054,7 +2056,7 @@ class EtaOmeMaps(object):
 # not ready #     @property
 # not ready #     def eta_step(self):
 # not ready #         return self._eta_step
-# not ready # 
+# not ready #
 # not ready #     @property
 # not ready #     def etas(self):
 # not ready #         return self._etas
@@ -2089,10 +2091,10 @@ class EtaOmeMaps(object):
 # not ready #     def __init__(self, cfg, reader=None, eta_step=None,
 # not ready #                  omega=0., tVec_s=num.zeros(3),
 # not ready #                  npdiv=2):
-# not ready # 
+# not ready #
 # not ready #         # first init the base class
 # not ready #         super( EtaOmeMaps, self ).__init__(cfg, reader=reader, eta_step=eta_step)
-# not ready # 
+# not ready #
 # not ready #         # grac relevant tolerances for patches
 # not ready #         tth_tol = num.degrees(self.planeData.tThWidth)
 # not ready #         eta_tol = num.degrees(abs(self.etas[1]-self.etas[0]))
@@ -2125,7 +2127,7 @@ class EtaOmeMaps(object):
 # not ready #         # since making maps for all eta, must hand trivial crystal params
 # not ready #         rMat_c = np.eye(3)
 # not ready #         tVec_c = np.zeros(3)
-# not ready # 
+# not ready #
 # not ready #         # make angle arrays for patches
 # not ready #         neta = len(self.etas)
 # not ready #         nome = len(reader[0])
@@ -2144,7 +2146,7 @@ class EtaOmeMaps(object):
 # not ready #             xydet_ring = xfcapi.gvecToDetectorXY(gVec_ring_l,
 # not ready #                                                  rMat_d, rMat_s, rMat_c,
 # not ready #                                                  tVec_d, tVec_s, tVec_c)
-# not ready # 
+# not ready #
 # not ready #             if distortion is not None:
 # not ready #                 det_xy = distortion[0](xydet_ring,
 # not ready #                                        distortion[1],
@@ -2153,7 +2155,7 @@ class EtaOmeMaps(object):
 # not ready #                                       rMat_d, rMat_s,
 # not ready #                                       tVec_d, tVec_s, tVec_c,
 # not ready #                                       distortion=distortion)
-# not ready # 
+# not ready #
 # not ready #             patches = make_reflection_patches(self.instr_cfg,
 # not ready #                                               angs[i_ring].T[:, :2], ang_ps,
 # not ready #                                               omega=None,
@@ -2161,7 +2163,7 @@ class EtaOmeMaps(object):
 # not ready #                                               distortion=distortion,
 # not ready #                                               npdiv=npdiv, quiet=False,
 # not ready #                                               compute_areas_func=gutil.compute_areas)
-# not ready # 
+# not ready #
 # not ready #             for i in range(nome):
 # not ready #                 this_frame = num.array(reader[0][i].todense())
 # not ready #                 for j in range(neta):
@@ -4057,7 +4059,7 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
     # beam vector
     if beamVec is None:
         beamVec = xfcapi.bVec_ref
-    
+
     # data to loop
     # ...WOULD IT BE CHEAPER TO CARRY ZEROS OR USE CONDITIONAL?
     if omega is None:

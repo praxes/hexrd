@@ -266,7 +266,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             ).flatten()
             pass
         pass
-    
+
     if (algorithm == 'dbscan' or algorithm == 'ort-dbscan') \
       and qbar.size/4 > 1:
         logger.info("\tchecking for duplicate orientations...")
@@ -275,7 +275,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             np.radians(cl_radius),
             criterion='distance',
             metric=quat_distance)
-        nblobs_new = len(np.unique(cl)) 
+        nblobs_new = len(np.unique(cl))
         if nblobs_new < nblobs:
             logger.info("\tfound %d duplicates within %f degrees" \
                         %(nblobs-nblobs_new, cl_radius))
@@ -289,7 +289,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             qbar = tmp
             pass
         pass
-    
+
     logger.info("clustering took %f seconds", time.clock() - start)
     logger.info(
         "Found %d orientation clusters with >=%.1f%% completeness"
@@ -354,7 +354,7 @@ def generate_eta_ome_maps(cfg, pd, image_series, hkls=None):
         ome_step=ome_step,
         threshold=cfg.find_orientations.orientation_maps.threshold
         )
-    
+
     fn = os.path.join(
         cfg.working_dir,
         cfg.find_orientations.orientation_maps.file
@@ -390,7 +390,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
         cfg.image_series.filename,
         fmt=cfg.image_series.format,
         **cfg.image_series.args)
-    
+
     # need instrument cfg later on down...
     instr_cfg = get_instrument_parameters(cfg)
     detector_params = np.hstack([
@@ -501,6 +501,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
           * mutil.unitVector(rand_q[1:, :])
         refl_per_grain = np.zeros(ngrains)
         num_seed_refls = np.zeros(ngrains)
+        print('fo: hklids = ', hkl_ids)
         for i in range(ngrains):
             grain_params = np.hstack([rand_e[:, i],
                                       xf.zeroVec.flatten(),
@@ -517,8 +518,11 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
                                         distortion=distortion,
                                         )
             refl_per_grain[i] = len(sim_results[0])
-            num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
-            pass
+            # lines below fix bug when sim_results[0] is empty
+            if refl_per_grain[i] > 0:
+                num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
+            else:
+                num_seed_refls[i] = 0
         #min_samples = 2
         min_samples = max(
             int(np.floor(0.5*min_compl*min(num_seed_refls))),
@@ -539,7 +543,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
         cfg.analysis_name.strip().replace(' ', '-'),
         cfg.material.active.strip().replace(' ', '-'),
         )
-                                
+
     np.savetxt(
         os.path.join(
             cfg.working_dir,
