@@ -7,12 +7,24 @@ from hexrd import imageseries
 
 class ImageSeriesConfig(Config):
 
-    def _open(self):
-        self._imser = imageseries.open(self.filename, self.format, **self.args)
+    def __init__(self, cfg):
+        super(ImageSeriesConfig, self).__init__(cfg)
+        self._imser = None
+        self._omseries = None
 
-    def _meta(self):
-        pass # to be done later
+    @property
+    def imageseries(self):
+        """return the imageseries without checking for omega metadata"""
+        if self._imser is None:
+            self._imser = imageseries.open(self.filename, self.format, **self.args)
+        return self._imser
 
+    @property
+    def omegaseries(self):
+        """return the imageseries and ensure it has omega metadata"""
+        if self._omseries is None:
+            self._omseries = imageseries.omega.OmegaImageSeries(self.imageseries)
+        return self._omseries
 
     @property
     def filename(self):

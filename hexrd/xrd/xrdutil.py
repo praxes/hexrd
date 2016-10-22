@@ -1839,18 +1839,14 @@ class GenerateEtaOmeMaps(object):
                                               npdiv=npdiv, quiet=False,
                                               compute_areas_func=gutil.compute_areas)
             ij_patches.append(patches)
-        # DEBUGGING # mxf = num.amax([image_series[i] for i in range(image_series.nframes)], axis=0)
-        # DEBUGGING # xs = num.hstack([ij_patches[0][i][-1][1] for i in num.linspace(0, 1436, num=360, dtype=int)])
-        # DEBUGGING # ys = num.hstack([ij_patches[0][i][-1][0] for i in num.linspace(0, 1436, num=360, dtype=int)])
-        # DEBUGGING # import pdb; pdb.set_trace()
         # initialize maps and loop
         pbar = ProgressBar(
             widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
-            maxval=image_series.nframes
+            maxval=len(image_series)
             ).start()
         maps = num.zeros((len(active_hkls), len(self._omegas), len(self._etas)))
         print "maps.shape: ", maps.shape
-        for i_ome in range(image_series.nframes):
+        for i_ome in range(len(image_series)):
             pbar.update(i_ome)
             this_frame = image_series[i_ome]
             if threshold is not None:

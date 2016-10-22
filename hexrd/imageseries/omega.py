@@ -4,6 +4,27 @@
 """
 import numpy as np
 
+from .baseclass import ImageSeries
+
+OMEGA_KEY = 'omega'
+
+class OmegaImageSeries(ImageSeries):
+    """ImageSeries with omega metadata"""
+    def __init__(self, ims):
+        """This class is initialized with an existing imageseries"""
+        # check for omega metadata
+        if OMEGA_KEY not in ims.metadata:
+            raise RuntimeError('Imageseries has no omega metadata')
+
+        # use the imageseries as the adapter, as it may be a processed imageseries
+        super(OmegaImageSeries, self).__init__(ims)
+
+    @property
+    def omega(self):
+        """return omega range array (nframes, 2)"""
+        return self.metadata[OMEGA_KEY]
+
+
 class OmegaWedges(object):
     """piecewise linear omega ranges"""
     def __init__(self, nframes):
