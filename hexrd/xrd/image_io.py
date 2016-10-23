@@ -35,14 +35,14 @@ class ReaderDeprecationWarning(DeprecationWarning):
 
 
 
-class OmegaImageSeries(object):
+class _OmegaImageSeries(object):
     """Facade for frame_series class, replacing other readers, primarily ReadGE"""
     OMEGA_TAG = 'omega'
 
-    def __init__(self, fname, fmt='hdf5', **kwargs):
+    def __init__(self, ims, fmt='hdf5', **kwargs):
         """Initialize frame readerOmegaFrameReader
 
-        *fileinfo* is a string
+        *ims* is either an imageseries instance or a filename
         *fmt* is the format to be passed to imageseries.open()
         *kwargs* is the option list to be passed to imageseries.open()
 
@@ -50,7 +50,10 @@ class OmegaImageSeries(object):
         * The shape returned from imageseries is cast to int from numpy.uint64
           to allow for addition of indices with regular ints
         """
-        self._imseries = imageseries.open(fname, fmt, **kwargs)
+        if isinstance(ims, imageseries.imageseriesabc.ImageSeriesABC):
+            self._imseries = ims
+        else:
+            self._imseries = imageseries.open(ims, fmt, **kwargs)
         self._nframes = len(self._imseries)
         self._shape = self._imseries.shape
         self._meta = self._imseries.metadata
@@ -206,17 +209,19 @@ class ReadGE(Framer2DRC,OmegaFramer):
     def __init__(self, file_info, *args, **kwargs):
         """Initialize the reader
 
-        *file_info* is now just the filename
+        *file_info* is now just the filename or an existing omegaimageseries
         *kwargs* is a dictionary
-                 keys include: "path" path in hdf5 file
+                 keys include: 'fmt' which provides imageseries format
+                    other keys depend on the format
 
         Of original kwargs, only using "mask"
         """
         self._fname = file_info
         self._kwargs = kwargs
         self._format = kwargs.pop('fmt', None)
+
         try:
-            self._omis = OmegaImageSeries(file_info, fmt=self._format, **kwargs)
+            self._omis = _OmegaImageSeries(file_info, fmt=self._format, **kwargs)
             Framer2DRC.__init__(self, self._omis.nrows, self._omis.ncols)
             # note: Omegas are expected in radians, but input in degrees
             OmegaFramer.__init__(self, (np.pi/180.)*self._omis.omega)
@@ -239,7 +244,8 @@ class ReadGE(Framer2DRC,OmegaFramer):
     @classmethod
     def makeNew(cls):
         """return another copy of this reader"""
-        return cls(self._fname, **self._kwargs)
+        raise NotImplementedError('this method to be removed')
+        return None
 
     def getWriter(self, filename):
         return None

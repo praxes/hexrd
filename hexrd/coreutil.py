@@ -168,21 +168,9 @@ def initialize_experiment(cfg):
 
     pd = ws.activeMaterial.planeData
 
-    isfile = cfg.image_series.filename
-    isfmt = cfg.image_series.format
-    isargs = cfg.image_series.args
     # detector data
     try:
-        reader = ReadGE(isfile, fmt=isfmt, **isargs)
-        #reader = ReadGE(
-        #    [(f, image_start) for f in cfg.image_series.files],
-        #    np.radians(cfg.image_series.omega.start),
-        #    np.radians(cfg.image_series.omega.step),
-        #    subtractDark=dark is not None, # TODO: get rid of this
-        #    dark=dark,
-        #    doFlip=flip is not None,
-        #    flipArg=flip, # TODO: flip=flip
-        #    )
+        reader = ReadGE(cfg.image_series.omegaseries)
     except IOError:
         logger.info("raw data not found, skipping reader init")
         reader = None

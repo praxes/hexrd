@@ -5,6 +5,7 @@ and a function for loading. Adapters for particular
 data formats are managed in the "load" subpackage.
 """
 from .baseclass import ImageSeries
+from . import imageseriesabc
 from . import load
 from . import save
 from . import stats
