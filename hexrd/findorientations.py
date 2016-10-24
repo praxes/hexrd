@@ -20,7 +20,6 @@ from hexrd.xrd import rotations as rot
 from hexrd.xrd import symmetry as sym
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
-from hexrd.xrd import image_io
 
 from hexrd.xrd import xrdutil
 
@@ -74,7 +73,7 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
 
     params = {
         'bMat':bMat,
-        'chi':chi,   
+        'chi':chi,
         'csym':csym,
         'fiber_ndiv':fiber_ndiv,
          }
@@ -114,7 +113,7 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
                 eta_c = eta_ome.etaEdges[0] + (0.5 + coms[i][ispot][1])*del_eta
                 input_p.append(
                     np.hstack(
-                        [hkls[:, pd_hkl_ids[i]], 
+                        [hkls[:, pd_hkl_ids[i]],
                          tTh[pd_hkl_ids[i]], eta_c, ome_c]
                     )
                 )
@@ -138,7 +137,7 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
         paramMP = None # clear paramMP
     elapsed = (time.time() - start)
     logger.info("fiber generation took %.3f seconds", elapsed)
-    
+
     return np.hstack(qfib)
 
 
@@ -157,7 +156,7 @@ def discretefiber_reduced(params_in):
     fiber_ndiv = paramMP['fiber_ndiv']
 
     hkl = params_in[:3].reshape(3, 1)
-        
+
     gVec_s = xfcapi.anglesToGVec(
         np.atleast_2d(params_in[3:]),
         chi=chi,
@@ -421,11 +420,8 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     md = dict(zip([matl[i].name for i in range(len(matl))], matl))
     pd = md[cfg.material.active].planeData
 
-    # make image_series, which must be an OmegaImageSeries
-    image_series = image_io.OmegaImageSeries(
-        cfg.image_series.filename,
-        fmt=cfg.image_series.format,
-        **cfg.image_series.args)
+    # make image_series
+    image_series = cfg.image_series.omegaseries
 
     # need instrument cfg later on down...
     instr_cfg = get_instrument_parameters(cfg)
