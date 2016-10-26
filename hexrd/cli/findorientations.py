@@ -101,7 +101,7 @@ def execute(args, parser):
     # configure logging to file
     logfile = os.path.join(
         cfg.working_dir,
-        'find-orientations.log'
+        'find-orientations_%s.log' %analysis_id
         )
     fh = logging.FileHandler(logfile, mode='w')
     fh.setLevel(log_level)
