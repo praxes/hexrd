@@ -341,7 +341,7 @@ class ReadGE(Framer2DRC,OmegaFramer):
         # Now, operate on frames consecutively
         op = sumImg if sumimg_callable else np.add
 
-        ifrm = self.iFrame + 1
+        ifrm = self.iFrame[0]
 
         img = self._omis[ifrm]
         for i in range(1, nframes):
@@ -352,6 +352,11 @@ class ReadGE(Framer2DRC,OmegaFramer):
 
         if self.mask is not None:
             img[self.mask] = 0
+
+        # reset iframe to single value of last frame read
+        self.iFrame = self.iFrame[-1]
+        if self.iFrame + 1 == self.getNFrames:
+            self.iFrame = -1
 
         return img
 
