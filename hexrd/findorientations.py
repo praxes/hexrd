@@ -478,7 +478,9 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
                 fmt="%.18e",
                 delimiter="\t"
                 )
-
+            pass
+        pass # close conditional on grid search
+    
     # generate the completion maps
     logger.info("Running paintgrid on %d trial orientations", quats.shape[1])
     if profile:

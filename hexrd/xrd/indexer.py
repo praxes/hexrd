@@ -753,7 +753,7 @@ def paintGrid(quats, etaOmeMaps,
     # omeIndices = mapIndices[1].T.flatten()
     # etaIndices = num.tile(range(numEtas), (numOmes))
     # omeIndices = num.tile(range(numOmes), (numEtas))
-    # j_eta, i_ome = np.meshgrid(range(numEtas), range(numOmes))
+    # j_eta, i_ome = num.meshgrid(range(numEtas), range(numOmes))
     # etaIndices = j_eta.flatten()
     # omeIndices = i_ome.flatten()
     etaIndices = num.r_[range(numEtas)]
@@ -851,7 +851,7 @@ def paintGrid(quats, etaOmeMaps,
 
 def _meshgrid2d(x, y):
     """
-    A special-cased implementation of np.meshgrid, for just
+    A special-cased implementation of num.meshgrid, for just
     two arguments. Found to be about 3x faster on some simple
     test arguments.
     """
@@ -877,7 +877,7 @@ def _normalize_ranges(starts, stops, offset, ccw=False):
     if ccw:
         starts, stops = stops, starts
 
-    # results are in the range of [0, 2*np.pi]
+    # results are in the range of [0, 2*num.pi]
     if not num.all(starts < stops):
         raise ValueError('Invalid angle ranges')
 

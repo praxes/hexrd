@@ -870,7 +870,6 @@ class PlaneData(object):
         tThLoIdx = 0
         tThHiCur = 0.
         for iHKL, nonoverlapNext in enumerate(nonoverlapNexts):
-            print tThLoIdx
             tThHi = tThRanges[iHKL, -1]
             if not nonoverlapNext:
                 if cullDupl and abs(tThs[iHKL] - tThs[iHKL+1]) < sqrt_epsf:

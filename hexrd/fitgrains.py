@@ -126,6 +126,7 @@ def get_data(cfg, show_progress=False, force=False, clean=False):
         'omega_step': cfg.image_series.omega.step,
         'omega_stop': cfg.image_series.omega.stop,
         'omega_tol': cfg.fit_grains.tolerance.omega,
+        'overlap_table': os.path.join(cfg.analysis_dir, 'overlap_table.npz'),
         'panel_buffer': cfg.fit_grains.panel_buffer,
         'pixel_pitch': instrument_cfg['detector']['pixels']['size'],
         'plane_data': pd,
@@ -327,6 +328,22 @@ class FitGrainsWorker(object):
             idx = np.logical_and(valid_refl_ids, unsat_spots)
             pass # end if edge case
 
+        # if an overlap table has been written, load it and use it
+        overlaps = np.zeros(len(refl_table), dtype=bool)
+        try:
+            ot = np.load(self._p['overlap_table'])
+            for key in ot.keys():
+                for this_table in ot[key]:
+                    these_overlaps = np.where(
+                        this_table[:, 0] == grain_id)[0]
+                    if len(these_overlaps) > 0:
+                        mark_these = np.array(this_table[these_overlaps, 1], dtype=int)
+                        overlaps[mark_these] = True
+            idx = np.logical_and(idx, ~overlaps)
+        except IOError, IndexError:
+            #print "no overlap table found"
+            pass
+        
         # completeness from pullspots only; incl saturated
         completeness = sum(valid_refl_ids)/float(len(valid_refl_ids))
 

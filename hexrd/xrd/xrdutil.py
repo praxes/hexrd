@@ -4143,7 +4143,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 f1 = rdr.read(nframes=len(oidx1), nskip=oidx1[0])
                 r2 = rdr.makeNew()
                 f2 = r2.read(nframes=len(oidx2), nskip=oidx2[0])
-                frames = num.zeros(sdims, dtype=f1.dtype)
+                frames = num.zeros((sdims[0], reader.get_nrows(), reader.get_ncols()), dtype=f1.dtype)
                 frames[:len(oidx1), :, :] = f1
                 frames[len(oidx1):, :, :] = f2
             else:
@@ -4281,7 +4281,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
         # output dictionary
         if save_spot_list:
             w_dict = {}
-            w_dict['peakID']        = peakID
+            w_dict['peakId']        = peakId
             w_dict['hkl']           = hkl
             w_dict['dims']          = sdims
             w_dict['points']        = ( angs[2] + d2r*ome_del,
@@ -4291,7 +4291,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
             w_dict['crd']           = xy_eval
             w_dict['con']           = conn
             w_dict['refl_ang_com']  = com_angs
-            if peakID >= 0:
+            if peakId >= 0:
                 w_dict['refl_xyo']  = (new_xy[0], new_xy[1], com_angs[2])
             else:
                 w_dict['refl_xyo']  = tuple(num.nan*num.ones(3))
@@ -4321,7 +4321,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
             pass
         iRefl += 1
         pass
-    fid.close()
+    if filename is not None: fid.close()
 
     return spot_list
 
