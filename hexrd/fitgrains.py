@@ -344,7 +344,7 @@ class FitGrainsWorker(object):
             #print "no overlap table found"
             pass
         
-        # completeness from pullspots only; incl saturated
+        # completeness from pullspots only; incl saturated and overlaps
         completeness = sum(valid_refl_ids)/float(len(valid_refl_ids))
 
         # extract data from grain table
@@ -447,13 +447,6 @@ class FitGrainsWorker(object):
 
     def loop(self):
         id, grain_params = self._jobs.get(False)
-
-        # slated for removal ## skips the first loop if have_estimate is True
-        # slated for removal #if self._p['skip_on_estimate']:
-        # slated for removal #    have_estimate = not np.all(grain_params[-9:] == [0,0,0,1,1,1,0,0,0])
-        # slated for removal #    iterations = (have_estimate, len(self._p['eta_tol']))
-        # slated for removal #else:
-        # slated for removal #    iterations = (0, len(self._p['eta_tol']))
         iterations = (0, len(self._p['eta_tol']))
         for iteration in range(*iterations):
             # pull spots if asked to, otherwise just fit
