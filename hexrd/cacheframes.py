@@ -134,9 +134,12 @@ def get_frames(reader, cfg, show_progress=False, force=False, clean=False):
             n_frames = reader.getNFrames()
     else:
         # still need a fix here for when you have cache only...
-        n_frames = int( (cfg.image_series.omega.stop \
-                         - cfg.image_series.omega.start) \
-                         / float(cfg.image_series.omega.step) )
+        if cfg.image_series.images.stop is not None:
+            n_frames = cfg.image_series.images.stop
+        else:
+            n_frames = int( (cfg.image_series.omega.stop \
+                            - cfg.image_series.omega.start) \
+                            / float(cfg.image_series.omega.step) )
     logger.info("reading %d frames from cache", n_frames)
 
     with np.load(cache_file) as npz:
