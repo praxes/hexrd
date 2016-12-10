@@ -112,6 +112,14 @@ def get_data(cfg, show_progress=False, force=False, clean=False):
     saturation_level = get_saturation_level(instrument_cfg)
     distortion = get_distortion_correction(instrument_cfg)
     set_planedata_exclusions(cfg, detector, pd)
+    # HANDLE OMEGA STOP
+    if cfg.image_series.omega.stop is None:
+        assert cfg.image_series.images.stop is not None, \
+            "Must specify stop point, either in omega or image"
+        omega_stop = cfg.image_series.omega.start + \
+            cfg.image_series.omega.step*cfg.image_series.images.stop
+    else:
+        omega_stop =  cfg.image_series.omega.stop
     pkwargs = {
         'detector_params': detector_params,
         'distortion': distortion,
@@ -124,7 +132,7 @@ def get_data(cfg, show_progress=False, force=False, clean=False):
         'omega_period': np.radians(cfg.find_orientations.omega.period),
         'omega_start': cfg.image_series.omega.start,
         'omega_step': cfg.image_series.omega.step,
-        'omega_stop': cfg.image_series.omega.stop,
+        'omega_stop': omega_stop,
         'omega_tol': cfg.fit_grains.tolerance.omega,
         'overlap_table': os.path.join(cfg.analysis_dir, 'overlap_table.npz'),
         'panel_buffer': cfg.fit_grains.panel_buffer,
