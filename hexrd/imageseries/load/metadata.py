@@ -33,7 +33,7 @@ Currently only one trigger is used:
 
         if v == '++np.array': # old way used in frame-cache (obsolescent)
             newk = k + '-array'
-            metad[k] = np.array(self._meta.pop(newk))
+            metad[k] = np.array(meta.pop(newk))
             metad.pop(newk, None)
         elif istrigger:
             if words[1] == "load-numpy-array":

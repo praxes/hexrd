@@ -87,6 +87,7 @@ class TestFormatFrameCache(ImageSeriesFormatTest):
 
     def tearDown(self):
         os.remove(self.fcfile)
+        os.remove(os.path.join(self.tmpdir, self.cache_file))
 
 
     def test_fmtfc(self):

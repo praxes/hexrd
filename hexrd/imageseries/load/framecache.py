@@ -38,8 +38,11 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
     def _load_cache(self):
         """load into list of csr sparse matrices"""
         bpath = os.path.dirname(self._fname)
-        arrs = np.load(os.path.join(bpath, self._cache))
-        print bpath, os.path.join(bpath, self._cache)
+        if os.path.isabs(self._cache):
+            cachepath = self._cache
+        else:
+            cachepath = os.path.join(bpath, self._cache)
+        arrs = np.load(cachepath)
 
         self._framelist = []
         for i in range(self._nframes):
