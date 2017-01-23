@@ -92,7 +92,7 @@ def execute(args, parser):
         )
     if os.path.exists(quats_f) and not (args.force or args.clean):
         logger.error(
-            '%s already exists. Change yml file or specify "force"', quats_f
+            '%s already exists. Change yml file or specify "force" or "clean"', quats_f
             )
         sys.exit()
     if not os.path.exists(cfg.working_dir):

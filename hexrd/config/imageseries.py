@@ -1,132 +1,98 @@
 import glob
 import os
 
+import numpy as np
+
 from .config import Config
-
-
-
-class FileConfig(Config):
-
-
-    @property
-    def stem(self):
-        temp = self._cfg.get('image_series:file:stem')
-        if not os.path.isabs(temp):
-            temp = os.path.join(self._cfg.working_dir, temp)
-        return temp
-
-
-    @property
-    def ids(self):
-        temp = self._cfg.get('image_series:file:ids')
-        return temp if isinstance(temp, list) else [temp]
-
-
-
-class ImagesConfig(Config):
-
-
-    @property
-    def start(self):
-        return self._cfg.get('image_series:images:start', default=0)
-
-
-    @property
-    def step(self):
-        return self._cfg.get('image_series:images:step', default=1)
-
-
-    @property
-    def stop(self):
-        return self._cfg.get('image_series:images:stop', default=None)
-
-
-
-class OmegaConfig(Config):
-
-
-    @property
-    def start(self):
-        return self._cfg.get('image_series:omega:start')
-
-
-    @property
-    def step(self):
-        return self._cfg.get('image_series:omega:step')
-
-
-    @property
-    def stop(self):
-        return self._cfg.get('image_series:omega:stop')
-
+from hexrd import imageseries
 
 
 class ImageSeriesConfig(Config):
 
+    def __init__(self, cfg):
+        super(ImageSeriesConfig, self).__init__(cfg)
+        self._imser = None
+        self._omseries = None
 
     @property
-    def dark(self):
-        temp = self._cfg.get(
-            'image_series:dark', default=None
-            )
-        if temp is None or os.path.exists(temp):
-            return temp
-        raise IOError(
-            '"image_series:dark": "%s" does not exist' % temp
-            )
-
+    def imageseries(self):
+        """return the imageseries without checking for omega metadata"""
+        if self._imser is None:
+            self._imser = imageseries.open(self.filename, self.format, **self.args)
+        plist = self.process.process_list
+        if plist:
+            self._imser = imageseries.process.ProcessedImageSeries(self._imser, plist)
+        return self._imser
 
     @property
-    def file(self):
-        return FileConfig(self._cfg)
+    def omegaseries(self):
+        """return the imageseries and ensure it has omega metadata"""
+        if self._omseries is None:
+            self._omseries = imageseries.omega.OmegaImageSeries(self.imageseries)
+        return self._omseries
 
-
-    @property
-    def files(self):
-        stem = self._cfg.image_series.file.stem
-        res = []
-        missing = []
-        for id in self._cfg.image_series.file.ids:
-            try:
-                id = stem % id
-            except TypeError:
-                # string interpolation failed, join stem and id:
-                id = stem + id
-            temp = glob.glob(id)
-            if temp:
-                res.extend(temp)
-            else:
-                missing.append(id)
-        if missing:
-            raise IOError(
-                'Image files not found: %s' % (', '.join(missing))
-                )
-        return res
-
+    # ========== yaml inputs
 
     @property
-    def flip(self):
-        temp = self._cfg.get('image_series:flip', default=None)
-        if temp is None:
-            return
-        temp = temp.lower()
-        if temp not in ['h', 'v', 'hv', 'vh', 'cw90', 'ccw90']:
-            raise RuntimeError(
-                'image_series:flip setting "%s" is not valid' % temp
-                )
+    def filename(self):
+        temp = self._cfg.get('image_series:filename')
+        if not os.path.isabs(temp):
+            temp = os.path.join(self._cfg.working_dir, temp)
         return temp
 
+    @property
+    def format(self):
+        return self._cfg.get('image_series:format')
 
     @property
-    def images(self):
-        return ImagesConfig(self._cfg)
+    def args(self):
+        return self._cfg.get('image_series:args', default={})
 
+    # ========== Other Configs
 
     @property
     def omega(self):
         return OmegaConfig(self._cfg)
 
+    @property
+    def process(self):
+        return ProcessConfig(self._cfg)
+
+
+class ProcessConfig(Config):
 
     @property
-    def n_frames(self):
-        return (self.omega.stop - self.omega.start)/self.omega.step
+    def process_list(self):
+        plist = []
+        dark = self.dark
+        if self.dark is not None:
+            plist.append(('dark', dark))
+        flip = self.flip
+        if self.flip is not None:
+            plist.append(('flip', flip))
+
+        return plist
+
+    @property
+    def flip(self):
+        return self._cfg.get('image_series:process:flip', default=None)
+
+    @property
+    def dark(self):
+        fname = self._cfg.get('image_series:process:dark', default=None)
+        return np.load(fname)
+
+
+class OmegaConfig(Config):
+
+    @property
+    def step(self):
+        return self._cfg.get('image_series:omega:step')
+
+    @property
+    def start(self):
+        return self._cfg.get('image_series:omega:start')
+
+    @property
+    def stop(self):
+        return self._cfg.get('image_series:omega:stop')

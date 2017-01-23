@@ -1,5 +1,4 @@
 import collections
-from ConfigParser import SafeConfigParser
 import copy
 import logging
 import os
@@ -169,21 +168,9 @@ def initialize_experiment(cfg):
 
     pd = ws.activeMaterial.planeData
 
-    image_start = cfg.image_series.images.start
-    dark = cfg.image_series.dark
-    flip = cfg.image_series.flip
-
     # detector data
     try:
-        reader = ReadGE(
-            [(f, image_start) for f in cfg.image_series.files],
-            np.radians(cfg.image_series.omega.start),
-            np.radians(cfg.image_series.omega.step),
-            subtractDark=dark is not None, # TODO: get rid of this
-            dark=dark,
-            doFlip=flip is not None,
-            flipArg=flip, # TODO: flip=flip
-            )
+        reader = ReadGE(cfg.image_series.omegaseries)
     except IOError:
         logger.info("raw data not found, skipping reader init")
         reader = None
@@ -192,7 +179,7 @@ def initialize_experiment(cfg):
         ws.loadDetector(os.path.join(cwd, detector_fname))
         detector = ws.detector
     except IOError:
-        logger.info("old detector par file not found, skipping; \nalthough you may need this for find-orientations")        
+        logger.info("old detector par file not found, skipping; \nalthough you may need this for find-orientations")
         detector = None
 
     return pd, reader, detector

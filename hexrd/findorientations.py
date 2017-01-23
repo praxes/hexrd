@@ -6,6 +6,8 @@ import multiprocessing as mp
 import os
 import time
 
+import yaml
+
 import numpy as np
 #np.seterr(over='ignore', invalid='ignore')
 
@@ -18,9 +20,12 @@ from hexrd.xrd import rotations as rot
 from hexrd.xrd import symmetry as sym
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
-from hexrd.coreutil import initialize_experiment
 
 from hexrd.xrd import xrdutil
+
+from hexrd.xrd.detector import ReadGE
+from hexrd.xrd.xrdutil import GenerateEtaOmeMaps, EtaOmeMaps, simulateGVecs
+
 from hexrd.xrd.xrdutil import simulateGVecs
 
 from hexrd.xrd import distortion as dFuncs
@@ -44,7 +49,7 @@ except ImportError:
     pass
 
 
-def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndiv, filt_stdev=0.8):
+def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndiv, filt_stdev=0.8, ncpus=1):
     """
     From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
@@ -61,16 +66,24 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
 
     # crystallography data from the pd object
     pd = eta_ome.planeData
+    hkls = pd.hkls
     tTh  = pd.getTTh()
     bMat = pd.latVecOps['B']
     csym = pd.getLaueGroup()
+
+    params = {
+        'bMat':bMat,
+        'chi':chi,
+        'csym':csym,
+        'fiber_ndiv':fiber_ndiv,
+         }
 
     ############################################
     ##    Labeling of spots from seed hkls    ##
     ############################################
 
     qfib     = []
-    labels   = []
+    input_p  = []
     numSpots = []
     coms     = []
     for i in seed_hkl_ids:
@@ -88,53 +101,78 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
                 index=np.arange(1, np.amax(labels_t)+1)
                 )
             )
-        labels.append(labels_t)
+        #labels.append(labels_t)
         numSpots.append(numSpots_t)
         coms.append(coms_t)
         pass
 
-    ############################################
-    ##  Generate discrete fibers from labels  ##
-    ############################################
-
     for i in range(len(pd_hkl_ids)):
-        ii = 0
-        qfib_tmp = np.empty((4, fiber_ndiv*numSpots[i]))
         for ispot in range(numSpots[i]):
             if not np.isnan(coms[i][ispot][0]):
-                ome_c = eta_ome.omeEdges[0] \
-                        + (0.5 + coms[i][ispot][0])*del_ome
-                eta_c = eta_ome.etaEdges[0] \
-                        + (0.5 + coms[i][ispot][1])*del_eta
-
-                #gVec_s = xrdutil.makeMeasuredScatteringVectors(
-                #    tTh[pd_hkl_ids[i]], eta_c, ome_c
-                #    )
-                gVec_s = xfcapi.anglesToGVec(
-                    np.atleast_2d(
-                        [tTh[pd_hkl_ids[i]], eta_c, ome_c]
-                        ),
-                    chi=chi
-                    ).T
-
-                tmp = mutil.uniqueVectors(
-                    rot.discreteFiber(
-                        pd.hkls[:, pd_hkl_ids[i]].reshape(3, 1),
-                        gVec_s,
-                        B=bMat,
-                        ndiv=fiber_ndiv,
-                        invert=False,
-                        csym=csym
-                        )[0]
+                ome_c = eta_ome.omeEdges[0] + (0.5 + coms[i][ispot][0])*del_ome
+                eta_c = eta_ome.etaEdges[0] + (0.5 + coms[i][ispot][1])*del_eta
+                input_p.append(
+                    np.hstack(
+                        [hkls[:, pd_hkl_ids[i]],
+                         tTh[pd_hkl_ids[i]], eta_c, ome_c]
                     )
-                jj = ii + tmp.shape[1]
-                qfib_tmp[:, ii:jj] = tmp
-                ii += tmp.shape[1]
+                )
                 pass
             pass
-        qfib.append(qfib_tmp[:, :ii])
         pass
+
+    # do the mapping
+    start = time.time()
+    qfib = None
+    if ncpus > 1:
+        # multiple process version
+        pool = mp.Pool(ncpus, discretefiber_init, (params, ))
+        qfib = pool.map(discretefiber_reduced, input_p) # chunksize=chunksize)
+        pool.close()
+    else:
+        # single process version.
+        global paramMP
+        discretefiber_init(params) # sets paramMP
+        qfib = map(discretefiber_reduced, input_p)
+        paramMP = None # clear paramMP
+    elapsed = (time.time() - start)
+    logger.info("fiber generation took %.3f seconds", elapsed)
+
     return np.hstack(qfib)
+
+
+def discretefiber_init(params):
+    global paramMP
+    paramMP = params
+
+
+def discretefiber_reduced(params_in):
+    """
+    input parameters are [hkl_id, com_ome, com_eta]
+    """
+    bMat       = paramMP['bMat']
+    chi        = paramMP['chi']
+    csym       = paramMP['csym']
+    fiber_ndiv = paramMP['fiber_ndiv']
+
+    hkl = params_in[:3].reshape(3, 1)
+
+    gVec_s = xfcapi.anglesToGVec(
+        np.atleast_2d(params_in[3:]),
+        chi=chi,
+        ).T
+
+    tmp = mutil.uniqueVectors(
+        rot.discreteFiber(
+            hkl,
+            gVec_s,
+            B=bMat,
+            ndiv=fiber_ndiv,
+            invert=False,
+            csym=csym
+            )[0]
+        )
+    return tmp
 
 
 def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, radius=None):
@@ -263,7 +301,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             ).flatten()
             pass
         pass
-    
+
     if (algorithm == 'dbscan' or algorithm == 'ort-dbscan') \
       and qbar.size/4 > 1:
         logger.info("\tchecking for duplicate orientations...")
@@ -272,7 +310,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             np.radians(cl_radius),
             criterion='distance',
             metric=quat_distance)
-        nblobs_new = len(np.unique(cl)) 
+        nblobs_new = len(np.unique(cl))
         if nblobs_new < nblobs:
             logger.info("\tfound %d duplicates within %f degrees" \
                         %(nblobs-nblobs_new, cl_radius))
@@ -286,7 +324,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             qbar = tmp
             pass
         pass
-    
+
     logger.info("clustering took %f seconds", time.clock() - start)
     logger.info(
         "Found %d orientation clusters with >=%.1f%% completeness"
@@ -299,15 +337,19 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
     return np.atleast_2d(qbar), cl
 
 
-def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None, clean=False):
+def load_eta_ome_maps(cfg, pd, image_series, hkls=None, clean=False):
     fn = os.path.join(
         cfg.working_dir,
         cfg.find_orientations.orientation_maps.file
         )
 
+    # ...necessary?
+    if fn.split('.')[-1] != 'npz':
+        fn = fn + '.npz'
+
     if not clean:
         try:
-            res = cPickle.load(open(fn, 'r'))
+            res = EtaOmeMaps(fn)
             pd = res.planeData
             available_hkls = pd.hkls.T
             logger.info('loaded eta/ome orientation maps from %s', fn)
@@ -316,12 +358,12 @@ def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None, clean=False):
                 'hkls used to generate orientation maps: %s', hkls)
             return res
         except (AttributeError, IOError):
-            return generate_eta_ome_maps(cfg, pd, reader, detector, hkls)
+            return generate_eta_ome_maps(cfg, pd, image_series, hkls)
     else:
         logger.info('clean option specified; recomputing eta/ome orientation maps')
-        return generate_eta_ome_maps(cfg, pd, reader, detector, hkls)
+        return generate_eta_ome_maps(cfg, pd, image_series, hkls)
 
-def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
+def generate_eta_ome_maps(cfg, pd, image_series, hkls=None):
 
     available_hkls = pd.hkls.T
     # default to all hkls defined for material
@@ -337,19 +379,16 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
         ', '.join([str(i) for i in available_hkls[active_hkls]])
         )
 
-    # not ready # eta_ome = xrdutil.EtaOmeMaps(cfg, reader=reader, eta_step=None)
     bin_frames = cfg.find_orientations.orientation_maps.bin_frames
-    eta_bins = np.int(2*np.pi / abs(reader.getDeltaOmega())) / bin_frames
-    eta_ome = xrdutil.CollapseOmeEta(
-        reader,
-        pd,
-        pd.hkls[:, active_hkls],
-        detector,
-        nframesLump=bin_frames,
-        nEtaBins=eta_bins,
-        debug=False,
+    ome_step = cfg.image_series.omega.step*bin_frames
+    instrument_params = yaml.load(open(cfg.instrument.parameters, 'r'))
+
+    # generate maps
+    eta_ome = GenerateEtaOmeMaps(
+        image_series, instrument_params, pd, active_hkls,
+        ome_step=ome_step,
         threshold=cfg.find_orientations.orientation_maps.threshold
-        ).getEtaOmeMaps()
+        )
 
     fn = os.path.join(
         cfg.working_dir,
@@ -358,8 +397,7 @@ def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
     fd = os.path.split(fn)[0]
     if not os.path.isdir(fd):
         os.makedirs(fd)
-    with open(fn, 'w') as f:
-        cPickle.dump(eta_ome, f)
+    eta_ome.save(fn)
     logger.info("saved eta/ome orientation maps to %s", fn)
     return eta_ome
 
@@ -370,14 +408,20 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
 
     NOTE: single cfg instance, not iterator!
     """
+
     # ...make this an attribute in cfg?
     analysis_id = '%s_%s' %(
         cfg.analysis_name.strip().replace(' ', '-'),
         cfg.material.active.strip().replace(' ', '-'),
         )
-    
-    # a goofy call, could be replaced with two more targeted calls
-    pd, reader, detector = initialize_experiment(cfg)
+
+    # grab planeData object
+    matl = cPickle.load(open('materials.cpl', 'r'))
+    md = dict(zip([matl[i].name for i in range(len(matl))], matl))
+    pd = md[cfg.material.active].planeData
+
+    # make image_series
+    image_series = cfg.image_series.omegaseries
 
     # need instrument cfg later on down...
     instr_cfg = get_instrument_parameters(cfg)
@@ -406,11 +450,12 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     logger.info("beginning analysis '%s'", cfg.analysis_name)
 
     # load the eta_ome orientation maps
-    eta_ome = load_eta_ome_maps(cfg, pd, reader, detector, hkls=hkls, clean=clean)
+    eta_ome = load_eta_ome_maps(cfg, pd, image_series, hkls=hkls, clean=clean)
 
-    ome_range = (np.min(eta_ome.omeEdges),
-                 np.max(eta_ome.omeEdges)
-                 )
+    ome_range = (
+        np.min(eta_ome.omeEdges),
+        np.max(eta_ome.omeEdges)
+        )
     try:
         # are we searching the full grid of orientation space?
         qgrid_f = cfg.find_orientations.use_quaternion_grid
@@ -446,7 +491,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
                 )
 
     # generate the completion maps
-    logger.info("Running paintgrid on %d trial orientations", (quats.shape[1]))
+    logger.info("Running paintgrid on %d trial orientations", quats.shape[1])
     if profile:
         logger.info("Profiling mode active, forcing ncpus to 1")
         ncpus = 1
@@ -488,6 +533,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
           * mutil.unitVector(rand_q[1:, :])
         refl_per_grain = np.zeros(ngrains)
         num_seed_refls = np.zeros(ngrains)
+        print('fo: hklids = ', hkl_ids)
         for i in range(ngrains):
             grain_params = np.hstack([rand_e[:, i],
                                       xf.zeroVec.flatten(),
@@ -504,8 +550,11 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
                                         distortion=distortion,
                                         )
             refl_per_grain[i] = len(sim_results[0])
-            num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
-            pass
+            # lines below fix bug when sim_results[0] is empty
+            if refl_per_grain[i] > 0:
+                num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
+            else:
+                num_seed_refls[i] = 0
         #min_samples = 2
         min_samples = max(
             int(np.floor(0.5*min_compl*min(num_seed_refls))),
@@ -526,7 +575,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
         cfg.analysis_name.strip().replace(' ', '-'),
         cfg.material.active.strip().replace(' ', '-'),
         )
-                                
+
     np.savetxt(
         os.path.join(
             cfg.working_dir,

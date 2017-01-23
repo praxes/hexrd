@@ -44,6 +44,7 @@ sqr6i  = 1./sqrt(6.)
 sqr3i  = 1./sqrt(3.)
 sqr2i  = 1./sqrt(2.)
 sqr2   = sqrt(2.)
+sqr3   = sqrt(3.)
 sqr2b3 = sqrt(2./3.)
 
 fpTol = finfo(float).eps                # ~2.2e-16
@@ -663,3 +664,133 @@ def determinant3(mat):
     det = sum(mat[2,:] * v[:])
     return det
 
+def strainTenToVec(strainTen):
+    
+    strainVec = num.zeros(6, dtype='float64')
+    strainVec[0] = strainTen[0, 0]
+    strainVec[1] = strainTen[1, 1]
+    strainVec[2] = strainTen[2, 2]
+    strainVec[3] = 2*strainTen[1, 2] 
+    strainVec[4] = 2*strainTen[0, 2] 
+    strainVec[5] = 2*strainTen[0, 1]  
+   
+    strainVec=num.atleast_2d(strainVec).T  
+    
+    return strainVec
+    
+def strainVecToTen(strainVec): 
+    
+    strainTen = num.zeros((3, 3), dtype='float64')
+    strainTen[0, 0] = strainVec[0]
+    strainTen[1, 1] = strainVec[1]
+    strainTen[2, 2] = strainVec[2]
+    strainTen[1, 2] = strainVec[3] / 2
+    strainTen[0, 2] = strainVec[4] / 2 
+    strainTen[0, 1] = strainVec[5] / 2  
+    strainTen[2, 1] = strainVec[3] / 2 
+    strainTen[2, 0] = strainVec[4] / 2 
+    strainTen[1, 0] = strainVec[5] / 2  
+    
+    return strainTen
+    
+    
+def stressTenToVec(stressTen):
+    
+    stressVec = num.zeros(6, dtype='float64')
+    stressVec[0] = stressTen[0, 0]
+    stressVec[1] = stressTen[1, 1]
+    stressVec[2] = stressTen[2, 2]
+    stressVec[3] = stressTen[1, 2] 
+    stressVec[4] = stressTen[0, 2] 
+    stressVec[5] = stressTen[0, 1]  
+   
+    stressVec=num.atleast_2d(stressVec).T  
+    
+    return stressVec
+    
+    
+def stressVecToTen(stressVec):  
+    
+    stressTen = num.zeros((3, 3), dtype='float64')
+    stressTen[0, 0] = stressVec[0]
+    stressTen[1, 1] = stressVec[1]
+    stressTen[2, 2] = stressVec[2]
+    stressTen[1, 2] = stressVec[3]
+    stressTen[0, 2] = stressVec[4] 
+    stressTen[0, 1] = stressVec[5]  
+    stressTen[2, 1] = stressVec[3]
+    stressTen[2, 0] = stressVec[4]
+    stressTen[1, 0] = stressVec[5] 
+    
+    return stressTen
+    
+ 
+   
+    
+def ale3dStrainOutToV(vecds):  
+    #takes 5 components of evecd and the 6th component is lndetv
+        
+    
+    """convert from vecds representation to symmetry matrix"""
+    eps = num.zeros([3,3],dtype='float64')
+    #Akk_by_3 = sqr3i * vecds[5] # -p
+    a = num.exp(vecds[5])**(1./3.)# -p
+    t1 = sqr2i*vecds[0]
+    t2 = sqr6i*vecds[1]
+
+    eps[0, 0] =    t1 - t2     
+    eps[1, 1] =   -t1 - t2     
+    eps[2, 2] = sqr2b3*vecds[1] 
+    eps[1, 0] = vecds[2] * sqr2i          
+    eps[2, 0] = vecds[3] * sqr2i          
+    eps[2, 1] = vecds[4] * sqr2i          
+
+    eps[0, 1] = eps[1, 0]
+    eps[0, 2] = eps[2, 0]
+    eps[1, 2] = eps[2, 1]
+    
+    epstar=eps/a
+    
+    V=(num.identity(3)+epstar)*a
+    Vinv=(num.identity(3)-epstar)/a
+    
+    return V,Vinv
+
+def vecdsToSymm(vecds):
+    """convert from vecds representation to symmetry matrix"""
+    A = num.zeros([3,3],dtype='float64')
+    Akk_by_3 = sqr3i * vecds[5] # -p
+    t1 = sqr2i*vecds[0]
+    t2 = sqr6i*vecds[1]
+
+    A[0, 0] =    t1 - t2 + Akk_by_3     
+    A[1, 1] =   -t1 - t2 + Akk_by_3     
+    A[2, 2] = sqr2b3*vecds[1] + Akk_by_3
+    A[1, 0] = vecds[2] * sqr2i          
+    A[2, 0] = vecds[3] * sqr2i          
+    A[2, 1] = vecds[4] * sqr2i          
+
+    A[0, 1] = A[1, 0]
+    A[0, 2] = A[2, 0]
+    A[1, 2] = A[2, 1]
+    return A
+ 
+def traceToVecdsS(Akk):
+    return sqr3i * Akk
+
+def vecdsSToTrace(vecdsS):
+    return vecdsS * sqr3
+
+def trace3(A):
+    return A[0,0]+A[1,1]+A[2,2]
+   
+def symmToVecds(A):
+    """convert from symmetry matrix to vecds representation"""
+    vecds = num.zeros(6,dtype='float64')
+    vecds[0] = sqr2i * (A[0,0] - A[1,1])
+    vecds[1] = sqr6i * (2. * A[2,2] - A[0,0] - A[1,1]) 
+    vecds[2] = sqr2 * A[1,0]
+    vecds[3] = sqr2 * A[2,0]
+    vecds[4] = sqr2 * A[2,1]
+    vecds[5] = traceToVecdsS(trace3(A))
+    return vecds

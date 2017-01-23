@@ -36,7 +36,7 @@ import copy
 
 
 #### 1-D Peak Fitting
-def estimate_pk_parms_1d(x,f,pktype):
+def estimate_pk_parms_1d(x,f,pktype='pvoigt'):
     """
     Gives initial guess of parameters for analytic fit of one dimensional peak
     data.
@@ -98,7 +98,7 @@ def estimate_pk_parms_1d(x,f,pktype):
     return p
       
     
-def fit_pk_parms_1d(p0,x,f,pktype):
+def fit_pk_parms_1d(p0,x,f,pktype='pvoigt'):
     """
     Performs least squares fit to find parameters for 1d analytic functions fit
     to diffraction data

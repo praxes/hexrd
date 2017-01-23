@@ -70,7 +70,7 @@ class TestFindOrientationsConfig(TestConfig):
         return reference_data
 
 
-    def test_threshold(self):
+    def test_gvecs(self):
         self.assertFalse(
             self.cfgs[0].find_orientations.extract_measured_g_vectors
             )
