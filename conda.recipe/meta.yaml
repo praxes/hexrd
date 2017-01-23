@@ -5,8 +5,7 @@ package:
 
 source:
   git_url: https://github.com/joelvbernier/hexrd.git
-  #git_tag: master # edit to point to specific branch or tag
-  git_tag: v0.3.x
+  git_tag: master # edit to point to specific branch or tag
 
 build:
   number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
