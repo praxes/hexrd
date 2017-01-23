@@ -58,6 +58,10 @@ class ImageSeriesConfig(Config):
     def process(self):
         return ProcessConfig(self._cfg)
 
+    @property
+    def stop(self):
+        return self._cfg.get('image_series:omega:stop', default=None)
+
 
 class ProcessConfig(Config):
 

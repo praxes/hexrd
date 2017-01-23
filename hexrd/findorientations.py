@@ -137,7 +137,7 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
         paramMP = None # clear paramMP
     elapsed = (time.time() - start)
     logger.info("fiber generation took %.3f seconds", elapsed)
-
+    
     return np.hstack(qfib)
 
 
@@ -156,7 +156,7 @@ def discretefiber_reduced(params_in):
     fiber_ndiv = paramMP['fiber_ndiv']
 
     hkl = params_in[:3].reshape(3, 1)
-
+    
     gVec_s = xfcapi.anglesToGVec(
         np.atleast_2d(params_in[3:]),
         chi=chi,
@@ -480,7 +480,8 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
             detector_params[6],
             cfg.find_orientations.threshold,
             cfg.find_orientations.seed_search.hkl_seeds,
-            cfg.find_orientations.seed_search.fiber_ndiv
+            cfg.find_orientations.seed_search.fiber_ndiv,
+            ncpus=cfg.multiprocessing,
             )
         if save_as_ascii:
             np.savetxt(
@@ -489,7 +490,9 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
                 fmt="%.18e",
                 delimiter="\t"
                 )
-
+            pass
+        pass # close conditional on grid search
+    
     # generate the completion maps
     logger.info("Running paintgrid on %d trial orientations", quats.shape[1])
     if profile:

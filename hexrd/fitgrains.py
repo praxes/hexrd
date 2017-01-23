@@ -112,6 +112,14 @@ def get_data(cfg, show_progress=False, force=False, clean=False):
     saturation_level = get_saturation_level(instrument_cfg)
     distortion = get_distortion_correction(instrument_cfg)
     set_planedata_exclusions(cfg, detector, pd)
+    # HANDLE OMEGA STOP
+    if cfg.image_series.omega.stop is None:
+        assert cfg.image_series.images.stop is not None, \
+            "Must specify stop point, either in omega or image"
+        omega_stop = cfg.image_series.omega.start + \
+            cfg.image_series.omega.step*cfg.image_series.images.stop
+    else:
+        omega_stop =  cfg.image_series.omega.stop
     pkwargs = {
         'detector_params': detector_params,
         'distortion': distortion,
@@ -124,8 +132,9 @@ def get_data(cfg, show_progress=False, force=False, clean=False):
         'omega_period': np.radians(cfg.find_orientations.omega.period),
         'omega_start': cfg.image_series.omega.start,
         'omega_step': cfg.image_series.omega.step,
-        'omega_stop': cfg.image_series.omega.stop,
+        'omega_stop': omega_stop,
         'omega_tol': cfg.fit_grains.tolerance.omega,
+        'overlap_table': os.path.join(cfg.analysis_dir, 'overlap_table.npz'),
         'panel_buffer': cfg.fit_grains.panel_buffer,
         'pixel_pitch': instrument_cfg['detector']['pixels']['size'],
         'plane_data': pd,
@@ -327,7 +336,23 @@ class FitGrainsWorker(object):
             idx = np.logical_and(valid_refl_ids, unsat_spots)
             pass # end if edge case
 
-        # completeness from pullspots only; incl saturated
+        # if an overlap table has been written, load it and use it
+        overlaps = np.zeros(len(refl_table), dtype=bool)
+        try:
+            ot = np.load(self._p['overlap_table'])
+            for key in ot.keys():
+                for this_table in ot[key]:
+                    these_overlaps = np.where(
+                        this_table[:, 0] == grain_id)[0]
+                    if len(these_overlaps) > 0:
+                        mark_these = np.array(this_table[these_overlaps, 1], dtype=int)
+                        overlaps[mark_these] = True
+            idx = np.logical_and(idx, ~overlaps)
+        except IOError, IndexError:
+            #print "no overlap table found"
+            pass
+        
+        # completeness from pullspots only; incl saturated and overlaps
         completeness = sum(valid_refl_ids)/float(len(valid_refl_ids))
 
         # extract data from grain table
@@ -430,13 +455,6 @@ class FitGrainsWorker(object):
 
     def loop(self):
         id, grain_params = self._jobs.get(False)
-
-        # slated for removal ## skips the first loop if have_estimate is True
-        # slated for removal #if self._p['skip_on_estimate']:
-        # slated for removal #    have_estimate = not np.all(grain_params[-9:] == [0,0,0,1,1,1,0,0,0])
-        # slated for removal #    iterations = (have_estimate, len(self._p['eta_tol']))
-        # slated for removal #else:
-        # slated for removal #    iterations = (0, len(self._p['eta_tol']))
         iterations = (0, len(self._p['eta_tol']))
         for iteration in range(*iterations):
             # pull spots if asked to, otherwise just fit
