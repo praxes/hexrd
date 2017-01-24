@@ -1,11 +1,14 @@
 """Adapter class for frame caches
 """
-from . import ImageSeriesAdapter
-from ..imageseriesiter import ImageSeriesIterator
+import os
 
 import numpy as np
 from scipy.sparse import csr_matrix
 import yaml
+
+from . import ImageSeriesAdapter
+from ..imageseriesiter import ImageSeriesIterator
+from .metadata import yamlmeta
 
 class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
     """collection of images in HDF5 format"""
@@ -30,11 +33,16 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
         self._nframes = datad['nframes']
         self._shape = tuple(datad['shape'])
         self._dtype = np.dtype(datad['dtype'])
-        self._meta = self.load_metadata(d['meta'])
+        self._meta = yamlmeta(d['meta'], path=self._cache)
 
     def _load_cache(self):
         """load into list of csr sparse matrices"""
-        arrs = np.load(self._cache)
+        bpath = os.path.dirname(self._fname)
+        if os.path.isabs(self._cache):
+            cachepath = self._cache
+        else:
+            cachepath = os.path.join(bpath, self._cache)
+        arrs = np.load(cachepath)
 
         self._framelist = []
         for i in range(self._nframes):
@@ -56,6 +64,7 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
 
         Currently returns none
         """
+        #### Currently not used: saved temporarily for np.array trigger
         metad = {}
         for k, v in indict.items():
             if v == '++np.array':

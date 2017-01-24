@@ -10,19 +10,68 @@ OMEGA_KEY = 'omega'
 
 class OmegaImageSeries(ImageSeries):
     """ImageSeries with omega metadata"""
+    DFLT_TOL = 1.0e-6
+
     def __init__(self, ims):
         """This class is initialized with an existing imageseries"""
         # check for omega metadata
-        if OMEGA_KEY not in ims.metadata:
-            raise RuntimeError('Imageseries has no omega metadata')
+        if OMEGA_KEY in ims.metadata:
+            self._omega = ims.metadata[OMEGA_KEY]
+            if len(ims) != self._omega.shape[0]:
+                msg = 'omega array mismatch: array has %s frames, expecting %s'
+                msg = msg % (self._omega.shape[0], len(ims))
+                raise OmegaSeriesError(msg)
+        else:
+            raise OmegaSeriesError('Imageseries has no omega metadata')
 
-        # use the imageseries as the adapter, as it may be a processed imageseries
         super(OmegaImageSeries, self).__init__(ims)
+        self._make_wedges()
+
+    def _make_wedges(self, tol=DFLT_TOL):
+        nf = len(self)
+        om = self.omega
+
+        # find the frames where the wedges break
+        starts = [0]
+        delta = om[0, 1] - om[0, 0]
+        omlast = om[0, 1]
+        for f in range(1, nf):
+            if delta <= 0:
+                raise OmegaSeriesError('omega array must be increasing')
+            # check whether delta changes or ranges not contiguous
+            d = om[f,1] - om[f,0]
+            if (np.abs(d - delta) > tol) or (np.abs(om[f,0] - omlast) > tol):
+                starts.append(f)
+                delta = d
+            omlast = om[f, 1]
+        starts.append(nf)
+
+        self._omegawedges = OmegaWedges(nf)
+        for s in range(len(starts) - 1):
+            ostart = om[starts[s], 0]
+            ostop = om[starts[s + 1] - 1, 1]
+            steps = starts[s+1] - starts[s]
+            self._omegawedges.addwedge(ostart, ostop, steps)
 
     @property
     def omega(self):
         """return omega range array (nframes, 2)"""
-        return self.metadata[OMEGA_KEY]
+        return self._omega
+
+    @property
+    def omegawedges(self):
+        return self._omegawedges
+
+    @property
+    def nwedges(self):
+        return self.omegawedges.nwedges
+
+    def wedge(self, i):
+        """return i'th wedge as a dictionary"""
+        d = self.omegawedges.wedges[i]
+        delta = (d['ostop'] - d['ostart'])/d['nsteps']
+        d.update(delta=delta)
+        return d
 
 
 class OmegaWedges(object):
@@ -40,7 +89,7 @@ class OmegaWedges(object):
         if self.nframes != self.wframes:
             msg = "number of frames (%s) does not match "\
                   "number of wedge frames (%s)" %(self.nframes, self.wframes)
-            raise OmegaWedgesError(msg)
+            raise OmegaSeriesError(msg)
 
         oa = np.zeros((self.nframes, 2))
         wstart = 0
@@ -50,6 +99,7 @@ class OmegaWedges(object):
             wa0 = np.linspace(w['ostart'], w['ostop'], ns + 1)
             oa[wr, 0] = wa0[:-1]
             oa[wr, 1] = wa0[1:]
+            wstart += ns
 
         return oa
 
@@ -60,7 +110,7 @@ class OmegaWedges(object):
 
     @property
     def wedges(self):
-        """list of wedges (dictionary)"""
+        """list of wedges (dictionaries)"""
         return self._wedges
 
     def addwedge(self, ostart, ostop, nsteps, loc=None):
@@ -88,7 +138,7 @@ class OmegaWedges(object):
     pass  # end class
 
 
-class OmegaWedgesError(Exception):
+class OmegaSeriesError(Exception):
     def __init__(self, value):
         self.value = value
     def __str__(self):

@@ -85,7 +85,7 @@ number of files: %s
         self._empty = self.optsd[EMPTY] if EMPTY in self.optsd else 0
         self._maxframes = self.optsd[MAXF] if MAXF in self.optsd else 0
 
-        self._meta = yamlmeta(d['meta'])
+        self._meta = yamlmeta(d['meta'], path=imgsd)
 
     def _process_files(self):
         kw = {'empty': self._empty}
