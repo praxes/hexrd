@@ -87,7 +87,7 @@ class ProcessedImageSeries(ImageSeries):
 
     @property
     def shape(self):
-        return self._imser.shape
+        return self[0].shape
 
     @property
     def metadata(self):
