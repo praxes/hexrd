@@ -57,7 +57,7 @@ source_suffix = '.rst'
 # The encoding of source files.
 #source_encoding = 'utf-8-sig'
 
-if 'dev' in __version__:
+if '+' in __version__:
     todo_include_todos = True
     rst_prolog = """
 .. note::

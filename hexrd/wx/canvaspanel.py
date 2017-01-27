@@ -289,12 +289,14 @@ class CanvasPanel(wx.Panel):
         li = kwargs['loadImage']
         ui = kwargs['updateImage']
         oninit = kwargs['onInit']
+        print 'li: ', li
         #
         #  Show image if box is checked.
         #
         app = wx.GetApp()
         exp = app.ws
         img = exp.active_img
+        
 
         if img is None:
             # no active image, but possibly one on the axes
@@ -304,9 +306,11 @@ class CanvasPanel(wx.Panel):
                 img0.set_visible(False)
         else:
             si = self.showImage_box.IsChecked()
-
+            
             if ni or ui:
                 # not using axes image list
+                if ni: self.axes.set_autoscale_on(True)
+        
                 self.axes.images = []
 
                 self.axes.imshow(img,
@@ -339,7 +343,10 @@ class CanvasPanel(wx.Panel):
         #
         #rcho = self.rings_cho
         #ResetChoice(rcho, exp.matNames, rcho.GetStringSelection)
-        #
+        if li: 
+            print 'loading image: working with axes'
+            self.axes.set_autoscale_on(True)
+      
         self.draw()
         #
         # Update image list

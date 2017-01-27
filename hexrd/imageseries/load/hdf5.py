@@ -19,7 +19,8 @@ class HDF5ImageSeriesAdapter(ImageSeriesAdapter):
         """
         self.__h5name = fname
         self.__path = kwargs['path']
-        self.__images = '/'.join([self.__path, 'images'])
+        self.__dataname = kwargs.pop('dataname', 'images')
+        self.__images = '/'.join([self.__path, self.__dataname])
         self._meta = self._getmeta()
 
     def __getitem__(self, key):

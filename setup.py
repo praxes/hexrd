@@ -39,12 +39,6 @@ import versioneer
 
 cmdclass = versioneer.get_cmdclass()
 
-versioneer.VCS = 'git'
-versioneer.versionfile_source = 'hexrd/_version.py'
-versioneer.versionfile_build = 'hexrd/_version.py'
-versioneer.tag_prefix = 'v' # tags are like v1.2.0
-versioneer.parentdir_prefix = 'hexrd-' # dirname like 'myproject-1.2.0'
-
 
 class test(Command):
 

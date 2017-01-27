@@ -419,7 +419,7 @@ class geReaderPanel(wx.Panel):
         app = wx.GetApp()
         exp = app.ws
         exp.readImage(self.browse_spn.GetValue())
-        app.getCanvas().update(newImage=True)
+        app.getCanvas().update(updateImage=True)
 
         return
 
@@ -456,7 +456,7 @@ class geReaderPanel(wx.Panel):
         """Load image file names with file dialogue
 
         NOTE:  converts filenames to str from unicode
-"""
+        """
         dlg = ReaderInfoDialog(self, -1)
         if dlg.ShowModal() == wx.ID_OK:
             d = dlg.GetInfo()
