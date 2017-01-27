@@ -23,6 +23,8 @@ import numpy as np
 
 from hexrd import imageseries
 
+import detector
+
 #logging.basicConfig(level=logging.WARNING)
 warnings.filterwarnings('always', '', DeprecationWarning)
 
@@ -59,7 +61,8 @@ class _OmegaImageSeries(object):
         self._meta = self._imseries.metadata
 
         if self.OMEGA_TAG not in self._meta:
-            raise RuntimeError('No omega data found in data file')
+            #raise ImageIOError('No omega data found in data file')
+            pass
 
     def __getitem__(self, k):
         return self._imseries[k]
@@ -82,7 +85,10 @@ class _OmegaImageSeries(object):
     @property
     def omega(self):
         """ (get-only) array of omega begin/end per frame"""
-        return self._meta[self.OMEGA_TAG]
+        if self.OMEGA_TAG in self._meta:
+            return self._meta[self.OMEGA_TAG]
+        else: 
+            return np.zeros((self.nframes,2))
 
 
 
@@ -91,8 +97,8 @@ class Framer2DRC(object):
     """
     def __init__(self, ncols, nrows,
                  dtypeDefault='int16', dtypeRead='uint16', dtypeFloat='float64'):
-        self.__nrows = nrows
-        self.__ncols = ncols
+        self._nrows = nrows
+        self._ncols = ncols
         self.__frame_dtype_dflt  = dtypeDefault
         self.__frame_dtype_read  = dtypeRead
         self.__frame_dtype_float = dtypeFloat
@@ -102,11 +108,11 @@ class Framer2DRC(object):
         return
 
     def get_nrows(self):
-        return self.__nrows
+        return self._nrows
     nrows = property(get_nrows, None, None)
 
     def get_ncols(self):
-        return self.__ncols
+        return self._ncols
     ncols = property(get_ncols, None, None)
 
     def get_nbytesFrame(self):
@@ -219,16 +225,20 @@ class ReadGE(Framer2DRC,OmegaFramer):
         self._fname = file_info
         self._kwargs = kwargs
         self._format = kwargs.pop('fmt', None)
-
+        self._nrows = detector.NROWS
+        self._ncols = detector.NCOLS
         try:
             self._omis = _OmegaImageSeries(file_info, fmt=self._format, **kwargs)
             Framer2DRC.__init__(self, self._omis.nrows, self._omis.ncols)
             # note: Omegas are expected in radians, but input in degrees
             OmegaFramer.__init__(self, (np.pi/180.)*self._omis.omega)
-        except:
+        except(TypeError, IOError):
             logging.info('READGE initializations failed')
             if file_info is not None: raise
             self._omis = None
+        except ImageIOError:
+            self._omis = None
+            pass
         self.mask = None
 
 
@@ -395,3 +405,9 @@ def newGenericReader(ncols, nrows, *args, **kwargs):
     retval = ReadGeneric(filename, ncols, nrows, *args, **kwargs)
 
     return retval
+
+class ImageIOError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
