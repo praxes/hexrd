@@ -9,6 +9,13 @@ def max(ims, nframes=0):
         imgmax = np.maximum(imgmax, ims[i])
     return imgmax
 
+def average(ims, nframes=0):
+    """return image with average values over all frames"""
+    # could be done by rectangle by rectangle if full series
+    # too  big for memory
+    nf = _nframes(ims, nframes)
+    return np.average(_toarray(ims, nf), axis=0)
+
 def median(ims, nframes=0):
     """return image with median values over all frames"""
     # could be done by rectangle by rectangle if full series
