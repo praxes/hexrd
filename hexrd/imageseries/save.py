@@ -138,6 +138,7 @@ class WriteFrameCache(Writer):
         else:
             cdir = os.path.dirname(fname)
             self._cache = os.path.join(cdir, cf)
+        self._cachename = cf
 
     def _process_meta(self):
         d = {}
@@ -151,7 +152,7 @@ class WriteFrameCache(Writer):
         return d
 
     def _write_yml(self):
-        datad = {'file': self._cache, 'dtype': str(self._ims.dtype),
+        datad = {'file': self._cachename, 'dtype': str(self._ims.dtype),
                  'nframes': len(self._ims), 'shape': list(self._ims.shape)}
         info = {'data': datad, 'meta': self._process_meta()}
         with open(self._fname, "w") as f:

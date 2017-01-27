@@ -789,7 +789,7 @@ if USE_NUMBA:
             else:
                 for i in range(n):
                     b[i, j] = a[i, j]
-    
+
 
     def unitVector(a):
         """
@@ -893,7 +893,7 @@ if USE_NUMBA:
         # bHat_l and eHat_l CANNOT have 0 magnitude!
         # must catch this case as well as colinear bHat_l/eHat_l elsewhere...
         bHat_mag = np.sqrt(bHat_l[0]**2 + bHat_l[1]**2 + bHat_l[2]**2)
-        
+
         # assign Ze as -bHat_l
         for i in range(3):
             out[i, 2] = -bHat_l[i] / bHat_mag
@@ -933,10 +933,10 @@ else: # not USE_NUMBA
     def makeEtaFrameRotMat(bHat_l, eHat_l):
         """
         make eta basis COB matrix with beam antiparallel with Z
-        
+
         takes components from ETA frame to LAB
         """
-        # normalize input 
+        # normalize input
         bHat_l = unitVector(bHat_l.reshape(3, 1))
         eHat_l = unitVector(eHat_l.reshape(3, 1))
 
@@ -945,11 +945,35 @@ else: # not USE_NUMBA
         if np.sqrt(np.sum(Ye*Ye)) < 1e-8:
             raise RuntimeError, "bHat_l and eHat_l must NOT be colinear!"
         Ye = unitVector(Ye.reshape(3, 1))
-        
+
         # find Xe as cross(bHat_l, Ye)
         Xe = np.cross(bHat_l.flatten(), Ye.flatten()).reshape(3, 1)
         return np.hstack([Xe, Ye, -bHat_l])
 
+def angles_in_range(angles, starts, stops, degrees=True):
+    """Determine whether angles lie in or out of specified ranges
+
+    *angles* - a list/array of angles
+    *starts* - a list of range starts
+    *stops* - a list of range stops
+
+    OPTIONAL ARGS:
+    *degrees* - [True] angles & ranges in degrees (or radians)
+"""
+    TAU = 360.0 if degrees else 2*np.pi
+    nw = len(starts)
+    na = len(angles)
+    in_range = np.zeros((na), dtype=bool)
+    for i in range(nw):
+        amin = starts[i]
+        amax = stops[i]
+        for j in range(na):
+            a = angles[j]
+            acheck = amin + np.mod(a - amin, TAU)
+            if acheck <= amax:
+                in_range[j] = True
+
+    return in_range
 
 def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):
     """
