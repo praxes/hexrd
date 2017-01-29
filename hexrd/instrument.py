@@ -84,8 +84,7 @@ class HEDMInstrument(object):
     """
     def __init__(self, instrument_config=None,
                  image_series=None,
-                 instrument_name="instrument",
-                 ):
+                 instrument_name="instrument"):
         self._id = instrument_name
 
         if instrument_config is None:
@@ -232,14 +231,19 @@ class PlanarDetector(object):
                  tilt=cnst.zeros_3,
                  bvec=cnst.beam_vec,
                  evec=cnst.eta_vec,
+                 panel_buffer=None,
                  distortion=None):
         """
+        panel buffer is in pixels...
+
         """
         self._rows = rows
         self._cols = cols
 
         self.pixel_size_row = pixel_size[0]
         self.pixel_size_col = pixel_size[1]
+
+        self._panel_buffer = panel_buffer
 
         self._tvec = np.array(tvec).flatten()
         self._tilt = tilt
@@ -267,11 +271,33 @@ class PlanarDetector(object):
         self._cols = x
 
     @property
+    def panel_buffer(self):
+        return self._panel_buffer
+    @panel_buffer.setter
+    def panel_buffer(self, x):
+        """if not None, a buffer in pixels (rows, cols)"""
+        if x is not None: assert len(x) == 2
+        self._panel_buffer = x
+
+    @property
     def row_dim(self):
         return self.rows * self.pixel_size_row
     @property
     def col_dim(self):
         return self.cols * self.pixel_size_col
+
+    @property
+    def panel_dims(self):
+        if self.panel_buffer is None:
+            pb = (0, 0)
+        pb = (self.pixel_size_row * pb[0],
+              self.pixel_size_col * pb[1])    
+        # is [(xmin, xmax), (ymin, ymax)]
+        pdim_buffered = [
+            (-0.5*self.col_dim + pb[1], -0.5*self.row_dim + pb[0]),
+            ( 0.5*self.col_dim + pb[1],  0.5*self.row_dim + pb[0]),
+        ]
+        return pdim_buffered
 
     @property
     def row_pixel_vec(self):
@@ -530,11 +556,15 @@ class PlanarDetector(object):
             eta_period
         )
         
-        if merge_hkls:
-            tth_idx, tth_ranges = pd.getMergedRanges()
-            tth = [0.5*sum(i) for i in tth_ranges]
+        # in case you want to give it tth angles directly
+        if hasattr(pd, '__len__'):
+            tth = np.array(pd).flatten()
         else:
-            tth = pd.getTTh()
+            if merge_hkls:
+                tth_idx, tth_ranges = pd.getMergedRanges()
+                tth = [0.5*sum(i) for i in tth_ranges]
+            else:
+                tth = pd.getTTh()
         angs = [np.vstack([i*np.ones(neta), eta, np.zeros(neta)]) for i in tth]
 
         # need xy coords and pixel sizes
@@ -554,7 +584,21 @@ class PlanarDetector(object):
             valid_xy.append(xydet_ring)
             pass
         return valid_ang, valid_xy
-
+    """
+    def make_reflection_patches(self, tth_eta, angular_pixel_size,
+                                tth_tol=0.2, eta_tol=1.0,
+                                rMat_c=None, tVec_c=None, 
+                                distortion=None,
+                                npdiv=1):       
+        make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
+                            omega=None,
+                            tth_tol=0.2, eta_tol=1.0,
+                            rMat_c=num.eye(3), tVec_c=num.zeros((3, 1)),
+                            distortion=None,
+                            npdiv=1, quiet=False, compute_areas_func=gutil.compute_areas,
+                            beamVec=None)
+        return
+    """
     def map_to_plane(self, pts, rmat, tvec):
         """
         map detctor points to specified plane
@@ -586,6 +630,4 @@ class PlanarDetector(object):
         pts_map_lab = np.tile(u, (3, 1)) * pts_lab
         
         return np.dot(rmat.T, pts_map_lab - tvec_map_lab)[:2, :].T
-        
-        
         
