@@ -4,7 +4,7 @@ from hexrd.imageseries import omega
 from pp_dexela import PP_Dexela
 
 CHESS_BASE = '/nfs/chess/raw/current/f2/shade-560-1/LSHR-6'
-CHESS_TMPL = '/%d/ff/ff2_%05d.h5'
+CHESS_TMPL = '%d/ff/ff2_%05d.h5'
 
 def h5name(scan, file, base=CHESS_BASE):
     path = CHESS_TMPL % (scan, file)
@@ -12,12 +12,25 @@ def h5name(scan, file, base=CHESS_BASE):
 
 # ==================== Inputs (should not need to alter above this line)
 
-raw_scannumber = 32
-raw_filenumber = 35
+## Room temp
+#raw_scannumber = 32
+#raw_filenumber = 35
+
+# ROOM TEMP
+raw_scannumber = 81
+raw_filenumber = 45
+
+## 100C 
+#raw_scannumber = 82
+#raw_filenumber = 46
+
+## 300C 
+#raw_scannumber = 83
+#raw_filenumber = 47
 
 flips = [('flip', 't'), ('flip', 'hv') ]
 
-nframes = 1440
+nframes = 100
 
 ostart = 0
 ostep = 0.25

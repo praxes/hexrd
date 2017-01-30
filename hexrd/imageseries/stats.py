@@ -2,6 +2,11 @@
 import numpy as np
 import logging
 
+from hexrd.imageseries.process import ProcessedImageSeries as PIS
+
+# Default Buffer: 100 MB
+STATS_BUFFER = 1.e8
+
 def max(ims, nframes=0):
     nf = _nframes(ims, nframes)
     imgmax = ims[0]
@@ -11,10 +16,11 @@ def max(ims, nframes=0):
 
 def average(ims, nframes=0):
     """return image with average values over all frames"""
-    # could be done by rectangle by rectangle if full series
-    # too  big for memory
     nf = _nframes(ims, nframes)
-    return np.average(_toarray(ims, nf), axis=0)
+    avg = np.array(ims[0], dtype=float)
+    for i in range(1, nf):
+        avg += ims[i]
+    return avg/nf
 
 def median(ims, nframes=0):
     """return image with median values over all frames"""
@@ -28,7 +34,18 @@ def percentile(ims, pct, nframes=0):
     # could be done by rectangle by rectangle if full series
     # too  big for memory
     nf = _nframes(ims, nframes)
-    return np.percentile(_toarray(ims, nf), pct, axis=0)
+    dt = ims.dtype
+    (nr, nc) = ims.shape
+    nrpb  = _rows_in_buffer(nframes, nf*nc*dt.itemsize)
+    print 'rows per buffer: ', nrpb
+    # now build the result a rectangle at a time
+    img = np.zeros_like(ims[0])
+    for rr in _row_ranges(nr, nrpb):
+        rect = np.array([[rr[0], rr[1]], [0, nc]])
+        pims = PIS(ims, [('rectangle', rect)])
+        print 'pims: ', len(pims), pims.shape
+        img[rr[0]:rr[1], :] = np.percentile(_toarray(pims, nf), pct, axis=0)
+    return img
 
 #
 # ==================== Utilities
@@ -46,3 +63,20 @@ def _toarray(ims, nframes):
         a[i] = ims[i]
 
     return a
+
+def _row_ranges(n, m):
+    """return row ranges, representing m rows or remainder, until exhausted"""
+    i = 0
+    while i < n:
+        imax = i+m
+        if imax <= n:
+            yield (i, imax)
+        else:
+            yield (i, n)
+        i = imax
+
+def _rows_in_buffer(ncol, rsize):
+    """number of rows in buffer
+
+    NOTE: Use ceiling to make sure at it has at least one row"""
+    return int(np.ceil(STATS_BUFFER/rsize))
