@@ -4,8 +4,9 @@ package:
   version: {{ environ.get('GIT_DESCRIBE_TAG', '')[1:] }}
 
 source:
-  git_url: ../
-  git_tag: master # edit to point to specific branch or tag
+  git_url: https://github.com/joelvbernier/hexrd.git
+  #git_tag: master # edit to point to specific branch or tag
+  git_tag: v0.3.x
 
 build:
   number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
@@ -20,20 +21,22 @@ app:
 
 requirements:
   build:
-    - numpy #==1.9.3
+    # - nomkl # in case MKL is broken on Linux
+    - numpy
     - python
     - setuptools
   run:
     - dill
     - matplotlib
+    # - nomkl # in case MKL is broken on Linux
     - numba
-    - numpy #==1.9.3
+    - numpy
     - progressbar >=2.3
     - python
     - python.app # [osx]
     - pyyaml
     - qtconsole
-    - scikit-learn #==0.15.2
+    - scikit-learn
     - scipy
     - wxpython
 

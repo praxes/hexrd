@@ -33,18 +33,19 @@ import numpy as num
 import csv
 import os
 
+from IPython import embed
+
 from scipy import constants as C
 
 from hexrd.matrixutil import sqrt, unitVector, columnNorm, sum
 from hexrd.xrd.rotations import rotMatOfExpMap, mapAngle
 from hexrd.xrd import symmetry
+from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd import valunits
 from hexrd.valunits import toFloat
+from hexrd.constants import d2r, r2d, sqrt3by2, sqrt_epsf
 
 """module vars"""
-r2d = 180./pi
-d2r = pi/180.
-sqrt3by2 = 0.5*sqrt(3.)
 
 # units
 dUnit = 'angstrom'
@@ -379,7 +380,7 @@ def latticeVectors(lparms, tag='cubic', radians=False, debug=False):
     elif tag == lattStrings[6]: # monoclinic
         cellparms = num.r_[lparms[0], lparms[1], lparms[2], deg90, angConv*lparms[3], deg90]
     elif tag == lattStrings[7]: # triclinic
-        cellparms = lparms
+        cellparms = num.r_[lparms[0], lparms[1], lparms[2], angConv*lparms[3], angConv*lparms[4], angConv*lparms[5]] #fixed DP 2/24/16
     else:
         raise RuntimeError('lattice tag \'%s\' is not recognized' % (tag))
 
@@ -488,7 +489,7 @@ def millerBravaisDirectionToVector(dir_ind, a=1., c=1.):
     """
     converts direction indices into a unit vector in the crystal frame
 
-    INPUT [uv.w] the Miller-Bravais convention in the hexagonal basis {a1, a2, a3, c}.  
+    INPUT [uv.w] the Miller-Bravais convention in the hexagonal basis {a1, a2, a3, c}.
     The basis for the output, {o1, o2, o3}, is chosen such that
 
     o1 || a1
@@ -704,8 +705,8 @@ class PlaneData(object):
         self.__calc()
         return
     wavelength = property(get_wavelength, set_wavelength, None)
-    
-    
+
+
     def get_structFact(self):
         return self.__structFact
     def set_structFact(self, structFact):
@@ -828,9 +829,9 @@ class PlaneData(object):
             tThHi = hklData['tThetaHi']
             tThLo = hklData['tThetaLo']
         return (tThLo, tThHi)
-
     def getTThRanges(self, strainMag=None, lparms=None):
-        """Return 2-theta ranges for included hkls
+        """
+        Return 2-theta ranges for included hkls
 
         return array is n x 2
         """
@@ -852,6 +853,39 @@ class PlaneData(object):
             new.lparms = lparms
             tThRanges = new.getTThRanges(strainMag=strainMag)
         return num.array(tThRanges)
+    def getMergedRanges(self, cullDupl=False):
+        """
+        return indices and ranges for specified planeData, merging where
+        there is overlap based on the tThWidth and line positions
+        """
+        tThs      = self.getTTh()
+        tThRanges = self.getTThRanges()
+
+        # if you end exlcusions in a doublet (or multiple close rings)
+        # then this will 'fail'.  May need to revisit...
+        nonoverlapNexts = num.hstack((tThRanges[:-1,1] < tThRanges[1:,0], True))
+        iHKLLists = []
+        mergedRanges = []
+        hklsCur = []
+        tThLoIdx = 0
+        tThHiCur = 0.
+        for iHKL, nonoverlapNext in enumerate(nonoverlapNexts):
+            tThHi = tThRanges[iHKL, -1]
+            if not nonoverlapNext:
+                if cullDupl and abs(tThs[iHKL] - tThs[iHKL+1]) < sqrt_epsf:
+                  continue
+                else:
+                  hklsCur.append(iHKL)
+                  tThHiCur = tThHi
+            else:
+                hklsCur.append(iHKL)
+                tThHiCur = tThHi
+                iHKLLists.append(hklsCur)
+                mergedRanges.append([tThRanges[tThLoIdx, 0], tThHiCur])
+                tThLoIdx = iHKL + 1
+                hklsCur = []
+        return iHKLLists, mergedRanges
+
     def makeNew(self):
         new = self.__class__(None, self)
         return new
@@ -996,100 +1030,32 @@ class PlaneData(object):
     @staticmethod
     def makeScatteringVectors(hkls, rMat_c, bMat, wavelength, chiTilt=None):
         """
-        modeled after QFromU.m
+        Static method for calculating g-vectors and scattering vector angles for
+        specified hkls, subject to the bragg conditions specified by lattice vectors,
+        orientation matrix, and wavelength
+
+        ...must do testing on strained bMat
         """
+        # arg munging
+        if chiTilt is None:
+            chi = 0.
+        else:
+            chi = float(chiTilt)
+        rMat_c = rMat_c.squeeze()
 
-        # basis vectors
-        bHat_l = num.c_[ 0.,  0., -1.].T
-        eHat_l = num.c_[ 1.,  0.,  0.].T
-
-        zTol = 1.0e-7                       # zero tolerance for checking vectors
-
-        gVec_s = []
-        oangs0 = []
-        oangs1 = []
-
-        # these are the reciprocal lattice vectors in the CRYSTAL FRAME
+        # these are the reciprocal lattice vectors in the SAMPLE FRAME
         # ** NOTE **
         #   if strained, assumes that you handed it a bMat calculated from
-        #   strained [a, b, c]
-        gVec_c = num.dot( bMat, hkls )
-        gHat_c = unitVector(gVec_c)
+        #   strained [a, b, c] in the CRYSTAL FRAME
+        gVec_s = num.dot(rMat_c, num.dot(bMat, hkls))
 
-        dim0, nRefl = gVec_c.shape
+        dim0, nRefl = gVec_s.shape
         assert dim0 == 3, "Looks like something is wrong with your lattice plane normals son!"
 
-        # extract 1/dspacing and sin of bragg angle
-        dSpacingi = columnNorm(gVec_c).flatten()
-        sintht    = 0.5 * wavelength * dSpacingi
+        # call model from transforms now
+        oangs0, oangs1 = xfcapi.oscillAnglesOfHKLs(hkls.T, chi, rMat_c, bMat, wavelength)
 
-        # move reciprocal lattice vectors to sample frame
-        gHat_s = num.dot(rMat_c.squeeze(), gHat_c)
-
-        if chiTilt is None:
-            cchi = 1.
-            schi = 0.
-            rchi = num.eye(3)
-        else:
-            cchi = num.cos(chiTilt)
-            schi = num.sin(chiTilt)
-            rchi = num.array([[   1.,    0.,    0.],
-                              [   0.,  cchi, -schi],
-                              [   0.,  schi,  cchi]])
-            pass
-
-        a =  cchi * gHat_s[0, :]
-        b = -cchi * gHat_s[2, :]
-        c =  schi * gHat_s[1, :] - sintht
-
-        # form solution
-        abMag    = num.sqrt(a*a + b*b); assert num.all(abMag > 0), "Beam vector specification is infealible!"
-        phaseAng = num.arctan2(b, a)
-        rhs      = c / abMag; rhs[abs(rhs) > 1.] = num.nan
-        rhsAng   = num.arcsin(rhs)
-
-        # write ome angle output arrays (NaNs persist here)
-        ome0 =          rhsAng - phaseAng
-        ome1 = num.pi - rhsAng - phaseAng
-
-        goodOnes_s = -num.isnan(ome0)
-
-        eta0 = num.nan * num.ones_like(ome0)
-        eta1 = num.nan * num.ones_like(ome1)
-
-        # mark feasible reflections
-        goodOnes   = num.tile(goodOnes_s, (1, 2)).flatten()
-
-        numGood_s  = sum(goodOnes_s)
-        numGood    = 2 * numGood_s
-        tmp_eta    = num.empty(numGood)
-        tmp_gvec   = num.tile(gHat_c, (1, 2))[:, goodOnes]
-        allome     = num.hstack([ome0, ome1])
-
-        for i in range(numGood):
-            come = num.cos(allome[goodOnes][i])
-            some = num.sin(allome[goodOnes][i])
-            rome = num.array([[ come,    0.,  some],
-                              [   0.,    1.,    0.],
-                              [-some,    0.,  come]])
-            rMat_s = num.dot(rchi, rome)
-    	    gVec_l = num.dot(rMat_s,
-                       num.dot(rMat_c, tmp_gvec[:, i].reshape(3, 1)
-                       ) )
-            tmp_eta[i] = num.arctan2(gVec_l[1], gVec_l[0])
-            pass
-        eta0[goodOnes_s] = tmp_eta[:numGood_s]
-        eta1[goodOnes_s] = tmp_eta[numGood_s:]
-
-        # make assoc tTh array
-        tTh  = 2.*num.arcsin(sintht).flatten()
-        tTh0 = tTh; tTh0[-goodOnes_s] = num.nan
-
-        gVec_s = num.tile(dSpacingi, (3, 1)) * gHat_s
-        oangs0 = num.vstack([tTh0.flatten(), eta0.flatten(), ome0.flatten()])
-        oangs1 = num.vstack([tTh0.flatten(), eta1.flatten(), ome1.flatten()])
-
-        return gVec_s, oangs0, oangs1
+        return gVec_s, oangs0.T, oangs1.T
 
     def __makeScatteringVectors(self, rMat, bMat=None, chiTilt=None):
         """
@@ -1114,55 +1080,55 @@ class PlaneData(object):
             Qs_ang1.append( thisAng1 )
 
         return Qs_vec, Qs_ang0, Qs_ang1
-        
-        
-        
+
+
+
     def calcStructFactor(self,atominfo):
         """ Calculates unit cell structure factors as a function of hkl
-    
+
         USAGE:
-    
+
         FSquared = calcStructFactor(atominfo,hkls,B)
-    
+
         INPUTS:
-    
+
         1) atominfo (m x 1 float ndarray) the first threee columns of the matrix contain
         fractional atom positions [uvw] of atoms in the unit cell. The last column
         contains the number of electrons for a given atom.
-        
+
         2) hkls (3 x n float ndarray) is the array of Miller indices for
         the planes of interest.  The vectors are assumed to be
         concatenated along the 1-axis (horizontal).
-    
+
         3) B (3 x 3 float ndarray) is a matrix of reciprocal lattice basis vectors,
         where each column contains a reciprocal lattice basis vector ({g}=[B]*{hkl})
-        
-        
+
+
         OUTPUTS:
-        
+
         1) FSquared (n x 1 float ndarray) array of structure factors, one for each
-        hkl passed into the function"""       
+        hkl passed into the function"""
         r=atominfo[:,0:3]
         elecNum=atominfo[:,3]
         hkls=self.hkls
         B=self.latVecOps['B']
         sinThOverLamdaList,ffDataList=LoadFormFactorData()
         FSquared=num.zeros(hkls.shape[1])
-    
+
         for jj in num.arange(0,hkls.shape[1]):
-            G=hkls[0,jj]*B[:,0]+hkls[1,jj]*B[:,1]+hkls[2,jj]*B[:,2]#Calculate G for each hkl       
+            G=hkls[0,jj]*B[:,0]+hkls[1,jj]*B[:,1]+hkls[2,jj]*B[:,2]#Calculate G for each hkl
             magG=num.sqrt(G[0]**2+G[1]**2+G[2]**2)#Calculate magnitude of G for each hkl
             F=0
             for ii in num.arange(0,r.shape[0]): #Begin calculating form factor
-                ff=RetrieveAtomicFormFactor(elecNum[ii],magG,sinThOverLamdaList,ffDataList) 
+                ff=RetrieveAtomicFormFactor(elecNum[ii],magG,sinThOverLamdaList,ffDataList)
                 F=F+ff*num.exp(complex(0,2*num.pi*(hkls[0,jj]*r[ii,0]+hkls[1,jj]*r[ii,1]+hkls[2,jj]*r[ii,2])))
-                             
+
             """
             F=sum_atoms(ff(Q)*e^(2*pi*i(hu+kv+lw)))
             """
             FSquared[jj]=num.real(F*num.conj(F))
-    
-        return FSquared 
+
+        return FSquared
 
 def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     """
@@ -1241,7 +1207,6 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     chi       = None
     c1        = 1.
     c2        = pi/180.
-    zTol      = 1.e-7
 
     # cast to arrays (in case they aren't)
     if num.isscalar(eta0):
@@ -1412,42 +1377,42 @@ def getDparms(lp, lpTag, radians=True):
     """
     latVecOps = latticeVectors(lp, tag=lpTag, radians=radians)
     return latVecOps['dparms']
-    
+
 
 
 def LoadFormFactorData():
     """Script to read in a csv file containing information relating the magnitude
-    of Q (sin(th)/lambda) to atomic form factor  
-    
-    
-    Notes:    
-    Atomic form factor data gathered from the International Tables of 
+    of Q (sin(th)/lambda) to atomic form factor
+
+
+    Notes:
+    Atomic form factor data gathered from the International Tables of
     Crystallography:
-    
+
      P. J. Brown, A. G. Fox,  E. N. Maslen, M. A. O'Keefec and B. T. M. Willis,
-    "Chapter 6.1. Intensity of diffracted intensities", International Tables  
+    "Chapter 6.1. Intensity of diffracted intensities", International Tables
      for Crystallography (2006). Vol. C, ch. 6.1, pp. 554-595
-    """    
-   
-    
+    """
+
+
     dir1=os.path.split(valunits.__file__)
-    dataloc=os.path.join(dir1[0],'data','FormFactorVsQ.csv') 
-    
+    dataloc=os.path.join(dir1[0],'data','FormFactorVsQ.csv')
+
     data=num.zeros((62,99),float)
-    
+
     jj=0
     with open(dataloc, 'rU') as csvfile: #FIX THIS
         datareader=csv.reader(csvfile, dialect=csv.excel)
         for row in datareader:
-                ii=0            
-                for val in row:                
+                ii=0
+                for val in row:
                     data[jj,ii]=float(val)
                     ii+=1
                 jj+=1
-    
+
     sinThOverLamdaList=data[:,0]
     ffDataList=data[:,1:]
-    
+
     return sinThOverLamdaList,ffDataList
 
 
@@ -1463,39 +1428,30 @@ def RetrieveAtomicFormFactor(elecNum,magG,sinThOverLamdaList,ffDataList):
     INPUTS:
 
     1) elecNum, (1 x 1 float) number of electrons for atom of interest
-    
+
     2) magG (1 x 1 float) magnitude of G
 
-    3) sinThOverLamdaList (n x 1 float ndarray) form factor data is tabulated in terms of 
+    3) sinThOverLamdaList (n x 1 float ndarray) form factor data is tabulated in terms of
     sin(theta)/lambda (A^-1).
-    
-    3) ffDataList (n x m float ndarray) form factor data is tabulated in terms of 
-    sin(theta)/lambda (A^-1). Each column corresponds to a different number of electrons   
-    
+
+    3) ffDataList (n x m float ndarray) form factor data is tabulated in terms of
+    sin(theta)/lambda (A^-1). Each column corresponds to a different number of electrons
+
     OUTPUTS:
-    
+
     1) ff (n x 1 float) atomic form factor for atom and hkl of interest
-    
+
     NOTES:
     Data should be calculated in terms of G at some point
 
     """
 
-    
+
     sinThOverLambda=0.5*magG
     #lambda=2*d*sin(th)
     #lambda=2*sin(th)/G
     #1/2*G=sin(th)/lambda
-        
+
     ff=num.interp(sinThOverLambda,sinThOverLamdaList,ffDataList[:,(elecNum-1)])
 
     return ff
-
-
-
-
-      
-    
-
-  
-    

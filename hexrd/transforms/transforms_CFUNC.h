@@ -30,6 +30,11 @@ void anglesToGvec_cfunc(long int nvecs, double * angs,
 			double chi, double * rMat_c,
 			double * gVec_c);
 
+void anglesToDvec_cfunc(long int nvecs, double * angs,
+			double * bHat_l, double * eHat_l,
+			double chi, double * rMat_c,
+			double * gVec_c);
+
 void gvecToDetectorXY_cfunc(long int npts, double * gVec_c_Ptr,
 			    double * rMat_d_Ptr, double * rMat_s_Ptr, double * rMat_c_Ptr,
 			    double * tVec_d_Ptr, double * tVec_s_Ptr, double * tVec_c_Ptr,
@@ -79,8 +84,6 @@ void makeBinaryRotMat_cfunc(double * aPtr, double * rPtr);
 void makeEtaFrameRotMat_cfunc(double * bPtr, double * ePtr, double * rPtr);
 
 void validateAngleRanges_cfunc(int na, double * aPtr, int nr, double * minPtr, double * maxPtr, bool * rPtr, int ccw);
-
-//void rotateVectorAboutAxis_cfunc(double tTh, double * n_g, double * dHat_l, double * gVec_l);
 
 void rotate_vecs_about_axis_cfunc(long int na, double * angles,
 				  long int nax, double * axes,

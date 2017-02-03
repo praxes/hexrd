@@ -63,8 +63,17 @@ def execute(args, parser):
     ch.setFormatter(cf)
     logger.addHandler(ch)
 
+    # ...make this an attribute in cfg?
+    analysis_id = '%s_%s' %(
+        cfgs[0].analysis_name.strip().replace(' ', '-'),
+        cfgs[0].material.active.strip().replace(' ', '-'),
+        )
+    
     # if find-orientations has not already been run, do so:
-    quats_f = os.path.join(cfgs[0].working_dir, 'accepted_orientations.dat')
+    quats_f = os.path.join(
+        cfgs[0].working_dir, 
+        'accepted_orientations_%s.dat' %analysis_id
+        )
     if not os.path.exists(quats_f):
         logger.info("Missing %s, running find-orientations", quats_f)
         logger.removeHandler(ch)
@@ -111,14 +120,16 @@ def execute(args, parser):
             pr.enable()
 
         # process the data
+        gid_list = None
         if args.grains is not None:
-            args.grains = [int(i) for i in args.grains.split(',')]
+            gid_list = [int(i) for i in args.grains.split(',')]
+            
         fit_grains(
             cfg,
             force=args.force,
             clean=args.clean,
             show_progress=not args.quiet,
-            ids_to_refine=args.grains,
+            ids_to_refine=gid_list,
             )
 
         if args.profile:

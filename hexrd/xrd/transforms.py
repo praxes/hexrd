@@ -890,26 +890,29 @@ def makeBinaryRotMat(axis):
 if USE_NUMBA:
     @numba.njit
     def _makeEtaFrameRotMat(bHat_l, eHat_l, out):
-        # Ze = -unitVector(np.atleast_2d(bHat_l).reshape(3, 1))
+        # bHat_l and eHat_l CANNOT have 0 magnitude!
+        # must catch this case as well as colinear bHat_l/eHat_l elsewhere...
         bHat_mag = np.sqrt(bHat_l[0]**2 + bHat_l[1]**2 + bHat_l[2]**2)
-        if bHat_mag > epsf:
-            for i in range(3):
-                out[2, i] = -bHat_l[i] / bHat_mag
-        else:
-            for i in range(3):
-                out[2, i] = -bHat_l[i]
-        # Xe = unitVector(np.dot(I3 - np.dot(Ze, Ze.T), np.atleast_2d(eHat_l).reshape(3, 1)))
-        Ze_dot_eHat = (out[2, 0] * eHat_l[0] + out[2, 1] * eHat_l[1] + out[2, 2] * eHat_l[2])
+        
+        # assign Ze as -bHat_l
         for i in range(3):
-            out[0, i] = eHat_l[i] - out[2, i] * Ze_dot_eHat
-        Xe_mag = np.sqrt(out[0, 0]**2 + out[0, 1]**2 + out[0, 2]**2)
-        if Xe_mag > epsf:
-            for i in range(3):
-                out[0, i] = out[0, i] / Xe_mag
-        # Ye = np.cross(Ze.flatten(), Xe.flatten()).reshape(3, 1)
-        out[1, 0] = out[2, 1] * out[0, 2] - out[2, 2] * out[0, 1]
-        out[1, 1] = out[2, 2] * out[0, 0] - out[2, 0] * out[0, 2]
-        out[1, 2] = out[2, 0] * out[0, 1] - out[2, 1] * out[0, 0]
+            out[i, 2] = -bHat_l[i] / bHat_mag
+
+        # find Ye as Ze ^ eHat_l
+        Ye0 = out[1, 2]*eHat_l[2] - eHat_l[1]*out[2, 2]
+        Ye1 = out[2, 2]*eHat_l[0] - eHat_l[2]*out[0, 2]
+        Ye2 = out[0, 2]*eHat_l[1] - eHat_l[0]*out[1, 2]
+
+        Ye_mag = np.sqrt(Ye0**2 + Ye1**2 + Ye2**2)
+
+        out[0, 1] = Ye0 / Ye_mag
+        out[1, 1] = Ye1 / Ye_mag
+        out[2, 1] = Ye2 / Ye_mag
+
+        # find Xe as Ye ^ Ze
+        out[0, 0] = out[1, 1]*out[2, 2] - out[1, 2]*out[2, 1]
+        out[1, 0] = out[2, 1]*out[0, 2] - out[2, 2]*out[0, 1]
+        out[2, 0] = out[0, 1]*out[1, 2] - out[0, 2]*out[1, 1]
 
 
     def makeEtaFrameRotMat(bHat_l, eHat_l):
@@ -917,6 +920,10 @@ if USE_NUMBA:
         make eta basis COB matrix with beam antiparallel with Z
 
         takes components from ETA frame to LAB
+
+        **NO EXCEPTION HANDLING FOR COLINEAR ARGS IN NUMBA VERSION!
+
+        ...put checks for non-zero magnitudes and non-colinearity in wrapper?
         """
         result = np.empty((3,3))
         _makeEtaFrameRotMat(bHat_l.reshape(3), eHat_l.reshape(3), result)
@@ -924,15 +931,24 @@ if USE_NUMBA:
 
 else: # not USE_NUMBA
     def makeEtaFrameRotMat(bHat_l, eHat_l):
-         """
-         make eta basis COB matrix with beam antiparallel with Z
+        """
+        make eta basis COB matrix with beam antiparallel with Z
+        
+        takes components from ETA frame to LAB
+        """
+        # normalize input 
+        bHat_l = unitVector(bHat_l.reshape(3, 1))
+        eHat_l = unitVector(eHat_l.reshape(3, 1))
 
-         takes components from ETA frame to LAB
-         """
-         Ze = -unitVector(np.atleast_2d(bHat_l).reshape(3, 1))
-         Xe = unitVector(np.dot(I3 - np.dot(Ze, Ze.T), np.atleast_2d(eHat_l).reshape(3, 1)))
-         Ye = np.cross(Ze.flatten(), Xe.flatten()).reshape(3, 1)
-         return np.hstack([Xe, Ye, Ze])
+        # find Ye as cross(eHat_l, bHat_l), normalize if kosher
+        Ye = np.cross(eHat_l.flatten(), bHat_l.flatten())
+        if np.sqrt(np.sum(Ye*Ye)) < 1e-8:
+            raise RuntimeError, "bHat_l and eHat_l must NOT be colinear!"
+        Ye = unitVector(Ye.reshape(3, 1))
+        
+        # find Xe as cross(bHat_l, Ye)
+        Xe = np.cross(bHat_l.flatten(), Ye.flatten()).reshape(3, 1)
+        return np.hstack([Xe, Ye, -bHat_l])
 
 
 def validateAngleRanges(angList, startAngs, stopAngs, ccw=True):

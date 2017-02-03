@@ -79,8 +79,17 @@ def execute(args, parser):
     # load the configuration settings
     cfg = config.open(args.yml)[0]
 
+    # ...make this an attribute in cfg?
+    analysis_id = '%s_%s' %(
+        cfg.analysis_name.strip().replace(' ', '-'),
+        cfg.material.active.strip().replace(' ', '-'),
+        )
+    
     # prepare the analysis directory
-    quats_f = os.path.join(cfg.working_dir, 'accepted_orientations.dat')
+    quats_f = os.path.join(
+        cfg.working_dir,
+        'accepted_orientations_%s.dat' %analysis_id
+        )
     if os.path.exists(quats_f) and not (args.force or args.clean):
         logger.error(
             '%s already exists. Change yml file or specify "force"', quats_f
@@ -92,7 +101,7 @@ def execute(args, parser):
     # configure logging to file
     logfile = os.path.join(
         cfg.working_dir,
-        'find-orientations.log'
+        'find-orientations_%s.log' %analysis_id
         )
     fh = logging.FileHandler(logfile, mode='w')
     fh.setLevel(log_level)

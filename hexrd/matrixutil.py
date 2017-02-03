@@ -473,6 +473,7 @@ def multMatArray(ma1, ma2):
     shp1 = ma1.shape
     shp2 = ma2.shape
     
+    
     if len(shp1) != 3 or len(shp2) != 3:
         raise RuntimeError, 'input is incorrect shape; ' \
               + 'expecting len(ma1).shape = len(ma2).shape = 3'

@@ -1,12 +1,9 @@
-
 from __future__ import print_function
 
 import cPickle
 import logging
 import multiprocessing as mp
 import os
-import shelve
-import sys
 import time
 from collections import namedtuple
 
@@ -14,10 +11,7 @@ import numpy as np
 #np.seterr(over='ignore', invalid='ignore')
 
 import scipy.cluster as cluster
-import scipy.optimize as opt
 from scipy import ndimage
-
-import yaml
 
 from hexrd import matrixutil as mutil
 from hexrd.xrd import experiment as expt
@@ -27,18 +21,15 @@ from hexrd.xrd import symmetry as sym
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.coreutil import initialize_experiment
-
 from hexrd.xrd import xrdutil
-
 from hexrd.xrd import distortion as dFuncs
-
 from hexrd.fitgrains import get_instrument_parameters
 
 logger = logging.getLogger(__name__)
 
-save_as_ascii = False           # FIX LATER...
+save_as_ascii = False # FIX LATER...
 
-# TODO: just require scikit-learn?
+# just require scikit-learn?
 have_sklearn = False
 try:
     import sklearn
@@ -57,7 +48,9 @@ try:
 except ImportError:
     pass
 
-def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
+
+def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids,
+                                fiber_ndiv, filt_stdev=0.0, ncpus=1):
     """
     From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
@@ -70,92 +63,121 @@ def generate_orientation_fibers(eta_ome, threshold, seed_hkl_ids, fiber_ndiv):
     del_eta = eta_ome.etas[1] - eta_ome.etas[0]
 
     # labeling mask
-    structureNDI_label = ndimage.generate_binary_structure(2, 2)
+    structureNDI_label = ndimage.generate_binary_structure(2, 1)
 
     # crystallography data from the pd object
     pd = eta_ome.planeData
+    hkls = pd.hkls
     tTh  = pd.getTTh()
     bMat = pd.latVecOps['B']
     csym = pd.getLaueGroup()
-    qsym = pd.getQSym()
+
+    params = { 
+        'bMat': bMat,
+        'chi': chi,
+        'csym': csym,
+        'fiber_ndiv': fiber_ndiv
+    }
 
     ############################################
     ##    Labeling of spots from seed hkls    ##
     ############################################
 
     qfib     = []
-    labels   = []
+    input_p  = []
     numSpots = []
     coms     = []
     for i in seed_hkl_ids:
-        labels_t, numSpots_t = ndimage.label(
-            eta_ome.dataStore[i] > threshold,
-            structureNDI_label
-            )
+        # First apply filter
+        this_map_f = -ndimage.filters.gaussian_laplace(eta_ome.dataStore[i],
+                                                       filt_stdev)
+
+        labels_t, numSpots_t = ndimage.label(this_map_f > threshold,
+                                             structureNDI_label )
         coms_t = np.atleast_2d(
             ndimage.center_of_mass(
-                eta_ome.dataStore[i],
+                this_map_f,
                 labels=labels_t,
                 index=np.arange(1, np.amax(labels_t)+1)
                 )
             )
-        labels.append(labels_t)
         numSpots.append(numSpots_t)
         coms.append(coms_t)
         pass
 
-    ############################################
-    ##  Generate discrete fibers from labels  ##
-    ############################################
-
     for i in range(len(pd_hkl_ids)):
-        ii = 0
-        qfib_tmp = np.empty((4, fiber_ndiv*numSpots[i]))
         for ispot in range(numSpots[i]):
             if not np.isnan(coms[i][ispot][0]):
-                ome_c = eta_ome.omeEdges[0] \
-                        + (0.5 + coms[i][ispot][0])*del_ome
-                eta_c = eta_ome.etaEdges[0] \
-                        + (0.5 + coms[i][ispot][1])*del_eta
-
-                #gVec_s = xrdutil.makeMeasuredScatteringVectors(
-                #    tTh[pd_hkl_ids[i]], eta_c, ome_c
-                #    )
-                gVec_s = xfcapi.anglesToGVec(
-                    np.atleast_2d(
-                        [tTh[pd_hkl_ids[i]], eta_c, ome_c]
-                        )
-                    ).T
-
-                tmp = mutil.uniqueVectors(
-                    rot.discreteFiber(
-                        pd.hkls[:, pd_hkl_ids[i]].reshape(3, 1),
-                        gVec_s,
-                        B=bMat,
-                        ndiv=fiber_ndiv,
-                        invert=False,
-                        csym=csym
-                        )[0]
-                    )
-                jj = ii + tmp.shape[1]
-                qfib_tmp[:, ii:jj] = tmp
-                ii += tmp.shape[1]
+                ome_c = eta_ome.omeEdges[0] + (0.5 + coms[i][ispot][0])*del_ome
+                eta_c = eta_ome.etaEdges[0] + (0.5 + coms[i][ispot][1])*del_eta
+                input_p.append(np.hstack([hkls[:, pd_hkl_ids[i]],
+                                          tTh[pd_hkl_ids[i]],
+                                          eta_c, ome_c]))
                 pass
             pass
-        qfib.append(qfib_tmp[:, :ii])
         pass
+ 
+    # do the mapping
+    start = time.time()
+    qfib = None
+    if ncpus > 1:
+        # multiple process version
+        pool = mp.Pool(ncpus, discrete_fiber_init, (params, ))
+        qfib = pool.map(discretefiber_reduced, input_p) # chunksize=chunksize)
+        pool.close()
+    else:
+        # single process version
+        global paramMP
+        discretefiber_init(params)
+        qfib = map(discretefiber_reduced, input_p)
+        paramMP = None # clear paramMP
+
+    elapsed = (time.time()-start)
+    logger.info('fiber generation took %.3f seconds', elapsed)
+
     return np.hstack(qfib)
 
 
-_clustering_option = namedtuple('_clustering_option', 'fn')
+def discretefiber_init(params):
+    global paramMP
+    paramMP = params
 
+def discretefiber_reduced(param_in):
+    """
+    input parameters are [hkl_id, com_ome, com_eta]
+    """
+    bMat       = paramMP['bMat']
+    chi        = paramMP['chi']
+    csym       = paramMP['csym']
+    fiber_ndiv = paramMP['fiber_ndiv']
+
+    hkl = params_in[:3].reshape(3, 1)
+
+    gVec_s = xfcapi.anglesToGVec(
+        np.atleast_2d(params_in[3:]),
+        chi=chi,
+        ).T
+    
+    tmp = mutil.uniqueVectors(
+        rot.discreteFiber(
+            hkl,
+            gVec_s,
+            B=bMat,
+            ndiv=fiber_ndiv,
+            invert=False,
+            csym=csym)[0]
+    )
+
+    return tmp
+
+
+_clustering_option = namedtuple('_clustering_option', 'fn')
 _clustering_algorithm_dict = {}
+
 
 class ClusteringError(Exception):
     """A ClusteringError that contains a reason (message) of failure as well as an
-optional alternative method of clustering to use.
-
-    """
+    optional alternative method of clustering to use."""
     def __init__(self, message, alternative=None):
         super(ClusteringError, self).__init__(message)
         self.alternative = alternative
@@ -186,10 +208,12 @@ def clustering_algorithm(key):
 
     return wrapper
 
+
 def _check_dbscan():
     if not have_sklearn:
         msg = 'sklearn >= 0.14 required to use dbscan; using fclusterdata'
         raise ClusteringError(msg, alternative='fclusterdata')
+
 
 def _normalize_labels_from_dbscan(labels):
     """returns labels normalized as a numpy array with 1-based indices and -1 for
@@ -202,6 +226,7 @@ def _normalize_labels_from_dbscan(labels):
     cl[noise_points] = -1 # remark it as -1
     logger.info("dbscan found %d noise points", sum(noise_points))
     return cl
+
 
 def _compute_centroids_split(cl, qfib_r, qsym):
     """generic compute centroids (clusters may be split)"""
@@ -220,6 +245,7 @@ def _compute_centroids_split(cl, qfib_r, qsym):
 
     return np.atleast_2d(qbar)
 
+
 def _compute_centroids_dense(cl, qfib_r, qsym):
     """compute centroids when clusters are compact"""
     if np.any(cl == -1):
@@ -234,7 +260,37 @@ def _compute_centroids_dense(cl, qfib_r, qsym):
         qbar[:, i] = np.average(np.atleast_2d(this_cluster), axis=1)
     qbar = sym.toFundamentalRegion(mutil.unitVector(qbar), crysSym=qsym)
     return np.atleast_2d(qbar)
-        
+
+
+def _handle_duplicate_orientations(qbar, qsym, cl_radius):
+    """removes duplicate orienations within a tolerance"""
+
+    if qbar.size > 4:
+        logger.info('\tchecking for duplicate orientations...')
+        def quat_distance(x, y):
+            return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
+        cl = cluster.hierarchy.fclusterdata(qbar.T, np.radians(cl_radius),
+                                            criterion='distance',
+                                            metric=quat_distance)
+        nblobs_new = len(np.unique(cl))
+        if nblobs_new < nblobs:
+            logger_info.("\tfound %d duplicates within %f degrees" 
+                         % (nblobs - nblobs_new, cl_radius)))
+
+            # if duplicates found, average the duplicates
+            tmp = np.zeros((4, nblobs_new))
+            for i in range(nblobs_new):
+                # note: this could be simplified and made faster.
+                npts = sum(cl == i + 1)
+                duplicates = qbar[:, cl == i+1].reshape(4, npts)
+                tmp[:,i] = rot.quatAverageCluster(duplicates, qsym).flatten()
+                pass
+            qbar = tmp
+            pass
+        pass
+    return qbar
+
+
 @clustering_algorithm('fclusterdata')
 def cluster_fclusterdata(qfib_r, qsym, cl_radius, min_samples):
     num_ors = qfib_r.shape[1]
@@ -253,27 +309,34 @@ def cluster_fclusterdata(qfib_r, qsym, cl_radius, min_samples):
     labels = cluster.hierarchy.fclusterdata(pts, np.radians(cl_radius),
                                             criterion='distance', metric = quat_distance)
     return _compute_centroids_split(labels, qfib_r, qsym), labels
-        
+
+
 @clustering_algorithm('dbscan')
 def cluster_dbscan(qfib_r, qsym, cl_radius, min_samples):
     _check_dbscan()
     dbscan = sklearn.cluster.dbscan
     pts = qfib_r.T
-    _, labels = dbscan(pts, eps=0.5*np.radians(cl_radius),
+    _, labels = dbscan(pts, eps=np.radians(cl_radius),
                        min_samples=min_samples, metric='minkowski', p=2)
     labels = _normalize_labels_from_dbscan(labels)
-    return _compute_centroids_dense(labels, qfib_r, qsym), labels
-    
+    qbar = _compute_centroids_dense(labels, qfib_r, qsym)
+    qbar = _handle_duplicate_orientations(qbar, qsym, cl_radius)
+    return qbar, labels
+
+
 @clustering_algorithm('ort-dbscan')
 def cluster_ort_dbscan(qfib_r, qsym, cl_radius, min_samples):
     _check_dbscan()
     dbscan = sklearn.cluster.dbscan
     pts = qfib_r[1:, :].T
-    _, labels = dbscan(pts, eps=0.5*np.radians(cl_radius),
+    _, labels = dbscan(pts, eps=0.9*np.radians(cl_radius),
                        min_samples=min_samples, metric='minkowski', p=2)
     labels = _normalize_labels_from_dbscan(labels)
-    return _compute_centroids_dense(labels, qfib_r, qsym), labels
-    
+    qbar = _compute_centroids_dense(labels, qfib_r, qsym)
+    qbar = _handle_duplicate_orientations(qbar, qsym, cl_radius)
+    return qbar, labels
+
+
 @clustering_algorithm('sph-dbscan')
 def cluster_sph_dbscan(qfib_r, qsym, cl_radius, min_samples):
     _check_dbscan()
@@ -287,12 +350,13 @@ def cluster_sph_dbscan(qfib_r, qsym, cl_radius, min_samples):
     qsym = np.array(qsym.T, order='C').T
     def quat_distance(x, y):
         return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
-    
+
     pdist = pairwise_distances(pts, metric=quat_distance, n_jobs=1)
     _, labels = dbscan(pdist, eps=np.radians(cl_radius),
-                       min_samples=min_samples, metric='precomputed') 
+                       min_samples=min_samples, metric='precomputed')
     labels = _normalize_labels_from_dbscan(labels)
     return _compute_centroids_split(labels, qfib_r, qsym), labels
+
 
 def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, radius=None):
     """
@@ -329,14 +393,14 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             )
 
         cl_dict = _clustering_algorithm_dict
-        if min_samples is None or cfg.find_orientations.use_quaternion_grid is not None:
-            min_samples = 1
+            if min_samples is None or cfg.find_orientations.use_quaternion_grid is not None:
+                min_samples = 1
         cluster_args = [qfib_r, qsym, cl_radius, min_samples]
         while algorithm is not None:
             if algorithm not in cl_dict:
-                raise RuntimeError(
+            raise RuntimeError(
                     "Clustering '{0}' not recognized".format(algorithm)
-                    )
+                )
             try:
                 logger.info("Trying '%s' over %d orientations",
                             algorithm, qfib_r.shape[1])
@@ -437,6 +501,12 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     NOTE: single cfg instance, not iterator!
     """
 
+    # ...make this an attribute in cfg?
+    analysis_id = '%s_%s' % (
+        cfg.analysis_name.strip().replace(' ', '-'),
+        cfg.material.active.strip().replace(' ', '-')
+    )
+
     # a goofy call, could be replaced with two more targeted calls
     pd, reader, detector = initialize_experiment(cfg)
 
@@ -473,10 +543,10 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     try:
         # are we searching the full grid of orientation space?
         qgrid_f = cfg.find_orientations.use_quaternion_grid
-        quats = np.loadtxt(qgrid_f).T
+        quats = np.load(qgrid_f).T
         logger.info("Using %s for full quaternion search", qgrid_f)
         hkl_ids = None
-    except (IOError, ValueError):
+    except (IOError, ValueError, AttributeError):
         # or doing a seeded search?
         logger.info("Defaulting to seeded search")
         hkl_seeds = cfg.find_orientations.seed_search.hkl_seeds
@@ -491,9 +561,11 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
             )
         quats = generate_orientation_fibers(
             eta_ome,
+            detector_params[6],
             cfg.find_orientations.threshold,
             cfg.find_orientations.seed_search.hkl_seeds,
-            cfg.find_orientations.seed_search.fiber_ndiv
+            cfg.find_orientations.seed_search.fiber_ndiv,
+            ncpus=cfg.multiprocessing
             )
         if save_as_ascii:
             np.savetxt(
@@ -502,9 +574,11 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
                 fmt="%.18e",
                 delimiter="\t"
                 )
+            pass
+        pass # close conditional on grid search
 
     # generate the completion maps
-    logger.info("Running paintgrid on %d trial orientations", (quats.shape[1]))
+    logger.info("Running paintgrid on %d trial orientations", quats.shape[1])
     if profile:
         logger.info("Profiling mode active, forcing ncpus to 1")
         ncpus = 1
@@ -528,9 +602,11 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     if save_as_ascii:
         np.savetxt(os.path.join(cfg.working_dir, 'completeness.dat'), compl)
     else:
-        np.save(os.path.join(cfg.working_dir, 'scored_orientations.npy'),
-                np.vstack([quats, compl])
-                )
+        np.save(
+            os.path.join(cfg.working_dir,
+                         'scored_orientations_%s.npy' % analysis_id),
+            np.vstack([quats, compl])
+        )
 
     ##########################################################
     ##   Simulate N random grains to get neighborhood size  ##
@@ -550,17 +626,17 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
 
             eta_range = np.radians(cfg.find_orientations.eta.range)
             pixel_pitch = cfg.instrument.detector.pixels.size
-            sim_results = xrdutil.simulateGVecs(pd,
-                                                detector_params,
-                                                grain_params,
-                                                ome_range=(ome_range,),
-                                                ome_period=(ome_range[0],
-                                                            ome_range[0]+2*np.pi),
-                                                eta_range=eta_range,
-                                                panel_dims=panel_dims,
-                                                pixel_pitch=pixel_pitch,
-                                                distortion=distortion,
-                                                )
+            sim_results = xrdutil.simulateGVecs(
+                pd,
+                detector_params,
+                grain_params,
+                ome_range=(ome_range,),
+                ome_period=(ome_range[0], ome_range[0]+2*np.pi),
+                eta_range=eta_range,
+                panel_dims=panel_dims,
+                pixel_pitch=pixel_pitch,
+                distortion=distortion,
+            )
             refl_per_grain[i] = len(sim_results[0])
             num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
             pass
@@ -579,7 +655,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, min_samples=min_samples)
 
     np.savetxt(
-        os.path.join(cfg.working_dir, 'accepted_orientations.dat'),
+        os.path.join(cfg.working_dir, 'accepted_orientations_%s.dat' % analysis_id),
         qbar.T,
         fmt="%.18e",
         delimiter="\t"
