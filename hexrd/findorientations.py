@@ -72,7 +72,7 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids,
     bMat = pd.latVecOps['B']
     csym = pd.getLaueGroup()
 
-    params = { 
+    params = {
         'bMat': bMat,
         'chi': chi,
         'csym': csym,
@@ -116,7 +116,7 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids,
                 pass
             pass
         pass
- 
+
     # do the mapping
     start = time.time()
     qfib = None
@@ -157,7 +157,7 @@ def discretefiber_reduced(param_in):
         np.atleast_2d(params_in[3:]),
         chi=chi,
         ).T
-    
+
     tmp = mutil.uniqueVectors(
         rot.discreteFiber(
             hkl,
@@ -274,8 +274,8 @@ def _handle_duplicate_orientations(qbar, qsym, cl_radius):
                                             metric=quat_distance)
         nblobs_new = len(np.unique(cl))
         if nblobs_new < nblobs:
-            logger_info.("\tfound %d duplicates within %f degrees" 
-                         % (nblobs - nblobs_new, cl_radius)))
+            logger.info("\tfound %d duplicates within %f degrees"
+                        % (nblobs - nblobs_new, cl_radius))
 
             # if duplicates found, average the duplicates
             tmp = np.zeros((4, nblobs_new))
@@ -393,8 +393,8 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             )
 
         cl_dict = _clustering_algorithm_dict
-            if min_samples is None or cfg.find_orientations.use_quaternion_grid is not None:
-                min_samples = 1
+        if min_samples is None or cfg.find_orientations.use_quaternion_grid is not None:
+            min_samples = 1
         cluster_args = [qfib_r, qsym, cl_radius, min_samples]
         while algorithm is not None:
             if algorithm not in cl_dict:
