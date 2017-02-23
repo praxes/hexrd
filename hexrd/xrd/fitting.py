@@ -308,13 +308,13 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
         if return_value_flag == 1:
             retval = sum( abs(retval) )
         elif return_value_flag == 2:
-            denom = npts - len(pFit) - 1.
+            denom = 3*npts - len(pFit) - 1.
             if denom != 0:
                 nu_fac = 1. / denom
             else:
                 nu_fac = 1.
             nu_fac = 1 / (npts - len(pFit) - 1.)
-            retval = nu_fac * sum(retval**2 / abs(np.hstack([calc_xy, calc_omes.reshape(npts, 1)]).flatten()))
+            retval = nu_fac * sum(retval**2)
     return retval
 
 """
@@ -440,12 +440,12 @@ def objFuncFitGrain(gFit, gFull, gFlag,
         if return_value_flag == 1:
             retval = sum( abs(retval) )
         elif return_value_flag == 2:
-            denom = npts - len(gFit) - 1.
+            denom = 3*npts - len(gFit) - 1.
             if denom != 0:
                 nu_fac = 1. / denom
             else:
                 nu_fac = 1.
-            retval = nu_fac * sum(retval**2 / abs(np.hstack([calc_xy, calc_omes.reshape(npts, 1)]).flatten()))
+            retval = nu_fac * sum(retval**2)
     return retval
 
 # def accept_test(f_new=f_new, x_new=x_new, f_old=fold, x_old=x_old):
