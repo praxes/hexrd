@@ -6,11 +6,23 @@
 
 #include "transforms_CFUNC.h"
 
-#if defined(__STDC__)
-#    if (__STD_VERSION__ >= 199901L)
-#        undef USE_C99_CODE
-#        define USE_C99_CODE 1
-#    endif
+/*
+ * For now, disable C99 codepaths
+ */
+#define USE_C99_CODE 0
+#if ! defined(USE_C99_CODE)
+#   if defined(__STDC__)
+#       if (__STD_VERSION__ >= 199901L)
+#           define USE_C99_CODE 1
+#       endif
+#   endif
+#endif
+
+#if ! USE_C99_CODE
+/*
+ * Just remove any "restrict" keyword that may be present.
+ */
+#define restrict
 #endif
 
 static double epsf      = 2.2e-16;
@@ -20,9 +32,6 @@ static double Zl[3] = {0.0,0.0,1.0};
 
 /******************************************************************************/
 /* Functions */
-#if defined(USE_C99_CODE)
-#  define restrict
-#endif
 
 static inline
 double *
