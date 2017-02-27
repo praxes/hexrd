@@ -988,7 +988,7 @@ def parse_args():
         default_ncpus = 1
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--inst-profile", action='append',
+    parser.add_argument("--inst-profile", action='append', default=[],
                         help="instrumented profile")
     parser.add_argument("--generate",
                         help="generate file with intermediate results")
