@@ -6,6 +6,17 @@
 
 #include "transforms_CFUNC.h"
 
+
+/*
+ * Microsoft's C compiler, when running in C mode, does not support the inline
+ * keyword. However it does support an __inline one.
+ *
+ * So if compiling with MSC, just use __inline as inline
+ */
+#if defined(_MSC_VER)
+#   define inline __inline
+#endif
+
 /*
  * For now, disable C99 codepaths
  */
@@ -14,6 +25,8 @@
 #   if defined(__STDC__)
 #       if (__STD_VERSION__ >= 199901L)
 #           define USE_C99_CODE 1
+#       else
+#           define USE_C99_CODE 0
 #       endif
 #   endif
 #endif
@@ -32,7 +45,7 @@ static double Zl[3] = {0.0,0.0,1.0};
 
 /******************************************************************************/
 /* Functions */
-
+#if USE_C99_CODE
 static inline
 double *
 v3_v3s_inplace_add(double *dst_src1,
@@ -260,7 +273,9 @@ m33t_m33t_multiply(const double *src1,
     return m33_inplace_transpose(m33_m33_multiply(src2, src1, dst));
 }
 
-#if defined(USE_C99_CODE)
+#endif
+
+#if USE_C99_CODE
 static inline
 void anglesToGvec_single(double *v3_ang, double *m33_e,
                          double chi, double *m33_c,
@@ -389,7 +404,7 @@ void anglesToDvec_cfunc(long int nvecs, double *angs,
         double s1 = sin(angs[3*i+1]);
         double c0 = cos(angs[3*i]);
         double c1 = cos(angs[3*i+1]);
-        
+
         gVec_e[0] = s0*c1;
         gVec_e[1] = s0*s1;
         gVec_e[2] = -c0;
@@ -424,7 +439,7 @@ void anglesToDvec_cfunc(long int nvecs, double *angs,
 }
 
 
-#if defined(USE_C99_CODE)
+#if USE_C99_CODE
 static inline
 void gvecToDetectorXYOne_cfunc(double * gVec_c, double * rMat_d,
                    double * rMat_sc, double * tVec_d,
@@ -432,16 +447,16 @@ void gvecToDetectorXYOne_cfunc(double * gVec_c, double * rMat_d,
                    double * nVec_l, double num, double * P0_l,
                                double * restrict result)
 {
-    /* 
+    /*
      * Compute unit reciprocal lattice vector in crystal frame w/o
-     * translation 
+     * translation
      */
     double gHat_c[3];
     v3_normalize(gVec_c, gHat_c);
 
     /*
      * Compute unit reciprocal lattice vector in lab frame and dot with beam
-     * vector 
+     * vector
      */
     double gVec_l[3];
     m33_v3s_multiply(rMat_sc, gHat_c, 1, gVec_l);
@@ -736,10 +751,12 @@ detectorXYToGVecOne_cfunc(const double *xy, /* source point, just one */
                           )
 {
     int j, k;
-    double nrm = 0.0;
+    double nrm, b_dot_dHat_l, tTh, eta, phi;
+    double dHat_l[3], tVec2[2], n_g[3];
+
 
     /* Compute dHat_l vector */
-    double dHat_l[3];
+    nrm = 0.0;
     for (j=0; j<3; j++) {
         double acc = tVec1[j];
         dHat_l[j] = tVec1[j];
@@ -749,6 +766,7 @@ detectorXYToGVecOne_cfunc(const double *xy, /* source point, just one */
         nrm += acc*acc;
         dHat_l[j] = acc;
     }
+
     if ( nrm > epsf ) {
         double nrm_factor = 1.0/sqrt(nrm);
         for (j=0; j<3; j++) {
@@ -757,24 +775,22 @@ detectorXYToGVecOne_cfunc(const double *xy, /* source point, just one */
     }
 
     /* Compute tTh */
-    double b_dot_dHat_l = 0.0;
+    b_dot_dHat_l = 0.0;
     for (j=0; j<3; j++) {
         b_dot_dHat_l += bVec[j]*dHat_l[j];
     }
-    double tTh = acos(b_dot_dHat_l);
+    tTh = acos(b_dot_dHat_l);
 
     /* Compute eta */
-    double tVec2[2];
     for (j=0; j<2; j++) {
         tVec2[j] = 0.0;
         for (k=0; k<3; k++) {
             tVec2[j] += rMat_e[3*k+j]*dHat_l[k];
         }
     }
-    double eta = atan2(tVec2[1], tVec2[0]);
+    eta = atan2(tVec2[1], tVec2[0]);
 
     /* Compute n_g vector */
-    double n_g[3];
     nrm = 0.0;
     for (j=0; j<3; j++) {
         double val;
@@ -792,7 +808,7 @@ detectorXYToGVecOne_cfunc(const double *xy, /* source point, just one */
     }
 
     /* Rotate dHat_l vector */
-    double phi = 0.5*(M_PI-tTh);
+    phi = 0.5*(M_PI-tTh);
     *tTh_out = tTh;
     *eta_out = eta;
     rotate_vecs_about_axis_cfunc(1, &phi, 1, n_g, 1, dHat_l, gVec_l_out);
