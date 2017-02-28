@@ -118,7 +118,7 @@ transforms_mod = Extension(
     'hexrd.xrd._transforms_CAPI',
     sources=srclist,
     include_dirs=[np_include_dir],
-    extra_compile_args=['-std=c99'],
+    extra_compile_args=['-std=gnu99'],
     )
 
 ext_modules = [sglite_mod, transforms_mod]
