@@ -398,7 +398,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
         cluster_args = [qfib_r, qsym, cl_radius, min_samples]
         while algorithm is not None:
             if algorithm not in cl_dict:
-            raise RuntimeError(
+                raise RuntimeError(
                     "Clustering '{0}' not recognized".format(algorithm)
                 )
             try:
