@@ -24,6 +24,7 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
+from __future__ import print_function
 
 import glob
 import os
@@ -33,9 +34,9 @@ import numpy
 np_include_dir = os.path.join(numpy.get_include(), 'numpy')
 
 from setuptools import Command, Extension, find_packages, setup
+from setuptools.command.build_ext import build_ext
 
 import versioneer
-
 
 cmdclass = versioneer.get_cmdclass()
 
@@ -71,6 +72,31 @@ class test(Command):
 cmdclass['test'] = test
 
 
+
+_EXTENSION_FLAG_OVERRIDES = {
+    'hexrd.xrd._transforms_CAPI': {
+        'extra_compile_args': {
+            'msvc': []
+        }
+    }
+}
+# handle overriding of options for specific compilers
+class build_ext_override_keys( build_ext ):
+    def build_extensions(self):
+        c = self.compiler.compiler_type
+        for e in self.extensions:
+            overrides = _EXTENSION_FLAG_OVERRIDES.get(e._full_name)
+            if overrides:
+                for var, val_dict in overrides.iteritems():
+                    val = val_dict.get(c)
+                    if val is not None:
+                        setattr(e, var, val)
+
+        build_ext.build_extensions(self)
+
+cmdclass['build_ext'] = build_ext_override_keys
+
+
 # for SgLite
 srclist = [
     'sgglobal.c', 'sgcb.c', 'sgcharmx.c', 'sgfile.c', 'sggen.c', 'sghall.c',
@@ -86,14 +112,13 @@ sglite_mod = Extension(
     )
 
 
-# for transforms
 srclist = ['transforms_CAPI.c', 'transforms_CFUNC.c']
 srclist = [os.path.join('hexrd/transforms', f) for f in srclist]
 transforms_mod = Extension(
     'hexrd.xrd._transforms_CAPI',
     sources=srclist,
     include_dirs=[np_include_dir],
-    extra_compile_args=['-std=gnu99']
+    extra_compile_args=['-std=c99'],
     )
 
 ext_modules = [sglite_mod, transforms_mod]
