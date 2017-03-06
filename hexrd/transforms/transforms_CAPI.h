@@ -35,6 +35,8 @@ static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args);
 
 static PyObject * detectorXYToGvec(PyObject * self, PyObject * args);
 
+static PyObject * detectorXYToGvecArray(PyObject * self, PyObject * args);
+
 static PyObject * oscillAnglesOfHKLs(PyObject * self, PyObject * args);
 
 /******************************************************************************/

@@ -14,6 +14,7 @@ static PyMethodDef _transform_methods[] = {
   {"gvecToDetectorXY",gvecToDetectorXY,METH_VARARGS,""},
   {"gvecToDetectorXYArray",gvecToDetectorXYArray,METH_VARARGS,""},
   {"detectorXYToGvec",detectorXYToGvec,METH_VARARGS,"take cartesian coordinates to G-vectors"},
+  {"detectorXYToGvecArray",detectorXYToGvecArray,METH_VARARGS,"take cartesian coordinates to G-vectors"},
   {"oscillAnglesOfHKLs",oscillAnglesOfHKLs,METH_VARARGS,"solve angle specs for G-vectors"},
   {"arccosSafe",arccosSafe,METH_VARARGS,""},
   {"angularDifference",angularDifference,METH_VARARGS,"difference for cyclical angles"},
@@ -38,7 +39,7 @@ static PyMethodDef _transform_methods[] = {
 
 void init_transforms_CAPI(void)
 {
-  (void)Py_InitModule("_transforms_CAPI",_transform_methods);
+  (void)Py_InitModule("_transforms_CAPI", _transform_methods);
   import_array();
 }
 
@@ -197,18 +198,18 @@ static PyObject * makeGVector(PyObject * self, PyObject * args)
 static PyObject * gvecToDetectorXY(PyObject * self, PyObject * args)
 {
   PyArrayObject *gVec_c,
-		*rMat_d, *rMat_s, *rMat_c,
-		*tVec_d, *tVec_s, *tVec_c,
-		*beamVec;
+                *rMat_d, *rMat_s, *rMat_c,
+                *tVec_d, *tVec_s, *tVec_c,
+                *beamVec;
   PyArrayObject *result;
 
   int dgc, drd, drs, drc, dtd, dts, dtc, dbv;
   npy_intp npts, dims[2];
 
   double *gVec_c_Ptr,
-	 *rMat_d_Ptr, *rMat_s_Ptr, *rMat_c_Ptr,
-	 *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
-	 *beamVec_Ptr;
+         *rMat_d_Ptr, *rMat_s_Ptr, *rMat_c_Ptr,
+         *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
+         *beamVec_Ptr;
   double *result_Ptr;
 
   /* Parse arguments */
@@ -301,18 +302,18 @@ static PyObject * gvecToDetectorXY(PyObject * self, PyObject * args)
 static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
 {
   PyArrayObject *gVec_c,
-		*rMat_d, *rMat_s, *rMat_c,
-		*tVec_d, *tVec_s, *tVec_c,
-		*beamVec;
+                *rMat_d, *rMat_s, *rMat_c,
+                *tVec_d, *tVec_s, *tVec_c,
+                *beamVec;
   PyArrayObject *result;
 
   int dgc, drd, drs, drc, dtd, dts, dtc, dbv;
   npy_intp npts, dims[2];
 
   double *gVec_c_Ptr,
-	 *rMat_d_Ptr, *rMat_s_Ptr, *rMat_c_Ptr,
-	 *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
-	 *beamVec_Ptr;
+         *rMat_d_Ptr, *rMat_s_Ptr, *rMat_c_Ptr,
+         *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
+         *beamVec_Ptr;
   double *result_Ptr;
 
   /* Parse arguments */
@@ -345,7 +346,7 @@ static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
 
   if (npts != PyArray_DIM(rMat_s, 0)) {
     PyErr_Format(PyExc_ValueError, "gVec_c and rMat_s length mismatch %d vs %d",
-		 (int)PyArray_DIM(gVec_c, 0), (int)PyArray_DIM(rMat_s, 0));
+                 (int)PyArray_DIM(gVec_c, 0), (int)PyArray_DIM(rMat_s, 0));
     return NULL;
   }
   assert( PyArray_DIMS(gVec_c)[1]  == 3 );
@@ -412,8 +413,8 @@ static PyObject * gvecToDetectorXYArray(PyObject * self, PyObject * args)
 static PyObject * detectorXYToGvec(PyObject * self, PyObject * args)
 {
   PyArrayObject *xy_det, *rMat_d, *rMat_s,
-		*tVec_d, *tVec_s, *tVec_c,
-		*beamVec, *etaVec;
+		        *tVec_d, *tVec_s, *tVec_c,
+                *beamVec, *etaVec;
   PyArrayObject *tTh, *eta, *gVec_l;
   PyObject *inner_tuple, *outer_tuple;
 
@@ -421,8 +422,8 @@ static PyObject * detectorXYToGvec(PyObject * self, PyObject * args)
   npy_intp npts, dims[2];
 
   double *xy_Ptr, *rMat_d_Ptr, *rMat_s_Ptr,
-	 *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
-	 *beamVec_Ptr, *etaVec_Ptr;
+         *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
+         *beamVec_Ptr, *etaVec_Ptr;
   double *tTh_Ptr, *eta_Ptr, *gVec_l_Ptr;
 
   /* Parse arguments */
@@ -490,6 +491,126 @@ static PyObject * detectorXYToGvec(PyObject * self, PyObject * args)
 			 tVec_d_Ptr, tVec_s_Ptr, tVec_c_Ptr,
 			 beamVec_Ptr, etaVec_Ptr,
 			 tTh_Ptr, eta_Ptr, gVec_l_Ptr);
+
+  /* Build and return the nested data structure */
+  /* Note that Py_BuildValue with 'O' increases reference count */
+  inner_tuple = Py_BuildValue("OO",tTh,eta);
+  outer_tuple = Py_BuildValue("OO", inner_tuple, gVec_l);
+  Py_DECREF(inner_tuple);
+  Py_DECREF(tTh);
+  Py_DECREF(eta);
+  Py_DECREF(gVec_l);
+  return outer_tuple;
+}
+
+/*
+    Takes a list cartesian (x, y) pairs in the detector coordinates and calculates
+    the associated reciprocal lattice (G) vectors and (bragg angle, azimuth) pairs
+    with respect to the specified beam and azimth (eta) reference directions
+
+    Required Arguments:
+    xy_det -- (n, 2) ndarray or list-like input of n detector (x, y) points
+    rMat_d -- (3, 3) ndarray, the COB taking DETECTOR FRAME components to LAB FRAME
+    rMat_s -- (n, 3, 3) ndarray, the COB taking SAMPLE FRAME components to LAB FRAME
+    tVec_d -- (3, 1) ndarray, the translation vector connecting LAB to DETECTOR
+    tVec_s -- (3, 1) ndarray, the translation vector connecting LAB to SAMPLE
+    tVec_c -- (3, 1) ndarray, the translation vector connecting SAMPLE to CRYSTAL
+
+    Optional Keyword Arguments:
+    beamVec -- (1, 3) mdarray containing the incident beam direction components in the LAB FRAME
+    etaVec  -- (1, 3) mdarray containing the reference azimuth direction components in the LAB FRAME
+
+    Outputs:
+    (n, 2) ndarray containing the (tTh, eta) pairs associated with each (x, y)
+    (n, 3) ndarray containing the associated G vector directions in the LAB FRAME
+    associated with gVecs
+*/
+static PyObject * detectorXYToGvecArray(PyObject * self, PyObject * args)
+{
+  PyArrayObject *xy_det, *rMat_d, *rMat_s,
+		*tVec_d, *tVec_s, *tVec_c,
+                *beamVec, *etaVec;
+  PyArrayObject *tTh, *eta, *gVec_l;
+  PyObject *inner_tuple, *outer_tuple;
+
+  int dxy, drd, drs, dtd, dts, dtc, dbv, dev;
+  npy_intp npts, dims[2];
+
+  double *xy_Ptr, *rMat_d_Ptr, *rMat_s_Ptr,
+         *tVec_d_Ptr, *tVec_s_Ptr, *tVec_c_Ptr,
+         *beamVec_Ptr, *etaVec_Ptr;
+  double *tTh_Ptr, *eta_Ptr, *gVec_l_Ptr;
+
+  /* Parse arguments */
+  if ( !PyArg_ParseTuple(args,"OOOOOOOO",
+			 &xy_det,
+			 &rMat_d, &rMat_s,
+			 &tVec_d, &tVec_s, &tVec_c,
+			 &beamVec, &etaVec)) return(NULL);
+  if ( xy_det  == NULL || rMat_d == NULL || rMat_s == NULL ||
+       tVec_d  == NULL || tVec_s == NULL || tVec_c == NULL ||
+       beamVec == NULL || etaVec == NULL ) return(NULL);
+
+  /* Verify shape of input arrays */
+  dxy = PyArray_NDIM(xy_det);
+  drd = PyArray_NDIM(rMat_d);
+  drs = PyArray_NDIM(rMat_s);
+  dtd = PyArray_NDIM(tVec_d);
+  dts = PyArray_NDIM(tVec_s);
+  dtc = PyArray_NDIM(tVec_c);
+  dbv = PyArray_NDIM(beamVec);
+  dev = PyArray_NDIM(etaVec);
+  assert( dxy == 2 && drd == 2 && drs == 2 &&
+	  dtd == 1 && dts == 1 && dtc == 1 &&
+	  dbv == 1 && dev == 1);
+
+  /* Verify dimensions of input arrays */
+  npts = PyArray_DIMS(xy_det)[0];
+  if (npts != PyArray_DIM(rMat_s, 0)) {
+    PyErr_Format(PyExc_ValueError, "xy_det and rMat_s length mismatch %d vs %d",
+                 (int)PyArray_DIM(xy_det, 0), (int)PyArray_DIM(rMat_s, 0));
+    return NULL;
+  }
+
+  assert( PyArray_DIMS(xy_det)[1]  == 2 );
+  assert( PyArray_DIMS(rMat_d)[0]  == 3 && PyArray_DIMS(rMat_d)[1] == 3 );
+  assert( PyArray_DIMS(rMat_s)[0]  == 3 && PyArray_DIMS(rMat_s)[1] == 3 );
+  assert( PyArray_DIMS(tVec_d)[0]  == 3 );
+  assert( PyArray_DIMS(tVec_s)[0]  == 3 );
+  assert( PyArray_DIMS(tVec_c)[0]  == 3 );
+  assert( PyArray_DIMS(beamVec)[0] == 3 );
+  assert( PyArray_DIMS(etaVec)[0]  == 3 );
+
+  /* Allocate arrays for return values */
+  dims[0] = npts; dims[1] = 3;
+  gVec_l = (PyArrayObject*)PyArray_EMPTY(2,dims,NPY_DOUBLE,0);
+
+  tTh    = (PyArrayObject*)PyArray_EMPTY(1,&npts,NPY_DOUBLE,0);
+  eta    = (PyArrayObject*)PyArray_EMPTY(1,&npts,NPY_DOUBLE,0);
+
+  /* Grab data pointers into various arrays */
+  xy_Ptr      = (double*)PyArray_DATA(xy_det);
+  gVec_l_Ptr  = (double*)PyArray_DATA(gVec_l);
+
+  tTh_Ptr     = (double*)PyArray_DATA(tTh);
+  eta_Ptr     = (double*)PyArray_DATA(eta);
+
+  rMat_d_Ptr  = (double*)PyArray_DATA(rMat_d);
+  rMat_s_Ptr  = (double*)PyArray_DATA(rMat_s);
+
+  tVec_d_Ptr  = (double*)PyArray_DATA(tVec_d);
+  tVec_s_Ptr  = (double*)PyArray_DATA(tVec_s);
+  tVec_c_Ptr  = (double*)PyArray_DATA(tVec_c);
+
+  beamVec_Ptr = (double*)PyArray_DATA(beamVec);
+  etaVec_Ptr  = (double*)PyArray_DATA(etaVec);
+
+  /* Call the computational routine */
+  detectorXYToGvecArray_cfunc(npts, xy_Ptr,
+                              rMat_d_Ptr, rMat_s_Ptr,
+                              tVec_d_Ptr, tVec_s_Ptr, tVec_c_Ptr,
+                              beamVec_Ptr, etaVec_Ptr,
+                              tTh_Ptr, eta_Ptr, gVec_l_Ptr);
 
   /* Build and return the nested data structure */
   /* Note that Py_BuildValue with 'O' increases reference count */
