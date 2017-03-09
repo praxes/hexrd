@@ -4,6 +4,7 @@ Refactor of simulate_nf so that an experiment is mocked up.
 Also trying to minimize imports
 """
 
+import os
 import sys
 import logging
 
@@ -1024,6 +1025,10 @@ def build_controller(args):
         result_handler = saving_result_handler(args.generate)
     else:
         result_handler = forgetful_result_handler()
+
+    if args.ncpus > 1 and os.name == 'nt':
+        logging.warn("Multiprocessing on Windows is disabled for now")
+        args.ncpus = 1
 
     controller = ProcessController(result_handler, progress_handler,
                                    ncpus=args.ncpus, chunk_size=args.chunk_size)
