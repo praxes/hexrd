@@ -315,8 +315,8 @@ def mockup_experiment():
 
     # dilation
     max_diameter = np.sqrt(3)*0.005
-    row_dilation = np.ceil(0.5 * max_diameter/row_ps)
-    col_dilation = np.ceil(0.5 * max_diameter/col_ps)
+    row_dilation = int(np.ceil(0.5 * max_diameter/row_ps))
+    col_dilation = int(np.ceil(0.5 * max_diameter/col_ps))
 
     # crystallography data
     from hexrd import valunits
