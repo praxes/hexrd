@@ -499,13 +499,14 @@ def makePathVariantPoles(rMatRef, fromPhase,
 
     return qVecList
 
+
 def displayPathVariants(data, rMatRef, fromPhase,
                         pathList,
                         planeDataDict,
                         detectorGeom, omeMin, omeMax,
                         phaseForDfltPD=None,
-                        markerList = markerListDflt,
-                        hklList = None,
+                        markerList=markerListDflt,
+                        hklList=None,
                         color=None,
                         pointKWArgs={},
                         hklIDs=None, pw=None):
@@ -3891,10 +3892,11 @@ if USE_NUMBA:
 
         return result
 
-    def angularPixelSize(xy_det, xy_pixelPitch,
-                 rMat_d, rMat_s,
-                 tVec_d, tVec_s, tVec_c,
-                 distortion=None, beamVec=None, etaVec=None):
+    def angularPixelSize(
+        xy_det, xy_pixelPitch,
+        rMat_d, rMat_s,
+        tVec_d, tVec_s, tVec_c,
+        distortion=None, beamVec=None, etaVec=None):
         """
         * choices to beam vector and eta vector specs have been supressed
         * assumes xy_det in UNWARPED configuration
@@ -4134,17 +4136,29 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
         col_indices   = gutil.cellIndices(col_edges, xy_eval[:, 0])
 
         # append patch data to list
-        patches.append(((gVec_angs_vtx[:, 0].reshape(m_tth.shape),
-                         gVec_angs_vtx[:, 1].reshape(m_tth.shape)),
-                        (xy_eval_vtx[:, 0].reshape(m_tth.shape),
-                         xy_eval_vtx[:, 1].reshape(m_tth.shape)),
-                        conn,
-                        areas.reshape(sdims[0], sdims[1]),
-                        (row_indices.reshape(sdims[0], sdims[1]),
-                         col_indices.reshape(sdims[0], sdims[1]))
-                        )
-                    )
-        pass
+        patches.append(
+            (
+                (
+                    gVec_angs_vtx[:, 0].reshape(m_tth.shape),
+                    gVec_angs_vtx[:, 1].reshape(m_tth.shape),
+                ),
+                (
+                    xy_eval_vtx[:, 0].reshape(m_tth.shape),
+                    xy_eval_vtx[:, 1].reshape(m_tth.shape),
+                ),
+                conn,
+                areas.reshape(sdims[0], sdims[1]),
+                (
+                    xy_eval[:, 0].reshape(sdims[0], sdims[1]),
+                    xy_eval[:, 1].reshape(sdims[0], sdims[1]),
+                ),
+                (
+                    row_indices.reshape(sdims[0], sdims[1]),
+                    col_indices.reshape(sdims[0], sdims[1]),
+                ),
+            )
+        )
+        pass # close loop over angles
     return patches
 
 def pullSpots(pd, detector_params, grain_params, reader,
@@ -4570,11 +4584,11 @@ def extract_detector_transformation(detector_params):
     """    # extract variables for convenience
     if isinstance(detector_params, dict):
         rMat_d = xfcapi.makeDetectorRotMat(
-            instr_cfg['detector']['transform']['tilt_angles']
+            detector_params['detector']['transform']['tilt_angles']
             )
-        tVec_d = num.r_[instr_cfg['detector']['transform']['t_vec_d']]
-        chi = instr_cfg['oscillation_stage']['chi']
-        tVec_s = num.r_[instr_cfg['oscillation_stage']['t_vec_s']]
+        tVec_d = num.r_[detector_params['detector']['transform']['t_vec_d']]
+        chi = detector_params['oscillation_stage']['chi']
+        tVec_s = num.r_[detector_params['oscillation_stage']['t_vec_s']]
     else:
         assert len(detector_params >= 10), \
             "list of detector parameters must have length >= 10"

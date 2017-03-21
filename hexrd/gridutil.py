@@ -178,6 +178,21 @@ def computeArea(polygon):
         area += 0.5 * cross(tvp[:2], tvp[2:])
     return area
 
+def make_tolerance_grid(bin_width, window_width, num_subdivisions,
+                        adjust_window=False, one_sided=False):
+    if bin_width > window_width:
+        bin_width = window_width
+    if adjust_window:
+        window_width = np.ceil(window_width/bin_width)*bin_width
+    if one_sided:
+        ndiv = abs(int(window_width/bin_width))
+        grid = (np.arange(0, 2*ndiv+1) - ndiv)*bin_width
+        ndiv = 2*ndiv
+    else:
+        ndiv = int(num_subdivisions*np.ceil(window_width/float(bin_width)))
+        grid = np.arange(0, ndiv+1)*window_width/float(ndiv) - 0.5*window_width
+    return ndiv, grid
+
 def computeIntersection(line1, line2):
     """
     compute intersection of two-dimensional line intersection
