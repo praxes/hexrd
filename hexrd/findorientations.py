@@ -50,7 +50,7 @@ except ImportError:
 
 
 def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids,
-                                fiber_ndiv, filt_stdev=0.0, ncpus=1):
+                                fiber_ndiv, filt_stdev=1.0, ncpus=1):
     """
     From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
@@ -123,13 +123,13 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids,
     if ncpus > 1:
         # multiple process version
         pool = mp.Pool(ncpus, discrete_fiber_init, (params, ))
-        qfib = pool.map(discretefiber_reduced, input_p) # chunksize=chunksize)
+        qfib = pool.map(discrete_fiber_reduced, input_p) # chunksize=chunksize)
         pool.close()
     else:
         # single process version
         global paramMP
-        discretefiber_init(params)
-        qfib = map(discretefiber_reduced, input_p)
+        discrete_fiber_init(params)
+        qfib = map(discrete_fiber_reduced, input_p)
         paramMP = None # clear paramMP
 
     elapsed = (time.time()-start)
@@ -138,11 +138,11 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids,
     return np.hstack(qfib)
 
 
-def discretefiber_init(params):
+def discrete_fiber_init(params):
     global paramMP
     paramMP = params
 
-def discretefiber_reduced(param_in):
+def discrete_fiber_reduced(params_in):
     """
     input parameters are [hkl_id, com_ome, com_eta]
     """
@@ -638,6 +638,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
                 distortion=distortion,
             )
             refl_per_grain[i] = len(sim_results[0])
+            import pdb; pdb.set_trace()
             num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
             pass
 
