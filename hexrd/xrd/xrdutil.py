@@ -1418,7 +1418,8 @@ class OmeEtaPfig(object):
         self.p.save(*args, **kwargs)
 
 class CollapseOmeEta(object):
-    """
+    """ MARKED FOR DELETION
+
     Can pass a mask to use in addition to whatever the readers are already
     set up to do; with frames set zero where mask is True
 

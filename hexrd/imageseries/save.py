@@ -1,6 +1,7 @@
 """Write imageseries to various formats"""
 from __future__ import print_function
 import abc
+import os
 
 import numpy as np
 import h5py
@@ -91,7 +92,7 @@ class WriteH5(Writer):
 
         for i in range(self._nframes):
             ds[i, :, :] = self._ims[i]
-           
+
         # add metadata
         for k, v in self._meta.items():
             g.attrs[k] = v
@@ -131,7 +132,13 @@ class WriteFrameCache(Writer):
         """
         Writer.__init__(self, ims, fname, **kwargs)
         self._thresh = self._opts['threshold']
-        self._cache = kwargs['cache_file']
+        cf = kwargs['cache_file']
+        if os.path.isabs(cf):
+            self._cache = cf
+        else:
+            cdir = os.path.dirname(fname)
+            self._cache = os.path.join(cdir, cf)
+        self._cachename = cf
 
     def _process_meta(self):
         d = {}
@@ -145,7 +152,7 @@ class WriteFrameCache(Writer):
         return d
 
     def _write_yml(self):
-        datad = {'file': self._cache, 'dtype': str(self._ims.dtype),
+        datad = {'file': self._cachename, 'dtype': str(self._ims.dtype),
                  'nframes': len(self._ims), 'shape': list(self._ims.shape)}
         info = {'data': datad, 'meta': self._process_meta()}
         with open(self._fname, "w") as f:

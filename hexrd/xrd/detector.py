@@ -79,9 +79,14 @@ zvec3 = num.zeros((3, 1))
 
 #######
 # GE, Perkin
-NROWS = 2048
-NCOLS = 2048
-PIXEL = 0.2
+#NROWS = 2048
+#NCOLS = 2048
+#PIXEL = 0.2
+
+# dexela, horizontal
+NROWS = 3072
+NCOLS = 3888
+PIXEL = 0.0748
 
 # MAR345
 #NROWS = 3450
@@ -3751,10 +3756,10 @@ class DetectorGeomGE(Detector2DRC):
     __vfu            = 0.2 # made up
     __vdk            = 1800 # made up
     # 200 x 200 micron pixels
-    __pixelPitch     = 0.2      # in mm
-    __idim           = 2048
-    __nrows          = 2048
-    __ncols          = 2048
+    __pixelPitch     = PIXEL # in mm
+    __idim           = max(NROWS, NCOLS)
+    __nrows          = NROWS
+    __ncols          = NCOLS
     __dParamDflt     = [   0.0,       0.0,       0.0,      2.0,      2.0,      2.0]
     __dParamZero     = [   0.0,       0.0,       0.0,      2.0,      2.0,      2.0]
     __dParamScalings = [   1.0,       1.0,       1.0,      1.0,      1.0,      1.0]
@@ -3769,6 +3774,10 @@ class DetectorGeomGE(Detector2DRC):
         else:
             self.__nrows = self.__idim = reader.nrows
             self.__ncols = reader.ncols
+        # self.__pixelPitch = kwargs.pop('pixelPitch', 0.2)
+        # self.__nrows = kwargs.pop('nrows', 2048)
+        # self.__ncols = kwargs.pop('ncols', 2048)
+        # self.__idim = max(self.__nrows, self.__ncols)
 
         Detector2DRC.__init__(self,
                               self.__ncols, self.__nrows, self.__pixelPitch,

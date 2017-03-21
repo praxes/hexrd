@@ -83,8 +83,10 @@ class ProcessConfig(Config):
 
     @property
     def dark(self):
+        # fixed bug that returned np.load(None)
         fname = self._cfg.get('image_series:process:dark', default=None)
-        return np.load(fname)
+        if fname is not None:
+            return np.load(fname)
 
 
 class OmegaConfig(Config):

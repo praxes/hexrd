@@ -32,7 +32,6 @@ class TestImageSeriesConfig(TestConfig):
 
     def test_filename(self):
 
-
         self.assertRaises(
             RuntimeError,
             getattr, self.cfgs[0].image_series, 'filename'
@@ -41,11 +40,6 @@ class TestImageSeriesConfig(TestConfig):
         self.assertRaises(
             RuntimeError,
             getattr, self.cfgs[0].image_series, 'format'
-            )
-
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[0].image_series, 'args'
             )
 
         self.assertEqual(
