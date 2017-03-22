@@ -834,7 +834,6 @@ def multiproc_inner_loop(chunk):
 
 def worker_init(id_state, id_exp):
     global _mp_state
-    print(id_state, id_exp)
     state = joblib.load(id_state)
     experiment = joblib.load(id_exp)
     _mp_state = state + (experiment,)
@@ -864,7 +863,7 @@ def grand_loop_pool(ncpus, state):
 
             id_exp = joblib.dump(state[-1], os.path.join(tmp_dir,
                                                          'grand-loop-experiment.gz'),
-                                 compress=True)
+                                 compress=True)[0]
             id_state = joblib.dump(state[:-1], os.path.join(tmp_dir, 'grand-loop-data'))[0]
             pool = multiprocessing.Pool(ncpus, worker_init, (id_state, id_exp))
             yield pool
