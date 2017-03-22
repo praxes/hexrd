@@ -39,6 +39,7 @@ requirements:
     - scikit-learn
     - scipy
     - wxpython
+    - joblib
 
 test:
   imports:
