@@ -41,7 +41,7 @@ import numpy as np
 
 from scipy import ndimage
 
-from gridutil import cellIndices, make_tolerance_grid
+from hexrd.gridutil import cellIndices, make_tolerance_grid
 from hexrd import matrixutil as mutil
 from hexrd.xrd.transforms_CAPI import anglesToGVec, \
                                       detectorXYToGvec, \
@@ -104,8 +104,8 @@ def calc_angles_from_beam_vec(bvec):
     )
     pola = float(np.degrees(np.arccos(nvec[1])))
     return azim, pola
-    
-    
+
+
 
 
 def migrate_instrument_config(instrument_config):
@@ -287,16 +287,16 @@ class HEDMInstrument(object):
             )
         )
         par_dict['beam'] = beam
-        
+
         if calibration_dict:
             par_dict['calibration_crystal'] = calibration_dict
-        
+
         ostage = dict(
             chi=self.chi,
             t_vec_s=self.tvec.tolist()
         )
         par_dict['oscillation_stage'] = ostage
-        
+
         det_names = self.detectors.keys()
         det_dict = dict.fromkeys(det_names)
         for det_name in det_names:
@@ -308,13 +308,104 @@ class HEDMInstrument(object):
             yaml.dump(par_dict, stream=f)
         return par_dict
 
-    
+
+    def extract_line_positions(self, plane_data, image_dict, tth_tol=0.25, eta_tol=1., npdiv=2):
+        """
+        """
+        tol_vec = 0.5*np.radians(
+            [-tth_tol, -eta_tol,
+             -tth_tol,  eta_tol,
+             tth_tol,  eta_tol,
+             tth_tol, -eta_tol])
+        panel_data = []
+        for detector_id in self.detectors:
+            # grab panel
+            panel = self.detectors[detector_id]
+            instr_cfg = panel.config_dict(self.chi, self.tvec)
+            native_area = panel.pixel_area  # pixel ref area
+
+            # pull out the image for this panel from input dict
+            image = image_dict[detector_id]
+            
+            # make rings
+            pow_angs, pow_xys = panel.make_powder_rings(
+                plane_data, merge_hkls=True, delta_eta=eta_tol)
+            n_rings = len(pow_angs)
+            
+            ring_data = []
+            for i_ring in range(n_rings):
+                these_angs = pow_angs[i_ring]
+                
+                # make sure no one falls off...
+                npts = len(these_angs)
+                patch_vertices = (np.tile(these_angs, (1, 4)) \
+                    + np.tile(tol_vec, (npts, 1))).reshape(4*npts, 2)
+
+                # find points that fall on the panel
+                det_xy, rMat_s = xrdutil._project_on_detector_plane(
+                    np.hstack([patch_vertices, np.zeros((4*npts, 1))]),
+                    panel.rmat, ct.identity_3x3, self.chi,
+                    panel.tvec, ct.zeros_3, self.tvec,
+                    panel.distortion
+                    )
+                tmp_xy, on_panel = panel.clip_to_panel(det_xy)
+                
+                # all vertices must be on...
+                patch_is_on = np.all(on_panel.reshape(npts, 4), axis=1)
+                
+                # reflection angles (voxel centers) and pixel size in (tth, eta)
+                ang_centers = these_angs[patch_is_on]
+                ang_pixel_size = panel.angularPixelSize(tmp_xy[::4, :])
+                
+                # make the tth,eta patches for interpolation
+                patches = xrdutil.make_reflection_patches(
+                    instr_cfg, ang_centers, ang_pixel_size,
+                    tth_tol=tth_tol, eta_tol=eta_tol,
+                    distortion=panel.distortion,
+                    npdiv=npdiv, quiet=True,
+                    beamVec=self.beam_vector)
+                
+                # loop over patches
+                patch_data = []
+                for patch in patches:
+                    # strip relevant objects out of current patch
+                    vtx_angs, vtx_xy, conn, areas, xy_eval, ijs = patch
+                    prows, pcols = areas.shape
+
+                    # need to reshape eval pts for interpolation
+                    xy_eval = np.vstack([
+                        xy_eval[0].flatten(),
+                        xy_eval[1].flatten()]).T
+                
+                    # edge arrays
+                    tth_edges = vtx_angs[0][0, :]
+                    delta_tth = tth_edges[1] - tth_edges[0]
+                    eta_edges = vtx_angs[1][:, 0]
+                    delta_eta = eta_edges[1] - eta_edges[0]
+                    
+                    # interpolate
+                    patch_data.append(
+                      panel.interpolate_bilinear(
+                          xy_eval,
+                          image,
+                          ).reshape(prows, pcols)*(areas/float(native_area))
+                    )
+
+                    # 
+                    pass  # close patch loop
+                ring_data.append(patch_data)
+                pass  # close ring loop
+            panel_data.append(ring_data)
+            pass  # close panel loop
+        return panel_data
+
+
     def pull_spots(self, plane_data, grain_params,
                    imgser_dict,
                    tth_tol=0.25, eta_tol=1., ome_tol=1.,
-                   npdiv=1, threshold=10,
+                   npdiv=2, threshold=10,
                    dirname='results', filename=None, save_spot_list=False,
-                   quiet=True, lrank=1):
+                   quiet=True, lrank=1, check_only=False):
 
 
         '''first find valid G-vectors'''
@@ -376,6 +467,7 @@ class HEDMInstrument(object):
 
         '''loop over panels'''
         iRefl = 0
+        compl = []
         for detector_id in self.detectors:
             # initialize output writer
             if filename is not None:
@@ -405,7 +497,6 @@ class HEDMInstrument(object):
 
             # all vertices must be on...
             patch_is_on = np.all(on_panel.reshape(nangs, 4), axis=1)
-            #nrefl_p += sum(patch_is_on)
 
             # grab hkls and gvec ids for this panel
             hkls_p = allHKLs[patch_is_on, 1:]
@@ -413,7 +504,7 @@ class HEDMInstrument(object):
 
             # reflection angles (voxel centers) and pixel size in (tth, eta)
             ang_centers = allAngs[patch_is_on, :]
-            ang_pixel_size = panel.angularPixelSize(tmp_xy)
+            ang_pixel_size = panel.angularPixelSize(tmp_xy[::4, :])
 
             # make the tth,eta patches for interpolation
             patches = xrdutil.make_reflection_patches(
@@ -430,17 +521,17 @@ class HEDMInstrument(object):
             # grand loop over reflections for this panel
             for i_pt, patch in enumerate(patches):
 
-                # grab hkl info
-                hkl = hkls_p[i_pt, :]
-                hkl_id = hkl_ids[i_pt]
-
                 # strip relevant objects out of current patch
                 vtx_angs, vtx_xy, conn, areas, xy_eval, ijs = patch
                 prows, pcols = areas.shape
 
+                # grab hkl info
+                hkl = hkls_p[i_pt, :]
+                hkl_id = hkl_ids[i_pt]
+
+                # edge arrays
                 tth_edges = vtx_angs[0][0, :]
                 delta_tth = tth_edges[1] - tth_edges[0]
-
                 eta_edges = vtx_angs[1][:, 0]
                 delta_eta = eta_edges[1] - eta_edges[0]
 
@@ -463,97 +554,106 @@ class HEDMInstrument(object):
                         print(msg)
                     continue
                 else:
-                    peak_id = -999
-                    sum_int = None
-                    max_int = None
-                    meas_angs = None
-                    meas_xy = None
-                    
-                    patch_data = np.zeros((len(frame_indices), prows, pcols))
-                    ome_edges = np.hstack(
-                        [ome_imgser.omega[frame_indices][:, 0],
-                         ome_imgser.omega[frame_indices][-1, 1]]
-                    )
-                    for i, i_frame in enumerate(frame_indices):
-                        patch_data[i] = \
-                            panel.interpolate_bilinear(
-                                    xy_eval,
-                                    ome_imgser[i_frame],
-                            ).reshape(prows, pcols)*(areas/float(native_area))
-                        pass
+                    contains_signal = False
+                    for i_frame in frame_indices:
+                        contains_signal = contains_signal or np.any(
+                            ome_imgser[i_frame][ijs[0], ijs[1]] > threshold
+                        )
+                    compl.append(contains_signal)
+                    if not check_only:
+                        peak_id = -999
+                        sum_int = None
+                        max_int = None
+                        meas_angs = None
+                        meas_xy = None
 
-                    # now have interpolated patch data...
-                    labels, num_peaks = ndimage.label(
-                        patch_data > threshold, structure=label_struct
-                    )
-                    slabels = np.arange(1, num_peaks + 1)
-                    if num_peaks > 0:
-                        peak_id = iRefl
-                        coms = np.array(
-                            ndimage.center_of_mass(
-                                patch_data, labels=labels, index=slabels
+                        patch_data = np.zeros((len(frame_indices), prows, pcols))
+                        ome_edges = np.hstack(
+                            [ome_imgser.omega[frame_indices][:, 0],
+                             ome_imgser.omega[frame_indices][-1, 1]]
+                        )
+                        for i, i_frame in enumerate(frame_indices):
+                            patch_data[i] = \
+                                panel.interpolate_bilinear(
+                                        xy_eval,
+                                        ome_imgser[i_frame],
+                                ).reshape(prows, pcols)*(areas/float(native_area))
+                            pass
+
+                        # now have interpolated patch data...
+                        labels, num_peaks = ndimage.label(
+                            patch_data > threshold, structure=label_struct
+                        )
+                        slabels = np.arange(1, num_peaks + 1)
+                        if num_peaks > 0:
+                            peak_id = iRefl
+                            coms = np.array(
+                                ndimage.center_of_mass(
+                                    patch_data, labels=labels, index=slabels
+                                    )
                                 )
-                            )
-                        if num_peaks > 1:
-                            center = np.r_[patch_data.shape]*0.5
-                            com_diff = coms - np.tile(center, (num_peaks, 1))
-                            closest_peak_idx = np.argmin(np.sum(com_diff**2, axis=1))
-                        else:
-                            closest_peak_idx = 0
-                            pass  # end multipeak conditional
-                        coms = coms[closest_peak_idx]
-                        meas_angs = np.hstack([
-                            tth_edges[0] + (0.5 + coms[2])*delta_tth,
-                            eta_edges[0] + (0.5 + coms[1])*delta_eta,
-                            np.radians(ome_edges[0] + (0.5 + coms[0])*delta_ome)
-                            ])
+                            if num_peaks > 1:
+                                center = np.r_[patch_data.shape]*0.5
+                                com_diff = coms - np.tile(center, (num_peaks, 1))
+                                closest_peak_idx = np.argmin(np.sum(com_diff**2, axis=1))
+                            else:
+                                closest_peak_idx = 0
+                                pass  # end multipeak conditional
+                            coms = coms[closest_peak_idx]
+                            meas_angs = np.hstack([
+                                tth_edges[0] + (0.5 + coms[2])*delta_tth,
+                                eta_edges[0] + (0.5 + coms[1])*delta_eta,
+                                np.radians(ome_edges[0] + (0.5 + coms[0])*delta_ome)
+                                ])
 
-                        # intensities
-                        #   - summed is 'integrated' over interpolated data
-                        #   - max is max of raw input data
-                        sum_int = np.sum(
-                            patch_data[labels == slabels[closest_peak_idx]]
-                        )
-                        max_int = np.max(
-                            [ome_imgser[i][ijs[0], ijs[1]] for i in frame_indices]
-                        )
-                        #max_int = np.max(
-                        #    patch_data[labels == slabels[closest_peak_idx]]
-                        #    )
-                        
-                        # need xy coords
-                        gvec_c = anglesToGVec(
-                            meas_angs, 
-                            chi=self.chi, 
-                            rMat_c=rMat_c,
-                            bHat_l=self.beam_vector)
-                        rMat_s = makeOscillRotMat([self.chi, meas_angs[2]])
-                        meas_xy = gvecToDetectorXY(
-                            gvec_c,
-                            panel.rmat, rMat_s, rMat_c,
-                            panel.tvec, self.tvec, tVec_c,
-                            beamVec=self.beam_vector)
-                        if panel.distortion is not None:
-                            """...FIX THIS!!!"""
-                            meas_xy = panel.distortion[0](
-                                np.atleast_2d(meas_xy),
-                                panel.distortion[1],
-                                invert=True).flatten()
-                            pass                        
-                        pass
-                    
-                    # write output
-                    if filename is not None:
-                        pw.dump_patch(
-                            peak_id, hkl_id, hkl, sum_int, max_int,
-                            ang_centers[i_pt], meas_angs, meas_xy)
+                            # intensities
+                            #   - summed is 'integrated' over interpolated data
+                            #   - max is max of raw input data
+                            sum_int = np.sum(
+                                patch_data[labels == slabels[closest_peak_idx]]
+                            )
+                            max_int = np.max(
+                                [ome_imgser[i][ijs[0], ijs[1]] for i in frame_indices]
+                            )
+                            #max_int = np.max(
+                            #    patch_data[labels == slabels[closest_peak_idx]]
+                            #    )
+
+                            # need xy coords
+                            gvec_c = anglesToGVec(
+                                meas_angs,
+                                chi=self.chi,
+                                rMat_c=rMat_c,
+                                bHat_l=self.beam_vector)
+                            rMat_s = makeOscillRotMat([self.chi, meas_angs[2]])
+                            meas_xy = gvecToDetectorXY(
+                                gvec_c,
+                                panel.rmat, rMat_s, rMat_c,
+                                panel.tvec, self.tvec, tVec_c,
+                                beamVec=self.beam_vector)
+                            if panel.distortion is not None:
+                                """...FIX THIS!!!"""
+                                meas_xy = panel.distortion[0](
+                                    np.atleast_2d(meas_xy),
+                                    panel.distortion[1],
+                                    invert=True).flatten()
+                                pass
+                            pass
+
+                        # write output
+                        if filename is not None:
+                            pw.dump_patch(
+                                peak_id, hkl_id, hkl, sum_int, max_int,
+                                ang_centers[i_pt], meas_angs, meas_xy)
+                            pass  # end conditional on write output
+                        pass  # end conditional on check only
                     iRefl += 1
                     pass  # end patch conditional
                 pass  # end patch loop
             if filename is not None:
-                del(pw)
+                pw.close()
             pass  # end detector loop
-        return
+        return compl
     pass  # end class: HEDMInstrument
 
 
@@ -797,7 +897,7 @@ class PlanarDetector(object):
         """
         """
         t_vec_s = np.atleast_1d(t_vec_s)
-        
+
         d = dict(
             detector=dict(
                 transform=dict(
@@ -947,7 +1047,7 @@ class PlanarDetector(object):
     def make_powder_rings(
             self, pd, merge_hkls=False, delta_eta=None, eta_period=None,
             rmat_s=ct.identity_3x3,  tvec_s=ct.zeros_3,
-            tvec_c=ct.zeros_3):
+            tvec_c=ct.zeros_3, output_ranges=False):
         """
         """
 
@@ -970,9 +1070,15 @@ class PlanarDetector(object):
         else:
             if merge_hkls:
                 tth_idx, tth_ranges = pd.getMergedRanges()
-                tth = [0.5*sum(i) for i in tth_ranges]
+                if output_ranges:
+                    tth = np.r_[tth_ranges].flatten()
+                else:
+                    tth = np.array([0.5*sum(i) for i in tth_ranges])
             else:
-                tth = pd.getTTh()
+                if output_ranges:
+                    tth = pd.getTTh()
+                else:
+                    tth = pd.getTThRanges().flatten()
         angs = [np.vstack([i*np.ones(neta), eta, np.zeros(neta)]) for i in tth]
 
         # need xy coords and pixel sizes
