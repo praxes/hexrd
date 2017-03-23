@@ -57,6 +57,13 @@ class Writer(object):
         self._fname = fname
         self._opts = kwargs
 
+        # split filename into components
+        tmp = os.path.split(fname)
+        self._fname_dir = tmp[0]
+        tmp = os.path.splitext(tmp[1])
+        self._fname_base = tmp[0]
+        self._fname_suff = tmp[1]
+
     pass # end class
 
 class WriteH5(Writer):
@@ -144,8 +151,18 @@ class WriteFrameCache(Writer):
         d = {}
         for k, v in self._meta.items():
             if isinstance(v, np.ndarray):
-                d[k] = '++np.array'
-                d[k + '-array'] = v.tolist()
+                # Save as a numpy array file
+                # if file does not exist (careful about directory)
+                #    create new file
+
+                cdir = os.path.dirname(self._cache)
+                b = self._fname_base
+                fname = os.path.join(cdir, "%s-%s.npy" % (b,k))
+                if not os.path.exists(fname):
+                    np.save(fname, v)
+
+                # add trigger in yml file
+                d[k] = "! load-numpy-array %s" % fname
             else:
                 d[k] = v
 
