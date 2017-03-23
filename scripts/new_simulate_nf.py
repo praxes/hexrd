@@ -3,7 +3,9 @@ Refactor of simulate_nf so that an experiment is mocked up.
 
 Also trying to minimize imports
 """
+from __future__ import print_function
 
+import os
 import sys
 import logging
 
@@ -15,6 +17,7 @@ import time
 import itertools as it
 from contextlib import contextmanager
 import multiprocessing
+import multiprocessing.sharedctypes as mp_sct
 # import of hexrd modules
 
 from hexrd import matrixutil as mutil
@@ -27,6 +30,9 @@ import hexrd.gridutil as gridutil
 from hexrd.xrd import material
 from skimage.morphology import dilation as ski_dilation
 
+import joblib
+import tempfile
+import shutil
 
 # ==============================================================================
 # %% SOME SCAFFOLDING
@@ -315,8 +321,8 @@ def mockup_experiment():
 
     # dilation
     max_diameter = np.sqrt(3)*0.005
-    row_dilation = np.ceil(0.5 * max_diameter/row_ps)
-    col_dilation = np.ceil(0.5 * max_diameter/col_ps)
+    row_dilation = int(np.ceil(0.5 * max_diameter/row_ps))
+    col_dilation = int(np.ceil(0.5 * max_diameter/col_ps))
 
     # crystallography data
     from hexrd import valunits
@@ -456,7 +462,7 @@ def get_simulate_diffractions(grain_params, experiment,
                               controller=None):
     """getter functions that handles the caching of the simulation"""
     try:
-        image_stack = np.load(cache_file)
+        image_stack = np.load(cache_file, mmap_mode='r', allow_pickle=False)
     except Exception:
         image_stack = simulate_diffractions(grain_params, experiment,
                                             controller=controller)
@@ -537,8 +543,6 @@ def simulate_diffractions(grain_params, experiment, controller):
 # ==============================================================================
 # %% ORIENTATION TESTING
 # ==============================================================================
-
-
 def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
     n_grains = experiment.n_grains
     n_coords = controller.limit('coords', len(test_crds))
@@ -593,6 +597,7 @@ def _v3_normalized(src, dst):
     dst[2] = v2 * inv_norm
 
     return dst
+
 
 @numba.njit
 def _make_binary_rot_mat(src, dst):
@@ -668,8 +673,8 @@ def _gvec_to_detector_array(vG_sn, rD, rSn, rC, tD, tS, tC):
 
     return result
 
-def _grand_loop_inner(confidence, image_stack, angles, precomp, coords,
-                      experiment, start=0, stop=None):
+def _grand_loop_inner(image_stack, angles, precomp,
+                      coords, experiment, start=0, stop=None):
     n_coords = len(coords)
     n_angles = len(angles)
     rD = experiment.rMat_d
@@ -685,19 +690,22 @@ def _grand_loop_inner(confidence, image_stack, angles, precomp, coords,
     if distortion is not None and len(distortion > 0):
         distortion_fn, distortion_args = distortion
 
+    confidence = np.empty((n_angles, stop-start))
     if distortion_fn is None:
         for igrn in xrange(n_angles):
-            angs = angles[igrn]; rC = rCn[igrn]; gvec_cs, rMat_ss = precomp[igrn]
+            angs = angles[igrn]; rC = rCn[igrn]
+            gvec_cs, rMat_ss = precomp[igrn]
             for icrd in xrange(start, stop):
                 det_xy = _to_detector(gvec_cs, rD, rMat_ss, rC, tD, tS, coords[icrd])
                 c = _quant_and_clip_confidence(det_xy, angs[:,2],
                                                image_stack, experiment.base,
                                                experiment.inv_deltas,
                                                experiment.clip_vals)
-                confidence[igrn, icrd] = c
+                confidence[igrn, icrd - start] = c
     else:
         for igrn in xrange(n_angles):
-            angs = angles[igrn]; rC = rCn[igrn]; gvec_cs, rMat_ss = precomp[igrn]
+            angs = angles[igrn]; rC = rCn[igrn]
+            gvec_cs, rMat_ss = precomp[igrn]
             for icrd in xrange(start, stop):
                 det_xy = _to_detector(gvec_cs, rD, rMat_ss, rC, tD, tS, coords[icrd])
                 det_xy = distortion_fn(tmp_xys, distortion_args, invert=True)
@@ -705,14 +713,45 @@ def _grand_loop_inner(confidence, image_stack, angles, precomp, coords,
                                                image_stack, experiment.base,
                                                experiment.inv_deltas,
                                                experiment.clip_vals)
-                confidence[igrn, icrd] = c
+                confidence[igrn, icrd - start] = c
 
-    return stop - start
+    return confidence
 
-def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controller):
-    """grand loop precomputing the grown image stack"""
+
+def test_orientations(image_stack, experiment, controller):
+    """grand loop precomputing the grown image stack
+
+    image-stack -- is the image stack to be tested against.
+
+    experiment  -- A bunch of experiment related parameters.
+
+    controller  -- An external object implementing the hooks to notify progress
+                   as well as figuring out what to do with results.
+    """
+
+    # extract some information needed =========================================
+    # number of grains, number of coords (maybe limited by call), projection
+    # function to use, chunk size to use if multiprocessing and the number
+    # of cpus.
+    n_grains = experiment.n_grains
+    chunk_size = controller.get_chunk_size()
+    ncpus = controller.get_process_count()
+
+    # generate angles =========================================================
+    # all_angles will be a list containing arrays for the different angles to
+    # use, one entry per grain.
+    #
+    # Note that the angle generation is driven by the exp_maps in the experiment
+    all_angles = evaluate_diffraction_angles(experiment, controller)
+
+    # generate coords =========================================================
+    # The grid of coords to use to test
+    test_crds = generate_test_grid(-0.25, 0.25, 101)
+    n_coords = controller.limit('coords', len(test_crds))
+
+    # first, perform image dilation ===========================================
+    # perform image dilation (using scikit_image dilation)
     subprocess = 'dilate image_stack'
-
     dilation_shape = np.ones((2*experiment.row_dilation + 1,
                               2*experiment.col_dilation + 1),
                              dtype=np.uint8)
@@ -720,51 +759,52 @@ def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controll
     n_images = len(image_stack)
     controller.start(subprocess, n_images)
     for i_image in range(n_images):
-        ski_dilation(image_stack[i_image], dilation_shape, out=image_stack_dilated[i_image])
+        ski_dilation(image_stack[i_image], dilation_shape,
+                     out=image_stack_dilated[i_image])
         controller.update(i_image+1)
     controller.finish(subprocess)
 
-    n_grains = experiment.n_grains
-    n_coords = controller.limit('coords', len(test_crds))
-    _project = xrdutil._project_on_detector_plane
-    chunk_size = controller.get_chunk_size()
-    ncpus = controller.get_process_count()
-
-    # precompute per-grain stuff
+    # precompute per-grain stuff ==============================================
+    # gVec_cs and rmat_ss can be precomputed, do so.
     subprocess = 'precompute gVec_cs'
     controller.start(subprocess, len(all_angles))
-    gvec_cs_precomp = []
+    precomp = []
     for i, angs in enumerate(all_angles):
-        rMat_ss = xfcapi.makeOscillRotMatArray(experiment.chi, angs[:,2])
-        gvec_cs = _anglesToGVec(angs, rMat_ss, experiment.rMat_c[i])
-        gvec_cs_precomp.append((gvec_cs, rMat_ss))
+        rmat_ss = xfcapi.makeOscillRotMatArray(experiment.chi, angs[:,2])
+        gvec_cs = _anglesToGVec(angs, rmat_ss, experiment.rMat_c[i])
+        precomp.append((gvec_cs, rmat_ss))
     controller.finish(subprocess)
 
-    # split on coords
+    # grand loop ==============================================================
+    # The near field simulation 'grand loop'. Where the bulk of computing is
+    # performed. We are looking for a confidence matrix that has a n_grains
     chunks = xrange(0, n_coords, chunk_size)
     subprocess = 'grand_loop'
     controller.start(subprocess, n_coords)
     finished = 0
     ncpus = min(ncpus, len(chunks))
 
+    confidence = np.empty((n_grains, n_coords))
     if ncpus > 1:
-        shared_arr = multiprocessing.Array('d', n_grains * n_coords)
-        confidence = np.ctypeslib.as_array(shared_arr.get_obj()).reshape(n_grains, n_coords)
-        with multiproc_state(chunk_size, confidence, image_stack_dilated, all_angles,
-                             gvec_cs_precomp, test_crds, experiment):
-            pool = multiprocessing.Pool(ncpus)
-            for count in pool.imap_unordered(multiproc_inner_loop, chunks):
+        global _multiprocessing_start_method
+        logging.info('Running multiprocess grand loop with %d processes (%s)',
+                     ncpus, _multiprocessing_start_method)
+        with grand_loop_pool(ncpus=ncpus, state=(chunk_size, image_stack_dilated,
+                                               all_angles, precomp, test_crds,
+                                               experiment)) as pool:
+            for result in pool.imap(multiproc_inner_loop, chunks):
+                count = result.shape[1]
+                confidence[:, finished:finished+count] = result
                 finished += count
                 controller.update(finished)
-            del pool
     else:
-        confidence = np.empty((n_grains, n_coords))
         for chunk_start in chunks:
             chunk_stop = min(n_coords, chunk_start+chunk_size)
-            count =_grand_loop_inner(confidence, image_stack_dilated,
-                                     all_angles, gvec_cs_precomp, test_crds,
-                                     experiment, start=chunk_start,
-                                     stop=chunk_stop)
+            result = _grand_loop_inner(image_stack_dilated, all_angles, precomp,
+                                       test_crds, experiment, start=chunk_start,
+                                       stop=chunk_stop)
+            count = result.shape[1]
+            confidence[:, finished:finished+count] = result
             finished += count
             controller.update(finished)
 
@@ -774,43 +814,68 @@ def _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controll
 
 def multiproc_inner_loop(chunk):
     chunk_size = _mp_state[0]
-    n_coords = len(_mp_state[5])
+    n_coords = len(_mp_state[4])
     chunk_stop = min(n_coords, chunk+chunk_size)
     return _grand_loop_inner(*_mp_state[1:], start=chunk, stop=chunk_stop)
 
-@contextmanager
-def multiproc_state(*args): #chunk_size, confidence, image_stack, angles, coords, experiment):
-    # save = ( chunk_size,
-    #          confidence,
-    #          image_stack,
-    #          angles,
-    #          coords,
-    #          experiment )
+
+# Multiprocessing bits ========================================================
+#
+# The parallellized part of test_orientations uses some big arrays as part of
+# the state that needs to be communicated to the spawn processes.
+#
+# On fork platforms, take advantage of process memory inheritance.
+#
+# On non fork platforms, rely on joblib dumping the state to disk and loading
+# back in the target processes, pickling only the minimal information to load
+# state back. Pickling the big arrays directly was causing memory errors and
+# would be less efficient in memory (as joblib memmaps by default the big
+# arrays, meaning they may be shared between processes).
+
+def worker_init(id_state, id_exp):
     global _mp_state
-    _mp_state = args
-    yield
-    del(_mp_state)
+    state = joblib.load(id_state)
+    experiment = joblib.load(id_exp)
+    _mp_state = state + (experiment,)
+
+@contextmanager
+def grand_loop_pool(ncpus, state):
+    # state = ( chunk_size,
+    #           image_stack,
+    #           angles,
+    #           precomp,
+    #           coords,
+    #           experiment )
+    global _multiprocessing_start_method
+    if _multiprocessing_start_method == 'fork':
+        # use inheritance when using fork multiprocessing
+        global _mp_state
+        _mp_state = state
+        pool = multiprocessing.Pool(ncpus)
+        yield pool
+        del (_mp_state)
+    else:
+        # use serialization/deserialization using joblib when not using fork
+        tmp_dir = tempfile.mkdtemp(suffix='-nf-grand-loop')
+        try:
+            # dumb dumping doesn't seem to work very well.. do something ad-hoc
+            logging.info('Using "%s" as temporary directory.', tmp_dir)
+
+            id_exp = joblib.dump(state[-1], os.path.join(tmp_dir,
+                                                         'grand-loop-experiment.gz'),
+                                 compress=True)[0]
+            id_state = joblib.dump(state[:-1], os.path.join(tmp_dir, 'grand-loop-data'))[0]
+            pool = multiprocessing.Pool(ncpus, worker_init, (id_state, id_exp))
+            yield pool
+        finally:
+            logging.info('Deleting "%s".', tmp_dir)
+            shutil.rmtree(tmp_dir)
 
 
-def test_orientations(image_stack, grain_params, experiment,
-                      controller):
-
-    # this should be parametrized somehow and be part of "experiment"
-    panel_buffer = 0.05
-    all_angles=evaluate_diffraction_angles(experiment,
-                                           controller)
-    # test grid
-    # cvec_s = 0.001 * np.arange(-250, 251)[::5]
-    cvec_s = np.linspace(-0.25, 0.25, 101)
+def generate_test_grid(low, top, samples):
+    cvec_s = np.linspace(low, top, samples)
     Xs, Ys, Zs = np.meshgrid(cvec_s, cvec_s, cvec_s)
-    test_crds = np.vstack([Xs.flatten(), Ys.flatten(), Zs.flatten()]).T
-
-    # compute required dilation
-
-    # projection function
-
-    # a more parametric description of the sensor:
-    _grand_loop_precomp(image_stack, all_angles, test_crds, experiment, controller)
+    return np.vstack([Xs.flatten(), Ys.flatten(), Zs.flatten()]).T
 
 
 def evaluate_diffraction_angles(experiment , controller=None):
@@ -977,7 +1042,7 @@ def main(args, controller):
     image_stack = get_simulate_diffractions(grain_params, experiment,
                                             controller=controller)
 
-    test_orientations(image_stack, grain_params, experiment,
+    test_orientations(image_stack, experiment,
                       controller=controller)
 
 
@@ -1000,11 +1065,12 @@ def parse_args():
                         help="number of processes to use")
     parser.add_argument("--chunk-size", type=int, default=100,
                         help="chunk size for use in multiprocessing/reporting")
+    parser.add_argument("--force-spawn-multiprocessing", action='store_true',
+                        help="force using spawn as the multiprocessing method")
     args = parser.parse_args()
 
-    keys = ['inst_profile', 'generate', 'check', 'limit', 'ncpus', 'chunk_size']
-
-    print('\n'.join([': '.join([key, str(getattr(args, key))]) for key in keys]))
+    # keys = ['inst_profile', 'generate', 'check', 'limit', 'ncpus', 'chunk_size']
+    # print('\n'.join([': '.join([key, str(getattr(args, key))]) for key in keys]))
 
     return args
 
@@ -1025,6 +1091,10 @@ def build_controller(args):
     else:
         result_handler = forgetful_result_handler()
 
+    # if args.ncpus > 1 and os.name == 'nt':
+    #     logging.warn("Multiprocessing on Windows is disabled for now")
+    #     args.ncpus = 1
+
     controller = ProcessController(result_handler, progress_handler,
                                    ncpus=args.ncpus, chunk_size=args.chunk_size)
     if args.limit is not None:
@@ -1033,18 +1103,27 @@ def build_controller(args):
     return controller
 
 
+# assume that if os has fork, it will be used by multiprocessing.
+# note that on python > 3.4 we could use multiprocessing get_start_method and
+# set_start_method for a cleaner implementation of this functionality.
+_multiprocessing_start_method = 'fork' if hasattr(os, 'fork') else 'spawn'
+
 if __name__=='__main__':
     FORMAT="%(relativeCreated)12d [%(process)6d/%(thread)6d] %(levelname)8s: %(message)s"
     logging.basicConfig(level=logging.NOTSET,
                         format=FORMAT)
-    args= parse_args()
-
+    args = parse_args()
 
     if len(args.inst_profile) > 0:
         from hexrd.utils import profiler
 
         logging.debug("Instrumenting functions")
         profiler.instrument_all(args.inst_profile)
+
+    if args.force_spawn_multiprocessing:
+        global _start_method
+        _multiprocessing_start_method = 'spawn'
+    #multiprocessing.set_start_method('spawn')
 
     controller = build_controller(args)
     main(args, controller)
