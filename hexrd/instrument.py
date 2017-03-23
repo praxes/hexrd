@@ -684,10 +684,11 @@ class PlanarDetector(object):
         self._pixel_size_row = pixel_size[0]
         self._pixel_size_col = pixel_size[1]
 
-        self._panel_buffer = panel_buffer
+        if panel_buffer is None:
+            self._panel_buffer = [self._pixel_size_col, self._pixel_size_row]
 
         self._tvec = np.array(tvec).flatten()
-        self._tilt = tilt
+        self._tilt = np.array(tilt).flatten()
 
         self._bvec = np.array(bvec).flatten()
         self._evec = np.array(evec).flatten()
@@ -1002,6 +1003,20 @@ class PlanarDetector(object):
         on_panel = np.logical_and(on_panel_x, on_panel_y)
         return xy[on_panel, :], on_panel
 
+
+    def cart_to_angles(self, xy_data,
+        rmat_s=ct.identity_3x3,
+        tvec_s=ct.zeros_3, tvec_c=ct.zeros_3):
+        """
+        """
+        angs, g_vec = detectorXYToGvec(
+            xy_data, self.rmat, rmat_s,
+            self.tvec, tvec_s, tvec_c,
+            beamVec=self.bvec, etaVec=self.evec)
+        tth_eta = np.vstack([angs[0], angs[1]]).T
+        return tth_eta, g_vec
+
+    
     def interpolate_bilinear(self, xy, img, pad_with_nans=True):
         """
         """
@@ -1076,9 +1091,9 @@ class PlanarDetector(object):
                     tth = np.array([0.5*sum(i) for i in tth_ranges])
             else:
                 if output_ranges:
-                    tth = pd.getTTh()
-                else:
                     tth = pd.getTThRanges().flatten()
+                else:
+                    tth = pd.getTTh()
         angs = [np.vstack([i*np.ones(neta), eta, np.zeros(neta)]) for i in tth]
 
         # need xy coords and pixel sizes
