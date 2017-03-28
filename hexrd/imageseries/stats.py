@@ -27,7 +27,8 @@ def median(ims, nframes=0):
     # could be done by rectangle by rectangle if full series
     # too  big for memory
     nf = _nframes(ims, nframes)
-    return np.median(_toarray(ims, nf), axis=0)
+    out = np.empty(ims.shape, dtype=ims.dtype)
+    return np.median(_toarray(ims, nf), axis=0, out=out)
 
 def percentile(ims, pct, nframes=0):
     """return image with given percentile values over all frames"""

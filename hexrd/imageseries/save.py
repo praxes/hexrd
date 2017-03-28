@@ -182,6 +182,9 @@ class WriteFrameCache(Writer):
         for i in range(self._nframes):
             frame = self._ims[i]
             mask = frame > self._thresh
+            # FIXME: formalize this a little better???
+            if sum(mask) / float(frame.shape[0]*frame.shape[1]) > 0.05:
+                raise Warning("frame %d is less than 95%% sparse" %i)
             row, col = mask.nonzero()
             arrd['%d_data' % i] = frame[mask]
             arrd['%d_row' % i] = row
