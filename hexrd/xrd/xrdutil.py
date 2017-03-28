@@ -4016,7 +4016,7 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
 
     pixel_pitch is [row_size, column_size] in mm
 
-    DISTORTION HANDING IS STILL A KLUDGE
+    FIXME: DISTORTION HANDING IS STILL A KLUDGE!!!
 
     patches are:
 
@@ -4031,6 +4031,13 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
    t  | x | x | x | ... | x | x | x |
    a  ------------- ... -------------
 
+   outputs are:
+       (tth_vtx, eta_vtx),
+       (x_vtx, y_vtx),
+       connectivity,
+       subpixel_areas,
+       (x_center, y_center),
+       (i_row, j_col)
     """
     npts = len(tth_eta)
 

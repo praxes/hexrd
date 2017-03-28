@@ -42,6 +42,7 @@ import h5py
 import numpy as np
 
 from scipy import ndimage
+from scipy.linalg.matfuncs import logm
 
 from hexrd.gridutil import cellIndices, make_tolerance_grid
 from hexrd import matrixutil as mutil
@@ -211,6 +212,13 @@ class HEDMInstrument(object):
     @property
     def detectors(self):
         return self._detectors
+
+    @property
+    def detector_parameters(self):
+        pdict = {}
+        for key, panel in self.detectors.iteritems():
+            pdict[key] = panel.config_dict(self.chi, self.tvec)
+        return pdict
 
     @property
     def tvec(self):
@@ -413,10 +421,13 @@ class HEDMInstrument(object):
                    imgser_dict,
                    tth_tol=0.25, eta_tol=1., ome_tol=1.,
                    npdiv=2, threshold=10,
+                   eta_ranges=None, 
                    dirname='results', filename=None, save_spot_list=False,
                    quiet=True, lrank=1, check_only=False):
 
-        '''first find valid G-vectors'''
+        if eta_ranges is None:
+            eta_ranges = [(-np.pi, np.pi), ]
+
         bMat = plane_data.latVecOps['B']
 
         rMat_c = makeRotMatOfExpMap(grain_params[:3])
@@ -459,7 +470,7 @@ class HEDMInstrument(object):
 
         # filter by eta and omega ranges
         allAngs, allHKLs = xrdutil._filter_hkls_eta_ome(
-            full_hkls, angList, [(-np.pi, np.pi), ], ome_ranges
+            full_hkls, angList, eta_ranges, ome_ranges
             )
 
         # dilate angles tth and eta to patch corners
@@ -480,6 +491,7 @@ class HEDMInstrument(object):
         '''loop over panels'''
         iRefl = 0
         compl = []
+        output = dict.fromkeys(self.detectors)
         for detector_id in self.detectors:
             # initialize output writer
             if filename is not None:
@@ -531,6 +543,7 @@ class HEDMInstrument(object):
             ome_imgser = imgser_dict[detector_id]
 
             # grand loop over reflections for this panel
+            patch_output = []
             for i_pt, patch in enumerate(patches):
 
                 # strip relevant objects out of current patch
@@ -635,7 +648,8 @@ class HEDMInstrument(object):
                             max_int = np.max(
                                 patch_data[labels == slabels[closest_peak_idx]]
                             )
-                            ''' ...ONLY USE LABELED PIXELS?
+                            # IDEA: Should this only use labeled pixels ???
+                            '''
                             max_int = np.max(
                                 patch_data[labels == slabels[closest_peak_idx]]
                                 )
@@ -654,7 +668,7 @@ class HEDMInstrument(object):
                                 panel.tvec, self.tvec, tVec_c,
                                 beamVec=self.beam_vector)
                             if panel.distortion is not None:
-                                """...FIX THIS!!!"""
+                                # FIXME: distortion handling
                                 meas_xy = panel.distortion[0](
                                     np.atleast_2d(meas_xy),
                                     panel.distortion[1],
@@ -670,13 +684,21 @@ class HEDMInstrument(object):
                             pass  # end conditional on write output
                         pass  # end conditional on check only
                     iRefl += 1
+                    patch_output.append([
+                        peak_id, hkl_id, hkl, sum_int, max_int,
+                        ang_centers[i_pt], meas_angs, meas_xy,
+                    ])
                     pass  # end patch conditional
                 pass  # end patch loop
+            output[detector_id] = patch_output
             if filename is not None:
                 pw.close()
             pass  # end detector loop
-        return compl
-    pass  # end class: HEDMInstrument
+        return compl, output
+
+    """def fit_grain(self, grain_params, data_dir='results'):
+
+    pass  # end class: HEDMInstrument"""
 
 
 class PlanarDetector(object):
@@ -1241,7 +1263,7 @@ class PlanarDetector(object):
                 )
             xys_p, on_panel = self.clip_to_panel(det_xy)
             valid_xys.append(xys_p)
-            
+
             # grab hkls and gvec ids for this panel
             valid_hkls.append(allHKLs[on_panel, 1:])
             valid_ids.append(allHKLs[on_panel, 0])
@@ -1259,15 +1281,14 @@ class PatchDataWriter(object):
     """
     """
     def __init__(self, filename):
-        xy_str = '{:18}\t{:18}\t{:18}'
-        ang_str = xy_str + '\t'
+        dp3_str = '{:18}\t{:18}\t{:18}'
         self._header = \
             '{:6}\t{:6}\t'.format('# ID', 'PID') + \
             '{:3}\t{:3}\t{:3}\t'.format('H', 'K', 'L') + \
             '{:12}\t{:12}\t'.format('sum(int)', 'max(int)') + \
-            ang_str.format('pred tth', 'pred eta', 'pred ome') + \
-            ang_str.format('meas tth', 'meas eta', 'meas ome') + \
-            xy_str.format('meas X', 'meas Y', 'meas ome')
+            dp3_str.format('pred tth', 'pred eta', 'pred ome') + '\t' + \
+            dp3_str.format('meas tth', 'meas eta', 'meas ome') + '\t' + \
+            dp3_str.format('meas X', 'meas Y', 'meas ome')
         if isinstance(filename, file):
             self.fid = filename
         else:
@@ -1303,10 +1324,69 @@ class PatchDataWriter(object):
         return output_str
 
 
-class PatchDataWriter_h5(object):
+class GrainDataWriter(object):
+    """
+    """
+    def __init__(self, filename):
+        sp3_str = '{:12}\t{:12}\t{:12}'
+        dp3_str = '{:18}\t{:18}\t{:18}'
+        self._header = \
+            sp3_str.format(
+                '# grain ID', 'completeness', 'chi^2') + '\t' + \
+            dp3_str.format(
+                'exp_map_c[0]', 'exp_map_c[1]', 'exp_map_c[2]') + '\t' + \
+            dp3_str.format(
+                't_vec_c[0]', 't_vec_c[1]', 't_vec_c[2]') + '\t' + \
+            dp3_str.format(
+                'inv(V_s)[0, 0]',
+                'inv(V_s)[1, 1]',
+                'inv(V_s)[2, 2]') + '\t' + \
+            dp3_str.format(
+                'inv(V_s)[1, 2]*√2', 'inv(V_s)[0, 2]*√2', 'inv(V_s)[0, 2]*√2'
+            ) + '\t' + dp3_str.format(
+                'ln(V_s)[0, 0]', 'ln(V_s)[1, 1]', 'ln(V_s)[2, 2]') + '\t' + \
+            dp3_str.format(
+                'ln(V_s)[1, 2]', 'ln(V_s)[0, 2]', 'ln(V_s)[0, 1]')
+        if isinstance(filename, file):
+            self.fid = filename
+        else:
+            self.fid = open(filename, 'w')
+        print(self._header, file=self.fid)
+
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        self.fid.close()
+
+    def dump_grain(self, grain_id, completeness, chisq,
+                   grain_params):
+        assert len(grain_params) == 12, \
+            "len(grain_params) must be 12, not %d" % len(grain_params)
+
+        # extract strain
+        emat = logm(np.linalg.inv(mutil.vecMVToSymm(grain_params[6:])))
+        evec = mutil.symmToVecMV(emat, scale=False)
+
+        dp3_e_str = '{:<1.12e}\t{:<1.12e}\t{:<1.12e}'
+        dp6_e_str = \
+            '{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t{:<1.12e}'
+        output_str = \
+            '{:<12d}\t{:<12f}\t{:<12d}\t'.format(
+                grain_id, completeness, chisq) + \
+            dp3_e_str.format(*grain_params[:3]) + '\t' + \
+            dp3_e_str.format(*grain_params[3:6]) + '\t' + \
+            dp6_e_str.format(*grain_params[6:]) + '\t' + \
+            dp6_e_str.format(*evec)
+        print(output_str, file=self.fid)
+        return output_str
+
+        
+class GrainDataWriter_h5(object):
     """
     """
     def __init__(self, filename, instr_cfg, panel_id):
+        use_attr = True
         if isinstance(filename, h5py.File):
             self.fid = filename
         else:
@@ -1316,7 +1396,7 @@ class PatchDataWriter_h5(object):
 
         # add instrument groups and attributes
         grp = self.fid.create_group('instrument')
-        unwrap_dict_to_h5(grp, icfg, asattr=True)
+        unwrap_dict_to_h5(grp, icfg, asattr=use_attr)
 
         grp = self.fid.create_group("data")
         grp.attrs.create("panel_id", panel_id)

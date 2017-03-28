@@ -181,7 +181,8 @@ def build_discrete_cmap(ngrains):
     
 #%%
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Make overlap table from cfg file')
+    parser = argparse.ArgumentParser(
+        description='Make overlap table from cfg file')
     parser.add_argument(
         'cfg', metavar='cfg_filename', 
         type=str, help='a YAML config filename')
@@ -195,7 +196,8 @@ if __name__ == '__main__':
     cfg = config.open(args['cfg'])[0]
     print "loaded config file %s" %args['cfg']
     overlap_table = build_overlap_table(cfg)
-    np.savez(os.path.join(cfg.analysis_dir, 'overlap_table.npz'), *overlap_table)
+    np.savez(os.path.join(cfg.analysis_dir, 'overlap_table.npz'), 
+             *overlap_table)
 #%%
 #fig = plt.figure()
 #ax = fig.add_subplot(111, projection='3d')
