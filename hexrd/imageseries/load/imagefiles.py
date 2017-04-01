@@ -39,7 +39,10 @@ class ImageFilesImageSeriesAdapter(ImageSeriesAdapter):
 
     #@memoize
     def __len__(self):
-        return self._nframes
+        if self._maxframes_tot > 0:
+            return min(self._nframes, self._maxframes_tot)
+        else:
+            return self._nframes
 
     def __getitem__(self, key):
         if self.singleframes:
@@ -70,7 +73,8 @@ number of files: %s
 
     def _load_yml(self):
         EMPTY = 'empty-frames'
-        MAXF = 'max-frames'
+        MAXTOTF = 'max-total-frames'
+        MAXFILF = 'max-file-frames'
 
         with open(self._fname, "r") as f:
             d = yaml.load(f)
@@ -83,12 +87,13 @@ number of files: %s
 
         self.optsd = d['options'] if 'options' else None
         self._empty = self.optsd[EMPTY] if EMPTY in self.optsd else 0
-        self._maxframes = self.optsd[MAXF] if MAXF in self.optsd else 0
+        self._maxframes_tot = self.optsd[MAXTOTF] if MAXTOTF in self.optsd else 0
+        self._maxframes_file = self.optsd[MAXFILF] if MAXFILF in self.optsd else 0
 
         self._meta = yamlmeta(d['meta']) #, path=imgsd)
 
     def _process_files(self):
-        kw = {'empty': self._empty}
+        kw = {'empty': self._empty, 'max_frames': self._maxframes_file}
         fcl = None
         shp = None
         dtp = None
@@ -195,6 +200,10 @@ class FileInfo(object):
 
         d = kwargs.copy()
         self._empty = d.pop('empty', 0)
+        # user may set max-frames to 0, indicating use all frames
+        self._maxframes = d.pop('max_frames', 0)
+        if self._maxframes == 0:
+            self._maxframes = self._imgframes
         if self._empty >= self._imgframes:
             msg = "more empty frames than images: %s" % self.filename
             raise ValueError(msg)
@@ -228,4 +237,4 @@ fabio class: %s
 
     @property
     def nframes(self):
-        return self._imgframes - self.empty
+        return min(self._maxframes, self._imgframes - self.empty)
