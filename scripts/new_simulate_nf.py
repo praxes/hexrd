@@ -1004,7 +1004,6 @@ if __name__=='__main__':
     if args.force_spawn_multiprocessing:
         global _start_method
         _multiprocessing_start_method = 'spawn'
-    #multiprocessing.set_start_method('spawn')
 
     controller = build_controller(args)
     main(args, controller)
