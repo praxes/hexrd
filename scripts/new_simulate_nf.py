@@ -420,6 +420,8 @@ def _make_binary_rot_mat(src, dst):
     return dst
 
 
+# code transcribed in numba from transforms module =============================
+
 # This is equivalent to the transform module anglesToGVec, but written in
 # numba. This should end in a module to share with other scripts
 @numba.njit
@@ -444,6 +446,70 @@ def _anglesToGVec(angs, rMat_ss, rMat_c):
         result[i, 0] = rMat_c[0, 0]*t0_0 + rMat_c[ 1, 0]*t0_1 + rMat_c[ 2, 0]*t0_2
         result[i, 1] = rMat_c[0, 1]*t0_0 + rMat_c[ 1, 1]*t0_1 + rMat_c[ 2, 1]*t0_2
         result[i, 2] = rMat_c[0, 2]*t0_0 + rMat_c[ 1, 2]*t0_1 + rMat_c[ 2, 2]*t0_2
+
+    return result
+
+
+# This is equivalent to the transform's module gvecToDetectorXYArray, but written in
+# numba.
+# As of now, it is not a good replacement as efficient allocation of the temporary
+# arrays is not competitive with the stack allocation using in the C version of the
+# code (WiP)
+
+# tC varies per coord
+# gvec_cs, rSm varies per grain
+#
+# gvec_cs
+beam = xf.bVec_ref[:, 0]
+Z_l = xf.Zl[:,0]
+@numba.jit()
+def _gvec_to_detector_array(vG_sn, rD, rSn, rC, tD, tS, tC):
+    """ beamVec is the beam vector: (0, 0, -1) in this case """
+    ztol = xrdutil.epsf
+    p3_l = np.empty((3,))
+    tmp_vec = np.empty((3,))
+    vG_l = np.empty((3,))
+    tD_l = np.empty((3,))
+    norm_vG_s = np.empty((3,))
+    norm_beam = np.empty((3,))
+    tZ_l = np.empty((3,))
+    brMat = np.empty((3,3))
+    result = np.empty((len(rSn), 2))
+
+    _v3_normalized(beam, norm_beam)
+    _m33_v3_multiply(rD, Z_l, tZ_l)
+
+    for i in xrange(len(rSn)):
+        _m33_v3_multiply(rSn[i], tC, p3_l)
+        p3_l += tS
+        p3_minus_p1_l = tD - p3_l
+
+        num = _v3_dot(tZ_l, p3_minus_p1_l)
+        _v3_normalized(vG_sn[i], norm_vG_s)
+
+        _m33_v3_multiply(rC, norm_vG_s, tmp_vec)
+        _m33_v3_multiply(rSn[i], tmp_vec, vG_l)
+
+        bDot = -_v3_dot(norm_beam, vG_l)
+
+        if bDot < ztol or bDot > 1.0 - ztol:
+            result[i, 0] = np.nan
+            result[i, 1] = np.nan
+            continue
+
+        _make_binary_rot_mat(vG_l, brMat)
+        _m33_v3_multiply(brMat, norm_beam, tD_l)
+        denom = _v3_dot(tZ_l, tD_l)
+
+        if denom < ztol:
+            result[i, 0] = np.nan
+            result[i, 1] = np.nan
+            continue
+
+        u = num/denom
+        tmp_res = u*tD_l - p3_minus_p1_l
+        result[i,0] = _v3_dot(tmp_res, rD[:,0])
+        result[i,1] = _v3_dot(tmp_res, rD[:,1])
 
     return result
 
@@ -546,64 +612,6 @@ def simulate_diffractions(grain_params, experiment, controller):
 # ==============================================================================
 # %% ORIENTATION TESTING
 # ==============================================================================
-
-
-# tC varies per coord
-# gvec_cs, rSm varies per grain
-#
-# gvec_cs
-beam = xf.bVec_ref[:, 0]
-Z_l = xf.Zl[:,0]
-@numba.jit()
-def _gvec_to_detector_array(vG_sn, rD, rSn, rC, tD, tS, tC):
-    """ beamVec is the beam vector: (0, 0, -1) in this case """
-    ztol = xrdutil.epsf
-    p3_l = np.empty((3,))
-    tmp_vec = np.empty((3,))
-    vG_l = np.empty((3,))
-    tD_l = np.empty((3,))
-    norm_vG_s = np.empty((3,))
-    norm_beam = np.empty((3,))
-    tZ_l = np.empty((3,))
-    brMat = np.empty((3,3))
-    result = np.empty((len(rSn), 2))
-
-    _v3_normalized(beam, norm_beam)
-    _m33_v3_multiply(rD, Z_l, tZ_l)
-
-    for i in xrange(len(rSn)):
-        _m33_v3_multiply(rSn[i], tC, p3_l)
-        p3_l += tS
-        p3_minus_p1_l = tD - p3_l
-
-        num = _v3_dot(tZ_l, p3_minus_p1_l)
-        _v3_normalized(vG_sn[i], norm_vG_s)
-
-        _m33_v3_multiply(rC, norm_vG_s, tmp_vec)
-        _m33_v3_multiply(rSn[i], tmp_vec, vG_l)
-
-        bDot = -_v3_dot(norm_beam, vG_l)
-
-        if bDot < ztol or bDot > 1.0 - ztol:
-            result[i, 0] = np.nan
-            result[i, 1] = np.nan
-            continue
-
-        _make_binary_rot_mat(vG_l, brMat)
-        _m33_v3_multiply(brMat, norm_beam, tD_l)
-        denom = _v3_dot(tZ_l, tD_l)
-
-        if denom < ztol:
-            result[i, 0] = np.nan
-            result[i, 1] = np.nan
-            continue
-
-        u = num/denom
-        tmp_res = u*tD_l - p3_minus_p1_l
-        result[i,0] = _v3_dot(tmp_res, rD[:,0])
-        result[i,1] = _v3_dot(tmp_res, rD[:,1])
-
-    return result
 
 def _grand_loop_inner(image_stack, angles, precomp,
                       coords, experiment, start=0, stop=None):
@@ -859,90 +867,6 @@ def evaluate_diffraction_angles(experiment , controller=None):
 
     return all_angles
 
-
-@numba.jit
-def _check_with_dilation(image_stack,
-                         frame_index, row_index, col_index,
-                         row_dilation, col_dilation, nrows, ncols):
-    min_row = max(row_index-row_dilation, 0)
-    max_row = min(row_index+row_dilation + 1, nrows)
-    min_col = max(col_index-col_dilation, 0)
-    max_col = min(col_index+col_dilation + 1, ncols)
-
-    for r in range(min_row, max_row):
-        for c in range(min_col, max_col):
-            if image_stack[frame_index, r, c]:
-                return 1.0 # found, win!
-    return 0.0 # not found, lose!
-
-
-@numba.jit
-def _confidence_check(image_stack,
-                      frame_indices, row_indices, col_indices,
-                      row_dilation, col_dilation, nrows, ncols):
-    count = len(frame_indices)
-    acc_confidence = 0.0
-    for current in range(count):
-        val = _check_with_dilation(image_stack, frame_indices[current],
-                                   row_indices[current], col_indices[current],
-                                   row_dilation, col_dilation, nrows, ncols)
-        acc_confidence += val
-
-    return acc_confidence/float(count)
-
-@numba.jit
-def _confidence_check_dilated(image_stack_dilated,
-                              frame_indices, row_indices, col_indices):
-    count = len(frame_indices)
-    acc_confidence = 0.0
-    for current in range(count):
-        acc_confidence += image_stack_dilated[frame_indices[current],
-                                              row_indices[current],
-                                              col_indices[current]]
-
-    return acc_confidence/float(count)
-
-
-@numba.njit
-def _quant_and_clip(coords, angles, base, inv_deltas, clip_vals):
-    """quantize and clip the parametric coordinates in coords + angles
-
-    coords - (..., 2) array: input 2d parametric coordinates
-    angles - (...) array: additional dimension for coordinates
-    base   - (3,) array: base value for quantization (for each dimension)
-    inv_deltas - (3,) array: inverse of the quantum size (for each dimension)
-    clip_vals - (2,) array: clip size (only applied to coords dimensions)
-
-    clipping is performed on ranges [0, clip_vals[0]] for x and
-    [0, clip_vals[1]] for y
-
-    returns an array with the quantized coordinates, with coordinates
-    falling outside the clip zone filtered out.
-
-    """
-    count = len(coords)
-    a = np.zeros((count, 3), dtype=np.int32)
-
-    curr = 0
-    for i in range(count):
-        x = int(np.floor((coords[i, 0] - base[0]) * inv_deltas[0]))
-
-        if x < 0 or x >= clip_vals[0]:
-            continue
-
-        y = int(np.floor((coords[i, 1] - base[1]) * inv_deltas[1]))
-
-        if y < 0 or y >= clip_vals[1]:
-            continue
-
-        z = int(np.floor((angles[i] - base[2]) * inv_deltas[2]))
-
-        a[curr, 0] = x
-        a[curr, 1] = y
-        a[curr, 2] = z
-        curr += 1
-
-    return a[:curr,:]
 
 @numba.njit
 def _quant_and_clip_confidence(coords, angles, image, base, inv_deltas, clip_vals):
