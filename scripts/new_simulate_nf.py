@@ -20,7 +20,7 @@ import multiprocessing
 import multiprocessing.sharedctypes as mp_sct
 # import of hexrd modules
 
-from hexrd import matrixutil as mutil
+import hexrd
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.xrd import rotations as rot # for rotMatOfQuat
@@ -179,6 +179,7 @@ def checking_result_handler(filename):
     class CheckingResultHandler(object):
         def __init__(self, reference_file):
             """Checks the result against those save in 'reference_file'"""
+            logging.info("Loading reference results from '%s'", reference_file)
             self.reference_results = np.load(open(reference_file, 'rb'))
 
         def handle_result(self, key, value):
@@ -239,7 +240,8 @@ def mockup_experiment():
 
     n_grains = quats.shape[-1] # last dimension provides the number of grains
     phis = 2.*np.arccos(quats[0, :]) # phis are the angles for the quaternion
-    ns = mutil.unitVector(quats[1:, :]) # ns contains the rotation axis as an unit vector
+    # ns contains the rotation axis as an unit vector
+    ns = hexrd.matrixutil.unitVector(quats[1:, :])
     exp_maps = np.array([phis[i]*ns[:, i] for i in range(n_grains)])
     rMat_c = rot.rotMatOfQuat(quats)
 
@@ -294,8 +296,6 @@ def mockup_experiment():
 
     x_col_edges = col_ps * (np.arange(ncols + 1) - 0.5*ncols)
     y_row_edges = row_ps * (np.arange(nrows, -1, -1) - 0.5*nrows)
-    #x_col_edges = np.arange(panel_dims[0][0], panel_dims[1][0] + 0.5*col_ps, col_ps)
-    #y_row_edges = np.arange(panel_dims[0][1], panel_dims[1][1] + 0.5*row_ps, row_ps)
     rx, ry = np.meshgrid(x_col_edges, y_row_edges)
 
     gcrds = xfcapi.detectorXYToGvec(np.vstack([rx.flatten(), ry.flatten()]).T,
@@ -356,8 +356,6 @@ def mockup_experiment():
     ns.tVec_d = tVec_d
     ns.chi = chi # note this is used to compute S... why is it needed?
     ns.tVec_s = tVec_s
-    # ns.rMat_s = rMat_s
-    # ns.tVec_s = tVec_s
     ns.rMat_c = rMat_c
     ns.row_dilation = row_dilation
     ns.col_dilation = col_dilation
@@ -373,9 +371,12 @@ def mockup_experiment():
 # ==============================================================================
 # %% OPTIMIZED BITS
 # ==============================================================================
+
+# Some basic 3d algebra ========================================================
 @numba.njit
 def _v3_dot(a, b):
     return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
+
 
 @numba.njit
 def _m33_v3_multiply(m, v, dst):
@@ -388,21 +389,39 @@ def _m33_v3_multiply(m, v, dst):
 
 
 @numba.njit
-def __anglesToGVec(angs, rMat_ss, rMat_c):
-    result = np.empty_like(angs)
-    tmp_g = np.empty((3,))
-    for i in range(len(angs)):
-        cx = np.cos(0.5*angs[i,0])
-        sx = np.sin(0.5*angs[i,0])
-        cy = np.cos(angs[i,1])
-        sy = np.sin(angs[i,1])
-        tmp_g[0] = cx*cy
-        tmp_g[1] = cx*sy
-        tmp_g[2] = sx
-        np.dot(rMat_c, np.dot(rMat_ss[i], tmp_g), out=result[i])
+def _v3_normalized(src, dst):
+    v0 = src[0]
+    v1 = src[1]
+    v2 = src[2]
+    sqr_norm = v0*v0 + v1*v1 + v2*v2
+    inv_norm = 1.0 if sqr_norm == 0.0 else 1./np.sqrt(sqr_norm)
 
-    return result
+    dst[0] = v0 * inv_norm
+    dst[1] = v1 * inv_norm
+    dst[2] = v2 * inv_norm
 
+    return dst
+
+
+@numba.njit
+def _make_binary_rot_mat(src, dst):
+    v0 = src[0]; v1 = src[1]; v2 = src[2]
+
+    dst[0,0] = 2.0*v0*v0 - 1.0
+    dst[0,1] = 2.0*v0*v1
+    dst[0,2] = 2.0*v0*v2
+    dst[1,0] = 2.0*v1*v0
+    dst[1,1] = 2.0*v1*v1 - 1.0
+    dst[1,2] = 2.0*v1*v2
+    dst[2,0] = 2.0*v2*v0
+    dst[2,1] = 2.0*v2*v1
+    dst[2,2] = 2.0*v2*v2 - 1.0
+
+    return dst
+
+
+# This is equivalent to the transform module anglesToGVec, but written in
+# numba. This should end in a module to share with other scripts
 @numba.njit
 def _anglesToGVec(angs, rMat_ss, rMat_c):
     """From a set of angles return them in crystal space"""
@@ -416,6 +435,8 @@ def _anglesToGVec(angs, rMat_ss, rMat_c):
         g1 = cx*sy
         g2 = sx
 
+        # with g being [cx*xy, cx*sy, sx]
+        # result = dot(rMat_c, dot(rMat_ss[i], g))
         t0_0 = rMat_ss[ i, 0, 0]*g0 + rMat_ss[ i, 1, 0]*g1 + rMat_ss[ i, 2, 0]*g2
         t0_1 = rMat_ss[ i, 0, 1]*g0 + rMat_ss[ i, 1, 1]*g1 + rMat_ss[ i, 2, 1]*g2
         t0_2 = rMat_ss[ i, 0, 2]*g0 + rMat_ss[ i, 1, 2]*g1 + rMat_ss[ i, 2, 2]*g2
@@ -426,32 +447,6 @@ def _anglesToGVec(angs, rMat_ss, rMat_c):
 
     return result
 
-
-@numba.njit
-def _filter_nans(tmp_xys):
-    result = np.empty_like(tmp_xys)
-
-    pivot = 0
-    for i in range(len(tmp_xys)):
-        if np.isfinite(tmp_xys[i, 0]) and np.isfinite(tmp_xys[i,1]):
-            result[pivot, 0] = tmp_xys[i, 0]
-            result[pivot, 1] = tmp_xys[i, 1]
-            pivot += 1
-
-    return result[0:pivot,:]
-
-
-def _opt_project_on_detector(angs, rD, rC, gVec_cs, rMat_ss, tD, tC, tS, distortion):
-    tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs, rD, rMat_ss, rC, tD, tS, tC)
-
-    # do not filter nans, let the code after it handle that.
-    # filter nans...
-    #tmp_xys = _filter_nans(tmp_xys)
-
-    if distortion is not None and len(distortion) > 0:
-        tmp_xys = distortion[0](tmp_xys, distortion[1], invert=True)
-
-    return tmp_xys, None
 
 # ==============================================================================
 # %% DIFFRACTION SIMULATION
@@ -473,6 +468,14 @@ def get_simulate_diffractions(grain_params, experiment,
     return image_stack
 
 
+# This part is critical for the performance of simulate diffractions. It
+# basically "renders" the "pixels". It takes the coordinates, quantizes to an
+# image coordinate and writes to the appropriate image in the stack. Note
+# that it also performs clipping based on inv_deltas and clip_vals.
+#
+# Note: This could be easily modified so that instead of using an array of
+#       booleans, an array of uint8 could be used so the image is stored
+#       with a bit per pixel.
 @numba.njit
 def _write_pixels(coords, angles, image, base, inv_deltas, clip_vals):
     count = len(coords)
@@ -543,77 +546,6 @@ def simulate_diffractions(grain_params, experiment, controller):
 # ==============================================================================
 # %% ORIENTATION TESTING
 # ==============================================================================
-def _grand_loop(image_stack, all_angles, test_crds, experiment, controller):
-    n_grains = experiment.n_grains
-    n_coords = controller.limit('coords', len(test_crds))
-
-    confidence = np.empty((n_grains, n_coords))
-    subprocess = 'grand_loop'
-
-    _project = xrdutil._project_on_detector_plane
-
-    controller.start(subprocess, n_coords * n_grains)
-    for icrd in range(n_coords):
-        for igrn in range(n_grains):
-            angles = all_angles[igrn]
-            det_xy, rMat_ss = _project(angles,
-                                       experiment.rMat_d,
-                                       experiment.rMat_c[igrn],
-                                       experiment.chi,
-                                       experiment.tVec_d,
-                                       test_crds[icrd],
-                                       experiment.tVec_s,
-                                       experiment.distortion)
-            indices = _quant_and_clip(det_xy, angles[:,2],
-                                      experiment.base,
-                                      experiment.inv_deltas,
-                                      experiment.clip_vals)
-            col_indices = indices[:, 0]
-            row_indices = indices[:, 1]
-            frame_indices = indices[:, 2]
-            confidence[igrn, icrd] = _confidence_check(image_stack,
-                                                       frame_indices,
-                                                       row_indices,
-                                                       col_indices,
-                                                       experiment.row_dilation,
-                                                       experiment.col_dilation,
-                                                       experiment.nrows,
-                                                       experiment.ncols)
-        controller.update(icrd*n_grains)
-    controller.finish(subprocess)
-    controller.handle_result("confidence", confidence)
-
-
-@numba.njit
-def _v3_normalized(src, dst):
-    v0 = src[0]
-    v1 = src[1]
-    v2 = src[2]
-    sqr_norm = v0*v0 + v1*v1 + v2*v2
-    inv_norm = 1.0 if sqr_norm == 0.0 else 1./np.sqrt(sqr_norm)
-
-    dst[0] = v0 * inv_norm
-    dst[1] = v1 * inv_norm
-    dst[2] = v2 * inv_norm
-
-    return dst
-
-
-@numba.njit
-def _make_binary_rot_mat(src, dst):
-    v0 = src[0]; v1 = src[1]; v2 = src[2]
-
-    dst[0,0] = 2.0*v0*v0 - 1.0
-    dst[0,1] = 2.0*v0*v1
-    dst[0,2] = 2.0*v0*v2
-    dst[1,0] = 2.0*v1*v0
-    dst[1,1] = 2.0*v1*v1 - 1.0
-    dst[1,2] = 2.0*v1*v2
-    dst[2,0] = 2.0*v2*v0
-    dst[2,1] = 2.0*v2*v1
-    dst[2,2] = 2.0*v2*v2 - 1.0
-
-    return dst
 
 
 # tC varies per coord
@@ -675,6 +607,7 @@ def _gvec_to_detector_array(vG_sn, rD, rSn, rC, tD, tS, tC):
 
 def _grand_loop_inner(image_stack, angles, precomp,
                       coords, experiment, start=0, stop=None):
+    t = time.time()
     n_coords = len(coords)
     n_angles = len(angles)
     rD = experiment.rMat_d
@@ -684,38 +617,61 @@ def _grand_loop_inner(image_stack, angles, precomp,
     distortion = experiment.distortion
     _to_detector = xfcapi.gvecToDetectorXYArray
     #_to_detector = _gvec_to_detector_array
-    stop = stop if stop is not None else n_coords
+    stop = min(stop, n_coords) if stop is not None else n_coords
 
     distortion_fn = None
     if distortion is not None and len(distortion > 0):
         distortion_fn, distortion_args = distortion
 
-    confidence = np.empty((n_angles, stop-start))
+    acc_detector = 0.0
+    acc_distortion = 0.0
+    acc_quant_clip = 0.0
+    confidence = np.zeros((n_angles, stop-start))
+    grains = 0
+    crds = 0
+
     if distortion_fn is None:
         for igrn in xrange(n_angles):
             angs = angles[igrn]; rC = rCn[igrn]
             gvec_cs, rMat_ss = precomp[igrn]
+            grains += 1
             for icrd in xrange(start, stop):
+                t0 = time.time()
                 det_xy = _to_detector(gvec_cs, rD, rMat_ss, rC, tD, tS, coords[icrd])
+                t1 = time.time()
                 c = _quant_and_clip_confidence(det_xy, angs[:,2],
                                                image_stack, experiment.base,
                                                experiment.inv_deltas,
                                                experiment.clip_vals)
+                t2 = time.time()
+                acc_detector += t1 - t0
+                acc_quant_clip += t2 - t1
+                crds += 1
                 confidence[igrn, icrd - start] = c
     else:
         for igrn in xrange(n_angles):
             angs = angles[igrn]; rC = rCn[igrn]
             gvec_cs, rMat_ss = precomp[igrn]
+            grains += 1
             for icrd in xrange(start, stop):
+                t0 = time.time()
                 det_xy = _to_detector(gvec_cs, rD, rMat_ss, rC, tD, tS, coords[icrd])
+                t1 = time.time()
                 det_xy = distortion_fn(tmp_xys, distortion_args, invert=True)
+                t2 = time.time()
                 c = _quant_and_clip_confidence(det_xy, angs[:,2],
                                                image_stack, experiment.base,
                                                experiment.inv_deltas,
                                                experiment.clip_vals)
+                t3 = time.time()
+                acc_detector += t1 - t0
+                acc_distortion += t2 - t1
+                acc_quant_clip += t3 - t2
+                crds += 1
                 confidence[igrn, icrd - start] = c
 
-    return confidence
+    t = time.time() - t
+    return slice(start, stop), confidence
 
 
 def test_orientations(image_stack, experiment, controller):
@@ -792,19 +748,20 @@ def test_orientations(image_stack, experiment, controller):
         with grand_loop_pool(ncpus=ncpus, state=(chunk_size, image_stack_dilated,
                                                all_angles, precomp, test_crds,
                                                experiment)) as pool:
-            for result in pool.imap(multiproc_inner_loop, chunks):
-                count = result.shape[1]
-                confidence[:, finished:finished+count] = result
+            for rslice, rvalues in pool.imap_unordered(multiproc_inner_loop, chunks):
+                count = rvalues.shape[1]
+                confidence[:, rslice] = rvalues
                 finished += count
                 controller.update(finished)
     else:
         for chunk_start in chunks:
             chunk_stop = min(n_coords, chunk_start+chunk_size)
-            result = _grand_loop_inner(image_stack_dilated, all_angles, precomp,
-                                       test_crds, experiment, start=chunk_start,
-                                       stop=chunk_stop)
-            count = result.shape[1]
-            confidence[:, finished:finished+count] = result
+            rslice, rvalues = _grand_loop_inner(image_stack_dilated, all_angles,
+                                                precomp, test_crds, experiment,
+                                                start=chunk_start,
+                                                stop=chunk_stop)
+            count = rvalues.shape[1]
+            confidence[:, rslice] = rvalues
             finished += count
             controller.update(finished)
 
