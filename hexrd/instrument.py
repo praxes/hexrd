@@ -127,16 +127,19 @@ class HEDMInstrument(object):
     * where should reference eta be defined? currently set to default config
     """
     def __init__(self, instrument_config=None,
-                 image_series=None,
+                 image_series=None, eta_vector=None,
                  instrument_name="instrument"):
         self._id = instrument_name
+
+        if eta_vector is None:
+            self._eta_vector = eta_vec_DFLT
+        else:
+            self._eta_vector = eta_vector
 
         if instrument_config is None:
             self._num_panels = 1
             self._beam_energy = beam_energy_DFLT
             self._beam_vector = beam_vec_DFLT
-
-            self._eta_vector = eta_vec_DFLT
 
             self._detectors = dict(
                 panel_id_DFLT=PlanarDetector(
@@ -421,7 +424,7 @@ class HEDMInstrument(object):
                    imgser_dict,
                    tth_tol=0.25, eta_tol=1., ome_tol=1.,
                    npdiv=2, threshold=10,
-                   eta_ranges=None, 
+                   eta_ranges=None, ome_period=(-np.pi, np.pi),
                    dirname='results', filename=None, save_spot_list=False,
                    quiet=True, lrank=1, check_only=False):
 
@@ -472,6 +475,7 @@ class HEDMInstrument(object):
         allAngs, allHKLs = xrdutil._filter_hkls_eta_ome(
             full_hkls, angList, eta_ranges, ome_ranges
             )
+        allAngs[:, 2] = mapAngle(allAngs[:, 2], ome_period)
 
         # dilate angles tth and eta to patch corners
         nangs = len(allAngs)
@@ -573,7 +577,7 @@ class HEDMInstrument(object):
                 frame_indices = [
                     ome_imgser.omega_to_frame(ome)[0] for ome in ome_eval
                 ]
-                if np.any(frame_indices == -1):
+                if -1 in frame_indices:
                     if not quiet:
                         msg = "window for (%d%d%d) falls outside omega range"\
                             % tuple(hkl)
@@ -1288,7 +1292,7 @@ class PatchDataWriter(object):
             '{:12}\t{:12}\t'.format('sum(int)', 'max(int)') + \
             dp3_str.format('pred tth', 'pred eta', 'pred ome') + '\t' + \
             dp3_str.format('meas tth', 'meas eta', 'meas ome') + '\t' + \
-            dp3_str.format('meas X', 'meas Y', 'meas ome')
+            '{:18}\t{:18}'.format('meas X', 'meas Y')
         if isinstance(filename, file):
             self.fid = filename
         else:
@@ -1329,7 +1333,7 @@ class GrainDataWriter(object):
     """
     def __init__(self, filename):
         sp3_str = '{:12}\t{:12}\t{:12}'
-        dp3_str = '{:18}\t{:18}\t{:18}'
+        dp3_str = '{:19}\t{:19}\t{:19}'
         self._header = \
             sp3_str.format(
                 '# grain ID', 'completeness', 'chi^2') + '\t' + \
@@ -1338,15 +1342,15 @@ class GrainDataWriter(object):
             dp3_str.format(
                 't_vec_c[0]', 't_vec_c[1]', 't_vec_c[2]') + '\t' + \
             dp3_str.format(
-                'inv(V_s)[0, 0]',
-                'inv(V_s)[1, 1]',
-                'inv(V_s)[2, 2]') + '\t' + \
+                'inv(V_s)[0,0]',
+                'inv(V_s)[1,1]',
+                'inv(V_s)[2,2]') + '\t' + \
             dp3_str.format(
-                'inv(V_s)[1, 2]*√2', 'inv(V_s)[0, 2]*√2', 'inv(V_s)[0, 2]*√2'
+                'inv(V_s)[1,2]*√2', 'inv(V_s)[0,2]*√2', 'inv(V_s)[0,2]*√2'
             ) + '\t' + dp3_str.format(
-                'ln(V_s)[0, 0]', 'ln(V_s)[1, 1]', 'ln(V_s)[2, 2]') + '\t' + \
+                'ln(V_s)[0,0]', 'ln(V_s)[1,1]', 'ln(V_s)[2,2]') + '\t' + \
             dp3_str.format(
-                'ln(V_s)[1, 2]', 'ln(V_s)[0, 2]', 'ln(V_s)[0, 1]')
+                'ln(V_s)[1,2]', 'ln(V_s)[0,2]', 'ln(V_s)[0,1]')
         if isinstance(filename, file):
             self.fid = filename
         else:
@@ -1372,7 +1376,7 @@ class GrainDataWriter(object):
         dp6_e_str = \
             '{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t{:<1.12e}'
         output_str = \
-            '{:<12d}\t{:<12f}\t{:<12d}\t'.format(
+            '{:<12d}\t{:<12f}\t{:<12f}\t'.format(
                 grain_id, completeness, chisq) + \
             dp3_e_str.format(*grain_params[:3]) + '\t' + \
             dp3_e_str.format(*grain_params[3:6]) + '\t' + \

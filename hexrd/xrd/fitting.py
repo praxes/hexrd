@@ -29,16 +29,16 @@
 import numpy as np
 
 from scipy import optimize
-return_value_flag = None
 
 from hexrd import matrixutil as mutil
 
-from hexrd.xrd import transforms      as xf
+from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
-from hexrd.xrd import distortion      as dFuncs
+from hexrd.xrd import distortion as dFuncs
 
 from hexrd.xrd.xrdutil import extract_detector_transformation
 
+return_value_flag = None
 epsf = np.finfo(float).eps  # ~2.2e-16
 sqrt_epsf = np.sqrt(epsf)  # ~1.5e-8
 
@@ -353,7 +353,6 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
 
 def fitGrain(gFull, instrument, reflections_dict,
              bMat, wavelength,
-             beamVec=bVec_ref, etaVec=eta_ref,
              gFlag=gFlag_ref, gScl=gScl_ref,
              omePeriod=None,
              factor=0.1, xtol=sqrt_epsf, ftol=sqrt_epsf):
@@ -361,12 +360,13 @@ def fitGrain(gFull, instrument, reflections_dict,
     """
     # FIXME: will currently fail if omePeriod is specifed
     if omePeriod is not None:
-        xyo_det[:, 2] = xf.mapAngle(xyo_det[:, 2], omePeriod)
+        # xyo_det[:, 2] = xf.mapAngle(xyo_det[:, 2], omePeriod)
+        raise(RuntimeError, "ome period must be specified")
 
     gFit = gFull[gFlag]
 
     fitArgs = (gFull, gFlag, instrument, reflections_dict,
-               bMat, wavelength, beamVec, etaVec, omePeriod)
+               bMat, wavelength, omePeriod)
     results = optimize.leastsq(objFuncFitGrain, gFit, args=fitArgs,
                                diag=1./gScl[gFlag].flatten(),
                                factor=0.1, xtol=xtol, ftol=ftol)
@@ -382,7 +382,6 @@ def objFuncFitGrain(gFit, gFull, gFlag,
                     instrument,
                     reflections_dict,
                     bMat, wavelength,
-                    bVec, eVec,
                     omePeriod,
                     simOnly=False, return_value_flag=return_value_flag):
     """
@@ -408,6 +407,9 @@ def objFuncFitGrain(gFit, gFull, gFlag,
                     omePeriod,
                     simOnly=False, return_value_flag=return_value_flag)
     """
+    
+    bVec = instrument.beam_vector
+    eVec = instrument.eta_vector
     
     # fill out parameters
     gFull[gFlag] = gFit
