@@ -89,7 +89,6 @@ class OmegaImageSeries(ImageSeries):
         """Return frame and wedge which includes given omega, -1 if not found"""
         f = -1
         w = -1
-        f0 = 0
         for i in range(len(self._wedge_om)):
             omin = self._wedge_om[i, 0]
             omax = self._wedge_om[i, 1]

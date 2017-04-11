@@ -53,11 +53,15 @@ from hexrd.xrd.transforms_CAPI import anglesToGVec, \
                                       makeOscillRotMat, \
                                       makeRotMatOfExpMap, \
                                       mapAngle, \
-                                      oscillAnglesOfHKLs
+                                      oscillAnglesOfHKLs, \
+                                      validateAngleRanges
 from hexrd.xrd import xrdutil
 from hexrd import constants as ct
 
-from hexrd.xrd.distortion import GE_41RT  # BAD, VERY BAD!!! FIX!!!
+# from hexrd.utils.progressbar import ProgressBar, Bar, ETA, ReverseBar
+
+# FIXME: distortion kludge
+from hexrd.xrd.distortion import GE_41RT  # BAD, VERY BAD!!!
 
 beam_energy_DFLT = 65.351
 beam_vec_DFLT = ct.beam_vec
@@ -120,6 +124,25 @@ def migrate_instrument_config(instrument_config):
         )
     return cfg_list
 
+
+def angle_in_range(angle, ranges, ccw=True, units='degrees'):
+    """
+    Return the index of the first wedge the angle is found in 
+    
+    WARNING: always clockwise; assumes wedges are not overlapping
+    """
+    tau = 360.
+    if units.lower() == 'radians':
+        tau = 2*np.pi
+    w = np.nan
+    for i, wedge in enumerate(ranges):
+        amin = wedge[0]
+        amax = wedge[1]
+        check = amin + np.mod(angle - amin, tau)
+        if check < amax:
+            w = i
+            break
+    return w
 
 class HEDMInstrument(object):
     """
@@ -320,25 +343,111 @@ class HEDMInstrument(object):
             yaml.dump(par_dict, stream=f)
         return par_dict
 
-    def extract_line_positions(self, plane_data, image_dict,
-                               tth_tol=0.25, eta_tol=1., npdiv=2):
+
+    def extract_polar_maps(self, plane_data, imgser_dict,
+                           tth_tol=None, eta_tol=0.25):
         """
+        Quick and dirty way to histogram angular patch data for make
+        pole figures suitable for fiber generation
+        
+        TODO: streamline projection code
+        TODO: normalization
         """
+        if tth_tol is not None:
+            plane_data.tThWidth = np.radians(tth_tol)
+        else:
+            tth_tol = np.degrees(plane_data.tThWidth)
+        tth_ranges = plane_data.getTThRanges()
+        
+        # need this for making eta ranges
+        eta_tol_vec = 0.5*np.radians([-eta_tol, eta_tol])
+        
+        ring_maps_panel = dict.fromkeys(self.detectors)
+        for i_d, det_key in enumerate(self.detectors):
+            print("working on detector '%s'..." %det_key)
+ 
+            # grab panel
+            panel = self.detectors[det_key]
+            # native_area = panel.pixel_area  # pixel ref area
+            
+            # make rings clipped to panel
+            pow_angs, pow_xys, eta_idx, full_etas = panel.make_powder_rings(
+                plane_data, 
+                merge_hkls=False, delta_eta=eta_tol, 
+                output_etas=True)
+             
+            ptth, peta = panel.pixel_angles
+            ring_maps = []
+            for i_r, tthr in enumerate(tth_ranges):
+                print("working on ring %d..." %i_r)
+                rtth_idx = np.where(
+                    np.logical_and(ptth >= tthr[0], ptth <= tthr[1])
+                )
+                etas = pow_angs[i_r][:, 1]
+                netas = len(etas)
+                eta_ranges = np.tile(etas, (2, 1)).T \
+                    + np.tile(eta_tol_vec, (netas, 1))
+                ring_map = []
+                for i_e, etar in enumerate(eta_ranges):
+                    # WARNING: assuming start/stop
+                    emin = np.r_[etar[0]]
+                    emax = np.r_[etar[1]]
+                    reta_idx = np.where(
+                        validateAngleRanges(peta[rtth_idx], emin, emax)
+                    )
+                    ijs = (rtth_idx[0][reta_idx], 
+                           rtth_idx[1][reta_idx])
+                    ring_map.append(ijs)
+                    pass
+                
+                try:
+                    omegas = imgser_dict[det_key].metadata['omega']
+                except(KeyError):
+                    msg = "imageseries for '%s' has no omega info" %det_key
+                    raise RuntimeError(msg)
+                # ome_edges = np.r_[omegas[:, 0], omegas[-1, 1]]
+                nrows_ome = len(omegas)
+                ncols_eta = len(full_etas)
+                this_map = np.nan*np.ones((nrows_ome, ncols_eta))
+                for i_row, image in enumerate(imgser_dict[det_key]):
+                    #import pdb; pdb.set_trace()
+                    this_map[i_row, eta_idx[i_r]] = [
+                            np.sum(image[k[0], k[1]]) for k in ring_map
+                        ]
+                ring_maps.append(this_map)
+                pass
+            ring_maps_panel[det_key] = ring_maps
+        return ring_maps_panel
+
+    def extract_line_positions(self, plane_data, imgser_dict,
+                               tth_tol=None, eta_tol=1., npdiv=2, 
+                               collapse_tth=False, do_interpolation=True):
+        """
+        TODO: handle wedge boundaries
+        """
+        if tth_tol is None:
+            tth_tol = np.degrees(plane_data.tThWidth)
         tol_vec = 0.5*np.radians(
             [-tth_tol, -eta_tol,
              -tth_tol,  eta_tol,
              tth_tol,  eta_tol,
              tth_tol, -eta_tol])
-        panel_data = []
-        for detector_id in self.detectors:
+        #
+        # pbar = ProgressBar(
+        #     widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
+        #     maxval=self.num_panels,
+        # ).start()
+        #
+        panel_data = dict.fromkeys(self.detectors)
+        for i_det, detector_id in enumerate(self.detectors):
+            print("working on detector '%s'..." %detector_id)
+            # pbar.update(i_det + 1)
             # grab panel
             panel = self.detectors[detector_id]
             instr_cfg = panel.config_dict(self.chi, self.tvec)
             native_area = panel.pixel_area  # pixel ref area
-
-            # pull out the image for this panel from input dict
-            image = image_dict[detector_id]
-
+            n_images = len(imgser_dict[detector_id])
+            
             # make rings
             pow_angs, pow_xys = panel.make_powder_rings(
                 plane_data, merge_hkls=True, delta_eta=eta_tol)
@@ -346,6 +455,7 @@ class HEDMInstrument(object):
 
             ring_data = []
             for i_ring in range(n_rings):
+                print("working on ring %d..." %i_ring)
                 these_angs = pow_angs[i_ring]
 
                 # make sure no one falls off...
@@ -355,6 +465,7 @@ class HEDMInstrument(object):
                                   ).reshape(4*npts, 2)
 
                 # find points that fall on the panel
+                # WARNING: ignoring effect of crystal tvec
                 det_xy, rMat_s = xrdutil._project_on_detector_plane(
                     np.hstack([patch_vertices, np.zeros((4*npts, 1))]),
                     panel.rmat, ct.identity_3x3, self.chi,
@@ -380,39 +491,55 @@ class HEDMInstrument(object):
                     beamVec=self.beam_vector)
 
                 # loop over patches
-                patch_data = []
-                for patch in patches:
+                # FIXME: fix initialization
+                if collapse_tth:
+                    patch_data = np.zeros((len(ang_centers), n_images))
+                else:
+                    patch_data = []
+                for i_p, patch in enumerate(patches):
                     # strip relevant objects out of current patch
                     vtx_angs, vtx_xy, conn, areas, xy_eval, ijs = patch
+                    if collapse_tth:
+                        ang_data = (vtx_angs[0][0, [0, -1]], 
+                                    vtx_angs[1][[0, -1], 0])
+                    else:
+                        ang_data = (vtx_angs[0][0, :], 
+                                    ang_centers[i_p][-1])
                     prows, pcols = areas.shape
-
+                    area_fac = areas/float(native_area)
                     # need to reshape eval pts for interpolation
                     xy_eval = np.vstack([
                         xy_eval[0].flatten(),
                         xy_eval[1].flatten()]).T
 
-                    ''' Maybe need these
-                    # edge arrays
-                    tth_edges = vtx_angs[0][0, :]
-                    delta_tth = tth_edges[1] - tth_edges[0]
-                    eta_edges = vtx_angs[1][:, 0]
-                    delta_eta = eta_edges[1] - eta_edges[0]
-                    '''
-
                     # interpolate
-                    patch_data.append(
-                      panel.interpolate_bilinear(
-                          xy_eval,
-                          image,
-                          ).reshape(prows, pcols)*(areas/float(native_area))
-                    )
+                    if not collapse_tth:
+                        ims_data = []
+                    for j_p, image in enumerate(imgser_dict[detector_id]):
+                        # catch interpolation type
+                        if do_interpolation:
+                            tmp = panel.interpolate_bilinear(
+                                    xy_eval,
+                                    image,
+                                ).reshape(prows, pcols)*area_fac
+                        else:
+                            tmp = image[ijs[0], ijs[1]]*area_fac
 
-                    #
+                        # catch collapsing options    
+                        if collapse_tth:
+                            patch_data[i_p, j_p] = np.sum(tmp)
+                            #ims_data.append(np.sum(tmp))
+                        else:
+                            ims_data.append(np.sum(tmp, axis=0))
+                        pass  # close image loop
+                    if not collapse_tth:
+                        patch_data.append((ang_data, ims_data))
                     pass  # close patch loop
                 ring_data.append(patch_data)
                 pass  # close ring loop
-            panel_data.append(ring_data)
+            panel_data[detector_id] = ring_data
             pass  # close panel loop
+            # pbar.finish()
         return panel_data
 
     def simulate_rotation_series(self, plane_data, grain_param_list):
@@ -700,9 +827,9 @@ class HEDMInstrument(object):
             pass  # end detector loop
         return compl, output
 
-    """def fit_grain(self, grain_params, data_dir='results'):
+    """def fit_grain(self, grain_params, data_dir='results'):"""
 
-    pass  # end class: HEDMInstrument"""
+    pass  # end class: HEDMInstrument
 
 
 class PlanarDetector(object):
@@ -711,7 +838,6 @@ class PlanarDetector(object):
     """
 
     __pixelPitchUnit = 'mm'
-    __delta_eta = np.radians(10.)
 
     def __init__(self,
                  rows=2048, cols=2048,
@@ -1119,22 +1245,31 @@ class PlanarDetector(object):
         return int_xy
 
     def make_powder_rings(
-            self, pd, merge_hkls=False, delta_eta=None, eta_period=None,
+            self, pd, merge_hkls=False, delta_tth=None, 
+            delta_eta=10., eta_period=None,
             rmat_s=ct.identity_3x3,  tvec_s=ct.zeros_3,
-            tvec_c=ct.zeros_3, output_ranges=False):
+            tvec_c=ct.zeros_3, output_ranges=False, output_etas=False):
         """
         """
+        if delta_tth is not None:
+            pd.tThWidth = np.radians(delta_tth)
+        else:
+            delta_tth = np.degrees(pd.tThWidth)
+        sector_vec = 0.5*np.radians(
+            [-delta_tth, -delta_eta,
+             -delta_tth,  delta_eta,
+             delta_tth,  delta_eta,
+             delta_tth, -delta_eta]
+        )
 
         # for generating rings
-        if delta_eta is None:
-            delta_eta = self.__delta_eta
         if eta_period is None:
             eta_period = (-np.pi, np.pi)
 
         neta = int(360./float(delta_eta))
         eta = mapAngle(
             np.radians(
-                delta_eta*np.linspace(0, neta-1, num=neta)
+                delta_eta*np.linspace(0, neta - 1, num=neta)
             ) + eta_period[0], eta_period
         )
 
@@ -1158,6 +1293,7 @@ class PlanarDetector(object):
         # need xy coords and pixel sizes
         valid_ang = []
         valid_xy = []
+        map_indices = []
         for i_ring in range(len(angs)):
             these_angs = angs[i_ring].T
             gVec_ring_l = anglesToGVec(these_angs, bHat_l=self.bvec)
@@ -1166,13 +1302,45 @@ class PlanarDetector(object):
                 self.rmat, rmat_s, ct.identity_3x3,
                 self.tvec, tvec_s, tvec_c,
                 beamVec=self.bvec)
-            #
             xydet_ring, on_panel = self.clip_to_panel(xydet_ring)
-            #
-            valid_ang.append(these_angs[on_panel, :2])
-            valid_xy.append(xydet_ring)
+            nangs_r = len(xydet_ring)
+
+            # now expand and check to see which sectors (patches) fall off
+            patch_vertices = (
+                np.tile(these_angs[on_panel, :2], (1, 4))
+                + np.tile(sector_vec, (nangs_r, 1))
+            ).reshape(4*nangs_r, 2)
+
+            # duplicate ome array
+            ome_dupl = np.tile(
+                these_angs[on_panel, 2], (4, 1)
+            ).T.reshape(len(patch_vertices), 1)
+
+            # find vertices that fall on the panel
+            gVec_ring_l = anglesToGVec(
+                np.hstack([patch_vertices, ome_dupl]), 
+                bHat_l=self.bvec)
+            tmp_xy = gvecToDetectorXY(
+                gVec_ring_l,
+                self.rmat, rmat_s, ct.identity_3x3,
+                self.tvec, tvec_s, tvec_c,
+                beamVec=self.bvec)
+            tmp_xy, on_panel_p= self.clip_to_panel(tmp_xy)
+
+            # all vertices must be on...
+            patch_is_on = np.all(on_panel_p.reshape(nangs_r, 4), axis=1)
+
+            idx = np.where(on_panel)[0][patch_is_on]
+            
+            valid_ang.append(these_angs[idx, :2])
+            valid_xy.append(xydet_ring[patch_is_on])
+            map_indices.append(idx)
             pass
-        return valid_ang, valid_xy
+        if output_etas:
+            return valid_ang, valid_xy, map_indices, eta
+        else:
+            return valid_ang, valid_xy
+
 
     def map_to_plane(self, pts, rmat, tvec):
         """
@@ -1428,3 +1596,37 @@ def unwrap_dict_to_h5(grp, d, asattr=True):
                 grp.attrs.create(key, item)
             else:
                 grp.create_dataset(key, data=np.atleast_1d(item))
+
+
+'''
+class GenerateEtaOmeMaps(object):
+    """
+    eta-ome map class derived from new image_series and YAML config
+
+    ...for now...
+
+    must provide:
+
+    self.dataStore
+    self.planeData
+    self.iHKLList
+    self.etaEdges # IN RADIANS
+    self.omeEdges # IN RADIANS
+    self.etas     # IN RADIANS
+    self.omegas   # IN RADIANS
+
+    """
+    def __init__(self, image_series_dict, instrument, plane_data, active_hkls,
+                 ome_step=None, eta_step=None, threshold=None):
+        """
+        image_series must be OmegaImageSeries class
+        instrument_params must be a dict (loaded from yaml spec)
+        active_hkls must be a list (required for now)
+        """
+        
+        # ...TO DO: change name of iHKLList?
+        self._iHKLList = active_hkls
+        self._planeData = planeData
+
+        eta_mapping = instr.extract_polar_maps(plane_data, image_series_dict)
+'''        
