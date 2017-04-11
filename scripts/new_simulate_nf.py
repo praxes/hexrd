@@ -6,7 +6,6 @@ Also trying to minimize imports
 from __future__ import print_function
 
 import os
-import sys
 import logging
 
 import numpy as np
@@ -14,25 +13,20 @@ import numba
 import yaml
 import argparse
 import time
-import itertools as it
-from contextlib import contextmanager
+import contextlib
 import multiprocessing
-import multiprocessing.sharedctypes as mp_sct
-# import of hexrd modules
+import tempfile
+import shutil
 
+# import of hexrd modules
 import hexrd
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
-from hexrd.xrd import rotations as rot # for rotMatOfQuat
 from hexrd.xrd import xrdutil
-import hexrd.gridutil as gridutil
+import hexrd.xrd.material
 
-from hexrd.xrd import material
 from skimage.morphology import dilation as ski_dilation
 
-import joblib
-import tempfile
-import shutil
 
 # ==============================================================================
 # %% SOME SCAFFOLDING
@@ -243,7 +237,7 @@ def mockup_experiment():
     # ns contains the rotation axis as an unit vector
     ns = hexrd.matrixutil.unitVector(quats[1:, :])
     exp_maps = np.array([phis[i]*ns[:, i] for i in range(n_grains)])
-    rMat_c = rot.rotMatOfQuat(quats)
+    rMat_c = hexrd.xrd.rotations.rotMatOfQuat(quats)
 
     cvec = np.arange(-25, 26)
     X, Y, Z = np.meshgrid(cvec, cvec, cvec)
@@ -326,7 +320,7 @@ def mockup_experiment():
 
     # crystallography data
     from hexrd import valunits
-    gold = material.Material('gold')
+    gold = hexrd.xrd.material.Material('gold')
     gold.sgnum = 225
     gold.latticeParameters = [4.0782, ]
     gold.hklMax = 200
@@ -724,20 +718,25 @@ def test_orientations(image_stack, experiment, controller):
     finished = 0
     ncpus = min(ncpus, len(chunks))
 
+    logging.info('Checking confidence for %d coords, %d grains.',
+                 n_coords, n_grains)
     confidence = np.empty((n_grains, n_coords))
     if ncpus > 1:
         global _multiprocessing_start_method
-        logging.info('Running multiprocess grand loop with %d processes (%s)',
+        logging.info('Running multiprocess %d processes (%s)',
                      ncpus, _multiprocessing_start_method)
-        with grand_loop_pool(ncpus=ncpus, state=(chunk_size, image_stack_dilated,
-                                               all_angles, precomp, test_crds,
-                                               experiment)) as pool:
-            for rslice, rvalues in pool.imap_unordered(multiproc_inner_loop, chunks):
+        with grand_loop_pool(ncpus=ncpus, state=(chunk_size,
+                                                 image_stack_dilated,
+                                                 all_angles, precomp, test_crds,
+                                                 experiment)) as pool:
+            for rslice, rvalues in pool.imap_unordered(multiproc_inner_loop,
+                                                       chunks):
                 count = rvalues.shape[1]
                 confidence[:, rslice] = rvalues
                 finished += count
                 controller.update(finished)
     else:
+        logging.info('Running in a single process')
         for chunk_start in chunks:
             chunk_stop = min(n_coords, chunk_start+chunk_size)
             rslice, rvalues = _grand_loop_inner(image_stack_dilated, all_angles,
@@ -912,12 +911,14 @@ def worker_init(id_state, id_exp):
     """process initialization function. This function is only used when the
     child processes are spawned (instead of forked). When using the fork model
     of multiprocessing the data is just inherited in process memory."""
+    import joblib
+
     global _mp_state
     state = joblib.load(id_state)
     experiment = joblib.load(id_exp)
     _mp_state = state + (experiment,)
 
-@contextmanager
+@contextlib.contextmanager
 def grand_loop_pool(ncpus, state):
     """function that handles the initialization of multiprocessing. It handles
     properly the use of spawned vs forked multiprocessing. The multiprocessing
@@ -953,6 +954,7 @@ def grand_loop_pool(ncpus, state):
         # used to load the parameter memory into the spawn process (also using
         # joblib). In theory, joblib uses memmap for arrays if they are not
         # compressed, so no compression is used for the bigger arrays.
+        import joblib
         tmp_dir = tempfile.mkdtemp(suffix='-nf-grand-loop')
         try:
             # dumb dumping doesn't seem to work very well.. do something ad-hoc
