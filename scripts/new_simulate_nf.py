@@ -223,7 +223,7 @@ def checking_result_handler(filename):
 
 
 # ==============================================================================
-# %% UTILITY FUNCTIONS
+# %% SETUP FUNCTION
 # ==============================================================================
 def mockup_experiment():
     # user options
@@ -514,6 +514,52 @@ def _gvec_to_detector_array(vG_sn, rD, rSn, rC, tD, tS, tC):
     return result
 
 
+@numba.njit
+def _quant_and_clip_confidence(coords, angles, image, base, inv_deltas, clip_vals):
+    """quantize and clip the parametric coordinates in coords + angles
+
+    coords - (..., 2) array: input 2d parametric coordinates
+    angles - (...) array: additional dimension for coordinates
+    base   - (3,) array: base value for quantization (for each dimension)
+    inv_deltas - (3,) array: inverse of the quantum size (for each dimension)
+    clip_vals - (2,) array: clip size (only applied to coords dimensions)
+
+    clipping is performed on ranges [0, clip_vals[0]] for x and
+    [0, clip_vals[1]] for y
+
+    returns an array with the quantized coordinates, with coordinates
+    falling outside the clip zone filtered out.
+
+    """
+    count = len(coords)
+
+    in_sensor = 0
+    matches = 0
+    for i in range(count):
+        xf = coords[i, 0]
+        yf = coords[i, 1]
+
+        xf = np.floor((xf - base[0]) * inv_deltas[0])
+        if not xf >= 0.0:
+            continue
+        if not xf < clip_vals[0]:
+            continue
+
+        yf = np.floor((yf - base[1]) * inv_deltas[1])
+
+        if not yf >= 0.0:
+            continue
+        if not yf < clip_vals[1]:
+            continue
+
+        zf = np.floor((angles[i] - base[2]) * inv_deltas[2])
+
+        in_sensor += 1
+        matches += image[int(zf), int(yf), int(xf)]
+
+    return 0 if in_sensor == 0 else float(matches)/float(in_sensor)
+
+
 # ==============================================================================
 # %% DIFFRACTION SIMULATION
 # ==============================================================================
@@ -532,33 +578,6 @@ def get_simulate_diffractions(grain_params, experiment,
     controller.handle_result('image_stack', image_stack)
 
     return image_stack
-
-
-# This part is critical for the performance of simulate diffractions. It
-# basically "renders" the "pixels". It takes the coordinates, quantizes to an
-# image coordinate and writes to the appropriate image in the stack. Note
-# that it also performs clipping based on inv_deltas and clip_vals.
-#
-# Note: This could be easily modified so that instead of using an array of
-#       booleans, an array of uint8 could be used so the image is stored
-#       with a bit per pixel.
-@numba.njit
-def _write_pixels(coords, angles, image, base, inv_deltas, clip_vals):
-    count = len(coords)
-    for i in range(count):
-        x = int(np.floor((coords[i, 0] - base[0]) * inv_deltas[0]))
-
-        if x < 0 or x >= clip_vals[0]:
-            continue
-
-        y = int(np.floor((coords[i, 1] - base[1]) * inv_deltas[1]))
-
-        if y < 0 or y >= clip_vals[1]:
-            continue
-
-        z = int(np.floor((angles[i] - base[2]) * inv_deltas[2]))
-
-        image[z, y, x] = True
 
 
 def simulate_diffractions(grain_params, experiment, controller):
@@ -609,79 +628,36 @@ def simulate_diffractions(grain_params, experiment, controller):
     return image_stack
 
 
+# This part is critical for the performance of simulate diffractions. It
+# basically "renders" the "pixels". It takes the coordinates, quantizes to an
+# image coordinate and writes to the appropriate image in the stack. Note
+# that it also performs clipping based on inv_deltas and clip_vals.
+#
+# Note: This could be easily modified so that instead of using an array of
+#       booleans, an array of uint8 could be used so the image is stored
+#       with a bit per pixel.
+@numba.njit
+def _write_pixels(coords, angles, image, base, inv_deltas, clip_vals):
+    count = len(coords)
+    for i in range(count):
+        x = int(np.floor((coords[i, 0] - base[0]) * inv_deltas[0]))
+
+        if x < 0 or x >= clip_vals[0]:
+            continue
+
+        y = int(np.floor((coords[i, 1] - base[1]) * inv_deltas[1]))
+
+        if y < 0 or y >= clip_vals[1]:
+            continue
+
+        z = int(np.floor((angles[i] - base[2]) * inv_deltas[2]))
+
+        image[z, y, x] = True
+
+
 # ==============================================================================
 # %% ORIENTATION TESTING
 # ==============================================================================
-
-def _grand_loop_inner(image_stack, angles, precomp,
-                      coords, experiment, start=0, stop=None):
-    t = time.time()
-    n_coords = len(coords)
-    n_angles = len(angles)
-    rD = experiment.rMat_d
-    rCn = experiment.rMat_c
-    tD = experiment.tVec_d[:,0]
-    tS = experiment.tVec_s[:,0]
-    distortion = experiment.distortion
-    _to_detector = xfcapi.gvecToDetectorXYArray
-    #_to_detector = _gvec_to_detector_array
-    stop = min(stop, n_coords) if stop is not None else n_coords
-
-    distortion_fn = None
-    if distortion is not None and len(distortion > 0):
-        distortion_fn, distortion_args = distortion
-
-    acc_detector = 0.0
-    acc_distortion = 0.0
-    acc_quant_clip = 0.0
-    confidence = np.zeros((n_angles, stop-start))
-    grains = 0
-    crds = 0
-
-    if distortion_fn is None:
-        for igrn in xrange(n_angles):
-            angs = angles[igrn]; rC = rCn[igrn]
-            gvec_cs, rMat_ss = precomp[igrn]
-            grains += 1
-            for icrd in xrange(start, stop):
-                t0 = time.time()
-                det_xy = _to_detector(gvec_cs, rD, rMat_ss, rC, tD, tS, coords[icrd])
-                t1 = time.time()
-                c = _quant_and_clip_confidence(det_xy, angs[:,2],
-                                               image_stack, experiment.base,
-                                               experiment.inv_deltas,
-                                               experiment.clip_vals)
-                t2 = time.time()
-                acc_detector += t1 - t0
-                acc_quant_clip += t2 - t1
-                crds += 1
-                confidence[igrn, icrd - start] = c
-    else:
-        for igrn in xrange(n_angles):
-            angs = angles[igrn]; rC = rCn[igrn]
-            gvec_cs, rMat_ss = precomp[igrn]
-            grains += 1
-            for icrd in xrange(start, stop):
-                t0 = time.time()
-                det_xy = _to_detector(gvec_cs, rD, rMat_ss, rC, tD, tS, coords[icrd])
-                t1 = time.time()
-                det_xy = distortion_fn(tmp_xys, distortion_args, invert=True)
-                t2 = time.time()
-                c = _quant_and_clip_confidence(det_xy, angs[:,2],
-                                               image_stack, experiment.base,
-                                               experiment.inv_deltas,
-                                               experiment.clip_vals)
-                t3 = time.time()
-                acc_detector += t1 - t0
-                acc_distortion += t2 - t1
-                acc_quant_clip += t3 - t2
-                crds += 1
-                confidence[igrn, icrd - start] = c
-
-    t = time.time() - t
-    return slice(start, stop), confidence
-
-
 def test_orientations(image_stack, experiment, controller):
     """grand loop precomputing the grown image stack
 
@@ -777,11 +753,136 @@ def test_orientations(image_stack, experiment, controller):
     controller.handle_result("confidence", confidence)
 
 
-def multiproc_inner_loop(chunk):
-    chunk_size = _mp_state[0]
-    n_coords = len(_mp_state[4])
-    chunk_stop = min(n_coords, chunk+chunk_size)
-    return _grand_loop_inner(*_mp_state[1:], start=chunk, stop=chunk_stop)
+def evaluate_diffraction_angles(experiment, controller=None):
+    """Uses simulateGVecs to generate the angles used per each grain.
+    returns a list containg one array per grain.
+
+    experiment -- a bag of experiment values, including the grains specs and other
+                  required parameters.
+    """
+    # extract required data from experiment
+    exp_maps = experiment.exp_maps
+    plane_data = experiment.plane_data
+    detector_params = experiment.detector_params
+    pixel_size = experiment.pixel_size
+    ome_range = experiment.ome_range
+    ome_period = experiment.ome_period
+
+    panel_dims_expanded = [(-10, -10), (10, 10)]
+    subprocess='evaluate diffraction angles'
+    pbar = controller.start(subprocess,
+                            len(experiment.exp_maps))
+    all_angles = []
+    ref_gparams = np.array([0., 0., 0., 1., 1., 1., 0., 0., 0.])
+    for i, exp_map in enumerate(experiment.exp_maps):
+        gparams = np.hstack([exp_map, ref_gparams])
+        sim_results = xrdutil.simulateGVecs(plane_data,
+                                            detector_params,
+                                            gparams,
+                                            panel_dims=panel_dims_expanded,
+                                            pixel_pitch=pixel_size,
+                                            ome_range=ome_range,
+                                            ome_period=ome_period,
+                                            distortion=None)
+        all_angles.append(sim_results[2])
+        controller.update(i+1)
+        pass
+    controller.finish(subprocess)
+
+    return all_angles
+
+
+def _grand_loop_inner(image_stack, angles, precomp,
+                      coords, experiment, start=0, stop=None):
+    """Actual simulation code for a chunk of data. It will be used both,
+    in single processor and multiprocessor cases. Chunking is performed
+    on the coords.
+
+    image_stack -- the image stack from the sensors
+    angles -- the angles (grains) to test
+    coords -- all the coords to test
+    precomp -- (gvec_cs, rmat_ss) precomputed for each grain
+    experiment -- bag with experiment parameters
+    start -- chunk start offset
+    stop -- chunk end offset
+    """
+
+    t = time.time()
+    n_coords = len(coords)
+    n_angles = len(angles)
+
+    # experiment geometric layout parameters
+    rD = experiment.rMat_d
+    rCn = experiment.rMat_c
+    tD = experiment.tVec_d[:,0]
+    tS = experiment.tVec_s[:,0]
+
+    # experiment panel related configuration
+    base = experiment.base
+    inv_deltas = experiment.inv_deltas
+    clip_vals = experiment.clip_vals
+    distortion = experiment.distortion
+
+    _to_detector = xfcapi.gvecToDetectorXYArray
+    #_to_detector = _gvec_to_detector_array
+    stop = min(stop, n_coords) if stop is not None else n_coords
+
+    distortion_fn = None
+    if distortion is not None and len(distortion > 0):
+        distortion_fn, distortion_args = distortion
+
+    acc_detector = 0.0
+    acc_distortion = 0.0
+    acc_quant_clip = 0.0
+    confidence = np.zeros((n_angles, stop-start))
+    grains = 0
+    crds = 0
+
+    if distortion_fn is None:
+        for igrn in xrange(n_angles):
+            angs = angles[igrn]; rC = rCn[igrn]
+            gvec_cs, rMat_ss = precomp[igrn]
+            grains += 1
+            for icrd in xrange(start, stop):
+                t0 = time.time()
+                det_xy = _to_detector(gvec_cs, rD, rMat_ss, rC, tD, tS, coords[icrd])
+                t1 = time.time()
+                c = _quant_and_clip_confidence(det_xy, angs[:,2], image_stack,
+                                               base, inv_deltas, clip_vals)
+                t2 = time.time()
+                acc_detector += t1 - t0
+                acc_quant_clip += t2 - t1
+                crds += 1
+                confidence[igrn, icrd - start] = c
+    else:
+        for igrn in xrange(n_angles):
+            angs = angles[igrn]; rC = rCn[igrn]
+            gvec_cs, rMat_ss = precomp[igrn]
+            grains += 1
+            for icrd in xrange(start, stop):
+                t0 = time.time()
+                det_xy = _to_detector(gvec_cs, rD, rMat_ss, rC, tD, tS, coords[icrd])
+                t1 = time.time()
+                det_xy = distortion_fn(tmp_xys, distortion_args, invert=True)
+                t2 = time.time()
+                c = _quant_and_clip_confidence(det_xy, angs[:,2], image_stack,
+                                               base, inv_deltas, clip_vals)
+                t3 = time.time()
+                acc_detector += t1 - t0
+                acc_distortion += t2 - t1
+                acc_quant_clip += t3 - t2
+                crds += 1
+                confidence[igrn, icrd - start] = c
+
+    t = time.time() - t
+    return slice(start, stop), confidence
+
+
+def generate_test_grid(low, top, samples):
+    """generates a test grid of coordinates"""
+    cvec_s = np.linspace(low, top, samples)
+    Xs, Ys, Zs = np.meshgrid(cvec_s, cvec_s, cvec_s)
+    return np.vstack([Xs.flatten(), Ys.flatten(), Zs.flatten()]).T
 
 
 # Multiprocessing bits ========================================================
@@ -797,7 +898,20 @@ def multiproc_inner_loop(chunk):
 # would be less efficient in memory (as joblib memmaps by default the big
 # arrays, meaning they may be shared between processes).
 
+def multiproc_inner_loop(chunk):
+    """function to use in multiprocessing that computes the simulation over the
+    task's alloted chunk of data"""
+
+    chunk_size = _mp_state[0]
+    n_coords = len(_mp_state[4])
+    chunk_stop = min(n_coords, chunk+chunk_size)
+    return _grand_loop_inner(*_mp_state[1:], start=chunk, stop=chunk_stop)
+
+
 def worker_init(id_state, id_exp):
+    """process initialization function. This function is only used when the
+    child processes are spawned (instead of forked). When using the fork model
+    of multiprocessing the data is just inherited in process memory."""
     global _mp_state
     state = joblib.load(id_state)
     experiment = joblib.load(id_exp)
@@ -805,6 +919,12 @@ def worker_init(id_state, id_exp):
 
 @contextmanager
 def grand_loop_pool(ncpus, state):
+    """function that handles the initialization of multiprocessing. It handles
+    properly the use of spawned vs forked multiprocessing. The multiprocessing
+    can be either 'fork' or 'spawn', with 'spawn' being required in non-fork
+    platforms (like Windows) and 'fork' being preferred on fork platforms due
+    to its efficiency.
+    """
     # state = ( chunk_size,
     #           image_stack,
     #           angles,
@@ -813,105 +933,44 @@ def grand_loop_pool(ncpus, state):
     #           experiment )
     global _multiprocessing_start_method
     if _multiprocessing_start_method == 'fork':
-        # use inheritance when using fork multiprocessing
+        # Use FORK multiprocessing.
+
+        # All read-only data can be inherited in the process. So we "pass" it as
+        # a global that the child process will be able to see. At the end of the
+        # processing the global is removed.
         global _mp_state
         _mp_state = state
         pool = multiprocessing.Pool(ncpus)
         yield pool
         del (_mp_state)
     else:
-        # use serialization/deserialization using joblib when not using fork
+        # Use SPAWN multiprocessing.
+
+        # As we can not inherit process data, all the required data is
+        # serialized into a temporary directory using joblib. The
+        # multiprocessing pool will have the "worker_init" as initialization
+        # function that takes the key for the serialized data, which will be
+        # used to load the parameter memory into the spawn process (also using
+        # joblib). In theory, joblib uses memmap for arrays if they are not
+        # compressed, so no compression is used for the bigger arrays.
         tmp_dir = tempfile.mkdtemp(suffix='-nf-grand-loop')
         try:
             # dumb dumping doesn't seem to work very well.. do something ad-hoc
             logging.info('Using "%s" as temporary directory.', tmp_dir)
 
-            id_exp = joblib.dump(state[-1], os.path.join(tmp_dir,
-                                                         'grand-loop-experiment.gz'),
-                                 compress=True)[0]
-            id_state = joblib.dump(state[:-1], os.path.join(tmp_dir, 'grand-loop-data'))[0]
-            pool = multiprocessing.Pool(ncpus, worker_init, (id_state, id_exp))
+            id_exp = joblib.dump(state[-1], 
+                                 os.path.join(tmp_dir,
+                                              'grand-loop-experiment.gz'),
+                                 compress=True)
+            id_state = joblib.dump(state[:-1],
+                                   os.path.join(tmp_dir, 'grand-loop-data'))
+            pool = multiprocessing.Pool(ncpus, worker_init,
+                                        (id_state[0], id_exp[0]))
             yield pool
         finally:
             logging.info('Deleting "%s".', tmp_dir)
             shutil.rmtree(tmp_dir)
 
-
-def generate_test_grid(low, top, samples):
-    cvec_s = np.linspace(low, top, samples)
-    Xs, Ys, Zs = np.meshgrid(cvec_s, cvec_s, cvec_s)
-    return np.vstack([Xs.flatten(), Ys.flatten(), Zs.flatten()]).T
-
-
-def evaluate_diffraction_angles(experiment , controller=None):
-    panel_dims_expanded = [(-10, -10), (10, 10)]
-    subprocess='evaluate diffraction angles'
-    pbar = controller.start(subprocess,
-                            len(experiment.exp_maps))
-    all_angles = []
-    ref_gparams = np.array([0., 0., 0., 1., 1., 1., 0., 0., 0.])
-    for i, exp_map in enumerate(experiment.exp_maps):
-        gparams = np.hstack([exp_map, ref_gparams])
-        sim_results = xrdutil.simulateGVecs(experiment.plane_data,
-                                            experiment.detector_params,
-                                            gparams,
-                                            panel_dims=panel_dims_expanded,
-                                            pixel_pitch=experiment.pixel_size,
-                                            ome_range=experiment.ome_range,
-                                            ome_period=experiment.ome_period,
-                                            distortion=None)
-        all_angles.append(sim_results[2])
-        controller.update(i+1)
-        pass
-    controller.finish(subprocess)
-
-    return all_angles
-
-
-@numba.njit
-def _quant_and_clip_confidence(coords, angles, image, base, inv_deltas, clip_vals):
-    """quantize and clip the parametric coordinates in coords + angles
-
-    coords - (..., 2) array: input 2d parametric coordinates
-    angles - (...) array: additional dimension for coordinates
-    base   - (3,) array: base value for quantization (for each dimension)
-    inv_deltas - (3,) array: inverse of the quantum size (for each dimension)
-    clip_vals - (2,) array: clip size (only applied to coords dimensions)
-
-    clipping is performed on ranges [0, clip_vals[0]] for x and
-    [0, clip_vals[1]] for y
-
-    returns an array with the quantized coordinates, with coordinates
-    falling outside the clip zone filtered out.
-
-    """
-    count = len(coords)
-
-    in_sensor = 0
-    matches = 0
-    for i in range(count):
-        xf = coords[i, 0]
-        yf = coords[i, 1]
-
-        xf = np.floor((xf - base[0]) * inv_deltas[0])
-        if not xf >= 0.0:
-            continue
-        if not xf < clip_vals[0]:
-            continue
-
-        yf = np.floor((yf - base[1]) * inv_deltas[1])
-
-        if not yf >= 0.0:
-            continue
-        if not yf < clip_vals[1]:
-            continue
-
-        zf = np.floor((angles[i] - base[2]) * inv_deltas[2])
-
-        in_sensor += 1
-        matches += image[int(zf), int(yf), int(xf)]
-
-    return 0 if in_sensor == 0 else float(matches)/float(in_sensor)
 
 # ==============================================================================
 # %% SCRIPT ENTRY AND PARAMETER HANDLING
