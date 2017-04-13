@@ -46,6 +46,7 @@ from scipy.linalg.matfuncs import logm
 
 from hexrd.gridutil import cellIndices, make_tolerance_grid
 from hexrd import matrixutil as mutil
+from hexrd.valunits import valWUnit
 from hexrd.xrd.transforms_CAPI import anglesToGVec, \
                                       detectorXYToGvec, \
                                       gvecToDetectorXY, \
@@ -127,8 +128,8 @@ def migrate_instrument_config(instrument_config):
 
 def angle_in_range(angle, ranges, ccw=True, units='degrees'):
     """
-    Return the index of the first wedge the angle is found in 
-    
+    Return the index of the first wedge the angle is found in
+
     WARNING: always clockwise; assumes wedges are not overlapping
     """
     tau = 360.
@@ -143,6 +144,7 @@ def angle_in_range(angle, ranges, ccw=True, units='degrees'):
             w = i
             break
     return w
+
 
 class HEDMInstrument(object):
     """
@@ -343,13 +345,13 @@ class HEDMInstrument(object):
             yaml.dump(par_dict, stream=f)
         return par_dict
 
-
     def extract_polar_maps(self, plane_data, imgser_dict,
+                           active_hkls=None, threshold=None,
                            tth_tol=None, eta_tol=0.25):
         """
         Quick and dirty way to histogram angular patch data for make
         pole figures suitable for fiber generation
-        
+
         TODO: streamline projection code
         TODO: normalization
         """
@@ -357,29 +359,34 @@ class HEDMInstrument(object):
             plane_data.tThWidth = np.radians(tth_tol)
         else:
             tth_tol = np.degrees(plane_data.tThWidth)
+
         tth_ranges = plane_data.getTThRanges()
-        
+        if active_hkls is not None:
+            assert hasattr(active_hkls, '__len__'), \
+                "active_hkls must be an iterable with __len__"
+            tth_ranges = tth_ranges[active_hkls]
+
         # need this for making eta ranges
         eta_tol_vec = 0.5*np.radians([-eta_tol, eta_tol])
-        
+
         ring_maps_panel = dict.fromkeys(self.detectors)
         for i_d, det_key in enumerate(self.detectors):
-            print("working on detector '%s'..." %det_key)
- 
+            print("working on detector '%s'..." % det_key)
+
             # grab panel
             panel = self.detectors[det_key]
             # native_area = panel.pixel_area  # pixel ref area
-            
+
             # make rings clipped to panel
             pow_angs, pow_xys, eta_idx, full_etas = panel.make_powder_rings(
-                plane_data, 
-                merge_hkls=False, delta_eta=eta_tol, 
+                plane_data,
+                merge_hkls=False, delta_eta=eta_tol,
                 output_etas=True)
-             
+
             ptth, peta = panel.pixel_angles
             ring_maps = []
             for i_r, tthr in enumerate(tth_ranges):
-                print("working on ring %d..." %i_r)
+                print("working on ring %d..." % i_r)
                 rtth_idx = np.where(
                     np.logical_and(ptth >= tthr[0], ptth <= tthr[1])
                 )
@@ -395,32 +402,38 @@ class HEDMInstrument(object):
                     reta_idx = np.where(
                         validateAngleRanges(peta[rtth_idx], emin, emax)
                     )
-                    ijs = (rtth_idx[0][reta_idx], 
+                    ijs = (rtth_idx[0][reta_idx],
                            rtth_idx[1][reta_idx])
                     ring_map.append(ijs)
                     pass
-                
+
                 try:
                     omegas = imgser_dict[det_key].metadata['omega']
                 except(KeyError):
-                    msg = "imageseries for '%s' has no omega info" %det_key
+                    msg = "imageseries for '%s' has no omega info" % det_key
                     raise RuntimeError(msg)
                 # ome_edges = np.r_[omegas[:, 0], omegas[-1, 1]]
                 nrows_ome = len(omegas)
                 ncols_eta = len(full_etas)
                 this_map = np.nan*np.ones((nrows_ome, ncols_eta))
                 for i_row, image in enumerate(imgser_dict[det_key]):
-                    #import pdb; pdb.set_trace()
-                    this_map[i_row, eta_idx[i_r]] = [
-                            np.sum(image[k[0], k[1]]) for k in ring_map
-                        ]
+                    psum = np.zeros(len(ring_map))
+                    for i_k, k in enumerate(ring_map):
+                        pdata = image[k[0], k[1]]
+                        if threshold:
+                            pdata[pdata <= threshold] = 0
+                        psum[i_k] = np.average(pdata)
+                    this_map[i_row, eta_idx[i_r]] = psum
+                    # this_map[i_row, eta_idx[i_r]] = [
+                    #         np.sum(image[k[0], k[1]]) for k in ring_map
+                    #     ]
                 ring_maps.append(this_map)
                 pass
             ring_maps_panel[det_key] = ring_maps
-        return ring_maps_panel
+        return ring_maps_panel, full_etas
 
     def extract_line_positions(self, plane_data, imgser_dict,
-                               tth_tol=None, eta_tol=1., npdiv=2, 
+                               tth_tol=None, eta_tol=1., npdiv=2,
                                collapse_tth=False, do_interpolation=True):
         """
         TODO: handle wedge boundaries
@@ -440,14 +453,14 @@ class HEDMInstrument(object):
         #
         panel_data = dict.fromkeys(self.detectors)
         for i_det, detector_id in enumerate(self.detectors):
-            print("working on detector '%s'..." %detector_id)
+            print("working on detector '%s'..." % detector_id)
             # pbar.update(i_det + 1)
             # grab panel
             panel = self.detectors[detector_id]
             instr_cfg = panel.config_dict(self.chi, self.tvec)
             native_area = panel.pixel_area  # pixel ref area
             n_images = len(imgser_dict[detector_id])
-            
+
             # make rings
             pow_angs, pow_xys = panel.make_powder_rings(
                 plane_data, merge_hkls=True, delta_eta=eta_tol)
@@ -455,7 +468,7 @@ class HEDMInstrument(object):
 
             ring_data = []
             for i_ring in range(n_rings):
-                print("working on ring %d..." %i_ring)
+                print("working on ring %d..." % i_ring)
                 these_angs = pow_angs[i_ring]
 
                 # make sure no one falls off...
@@ -500,10 +513,10 @@ class HEDMInstrument(object):
                     # strip relevant objects out of current patch
                     vtx_angs, vtx_xy, conn, areas, xy_eval, ijs = patch
                     if collapse_tth:
-                        ang_data = (vtx_angs[0][0, [0, -1]], 
+                        ang_data = (vtx_angs[0][0, [0, -1]],
                                     vtx_angs[1][[0, -1], 0])
                     else:
-                        ang_data = (vtx_angs[0][0, :], 
+                        ang_data = (vtx_angs[0][0, :],
                                     ang_centers[i_p][-1])
                     prows, pcols = areas.shape
                     area_fac = areas/float(native_area)
@@ -525,10 +538,10 @@ class HEDMInstrument(object):
                         else:
                             tmp = image[ijs[0], ijs[1]]*area_fac
 
-                        # catch collapsing options    
+                        # catch collapsing options
                         if collapse_tth:
                             patch_data[i_p, j_p] = np.sum(tmp)
-                            #ims_data.append(np.sum(tmp))
+                            # ims_data.append(np.sum(tmp))
                         else:
                             ims_data.append(np.sum(tmp, axis=0))
                         pass  # close image loop
@@ -542,10 +555,20 @@ class HEDMInstrument(object):
             # pbar.finish()
         return panel_data
 
-    def simulate_rotation_series(self, plane_data, grain_param_list):
+    def simulate_rotation_series(self, plane_data, grain_param_list,
+                                 ome_ranges=[(-np.pi, np.pi), ],
+                                 wavelength=None):
         """
+        TODO: revisit output; dict, or concatenated list?
         """
-        return NotImplementedError
+        results = dict.fromkeys(self.detectors)
+        for det_key, panel in self.detectors.iteritems():
+            results[det_key] = panel.simulate_rotation_series(
+                plane_data, grain_param_list,
+                ome_ranges,
+                chi=self.chi, tVec_s=self.tvec,
+                wavelength=wavelength)
+        return results
 
     def pull_spots(self, plane_data, grain_params,
                    imgser_dict,
@@ -762,12 +785,13 @@ class HEDMInstrument(object):
                                 closest_peak_idx = 0
                                 pass  # end multipeak conditional
                             coms = coms[closest_peak_idx]
-                            meas_omes = ome_edges[0] + \
+                            meas_omes = \
+                                ome_edges[0] +\
                                 (0.5 + coms[0])*delta_ome
                             meas_angs = np.hstack([
                                 tth_edges[0] + (0.5 + coms[2])*delta_tth,
                                 eta_edges[0] + (0.5 + coms[1])*delta_eta,
-                                np.radians(meas_omes),
+                                mapAngle(np.radians(meas_omes), ome_period),
                                 ])
 
                             # intensities
@@ -814,11 +838,11 @@ class HEDMInstrument(object):
                                 ang_centers[i_pt], meas_angs, meas_xy)
                             pass  # end conditional on write output
                         pass  # end conditional on check only
-                    iRefl += 1
-                    patch_output.append([
-                        peak_id, hkl_id, hkl, sum_int, max_int,
-                        ang_centers[i_pt], meas_angs, meas_xy,
-                    ])
+                        iRefl += 1
+                        patch_output.append([
+                                peak_id, hkl_id, hkl, sum_int, max_int,
+                                ang_centers[i_pt], meas_angs, meas_xy,
+                                ])
                     pass  # end patch conditional
                 pass  # end patch loop
             output[detector_id] = patch_output
@@ -1245,7 +1269,7 @@ class PlanarDetector(object):
         return int_xy
 
     def make_powder_rings(
-            self, pd, merge_hkls=False, delta_tth=None, 
+            self, pd, merge_hkls=False, delta_tth=None,
             delta_eta=10., eta_period=None,
             rmat_s=ct.identity_3x3,  tvec_s=ct.zeros_3,
             tvec_c=ct.zeros_3, output_ranges=False, output_etas=False):
@@ -1268,9 +1292,8 @@ class PlanarDetector(object):
 
         neta = int(360./float(delta_eta))
         eta = mapAngle(
-            np.radians(
-                delta_eta*np.linspace(0, neta - 1, num=neta)
-            ) + eta_period[0], eta_period
+            np.radians(delta_eta*(np.linspace(0, neta - 1, num=neta) + 0.5)) +
+            eta_period[0], eta_period
         )
 
         # in case you want to give it tth angles directly
@@ -1307,8 +1330,8 @@ class PlanarDetector(object):
 
             # now expand and check to see which sectors (patches) fall off
             patch_vertices = (
-                np.tile(these_angs[on_panel, :2], (1, 4))
-                + np.tile(sector_vec, (nangs_r, 1))
+                np.tile(these_angs[on_panel, :2], (1, 4)) +
+                np.tile(sector_vec, (nangs_r, 1))
             ).reshape(4*nangs_r, 2)
 
             # duplicate ome array
@@ -1318,20 +1341,20 @@ class PlanarDetector(object):
 
             # find vertices that fall on the panel
             gVec_ring_l = anglesToGVec(
-                np.hstack([patch_vertices, ome_dupl]), 
+                np.hstack([patch_vertices, ome_dupl]),
                 bHat_l=self.bvec)
             tmp_xy = gvecToDetectorXY(
                 gVec_ring_l,
                 self.rmat, rmat_s, ct.identity_3x3,
                 self.tvec, tvec_s, tvec_c,
                 beamVec=self.bvec)
-            tmp_xy, on_panel_p= self.clip_to_panel(tmp_xy)
+            tmp_xy, on_panel_p = self.clip_to_panel(tmp_xy)
 
             # all vertices must be on...
             patch_is_on = np.all(on_panel_p.reshape(nangs_r, 4), axis=1)
 
             idx = np.where(on_panel)[0][patch_is_on]
-            
+
             valid_ang.append(these_angs[idx, :2])
             valid_xy.append(xydet_ring[patch_is_on])
             map_indices.append(idx)
@@ -1340,7 +1363,6 @@ class PlanarDetector(object):
             return valid_ang, valid_xy, map_indices, eta
         else:
             return valid_ang, valid_xy
-
 
     def map_to_plane(self, pts, rmat, tvec):
         """
@@ -1553,7 +1575,7 @@ class GrainDataWriter(object):
         print(output_str, file=self.fid)
         return output_str
 
-        
+
 class GrainDataWriter_h5(object):
     """
     """
@@ -1598,7 +1620,6 @@ def unwrap_dict_to_h5(grp, d, asattr=True):
                 grp.create_dataset(key, data=np.atleast_1d(item))
 
 
-'''
 class GenerateEtaOmeMaps(object):
     """
     eta-ome map class derived from new image_series and YAML config
@@ -1616,17 +1637,118 @@ class GenerateEtaOmeMaps(object):
     self.omegas   # IN RADIANS
 
     """
-    def __init__(self, image_series_dict, instrument, plane_data, active_hkls,
-                 ome_step=None, eta_step=None, threshold=None):
+    def __init__(self, image_series_dict, instrument, plane_data,
+                 active_hkls=None, eta_step=0.25, threshold=None):
         """
         image_series must be OmegaImageSeries class
         instrument_params must be a dict (loaded from yaml spec)
         active_hkls must be a list (required for now)
         """
-        
-        # ...TO DO: change name of iHKLList?
-        self._iHKLList = active_hkls
-        self._planeData = planeData
 
-        eta_mapping = instr.extract_polar_maps(plane_data, image_series_dict)
-'''        
+        self._planeData = plane_data
+
+        # ???: change name of iHKLList?
+        # ???: can we change the behavior of iHKLList?
+        if active_hkls is None:
+            n_rings = len(plane_data.getTTh())
+            self._iHKLList = range(n_rings)
+        else:
+            self._iHKLList = active_hkls
+            n_rings = len(active_hkls)
+
+        # ???: need to pass a threshold?
+        eta_mapping, etas = instrument.extract_polar_maps(
+            plane_data, image_series_dict,
+            active_hkls=active_hkls, threshold=threshold,
+            tth_tol=None, eta_tol=eta_step)
+
+        # grab a det key
+        # WARNING: this process assumes that the imageseries for all panels
+        # have the same length and omegas
+        det_key = eta_mapping.keys()[0]
+        data_store = []
+        for i_ring in range(n_rings):
+            full_map = np.zeros_like(eta_mapping[det_key][i_ring])
+            nan_mask_full = np.zeros(
+                (len(eta_mapping), full_map.shape[0], full_map.shape[1])
+            )
+            i_p = 0
+            for det_key, eta_map in eta_mapping.iteritems():
+                nan_mask = ~np.isnan(eta_map[i_ring])
+                nan_mask_full[i_p] = nan_mask
+                full_map[nan_mask] += eta_map[i_ring][nan_mask]
+                i_p += 1
+            re_nan_these = np.sum(nan_mask_full, axis=0) == 0
+            full_map[re_nan_these] = np.nan
+            data_store.append(full_map)
+        self._dataStore = data_store
+
+        # handle omegas
+        omegas_array = image_series_dict[det_key].metadata['omega']
+        self._omegas = mapAngle(
+            np.radians(np.average(omegas_array, axis=1))
+        )
+        self._omeEdges = mapAngle(
+            np.radians(np.r_[omegas_array[:, 0], omegas_array[-1, 1]])
+        )
+
+        # handle etas
+        # WARNING: unlinke the omegas in imageseries metadata,
+        # these are in RADIANS and represent bin centers
+        self._etas = etas
+        self._etaEdges = np.r_[
+            etas - 0.5*np.radians(eta_step),
+            etas[-1] + 0.5*np.radians(eta_step)]
+
+    @property
+    def dataStore(self):
+        return self._dataStore
+
+    @property
+    def planeData(self):
+        return self._planeData
+
+    @property
+    def iHKLList(self):
+        return np.atleast_1d(self._iHKLList).flatten()
+
+    @property
+    def etaEdges(self):
+        return self._etaEdges
+
+    @property
+    def omeEdges(self):
+        return self._omeEdges
+
+    @property
+    def etas(self):
+        return self._etas
+
+    @property
+    def omegas(self):
+        return self._omegas
+
+    def save(self, filename):
+        """
+        self.dataStore
+        self.planeData
+        self.iHKLList
+        self.etaEdges
+        self.omeEdges
+        self.etas
+        self.omegas
+        """
+        args = np.array(self.planeData.getParams())[:4]
+        args[2] = valWUnit('wavelength', 'length', args[2], 'angstrom')
+        hkls = self.planeData.hkls
+        save_dict = {'dataStore': self.dataStore,
+                     'etas': self.etas,
+                     'etaEdges': self.etaEdges,
+                     'iHKLList': self.iHKLList,
+                     'omegas': self.omegas,
+                     'omeEdges': self.omeEdges,
+                     'planeData_args': args,
+                     'planeData_hkls': hkls}
+        np.savez_compressed(filename, **save_dict)
+        return
+    pass  # end of class: GenerateEtaOmeMaps

@@ -4581,9 +4581,10 @@ def pullSpots(pd, detector_params, grain_params, reader,
             pass
         iRefl += 1
         pass
-    if filename is not None: fid.close()
-
+    if filename is not None:
+        fid.close()
     return spot_list
+
 
 def extract_detector_transformation(detector_params):
     """
@@ -4602,6 +4603,6 @@ def extract_detector_transformation(detector_params):
             "list of detector parameters must have length >= 10"
         rMat_d = xfcapi.makeDetectorRotMat(detector_params[:3])
         tVec_d = num.ascontiguousarray(detector_params[3:6])
-        chi    = detector_params[6]
+        chi = detector_params[6]
         tVec_s = num.ascontiguousarray(detector_params[7:10])
     return rMat_d, tVec_d, chi, tVec_s

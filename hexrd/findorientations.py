@@ -9,7 +9,7 @@ import time
 import yaml
 
 import numpy as np
-#np.seterr(over='ignore', invalid='ignore')
+# np.seterr(over='ignore', invalid='ignore')
 
 import scipy.cluster as cluster
 from scipy import ndimage
@@ -17,16 +17,10 @@ from scipy import ndimage
 from hexrd import matrixutil as mutil
 from hexrd.xrd import indexer as idx
 from hexrd.xrd import rotations as rot
-from hexrd.xrd import symmetry as sym
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 
-from hexrd.xrd import xrdutil
-
-from hexrd.xrd.detector import ReadGE
 from hexrd.xrd.xrdutil import GenerateEtaOmeMaps, EtaOmeMaps, simulateGVecs
-
-from hexrd.xrd.xrdutil import simulateGVecs
 
 from hexrd.xrd import distortion as dFuncs
 
@@ -34,7 +28,7 @@ from hexrd.fitgrains import get_instrument_parameters
 
 logger = logging.getLogger(__name__)
 
-save_as_ascii = False # FIX LATER...
+save_as_ascii = False  # FIX LATER...
 
 # just require scikit-learn?
 have_sklearn = False
@@ -49,7 +43,9 @@ except ImportError:
     pass
 
 
-def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndiv, filt_stdev=0.8, ncpus=1):
+def generate_orientation_fibers(
+        eta_ome, chi, threshold, seed_hkl_ids, fiber_ndiv,
+        filt_stdev=0.8, ncpus=1):
     """
     From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
@@ -67,28 +63,28 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
     # crystallography data from the pd object
     pd = eta_ome.planeData
     hkls = pd.hkls
-    tTh  = pd.getTTh()
+    tTh = pd.getTTh()
     bMat = pd.latVecOps['B']
     csym = pd.getLaueGroup()
 
-    params = {
-        'bMat':bMat,
-        'chi':chi,
-        'csym':csym,
-        'fiber_ndiv':fiber_ndiv,
-         }
+    params = dict(
+        bMat=bMat,
+        chi=chi,
+        csym=csym,
+        fiber_ndiv=fiber_ndiv)
 
-    ############################################
-    ##    Labeling of spots from seed hkls    ##
-    ############################################
+    # =========================================================================
+    # Labeling of spots from seed hkls
+    # =========================================================================
 
-    qfib     = []
-    input_p  = []
+    qfib = []
+    input_p = []
     numSpots = []
-    coms     = []
+    coms = []
     for i in seed_hkl_ids:
         # First apply filter
-        this_map_f = -ndimage.filters.gaussian_laplace(eta_ome.dataStore[i], filt_stdev)
+        this_map_f = -ndimage.filters.gaussian_laplace(
+            eta_ome.dataStore[i], filt_stdev)
 
         labels_t, numSpots_t = ndimage.label(
             this_map_f > threshold,
@@ -101,7 +97,6 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
                 index=np.arange(1, np.amax(labels_t)+1)
                 )
             )
-        #labels.append(labels_t)
         numSpots.append(numSpots_t)
         coms.append(coms_t)
         pass
@@ -126,18 +121,18 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
     qfib = None
     if ncpus > 1:
         # multiple process version
+        # QUESTION: Need a chunksize?
         pool = mp.Pool(ncpus, discretefiber_init, (params, ))
-        qfib = pool.map(discretefiber_reduced, input_p) # chunksize=chunksize)
+        qfib = pool.map(discretefiber_reduced, input_p)  # chunksize=chunksize)
         pool.close()
     else:
         # single process version.
         global paramMP
-        discretefiber_init(params) # sets paramMP
+        discretefiber_init(params)  # sets paramMP
         qfib = map(discretefiber_reduced, input_p)
-        paramMP = None # clear paramMP
+        paramMP = None  # clear paramMP
     elapsed = (time.time() - start)
     logger.info("fiber generation took %.3f seconds", elapsed)
-    
     return np.hstack(qfib)
 
 
@@ -466,7 +461,9 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
         # or doing a seeded search?
         logger.info("Defaulting to seeded search")
         hkl_seeds = cfg.find_orientations.seed_search.hkl_seeds
-        hkl_ids = [eta_ome.planeData.hklDataList[i]['hklID'] for i in hkl_seeds]
+        hkl_ids = [
+            eta_ome.planeData.hklDataList[i]['hklID'] for i in hkl_seeds
+        ]
         hklseedstr = ', '.join(
             [str(i) for i in eta_ome.planeData.hkls.T[hkl_seeds]]
             )
