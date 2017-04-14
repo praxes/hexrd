@@ -736,9 +736,12 @@ class HEDMInstrument(object):
                 else:
                     contains_signal = False
                     for i_frame in frame_indices:
-                        contains_signal = contains_signal or np.any(
-                            ome_imgser[i_frame][ijs[0], ijs[1]] > threshold
-                        )
+                        try:
+                            contains_signal = contains_signal or np.any(
+                                ome_imgser[i_frame][ijs[0], ijs[1]] > threshold
+                            )
+                        except(IndexError):
+                            import pdb;pdb.set_trace()
                     compl.append(contains_signal)
                     if not check_only:
                         peak_id = -999
@@ -829,6 +832,8 @@ class HEDMInstrument(object):
                                     panel.distortion[1],
                                     invert=True).flatten()
                                 pass
+                            # FIXME: why is this suddenly necessary???
+                            meas_xy = meas_xy.squeeze()
                             pass
 
                         # write output
@@ -886,7 +891,8 @@ class PlanarDetector(object):
         self._pixel_size_col = pixel_size[1]
 
         if panel_buffer is None:
-            self._panel_buffer = [self._pixel_size_col, self._pixel_size_row]
+            self._panel_buffer = 25*np.r_[self._pixel_size_col, 
+                                          self._pixel_size_row]
 
         self._tvec = np.array(tvec).flatten()
         self._tilt = np.array(tilt).flatten()

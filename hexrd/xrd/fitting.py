@@ -242,7 +242,7 @@ def calibrateDetectorFromSX(
         )
 
     # TODO: check scaling <JVB 2017-03-27>
-    refineFlag = np.hstack([pFlag, dFlag])
+    refineFlag = np.array(np.hstack([pFlag, dFlag]), dtyp=bool)
     scl = np.hstack([pScl, dScl])
     pFit = pFull[refineFlag]
     fitArgs = (pFull, pFlag, dFunc, dFlag, xyo_det, hkls_idx,
@@ -267,14 +267,18 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
     """
     npts = len(xyo_det)
 
-    refineFlag = np.hstack([pFlag, dFlag])
-
+    refineFlag = np.array(np.hstack([pFlag, dFlag]), dtype=bool)
+    print refineFlag
+    
     # pFull[refineFlag] = pFit/scl[refineFlag]
     pFull[refineFlag] = pFit
 
-    dParams = pFull[-len(dFlag):]
-    xy_unwarped = dFunc(xyo_det[:, :2], dParams)
-
+    if dFunc is not None:
+        dParams = pFull[-len(dFlag):]
+        xys = dFunc(xyo_det[:, :2], dParams)
+    else:
+        xys = xyo_det[:, :2]
+    
     # detector quantities
     wavelength = pFull[0]
 
@@ -326,7 +330,7 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
     else:
         # return residual vector
         # IDEA: try angles instead of xys?
-        diff_vecs_xy = calc_xy - xy_unwarped[:, :2]
+        diff_vecs_xy = calc_xy - xys[:, :2]
         diff_ome = xf.angularDifference(calc_omes, xyo_det[:, 2])
         retval = np.hstack([diff_vecs_xy,
                             diff_ome.reshape(npts, 1)
@@ -442,15 +446,17 @@ def objFuncFitGrain(gFit, gFull, gFlag,
         hkls = np.atleast_2d(
             np.vstack([x[2] for x in results])
         ).T
-        xyo_det = np.atleast_2d(
+        meas_xyo = np.atleast_2d(
             np.vstack([np.r_[x[7], x[6][-1]] for x in results])
         )
-        
+
         # FIXME: distortion handling must change to class-based
-        xy_unwarped = panel.distortion[0](
-                xyo_det[:, :2], panel.distortion[1])
-        meas_omes = xyo_det[:, 2]
-        meas_xyo = np.vstack([xy_unwarped.T, meas_omes]).T
+        if panel.distortion is not None:
+            meas_omes = meas_xyo[:, 2]
+            xy_unwarped = panel.distortion[0](
+                    meas_xyo[:, :2], panel.distortion[1])
+            meas_xyo = np.vstack([xy_unwarped.T, meas_omes]).T
+            
         
         # g-vectors:
         #   1. calculate full g-vector components in CRYSTAL frame from B
