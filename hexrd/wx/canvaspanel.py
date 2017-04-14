@@ -148,8 +148,8 @@ class CanvasPanel(wx.Panel):
 
             mainFrame = wx.GetApp().GetTopWindow()
             if hasattr(event, 'xdata') and event.xdata:
-                x = event.xdata; xadj = x + 0.5; xint = numpy.floor(xadj)
-                y = event.ydata; yadj = y + 0.5; yint = numpy.floor(yadj)
+                x = event.xdata; xadj = x + 0.5; xint = int(numpy.floor(xadj))
+                y = event.ydata; yadj = y + 0.5; yint = int(numpy.floor(yadj))
                 tth, eta = numpy.array(det.xyoToAng(y, x))
                 cartx, carty = det.cartesianCoordsOfPixelIndices(y, x)
                 cx = (cartx - det.xc)/det.pixelPitch
