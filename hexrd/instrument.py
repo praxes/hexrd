@@ -64,6 +64,8 @@ from hexrd import constants as ct
 # FIXME: distortion kludge
 from hexrd.xrd.distortion import GE_41RT  # BAD, VERY BAD!!!
 
+from skimage.draw import polygon
+
 beam_energy_DFLT = 65.351
 beam_vec_DFLT = ct.beam_vec
 
@@ -664,6 +666,9 @@ class HEDMInstrument(object):
             instr_cfg = panel.config_dict(self.chi, self.tvec)
             native_area = panel.pixel_area  # pixel ref area
 
+            # pull out the OmegaImageSeries for this panel from input dict
+            ome_imgser = imgser_dict[detector_id]
+
             # find points that fall on the panel
             det_xy, rMat_s = xrdutil._project_on_detector_plane(
                 np.hstack([patch_vertices, ome_dupl]),
@@ -671,85 +676,117 @@ class HEDMInstrument(object):
                 panel.tvec, tVec_c, self.tvec,
                 panel.distortion
                 )
-            tmp_xy, on_panel = panel.clip_to_panel(det_xy)
+            scrap, on_panel = panel.clip_to_panel(det_xy)
 
             # all vertices must be on...
             patch_is_on = np.all(on_panel.reshape(nangs, 4), axis=1)
+            patch_xys = det_xy.reshape(nangs, 4, 2)[patch_is_on]
 
             # grab hkls and gvec ids for this panel
             hkls_p = allHKLs[patch_is_on, 1:]
             hkl_ids = allHKLs[patch_is_on, 0]
 
-            # reflection angles (voxel centers) and pixel size in (tth, eta)
+            # reflection angles (voxel centers)
             ang_centers = allAngs[patch_is_on, :]
-            ang_pixel_size = panel.angularPixelSize(tmp_xy[::4, :])
+            
+            # calculate angular (tth, eta) pixel size using 
+            # first vertex of each
+            ang_pixel_size = panel.angularPixelSize(patch_xys[:, 0, :])
 
-            # make the tth,eta patches for interpolation
-            patches = xrdutil.make_reflection_patches(
-                instr_cfg, ang_centers[:, :2], ang_pixel_size,
-                tth_tol=tth_tol, eta_tol=eta_tol,
-                rMat_c=rMat_c, tVec_c=tVec_c,
-                distortion=panel.distortion,
-                npdiv=npdiv, quiet=True,
-                beamVec=self.beam_vector)
+            # TODO: add polygon testing right here!
+            if check_only:
+                patch_output = []
+                for i_pt, angs in enumerate(ang_centers):
+                    # the evaluation omegas;
+                    # expand about the central value using tol vector
+                    ome_eval = np.degrees(angs[2]) + ome_del
 
-            # pull out the OmegaImageSeries for this panel from input dict
-            ome_imgser = imgser_dict[detector_id]
-
-            # grand loop over reflections for this panel
-            patch_output = []
-            for i_pt, patch in enumerate(patches):
-
-                # strip relevant objects out of current patch
-                vtx_angs, vtx_xy, conn, areas, xy_eval, ijs = patch
-                prows, pcols = areas.shape
-                nrm_fac = areas/float(native_area)
-
-                # grab hkl info
-                hkl = hkls_p[i_pt, :]
-                hkl_id = hkl_ids[i_pt]
-
-                # edge arrays
-                tth_edges = vtx_angs[0][0, :]
-                delta_tth = tth_edges[1] - tth_edges[0]
-                eta_edges = vtx_angs[1][:, 0]
-                delta_eta = eta_edges[1] - eta_edges[0]
-
-                # need to reshape eval pts for interpolation
-                xy_eval = np.vstack([xy_eval[0].flatten(),
-                                     xy_eval[1].flatten()]).T
-
-                # the evaluation omegas;
-                # expand about the central value using tol vector
-                ome_eval = np.degrees(ang_centers[i_pt, 2]) + ome_del
-
-                # ...vectorize the omega_to_frame function to avoid loop?
-                frame_indices = [
-                    ome_imgser.omega_to_frame(ome)[0] for ome in ome_eval
-                ]
-                if -1 in frame_indices:
-                    if not quiet:
-                        msg = "window for (%d%d%d) falls outside omega range"\
-                            % tuple(hkl)
-                        print(msg)
-                    continue
-                else:
-                    contains_signal = False
-                    for i_frame in frame_indices:
-                        try:
+                    # ...vectorize the omega_to_frame function to avoid loop?
+                    frame_indices = [
+                        ome_imgser.omega_to_frame(ome)[0] for ome in ome_eval
+                    ]
+                    if -1 in frame_indices:
+                        if not quiet:
+                            msg = """
+                            window for (%d%d%d) falls outside omega range
+                            """ % tuple(hkls_p[i_pt, :])
+                            print(msg)
+                        continue
+                    else:
+                        these_vertices = patch_xys[i_pt]
+                        ijs = panel.cartToPixel(these_vertices)
+                        ii, jj = polygon(ijs[:, 0], ijs[:, 1])
+                        contains_signal = False
+                        for i_frame in frame_indices:             
+                            contains_signal = contains_signal or np.any(
+                                ome_imgser[i_frame][ii, jj] > threshold
+                            )
+                        compl.append(contains_signal)
+                        patch_output.append((ii, jj, frame_indices))
+            else:        
+                # make the tth,eta patches for interpolation
+                patches = xrdutil.make_reflection_patches(
+                    instr_cfg, ang_centers[:, :2], ang_pixel_size,
+                    tth_tol=tth_tol, eta_tol=eta_tol,
+                    rMat_c=rMat_c, tVec_c=tVec_c,
+                    distortion=panel.distortion,
+                    npdiv=npdiv, quiet=True,
+                    beamVec=self.beam_vector)
+    
+                # GRAND LOOP over reflections for this panel
+                patch_output = []
+                for i_pt, patch in enumerate(patches):
+    
+                    # strip relevant objects out of current patch
+                    vtx_angs, vtx_xy, conn, areas, xy_eval, ijs = patch
+                    prows, pcols = areas.shape
+                    nrm_fac = areas/float(native_area)
+    
+                    # grab hkl info
+                    hkl = hkls_p[i_pt, :]
+                    hkl_id = hkl_ids[i_pt]
+    
+                    # edge arrays
+                    tth_edges = vtx_angs[0][0, :]
+                    delta_tth = tth_edges[1] - tth_edges[0]
+                    eta_edges = vtx_angs[1][:, 0]
+                    delta_eta = eta_edges[1] - eta_edges[0]
+    
+                    # need to reshape eval pts for interpolation
+                    xy_eval = np.vstack([xy_eval[0].flatten(),
+                                         xy_eval[1].flatten()]).T
+    
+                    # the evaluation omegas;
+                    # expand about the central value using tol vector
+                    ome_eval = np.degrees(ang_centers[i_pt, 2]) + ome_del
+    
+                    # ...vectorize the omega_to_frame function to avoid loop?
+                    frame_indices = [
+                        ome_imgser.omega_to_frame(ome)[0] for ome in ome_eval
+                    ]
+                    if -1 in frame_indices:
+                        if not quiet:
+                            msg = """
+                            window for (%d%d%d) falls outside omega range
+                            """ % tuple(hkl)
+                            print(msg)
+                        continue
+                    else:
+                        contains_signal = False
+                        for i_frame in frame_indices:
                             contains_signal = contains_signal or np.any(
                                 ome_imgser[i_frame][ijs[0], ijs[1]] > threshold
                             )
-                        except(IndexError):
-                            import pdb;pdb.set_trace()
-                    compl.append(contains_signal)
-                    if not check_only:
+                        compl.append(contains_signal)
+    
+                        # initialize spot data parameters
                         peak_id = -999
                         sum_int = None
                         max_int = None
                         meas_angs = None
                         meas_xy = None
-
+    
+                        # initialize patch data array for intensities
                         patch_data = np.zeros(
                             (len(frame_indices), prows, pcols)
                         )
@@ -764,7 +801,7 @@ class HEDMInstrument(object):
                                         ome_imgser[i_frame],
                                 ).reshape(prows, pcols)*nrm_fac
                             pass
-
+    
                         # now have interpolated patch data...
                         labels, num_peaks = ndimage.label(
                             patch_data > threshold, structure=label_struct
@@ -796,7 +833,7 @@ class HEDMInstrument(object):
                                 eta_edges[0] + (0.5 + coms[1])*delta_eta,
                                 mapAngle(np.radians(meas_omes), ome_period),
                                 ])
-
+    
                             # intensities
                             #   - summed is 'integrated' over interpolated data
                             #   - max is max of raw input data
@@ -812,7 +849,7 @@ class HEDMInstrument(object):
                                 patch_data[labels == slabels[closest_peak_idx]]
                                 )
                             '''
-
+    
                             # need xy coords
                             gvec_c = anglesToGVec(
                                 meas_angs,
@@ -1584,8 +1621,9 @@ class GrainDataWriter(object):
 
 class GrainDataWriter_h5(object):
     """
+    TODO: add material spec
     """
-    def __init__(self, filename, instr_cfg, panel_id):
+    def __init__(self, filename, instr_cfg):
         use_attr = True
         if isinstance(filename, h5py.File):
             self.fid = filename
@@ -1595,11 +1633,14 @@ class GrainDataWriter_h5(object):
         icfg.update(instr_cfg)
 
         # add instrument groups and attributes
-        grp = self.fid.create_group('instrument')
-        unwrap_dict_to_h5(grp, icfg, asattr=use_attr)
+        self.instr_grp = self.fid.create_group('instrument')
+        unwrap_dict_to_h5(self.instr_grp, icfg, asattr=use_attr)
 
-        grp = self.fid.create_group("data")
-        grp.attrs.create("panel_id", panel_id)
+        data_key = 'reflection_data'
+        self.data_grp = self.fid.create_group(data_key)
+        
+        for det_key in self.instr_grp['detectors'].keys():
+            self.data_grp.create_group(det_key)
 
     def __del__(self):
         self.close()
@@ -1607,10 +1648,24 @@ class GrainDataWriter_h5(object):
     def close(self):
         self.fid.close()
 
-    def dump_patch(self, peak_id, hkl_id,
-                   hkl, spot_int, max_int,
-                   pangs, mangs, xy):
-        return NotImplementedError
+    def dump_patch(self, panel_id, 
+                   peak_id, hkl_id, hkl,
+                   tth_edges, eta_edges, ome_edges, spot_data,
+                   pangs, mangs, xys, ijs):
+        panel_grp = self.data_grp[panel_id]
+        spot_grp = panel_grp.create_group("spot_%05d" % peak_id)
+        spot_grp.attrs.create('hkl_id', hkl_id)
+        spot_grp.attrs.create('hkl', hkl)
+        spot_grp.attrs.create('predicted_angles', pangs)
+        spot_grp.attrs.create('measured_angles', mangs)
+
+        spot_grp.create_dataset('tth_vertices', data=tth_edges)
+        spot_grp.create_dataset('eta_vertices', data=eta_edges)
+        spot_grp.create_dataset('ome_edges', data=ome_edges)
+        spot_grp.create_dataset('xy_centers', data=xys)
+        spot_grp.create_dataset('ij_centers', data=ijs)
+        spot_grp.create_dataset('intensities', data=spot_data)
+        return
 
 
 def unwrap_dict_to_h5(grp, d, asattr=True):
