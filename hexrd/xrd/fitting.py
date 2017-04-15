@@ -433,6 +433,8 @@ def objFuncFitGrain(gFit, gFull, gFlag,
             instrument.detector_parameters[det_key])
         
         results = reflections_dict[det_key]
+        if len(results) == 0:
+            continue
         
         """
         extract data from results list
