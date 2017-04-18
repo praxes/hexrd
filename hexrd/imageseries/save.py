@@ -7,6 +7,7 @@ import numpy as np
 import h5py
 import yaml
 
+
 def write(ims, fname, fmt, **kwargs):
     """write imageseries to file with options
 
@@ -19,13 +20,14 @@ def write(ims, fname, fmt, **kwargs):
     w = wcls(ims, fname, **kwargs)
     w.write()
 
-# Registry
 
+# Registry
 class _RegisterWriter(abc.ABCMeta):
 
     def __init__(cls, name, bases, attrs):
         abc.ABCMeta.__init__(cls, name, bases, attrs)
         _Registry.register(cls)
+
 
 class _Registry(object):
     """Registry for imageseries writers"""
@@ -44,10 +46,12 @@ class _Registry(object):
     #
     pass  # end class
 
+
 class Writer(object):
     """Base class for writers"""
     __metaclass__ = _RegisterWriter
     fmt = None
+
     def __init__(self, ims, fname, **kwargs):
         self._ims = ims
         self._shape = ims.shape
@@ -64,7 +68,8 @@ class Writer(object):
         self._fname_base = tmp[0]
         self._fname_suff = tmp[1]
 
-    pass # end class
+    pass  # end class
+
 
 class WriteH5(Writer):
     fmt = 'hdf5'
@@ -80,7 +85,7 @@ class WriteH5(Writer):
            Options:
            gzip - 0-9; 0 turns off compression; 4 is default
            chunk_rows - number of rows per chunk; default is all
-"""
+           """
         Writer.__init__(self, ims, fname, **kwargs)
         self._path = self._opts['path']
 
@@ -92,7 +97,6 @@ class WriteH5(Writer):
         f = h5py.File(self._fname, "a")
         g = f.create_group(self._path)
         s0, s1 = self._shape
-        chnk = (1,) + self._shape
 
         ds = g.create_dataset('images', (self._nframes, s0, s1), self._dtype,
                               **self.h5opts)
@@ -124,11 +128,13 @@ class WriteH5(Writer):
 
         return d
 
-    pass # end class
+    pass  # end class
+
 
 class WriteFrameCache(Writer):
     """info from yml file"""
     fmt = 'frame-cache'
+
     def __init__(self, ims, fname, **kwargs):
         """write yml file with frame cache info
 
@@ -157,7 +163,7 @@ class WriteFrameCache(Writer):
 
                 cdir = os.path.dirname(self._cache)
                 b = self._fname_base
-                fname = os.path.join(cdir, "%s-%s.npy" % (b,k))
+                fname = os.path.join(cdir, "%s-%s.npy" % (b, k))
                 if not os.path.exists(fname):
                     np.save(fname, v)
 
@@ -178,20 +184,19 @@ class WriteFrameCache(Writer):
     def _write_frames(self):
         """also save shape array as originally done (before yaml)"""
         arrd = dict()
-        sh = None
-        for i in range(self._nframes):
-            frame = self._ims[i]
+        for i, frame in enumerate(self._ims):
             mask = frame > self._thresh
             # FIXME: formalize this a little better???
             if np.sum(mask) / float(frame.shape[0]*frame.shape[1]) > 0.05:
-                raise Warning("frame %d is less than 95%% sparse" %i)
+                raise Warning("frame %d is less than 95%% sparse" % i)
             row, col = mask.nonzero()
             arrd['%d_data' % i] = frame[mask]
             arrd['%d_row' % i] = row
             arrd['%d_col' % i] = col
-            if sh is None:
-                arrd['shape'] = np.array(frame.shape)
-
+        arrd['shape'] = self._ims.shape
+        arrd['nframes'] = len(self._ims)
+        arrd['dtype'] = self._ims.dtype
+        arrd.update(self._process_meta())
         np.savez_compressed(self._cache, **arrd)
 
     def write(self):

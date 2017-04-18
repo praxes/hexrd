@@ -53,6 +53,13 @@ class ReaderInfoPanel(wx.Panel):
         self.format_cho = wx.Choice(self, wx.NewId(),
                                     choices=['hdf5', 'frame-cache']
                                     )
+        self.pixel_lab = wx.StaticText(self, wx.NewId(),
+                                       'Pixel Pitch', style=wx.ALIGN_RIGHT
+                                       )
+        self.pixel_txt = wx.TextCtrl(self, wx.NewId(),
+                                     value='0.2',
+                                     style=wx.RAISED_BORDER
+                                     )
         self.option_lab = wx.StaticText(self, wx.NewId(),
                                         'Option', style=wx.ALIGN_RIGHT
                                         )
@@ -60,24 +67,24 @@ class ReaderInfoPanel(wx.Panel):
                                         'Value', style=wx.ALIGN_LEFT
                                         )
         self.option_cho = wx.Choice(self, wx.NewId(),
-                                    choices=['path']
+                                    choices=['path', 'pixel pitch']
                                     )
         self.value_txt = wx.TextCtrl(self, wx.NewId(),
-                                    value="/imageseries",
-                                    style=wx.RAISED_BORDER
-                                    )
+                                     value="/imageseries",
+                                     style=wx.RAISED_BORDER
+                                     )
 
     def __make_bindings(self):
         """Bind interactors"""
         self.Bind(wx.EVT_BUTTON, self.OnFileBut, self.file_but)
-
+        
     def __make_sizers(self):
 	"""Lay out the interactors"""
 
 	self.sizer = wx.BoxSizer(wx.VERTICAL)
 	self.sizer.Add(self.tbarSizer, 0, wx.EXPAND|wx.ALIGN_CENTER)
 
-        nrow = 4; ncol = 2; padx = 5; pady = 5
+        nrow = 5; ncol = 2; padx = 5; pady = 5
         self.info_sz = wx.FlexGridSizer(nrow, ncol, padx, pady)
         self.info_sz.AddGrowableCol(0, 0)
         self.info_sz.AddGrowableCol(1, 1)
@@ -85,6 +92,8 @@ class ReaderInfoPanel(wx.Panel):
         self.info_sz.Add(self.file_txt,   0, wx.ALIGN_LEFT|wx.EXPAND)
         self.info_sz.Add(self.format_lab, 0, wx.ALIGN_RIGHT)
         self.info_sz.Add(self.format_cho, 0, wx.ALIGN_LEFT|wx.EXPAND)
+        self.info_sz.Add(self.pixel_lab, 0, wx.ALIGN_RIGHT)
+        self.info_sz.Add(self.pixel_txt, 0, wx.ALIGN_LEFT|wx.EXPAND)
         self.info_sz.Add(self.option_lab, 0, wx.ALIGN_RIGHT)
         self.info_sz.Add(self.value_lab,  0, wx.ALIGN_LEFT)
         self.info_sz.Add(self.option_cho, 0, wx.ALIGN_RIGHT)
@@ -105,7 +114,7 @@ class ReaderInfoPanel(wx.Panel):
         """Load image file name with file dialogue
 
         NOTE:  converts filenames to str from unicode
-"""
+        """
         dlg = wx.FileDialog(self, 'Select Imageseries File',
                             style=wx.FD_FILE_MUST_EXIST)
         if dlg.ShowModal() == wx.ID_OK:
@@ -157,7 +166,6 @@ class ReaderInfoDialog(wx.Dialog):
     #
     def _makeBindings(self):
 	"""Bind interactors to functions"""
-	return
 
     def _makeSizers(self):
 	"""Lay out windows"""
@@ -176,8 +184,8 @@ class ReaderInfoDialog(wx.Dialog):
             directory = p.image_dir,
             file = p.image_fname,
             format = p.format_cho.GetStringSelection(),
-            path = p.value_txt.GetValue()
-            )
+            path = p.value_txt.GetValue(),
+            pixel_size = p.pixel_txt.GetValue())
         return d
 
     pass # end class

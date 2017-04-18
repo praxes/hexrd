@@ -32,7 +32,7 @@ import os, sys
 import wx
 import wx.lib.mixins.listctrl  as  listMixins
 
-from hexrd.xrd import detector
+from hexrd.xrd.image_io import ReadGE
 from hexrd.xrd.experiment import ImageModes, ReaderInput
 
 from hexrd.wx.guiconfig    import WindowParameters as WP
@@ -322,7 +322,9 @@ class geReaderPanel(wx.Panel):
                 # add total number of frames available
                 try:
                     d = rdr.imageDir
-                    r = detector.ReadGE((os.path.join(d, n), 0))
+                    r = ReadGE(
+                        os.path.join(d, n),
+                        fmt=exp.activeReader.imageFmt)
                     nframe = r.getNFrames()
                     lctrl.SetStringItem(index, 2, str(nframe))
                 except:

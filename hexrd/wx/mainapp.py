@@ -11,9 +11,9 @@
 #
 # Please also see the file LICENSE.
 #
-# This program is free software; you can redistribute it and/or modify it under the
-# terms of the GNU Lesser General Public License (as published by the Free Software
-# Foundation) version 2.1 dated February 1999.
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License (as published by the Free
+# Software Foundation) version 2.1 dated February 1999.
 #
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
@@ -28,37 +28,30 @@
 #
 """Main application file
 """
-import os, sys
+import os
+import sys
 
 import wx
 
-from hexrd.wx import guiconfig
 from hexrd.wx.mainframe import MainFrame
-#
-#  mdef Modules
-#
-from hexrd.xrd import detector as detectorModule
-
 from hexrd.xrd.experiment import loadExp, ImageModes
-#
+
+
 # ---------------------------------------------------CLASS:  xrdApp
 #
-class xrdApp(wx.PySimpleApp):
+class xrdApp(wx.App):
     """xrdApp"""
     def __init__(self, *args):
         """Constructor for xrdApp"""
-        #
-        wx.PySimpleApp.__init__(self)
-        #
-        # No command args for now, due to mac build issue (64bit, argv emulation)
-        #
+        wx.App.__init__(self)
+        # No command args for now, due to mac build issue
+        # (64bit, argv emulation)
         f = ''
-        #if len(args) == 0:
-        #    f = ''
-        #else:
-        #    f = args[0]
-        #    pass
-
+        # if len(args) == 0:
+        #     f = ''
+        # else:
+        #     f = args[0]
+        #     pass
         self.__makeData(f)
 
         self.mframe = None
@@ -76,8 +69,8 @@ class xrdApp(wx.PySimpleApp):
         #
         #  * Image Information
         #
-        self.imgMode  = ImageModes.SINGLE_FRAME
-        self.imgCal   = None
+        self.imgMode = ImageModes.SINGLE_FRAME
+        self.imgCal = None
         self.imgSweep = None
 
         return
@@ -90,6 +83,7 @@ class xrdApp(wx.PySimpleApp):
     #
     # ============================== API
     #
+
     @property
     def imgFrame(self):
         """Image frame according to image mode"""
@@ -109,9 +103,10 @@ class xrdApp(wx.PySimpleApp):
 
         return
 
-    pass # end class
+    pass  # end class
 #
 # -----------------------------------------------END CLASS:  xrdApp
+
 
 def execute(*args):
     #
@@ -121,11 +116,11 @@ def execute(*args):
     app.mframe = MainFrame(None, wx.NewId())
     app.SetTopWindow(app.mframe)
 
-    #if len(sys.argv) == 1:
-    #    app = xrdApp()
-    #else:
-    #    app = xrdApp(*sys.argv[1:])
-    #    pass
+    # if len(sys.argv) == 1:
+    #     app = xrdApp()
+    # else:
+    #     app = xrdApp(*sys.argv[1:])
+    #     pass
     #
     #  The main window cannot be imported until after the app
     #  is instantiated due to the wx.ColourDatabase() call.
@@ -137,7 +132,8 @@ def execute(*args):
     splashDir = os.path.dirname(__file__)
     splashImage = wx.Bitmap(os.path.join(splashDir, splashFile))
     #
-    wx.SplashScreen(splashImage, wx.SPLASH_CENTRE_ON_PARENT|wx.SPLASH_TIMEOUT,
+    wx.SplashScreen(splashImage,
+                    wx.SPLASH_CENTRE_ON_PARENT | wx.SPLASH_TIMEOUT,
                     1000, app.mframe)
     #
     # Main frame

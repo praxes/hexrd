@@ -84,8 +84,8 @@ zvec3 = num.zeros((3, 1))
 #PIXEL = 0.2
 
 # dexela, horizontal
-NROWS = 3072
-NCOLS = 3888
+NROWS = 3888
+NCOLS = 3072
 PIXEL = 0.0748
 
 # MAR345
@@ -2057,13 +2057,13 @@ class Detector2DRC(DetectorBase):
         return
 
     def set_ncols(self, ncols):
-        raise RuntimeError, 'set of ncols not allowed'
+        self.__ncols = ncols
     def get_ncols(self):
         return self.__ncols
     ncols = property(get_ncols, set_ncols, None)
 
     def set_pixelPitch(self, pixelPitch):
-        raise RuntimeError, 'set of pixelPitch not allowed'
+        self.__pixelPitch = pixelPitch
     def get_pixelPitch(self):
         return self.__pixelPitch
     pixelPitch = property(get_pixelPitch, set_pixelPitch, None)
@@ -2075,7 +2075,7 @@ class Detector2DRC(DetectorBase):
     pixelPitchUnit = property(get_pixelPitchUnit, set_pixelPitchUnit, None)
 
     def set_nrows(self, nrows):
-        raise RuntimeError, 'set of nrows not allowed'
+        self.__nrows = nrows
     def get_nrows(self):
         return self.__nrows
     nrows = property(get_nrows, set_nrows, None)
@@ -3774,11 +3774,12 @@ class DetectorGeomGE(Detector2DRC):
         else:
             self.__nrows = self.__idim = reader.nrows
             self.__ncols = reader.ncols
+            self.__pixelPitch = reader.pixelPitch
         # self.__pixelPitch = kwargs.pop('pixelPitch', 0.2)
         # self.__nrows = kwargs.pop('nrows', 2048)
         # self.__ncols = kwargs.pop('ncols', 2048)
         # self.__idim = max(self.__nrows, self.__ncols)
-
+        print self.__pixelPitch
         Detector2DRC.__init__(self,
                               self.__ncols, self.__nrows, self.__pixelPitch,
                               self.__vfu, self.__vdk,

@@ -95,10 +95,14 @@ class _OmegaImageSeries(object):
 class Framer2DRC(object):
     """Base class for readers.
     """
-    def __init__(self, ncols, nrows,
-                 dtypeDefault='int16', dtypeRead='uint16', dtypeFloat='float64'):
+    def __init__(self,
+            ncols, nrows, pixelPitch=0.2,
+            dtypeDefault='int16',
+            dtypeRead='uint16',
+            dtypeFloat='float64'):
         self._nrows = nrows
         self._ncols = ncols
+        self._pixelPitch = pixelPitch
         self.__frame_dtype_dflt  = dtypeDefault
         self.__frame_dtype_read  = dtypeRead
         self.__frame_dtype_float = dtypeFloat
@@ -114,6 +118,10 @@ class Framer2DRC(object):
     def get_ncols(self):
         return self._ncols
     ncols = property(get_ncols, None, None)
+
+    def get_pixelPitch(self):
+        return self._pixelPitch
+    pixelPitch = property(get_pixelPitch, None, None)
 
     def get_nbytesFrame(self):
         return self.__nbytes_frame
@@ -227,6 +235,10 @@ class ReadGE(Framer2DRC,OmegaFramer):
         self._format = kwargs.pop('fmt', None)
         self._nrows = detector.NROWS
         self._ncols = detector.NCOLS
+        self._pixelPitch = detector.PIXEL
+        pp_key = 'pixelPitch'
+        if kwargs.has_key(pp_key):
+            self._pixelPitch = kwargs[pp_key]
         try:
             self._omis = _OmegaImageSeries(file_info, fmt=self._format, **kwargs)
             Framer2DRC.__init__(self, self._omis.nrows, self._omis.ncols)

@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# ============================================================
+# =============================================================================
 # Copyright (c) 2012, Lawrence Livermore National Security, LLC.
 # Produced at the Lawrence Livermore National Laboratory.
 # Written by Joel Bernier <bernier2@llnl.gov> and others.
@@ -11,9 +11,9 @@
 #
 # Please also see the file LICENSE.
 #
-# This program is free software; you can redistribute it and/or modify it under the
-# terms of the GNU Lesser General Public License (as published by the Free Software
-# Foundation) version 2.1 dated February 1999.
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License (as published by the Free
+# Software Foundation) version 2.1 dated February 1999.
 #
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
@@ -24,51 +24,52 @@
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
-# ============================================================
+# =============================================================================
 #
-######################################################################
-## TOP-LEVEL MODULES AND SOME GLOBALS
-##
-"""Module for wrapping the main functionality of the xrd package.
+# =============================================================================
+# Module for wrapping the main functionality of the xrd package.
+#
+# The Experiment class is the primary interface.  Other classes are helpers.
+# =============================================================================
 
-The Experiment class is the primary interface.  Other classes
-are helpers.
-"""
-import sys, os, copy
 import cPickle
+import os
+import sys
+
 import numpy
 
-numpy.seterr(invalid='ignore')
-
-from scipy.linalg          import inv
-from scipy.linalg.matfuncs import logm
-from scipy                 import optimize
+from scipy import optimize
 
 from hexrd import matrixutil
 from hexrd import valunits
 
 from hexrd import data
 from hexrd.xrd import detector
-from hexrd.xrd import grain      as G
+from hexrd.xrd import grain as G
 from hexrd.xrd import indexer
-from hexrd.xrd import rotations  as ROT
+from hexrd.xrd import rotations as ROT
 from hexrd.xrd import spotfinder as SPT
-from hexrd.xrd import xrdutil
 
-from hexrd.xrd.hydra    import Hydra
+from hexrd.xrd.hydra import Hydra
 from hexrd.xrd.material import Material, loadMaterialList
 
 from math import pi
+
+numpy.seterr(invalid='ignore')
 r2d = 180. / pi
 d2r = pi / 180.
+OMEGA_PERIOD = (-pi, pi)
+coarse_ang_tol = valunits.valWUnit('coarse tol', 'angle', 1.0, 'degrees')
+fine_ang_tol = valunits.valWUnit('fine tol', 'angle', 0.5, 'degrees')
 
-#
-#  Defaults (will eventually make to a config file)
-#
+# =============================================================================
+# Defaults (will eventually make to a config file)
+# =============================================================================
+
 HERE = os.path.dirname(__file__)
-toMatFile    = os.path.join(HERE, '..', 'data', 'materials.cfg')
-DFLT_MATFILE = os.path.normpath(toMatFile) # check whether it exists
-matfileOK    = os.access(DFLT_MATFILE, os.F_OK)
+toMatFile = os.path.join(HERE, '..', 'data', 'materials.cfg')
+DFLT_MATFILE = os.path.normpath(toMatFile)  # check whether it exists
+matfileOK = os.access(DFLT_MATFILE, os.F_OK)
 if not matfileOK:  # use relative path
     DFLT_MATFILE = os.path.join('data', 'materials.cfg')
     pass
@@ -76,37 +77,40 @@ matfileOK = os.access(DFLT_MATFILE, os.F_OK)
 if not matfileOK:  # set to null
     DFLT_MATFILE = ''
     pass
-#
-#
 __all__ = ['Experiment',
            'FitModes', 'ImageModes',
            'ReaderInput', 'CalibrationInput', 'PolarRebinOpts',
            'saveExp', 'loadExp']
-#
+
+
 # ---------------------------------------------------CLASS:  FitModes
 #
 class FitModes(object):
     """Indicators for single-frame or multiframe data files"""
     #
-    DIRECT    = 0
+    DIRECT = 0
     MULTIRING = 1
     #
     DEFAULT = MULTIRING
     #
     pass  # end class
 #
-# -----------------------------------------------END CLASS:FitModes
+# -----------------------------------------------END CLASS:  FitModes
+
+
 # ---------------------------------------------------CLASS:  ImageModes
 #
 class ImageModes(object):
     """Indicators for single-frame or multiframe data files"""
     #
     SINGLE_FRAME = 0
-    MULTI_FRAME  = 1
+    MULTI_FRAME = 1
     #
     pass  # end class
 #
 # -----------------------------------------------END CLASS:  ImageModes
+
+
 # ---------------------------------------------------CLASS:  Experiment
 #
 class Experiment(object):
@@ -125,7 +129,7 @@ class Experiment(object):
         #
         #  Reader inputs and info
         #
-        self.__active_rdr   = ReaderInput()
+        self.__active_rdr = ReaderInput()
         self.__savedReaders = [self.__active_rdr]
         #
         self.__active_img = None
@@ -139,7 +143,7 @@ class Experiment(object):
         #
         #  Detector and calibration information.
         #
-        self._detInfo  = DetectorInfo()
+        self._detInfo = DetectorInfo()
         self._calInput = CalibrationInput(self.matList[0])
         #
         #  Spots information.
@@ -253,37 +257,40 @@ class Experiment(object):
                       minCompl,
                       nSubIter=3,
                       doFit=False,
-                      etaTol=valunits.valWUnit('etaTol', 'angle', 1.0, 'degrees'),
-                      omeTol=valunits.valWUnit('etaTol', 'angle', 1.0, 'degrees'),
+                      etaTol=coarse_ang_tol,
+                      omeTol=coarse_ang_tol,
                       fineDspTol=5.0e-3,
-                      fineEtaTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees'),
-                      fineOmeTol=valunits.valWUnit('etaTol', 'angle', 0.5, 'degrees')):
+                      fineEtaTol=fine_ang_tol,
+                      fineOmeTol=fine_ang_tol):
         """
         refine a grain list
         """
         # refine grains formally using a multi-pass refinement
-        nGrains    = self.rMats.shape[0]
+        nGrains = self.rMats.shape[0]
         grainList = []
         for iG in range(nGrains):
-            #indexer.progress_bar(float(iG) / nGrains)
+            # indexer.progress_bar(float(iG) / nGrains)
             grain = G.Grain(self.spots_for_indexing,
-                                rMat=self.rMats[iG, :, :],
-                                etaTol=etaTol,
-                                omeTol=omeTol,
-                                claimingSpots=False)
+                            rMat=self.rMats[iG, :, :],
+                            etaTol=etaTol,
+                            omeTol=omeTol,
+                            claimingSpots=False)
             if grain.completeness > minCompl:
                 for i in range(nSubIter):
                     grain.fit()
-                    s1, s2, s3 = grain.findMatches(etaTol=etaTol, omeTol=omeTol, strainMag=fineDspTol,
-                                                   updateSelf=True, claimingSpots=False, doFit=doFit,
-                                                   testClaims=True)
+                    s1, s2, s3 = grain.findMatches(
+                        etaTol=etaTol, omeTol=omeTol, strainMag=fineDspTol,
+                        updateSelf=True, claimingSpots=False, doFit=doFit,
+                        testClaims=True)
                 if grain.completeness > minCompl:
                     grainList.append(grain)
                     pass
                 pass
             pass
         self.grainList = grainList
-        self._fitRMats = numpy.array([self.grainList[i].rMat for i in range(len(grainList))])
+        self._fitRMats = numpy.array(
+            [self.grainList[i].rMat for i in range(len(grainList))]
+        )
         return
 
     def saveRMats(self, f):
@@ -324,8 +331,9 @@ class Experiment(object):
             omeTol = self.index_opts.omeTol * d2r
 
         if sort:
-            loop_idx = numpy.argsort([self.grainList[i].completeness
-                                      for i in range(len(self.grainList))])[::-1]
+            loop_idx = numpy.argsort(
+                [grain.completeness for grain in self.grainList]
+            )[::-1]
         else:
             loop_idx = range(len(self.grainList))
             pass
@@ -336,10 +344,11 @@ class Experiment(object):
             #
             grain = self.grainList[iG]
             print >> fid, '#####################\n# grain %d\n#' % (iG)
-            s1, s2, s3 = grain.findMatches(etaTol=etaTol, omeTol=omeTol, strainMag=dspTol,
-                                           updateSelf=True, claimingSpots=True, doFit=doFit, filename=fid)
-            print >> fid, '#\n#  final completeness for grain %d: %g%%\n' % (iG, grain.completeness*100) + \
-                  '#####################\n'
+            s1, s2, s3 = grain.findMatches(
+                etaTol=etaTol, omeTol=omeTol, strainMag=dspTol,
+                updateSelf=True, claimingSpots=True, doFit=doFit, filename=fid)
+            print >> fid, '#\n#  final completeness for grain %d: %g%%\n'\
+                % (iG, grain.completeness*100) + '#####################\n'
             pass
 
         fid.close()
@@ -351,7 +360,7 @@ class Experiment(object):
                       vMat=numpy.r_[1., 1., 1., 0., 0., 0.],
                       planeData=None,
                       detector=None,
-                      omegaRanges=[(-pi, pi),],
+                      omegaRanges=[OMEGA_PERIOD],
                       output=None):
         """
         Simulate a grain with choice of active material
@@ -368,8 +377,8 @@ class Experiment(object):
             elif isinstance(output, str):
                 fid = open(output, 'w')
             else:
-                raise RuntimeError, "output must be a file object or string"
-            sg.findMatches(filename=output)
+                raise RuntimeError("output must be a file object or string")
+            sg.findMatches(filename=fid)
         return sg
 
     def _run_grainspotter(self):
@@ -395,7 +404,7 @@ class Experiment(object):
                          nCPUs=iopts.nCPUs,
                          quitAfter=iopts.quitAfter,
                          outputGrainList=True)
-        iopts._fitRMats = retval[0] # HUH?!
+        iopts._fitRMats = retval[0]  # WTF!!!
         self.rMats = retval[0]
         self.grainList = retval[1]
         return
@@ -410,6 +419,7 @@ class Experiment(object):
             self._run_grainspotter()
 
         return
+
     #
     # ==================== Spots
     #
@@ -467,7 +477,10 @@ class Experiment(object):
 
     @property
     def raw_spots(self):
-        """(get-only) spots from image before culling and association with rings"""
+        """
+        (get-only) spots from image before culling
+        and association with rings
+        """
         if not hasattr(self, '_spots'):
             self._spots = []
         return self._spots
@@ -539,7 +552,7 @@ class Experiment(object):
         *dp* - initial distortion parameters
 
         """
-        self._detInfo  = DetectorInfo(gParms=gp, dParms=dp)
+        self._detInfo = DetectorInfo(gParms=gp, dParms=dp)
 
         return
 
@@ -581,13 +594,14 @@ class Experiment(object):
                 det_class_str = lines[i]
         f.seek(0)
         if det_class_str is None:
-            raise RuntimeError, "detector class label not recongized in file!"
+            raise RuntimeError("detector class label not recongized in file!")
         else:
             plist_rflags = numpy.loadtxt(f)
             plist = plist_rflags[:, 0]
             rflag = numpy.array(plist_rflags[:, 1], dtype=bool)
 
-            exec_str = "DC = detector." + det_class_str.split('.')[-1].split("'")[0]
+            exec_str = "DC = detector." + \
+                det_class_str.split('.')[-1].split("'")[0]
             exec(exec_str)
 
             gp = plist[:6].tolist()
@@ -595,19 +609,17 @@ class Experiment(object):
                 dp = None
             else:
                 dp = plist[6:].tolist()
-            self._detInfo  = DetectorInfo(gParms=gp, dParms=dp)
+            self._detInfo = DetectorInfo(gParms=gp, dParms=dp)
             self.detector.setupRefinement(rflag)
             self._detInfo.refineFlags = rflag
         f.close()
 
         return
 
-
     #
     # ==================== Calibration Input
     #
     # property:  calInput
-
     @property
     def calInput(self):
         """(get only) Calibration input instance"""
@@ -616,7 +628,6 @@ class Experiment(object):
     # ==================== Hydra
     #
     # property:  hydra
-
     @property
     def hydra(self):
         """(read only) hydra image class"""
@@ -668,8 +679,7 @@ class Experiment(object):
 
         return
 
-    matList = property(_get_matList, _set_matList, None,
-                                "List of materials")
+    matList = property(_get_matList, _set_matList, None, "List of materials")
 
     @property
     def matNames(self):
@@ -686,7 +696,7 @@ class Experiment(object):
         self._active_mat = Material()
 
         # find name not already in list
-        n  = self._active_mat.name
+        n = self._active_mat.name
         self._active_mat.name = newName(n, self.matNames)
         #
         self._matList.append(self.activeMaterial)
@@ -774,9 +784,9 @@ class Experiment(object):
 
         Changes name if necessary.
         """
-        self.__active_rdr   = ReaderInput()
+        self.__active_rdr = ReaderInput()
         # find name not already in list
-        n  = self.__active_rdr.name
+        n = self.__active_rdr.name
         nl = [r.name for r in self.__savedReaders]
         self.__active_rdr.name = newName(n, nl)
         #
@@ -787,7 +797,7 @@ class Experiment(object):
     def getSavedReader(self, which):
         """Get a specified reader"""
         if isinstance(which, int):
-            return self.__savedReaders[v]
+            return self.__savedReaders[which]
         else:
             # which is a string
             for r in self.__savedReaders:
@@ -812,6 +822,7 @@ class Experiment(object):
     def readerNames(self):
         """Return list of saved readers"""
         return [r.name for r in self.__savedReaders]
+
     #
     # ==================== Image Info
     #
@@ -826,24 +837,15 @@ class Experiment(object):
         return self.__numFrame
 
     @property
-    def activeImage(self): # to be removed (use active_img instead)
+    def activeImage(self):  # to be removed (use active_img instead)
         """Active image"""
         return self.active_img
-    #
-    # ==================== Calibration
-    #
-    # property:  calInput
 
-    @property
-    def calInput(self):
-        """(read only) Calibration input data"""
-        return self._calInput
     #
     #                     ========== Public Methods
     #
     def readerListAddCurrent(self):
         """Add current list to list of saved readers"""
-
         return
 
     def readImage(self, frameNum=1):
@@ -858,7 +860,7 @@ class Experiment(object):
         # Now read the current frame
         #
         aggMode = self.activeReader.aggModeOp
-        nrFrame = self.activeReader.getNumberOfFrames() # number of reader frames
+        nrFrame = self.activeReader.getNumberOfFrames()
         if aggMode:
             rdFrames = nrFrame
             self.__numFrame = 1
@@ -878,22 +880,22 @@ class Experiment(object):
                   % (frameNum, nrFrame)
             raise ValueError(msg)
 
-        #if (frameNum == self.__curFrame): return
+        # if (frameNum == self.__curFrame): return
         # NOTE:  instantiate new reader even when requested frame is current
         # frame because reader properties may have changed
 
         if haveReader and (frameNum > self.__curFrame):
             nskip = frameNum - self.__curFrame - 1
-            self.__active_img = self.__active_reader.read(nframes= rdFrames,
-                                                          nskip  = nskip,
-                                                          sumImg = aggMode)
+            self.__active_img = self.__active_reader.read(nframes=rdFrames,
+                                                          nskip=nskip,
+                                                          sumImg=aggMode)
         else:
             # instantiate new reader
             self.__active_reader = self.activeReader.makeReader()
             nskip = frameNum - 1
-            self.__active_img = self.__active_reader.read(nframes= rdFrames,
-                                                          nskip  = nskip,
-                                                          sumImg = aggMode)
+            self.__active_img = self.__active_reader.read(nframes=rdFrames,
+                                                          nskip=nskip,
+                                                          sumImg=aggMode)
 
             pass
 
@@ -904,7 +906,8 @@ class Experiment(object):
         return
 
     def calibrate(self, log=None):
-        """Calibrate the detector
+        """
+        Calibrate the detector
 
         Currently, uses polar rebin only.
         """
@@ -924,22 +927,24 @@ class Experiment(object):
             log.write('done')
 
         return
+
         #
         # ==================== Polar Rebinning (Caking)
         #
         def polarRebin(self, opts):
-            """Rebin the image according to certain parameters
+            """
+            Rebin the image according to certain parameters
 
             opts -- an instance of PolarRebinOpts
             """
-
-            img_info = det.polarRebin(self.activeImage, opts.kwArgs)
-
+            img_info = self.detector.polarRebin(self.activeImage, opts.kwArgs)
             return img_info
     #
     pass  # end class
 #
 # -----------------------------------------------END CLASS:  Experiment
+
+
 # ---------------------------------------------------CLASS:  geReaderInput
 #
 class ReaderInput(object):
@@ -993,6 +998,7 @@ GE reader is supported.
         self.imageNameD = dict()
         self.imageFmt = None
         self.imageOpts = {}
+        self.pixelPitch = 0.2
         # Dark file
         self.darkMode = ReaderInput.DARK_MODE_NONE
         self.darkDir  = ''
@@ -1097,7 +1103,7 @@ GE reader is supported.
         self._check()
 
         imagePath = os.path.join(self.imageDir, self.imageNames[0])
-        r = self.RC(imagePath, fmt=self.imageFmt, **self.imageOpts)
+        r = self.RC(imagePath, fmt=self.imageFmt, pixelPitch=self.pixelPitch, **self.imageOpts)
 
         return r
     #

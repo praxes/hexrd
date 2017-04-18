@@ -128,6 +128,11 @@ class detectorPanel(wx.Panel):
         app = wx.GetApp()
         det = app.ws.detector
 
+        self.nrows_txt = wx.TextCtrl(self, wx.NewId(), value=str(det.nrows), style=wx.RAISED_BORDER)
+        self.ncols_txt = wx.TextCtrl(self, wx.NewId(), value=str(det.ncols), style=wx.RAISED_BORDER)
+        self.pixel_txt = wx.TextCtrl(self, wx.NewId(), value=str(det.pixelPitch), style=wx.RAISED_BORDER)
+        self.pixel_txt_s = wx.TextCtrl(self, wx.NewId(), value=str(det.pixelPitch), style=wx.RAISED_BORDER|wx.TE_READONLY)
+        
         name = 'x Center'
         self.cbox_xc  = wx.CheckBox(self, wx.NewId(), name)
         self.float_xc = FloatControl(self, wx.NewId())
@@ -237,6 +242,10 @@ class detectorPanel(wx.Panel):
         self.Bind(wx.EVT_SPINCTRL,   self.OnNumEta,  self.numEta_spn)
 
         # detector section
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnChangeRows, self.nrows_txt)
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnChangeCols, self.ncols_txt)
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnChangePixl, self.pixel_txt)
+                
         self.Bind(EVT_FLOAT_CTRL, self.OnFloatXC, self.float_xc)
         self.Bind(EVT_FLOAT_CTRL, self.OnFloatYC, self.float_yc)
         self.Bind(EVT_FLOAT_CTRL, self.OnFloatD,  self.float_D)
@@ -287,10 +296,15 @@ class detectorPanel(wx.Panel):
         #
         #  Geometry sizer
         #
-        nrow = 13; ncol = 2; padx = 5; pady = 5
+        nrow = 15; ncol = 2; padx = 5; pady = 5
         self.geoSizer = wx.FlexGridSizer(nrow, ncol, padx, pady)
         self.geoSizer.AddGrowableCol(0, 1)
         self.geoSizer.AddGrowableCol(1, 1)
+        #  * row/col hack
+        self.geoSizer.Add(self.nrows_txt, 1, wx.ALIGN_RIGHT)
+        self.geoSizer.Add(self.ncols_txt, 1, wx.ALIGN_LEFT)
+        self.geoSizer.Add(self.pixel_txt, 1, wx.ALIGN_RIGHT)
+        self.geoSizer.Add(self.pixel_txt_s, 1, wx.ALIGN_LEFT)        
         #  * x-center
         self.geoSizer.Add(self.cbox_xc,  1, wx.EXPAND)
         self.geoSizer.Add(self.float_xc, 1, wx.EXPAND)
@@ -516,6 +530,51 @@ class detectorPanel(wx.Panel):
     #
     #  Detector Parameters
     #
+    def OnChangeRows(self, evt):
+        """Callback for float_xc choice"""
+        try:
+            a = wx.GetApp()
+            nrows = int(self.nrows_txt.GetValue())
+            a.ws.detector.nrows = nrows
+            a.getCanvas().update()
+
+        except Exception as e:
+            msg = 'Failed to set nrows: \n%s' % str(e)
+            wx.MessageBox(msg)
+            pass
+
+        return
+
+    def OnChangeCols(self, evt):
+        """Callback for float_xc choice"""
+        try:
+            a = wx.GetApp()
+            ncols = int(self.ncols_txt.GetValue())
+            a.ws.detector.ncols = ncols
+            a.getCanvas().update()
+
+        except Exception as e:
+            msg = 'Failed to set ncols: \n%s' % str(e)
+            wx.MessageBox(msg)
+            pass
+
+        return
+
+    def OnChangePixl(self, evt):
+        """Callback for float_xc choice"""
+        try:
+            a = wx.GetApp()
+            pixelPitch = float(self.pixel_txt.GetValue())
+            a.ws.detector.pixelPitch = pixelPitch
+            a.getCanvas().update()
+
+        except Exception as e:
+            msg = 'Failed to set pixel pitch: \n%s' % str(e)
+            wx.MessageBox(msg)
+            pass
+
+        return
+
     def OnFloatXC(self, evt):
         """Callback for float_xc choice"""
         try:
