@@ -6,7 +6,6 @@
 
 #include "transforms_CFUNC.h"
 
-
 /*
  * Microsoft's C compiler, when running in C mode, does not support the inline
  * keyword. However it does support an __inline one.
@@ -170,7 +169,7 @@ v3_v3s_dot(const double *v1,
 }
 
 
-/* 3x3 matrix by strided 3 vector product --------------------------------------
+/* 3x3 matrix by strided 3 vector product -------------------------------------
    hopefully a constant stride will be optimized
  */
 static inline
@@ -186,7 +185,7 @@ m33_v3s_multiply(const double *m,
     return dst;
 }
 
-/* transposed 3x3 matrix by strided 3 vector product ---------------------------
+/* transposed 3x3 matrix by strided 3 vector product --------------------------
  */
 static inline
 double *
@@ -327,53 +326,53 @@ void anglesToGvec_cfunc(long int nvecs, double * angs,
                         double chi, double * rMat_c,
                         double * gVec_c)
 {
-  /*
-   *  takes an angle spec (2*theta, eta, omega) for nvecs g-vectors and
-   *  returns the unit g-vector components in the crystal frame
-   *
-   *  For unit g-vector in the lab frame, spec rMat_c = Identity and
-   *  overwrite the omega values with zeros
-   */
-  int i, j, k, l;
-  double rMat_e[9], rMat_s[9], rMat_ctst[9];
-  double gVec_e[3], gVec_l[3], gVec_c_tmp[3];
+    /*
+     *  takes an angle spec (2*theta, eta, omega) for nvecs g-vectors and
+     *  returns the unit g-vector components in the crystal frame
+     *
+     *  For unit g-vector in the lab frame, spec rMat_c = Identity and
+     *  overwrite the omega values with zeros
+     */
+    int i, j, k, l;
+    double rMat_e[9], rMat_s[9], rMat_ctst[9];
+    double gVec_e[3], gVec_l[3], gVec_c_tmp[3];
 
-  /* Need eta frame cob matrix (could omit for standard setting) */
-  makeEtaFrameRotMat_cfunc(bHat_l, eHat_l, rMat_e);
+    /* Need eta frame cob matrix (could omit for standard setting) */
+    makeEtaFrameRotMat_cfunc(bHat_l, eHat_l, rMat_e);
 
-  /* make vector array */
-  for (i=0; i<nvecs; i++) {
-    /* components in BEAM frame */
-    gVec_e[0] = cos(0.5*angs[3*i]) * cos(angs[3*i+1]);
-    gVec_e[1] = cos(0.5*angs[3*i]) * sin(angs[3*i+1]);
-    gVec_e[2] = sin(0.5*angs[3*i]);
+    /* make vector array */
+    for (i = 0; i < nvecs; i++) {
+        /* components in BEAM frame */
+        gVec_e[0] = cos(0.5*angs[3*i]) * cos(angs[3*i+1]);
+        gVec_e[1] = cos(0.5*angs[3*i]) * sin(angs[3*i+1]);
+        gVec_e[2] = sin(0.5*angs[3*i]);
 
-    /* take from beam frame to lab frame */
-    for (j=0; j<3; j++) {
-      gVec_l[j] = 0.0;
-      for (k=0; k<3; k++) {
-    gVec_l[j] += rMat_e[3*j+k]*gVec_e[k];
-      }
+        /* take from beam frame to lab frame */
+        for (j = 0; j < 3; j++) {
+            gVec_l[j] = 0.0;
+            for (k = 0; k < 3; k++) {
+                gVec_l[j] += rMat_e[3*j+k]*gVec_e[k];
+            }
+        }
+
+        /* need pointwise rMat_s according to omega */
+        makeOscillRotMat_cfunc(chi, angs[3*i+2], rMat_s);
+
+        /* Compute dot(rMat_c.T, rMat_s.T) and hit against gVec_l */
+        for (j=0; j<3; j++) {
+            for (k=0; k<3; k++) {
+                rMat_ctst[3*j+k] = 0.0;
+                for (l=0; l<3; l++) {
+                    rMat_ctst[3*j+k] += rMat_c[3*l+j]*rMat_s[3*k+l];
+                }
+            }
+            gVec_c_tmp[j] = 0.0;
+            for (k=0; k<3; k++) {
+                gVec_c_tmp[j] += rMat_ctst[3*j+k]*gVec_l[k];
+            }
+            gVec_c[3*i+j] = gVec_c_tmp[j];
+        }
     }
-
-    /* need pointwise rMat_s according to omega */
-    makeOscillRotMat_cfunc(chi, angs[3*i+2], rMat_s);
-
-    /* Compute dot(rMat_c.T, rMat_s.T) and hit against gVec_l */
-    for (j=0; j<3; j++) {
-      for (k=0; k<3; k++) {
-    rMat_ctst[3*j+k] = 0.0;
-    for (l=0; l<3; l++) {
-      rMat_ctst[3*j+k] += rMat_c[3*l+j]*rMat_s[3*k+l];
-    }
-      }
-      gVec_c_tmp[j] = 0.0;
-      for (k=0; k<3; k++) {
-    gVec_c_tmp[j] += rMat_ctst[3*j+k]*gVec_l[k];
-      }
-      gVec_c[3*i+j] = gVec_c_tmp[j];
-    }
-  }
 }
 #endif
 
@@ -572,63 +571,65 @@ void gvecToDetectorXYOne_cfunc(double * gVec_c, double * rMat_d,
                                double * rMat_sc, double * tVec_d,
                                double * bHat_l,
                                double * nVec_l, double num, double * P0_l,
-                   double * result)
+                               double * result)
 {
-  int j, k;
-  double bDot, ztol, denom, u;
-  double gHat_c[3], gVec_l[3], dVec_l[3], P2_l[3], P2_d[3];
-  double brMat[9];
+    int j, k;
+    double bDot, ztol, denom, u;
+    double gHat_c[3], gVec_l[3], dVec_l[3], P2_l[3], P2_d[3];
+    double brMat[9];
 
-  ztol = epsf;
+    ztol = epsf;
 
-  /* Compute unit reciprocal lattice vector in crystal frame w/o translation */
-  unitRowVector_cfunc(3,gVec_c,gHat_c);
+    /* Compute unit reciprocal lattice vector in crystal frame w/o
+       translation */
+    unitRowVector_cfunc(3, gVec_c, gHat_c);
 
-  /* Compute unit reciprocal lattice vector in lab frame and dot with beam vector */
-  bDot = 0.0;
-  for (j=0; j<3; j++) {
-    gVec_l[j] = 0.0;
-    for (k=0; k<3; k++)
-      gVec_l[j] += rMat_sc[3*j+k]*gHat_c[k];
-
-    bDot -= bHat_l[j]*gVec_l[j];
-  }
-
-  if ( bDot >= ztol && bDot <= 1.0-ztol ) {
-    /* If we are here diffraction is possible so increment the number of admissable vectors */
-    makeBinaryRotMat_cfunc(gVec_l,brMat);
-
-    denom = 0.0;
+    /* Compute unit reciprocal lattice vector in lab frame and dot with beam
+       vector */
+    bDot = 0.0;
     for (j=0; j<3; j++) {
-      dVec_l[j] = 0.0;
-      for (k=0; k<3; k++)
-    dVec_l[j] -= brMat[3*j+k]*bHat_l[k];
+        gVec_l[j] = 0.0;
+        for (k=0; k<3; k++)
+            gVec_l[j] += rMat_sc[3*j+k]*gHat_c[k];
 
-      denom += nVec_l[j]*dVec_l[j];
+        bDot -= bHat_l[j]*gVec_l[j];
     }
 
-    if ( denom < -ztol ) {
+    if ( bDot >= ztol && bDot <= 1.0-ztol ) {
+        /* If we are here diffraction is possible so increment the number of
+           admissable vectors */
+        makeBinaryRotMat_cfunc(gVec_l, brMat);
 
-      u = num/denom;
+        denom = 0.0;
+        for (j=0; j<3; j++) {
+            dVec_l[j] = 0.0;
+            for (k=0; k<3; k++)
+                dVec_l[j] -= brMat[3*j+k]*bHat_l[k];
 
-      for (j=0; j<3; j++)
-    P2_l[j] = P0_l[j]+u*dVec_l[j];
+            denom += nVec_l[j]*dVec_l[j];
+        }
 
-      for (j=0; j<2; j++) {
-    P2_d[j] = 0.0;
-    for (k=0; k<3; k++)
-      P2_d[j] += rMat_d[3*k+j]*(P2_l[k]-tVec_d[k]);
-    result[j] = P2_d[j];
-      }
-      /* result when computation can be finished */
-      return;
+        if ( denom < -ztol ) {
+
+            u = num/denom;
+
+            for (j=0; j<3; j++)
+                P2_l[j] = P0_l[j]+u*dVec_l[j];
+
+            for (j=0; j<2; j++) {
+                P2_d[j] = 0.0;
+                for (k=0; k<3; k++)
+                    P2_d[j] += rMat_d[3*k+j]*(P2_l[k]-tVec_d[k]);
+                result[j] = P2_d[j];
+            }
+            /* result when computation can be finished */
+            return;
+        }
     }
-  }
-
-  /* default result when computation can't be finished */
+    /* default result when computation can't be finished */
     result[0] = NAN;
     result[1] = NAN;
-  }
+}
 
 /*
  * The only difference between this and the non-Array version
@@ -636,51 +637,51 @@ void gvecToDetectorXYOne_cfunc(double * gVec_c, double * rMat_d,
  * of a single matrix.
  */
 void gvecToDetectorXYArray_cfunc(long int npts, double * gVec_c,
-                double * rMat_d, double * rMat_s, double * rMat_c,
-                double * tVec_d, double * tVec_s, double * tVec_c,
-                double * beamVec, double * result)
+                                 double * rMat_d, double * rMat_s,
+                                 double * rMat_c, double * tVec_d,
+                                 double * tVec_s, double * tVec_c,
+                                 double * beamVec, double * result)
 {
-  long int i;
-  int j, k, l;
+    long int i;
+    int j, k, l;
+    double num;
+    double nVec_l[3], bHat_l[3], P0_l[3], P3_l[3];
+    double rMat_sc[9];
 
-  double num;
-  double nVec_l[3], bHat_l[3], P0_l[3], P3_l[3];
-  double rMat_sc[9];
+    /* Normalize the beam vector */
+    unitRowVector_cfunc(3,beamVec,bHat_l);
 
-  /* Normalize the beam vector */
-  unitRowVector_cfunc(3,beamVec,bHat_l);
+    for (i=0L; i < npts; i++) {
+        /* Initialize the detector normal and frame origins */
+        num = 0.0;
+        for (j=0; j<3; j++) {
+            nVec_l[j] = 0.0;
+            P0_l[j]   = tVec_s[j];
 
-  for (i=0L; i<npts; i++) {
-  /* Initialize the detector normal and frame origins */
-  num = 0.0;
-  for (j=0; j<3; j++) {
-    nVec_l[j] = 0.0;
-    P0_l[j]   = tVec_s[j];
+            for (k=0; k<3; k++) {
+                nVec_l[j] += rMat_d[3*j+k]*Zl[k];
+                P0_l[j]   += rMat_s[9*i + 3*j+k]*tVec_c[k];
+            }
 
-    for (k=0; k<3; k++) {
-      nVec_l[j] += rMat_d[3*j+k]*Zl[k];
-        P0_l[j]   += rMat_s[9*i + 3*j+k]*tVec_c[k];
+            P3_l[j] = tVec_d[j];
+
+            num += nVec_l[j]*(P3_l[j]-P0_l[j]);
+        }
+
+        /* Compute the matrix product of rMat_s and rMat_c */
+        for (j=0; j<3; j++) {
+            for (k=0; k<3; k++) {
+                rMat_sc[3*j+k] = 0.0;
+                for (l=0; l<3; l++) {
+                    rMat_sc[3*j+k] += rMat_s[9*i + 3*j+l]*rMat_c[3*l+k];
+                }
+            }
+        }
+
+        gvecToDetectorXYOne_cfunc(gVec_c + 3*i, rMat_d, rMat_sc,
+                                  tVec_d, bHat_l, nVec_l, num,
+                                  P0_l, result + 2*i);
     }
-
-    P3_l[j] = tVec_d[j];
-
-    num += nVec_l[j]*(P3_l[j]-P0_l[j]);
-  }
-
-  /* Compute the matrix product of rMat_s and rMat_c */
-  for (j=0; j<3; j++) {
-    for (k=0; k<3; k++) {
-      rMat_sc[3*j+k] = 0.0;
-      for (l=0; l<3; l++) {
-          rMat_sc[3*j+k] += rMat_s[9*i + 3*j+l]*rMat_c[3*l+k];
-      }
-    }
-  }
-
-    gvecToDetectorXYOne_cfunc(&gVec_c[3*i], rMat_d, rMat_sc, tVec_d,
-                  bHat_l, nVec_l, num,
-                  P0_l, &result[2*i]);
-  }
 }
 
 #endif
@@ -1230,7 +1231,7 @@ void makeRotMatOfQuat_cfunc(int nq, double * qPtr, double * rPtr)
       rPtr[9*i+8] = c + n[2]*n[2]*(1. - c);
     }
     else {
-      for (j=0; j<9; i++) {
+      for (j=0; j<9; j++) {
     if ( j%4 == 0 )
       rPtr[9*i+j] = 1.0;
     else
@@ -1274,9 +1275,9 @@ void makeEtaFrameRotMat_cfunc(double * bPtr, double * ePtr, double * rPtr)
   unitRowVector_cfunc(3, yPtr, yHat);
 
   /* Find X as b ^ Y */
-  yPtr[0] = bPtr[1]*yPtr[2] - yPtr[1]*bPtr[2];
-  yPtr[1] = bPtr[2]*yPtr[0] - yPtr[2]*bPtr[0];
-  yPtr[2] = bPtr[0]*yPtr[1] - yPtr[0]*bPtr[1];
+  xHat[0] = bHat[1]*yHat[2] - yHat[1]*bHat[2];
+  xHat[1] = bHat[2]*yHat[0] - yHat[2]*bHat[0];
+  xHat[2] = bHat[0]*yHat[1] - yHat[0]*bHat[1];
 
   /* Assign columns */
   /* Assign Y column */

@@ -638,7 +638,6 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
                 distortion=distortion,
             )
             refl_per_grain[i] = len(sim_results[0])
-            import pdb; pdb.set_trace()
             num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
             pass
 
