@@ -438,7 +438,6 @@ class HEDMInstrument(object):
                 except(KeyError):
                     msg = "imageseries for '%s' has no omega info" % det_key
                     raise RuntimeError(msg)
-                # ome_edges = np.r_[omegas[:, 0], omegas[-1, 1]]
                 nrows_ome = len(omegas)
                 ncols_eta = len(full_etas)
                 this_map = np.nan*np.ones((nrows_ome, ncols_eta))
@@ -642,9 +641,10 @@ class HEDMInstrument(object):
         ndiv_ome, ome_del = make_tolerance_grid(
             delta_ome, ome_tol, 1, adjust_window=True,
         )
-
+        ome_del_c = np.average(np.vstack([ome_del[:-1], ome_del[1:]]), axis=0)
+        
         # generate structuring element for connected component labeling
-        if len(ome_del) == 1:
+        if ndiv_ome == 1:
             label_struct = ndimage.generate_binary_structure(2, lrank)
         else:
             label_struct = ndimage.generate_binary_structure(3, lrank)
@@ -733,7 +733,7 @@ class HEDMInstrument(object):
                 for i_pt, angs in enumerate(ang_centers):
                     # the evaluation omegas;
                     # expand about the central value using tol vector
-                    ome_eval = np.degrees(angs[2]) + ome_del
+                    ome_eval = np.degrees(angs[2]) + ome_del_c
 
                     # ...vectorize the omega_to_frame function to avoid loop?
                     frame_indices = [
@@ -792,7 +792,7 @@ class HEDMInstrument(object):
 
                     # the evaluation omegas;
                     # expand about the central value using tol vector
-                    ome_eval = np.degrees(ang_centers[i_pt, 2]) + ome_del
+                    ome_eval = np.degrees(ang_centers[i_pt, 2]) + ome_del_c
 
                     # ???: vectorize the omega_to_frame function to avoid loop?
                     frame_indices = [
@@ -1627,7 +1627,7 @@ class GrainDataWriter(object):
     """
     def __init__(self, filename):
         sp3_str = '{:12}\t{:12}\t{:12}'
-        dp3_str = '{:19}\t{:19}\t{:19}'
+        dp3_str = '{:20}\t{:20}\t{:20}'
         self._header = \
             sp3_str.format(
                 '# grain ID', 'completeness', 'chi^2') + '\t' + \
