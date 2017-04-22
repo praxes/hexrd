@@ -266,6 +266,9 @@ def _handle_duplicate_orientations(qbar, qsym, cl_radius):
     """removes duplicate orienations within a tolerance"""
 
     if qbar.size > 4:
+        # need nblobs coming in to detect duplicates
+        # WARNING: qbat assumed to be 2-d with shape (4, n)
+        nblobs = qbar.shape[1]
         logger.info('\tchecking for duplicate orientations...')
         def quat_distance(x, y):
             return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
@@ -280,7 +283,7 @@ def _handle_duplicate_orientations(qbar, qsym, cl_radius):
             # if duplicates found, average the duplicates
             tmp = np.zeros((4, nblobs_new))
             for i in range(nblobs_new):
-                # note: this could be simplified and made faster.
+                # TODO: this could be simplified and made faster.
                 npts = sum(cl == i + 1)
                 duplicates = qbar[:, cl == i+1].reshape(4, npts)
                 tmp[:,i] = rot.quatAverageCluster(duplicates, qsym).flatten()
