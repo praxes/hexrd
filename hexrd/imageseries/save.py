@@ -153,10 +153,10 @@ class WriteFrameCache(Writer):
             self._cache = os.path.join(cdir, cf)
         self._cachename = cf
 
-    def _process_meta(self):
+    def _process_meta(self, save_omegas=False):
         d = {}
         for k, v in self._meta.items():
-            if isinstance(v, np.ndarray):
+            if isinstance(v, np.ndarray) and save_omegas:
                 # Save as a numpy array file
                 # if file does not exist (careful about directory)
                 #    create new file
@@ -177,14 +177,16 @@ class WriteFrameCache(Writer):
     def _write_yml(self):
         datad = {'file': self._cachename, 'dtype': str(self._ims.dtype),
                  'nframes': len(self._ims), 'shape': list(self._ims.shape)}
-        info = {'data': datad, 'meta': self._process_meta()}
+        info = {'data': datad, 'meta': self._process_meta(save_omegas=True)}
         with open(self._fname, "w") as f:
             yaml.dump(info, f)
 
     def _write_frames(self):
         """also save shape array as originally done (before yaml)"""
         arrd = dict()
-        for i, frame in enumerate(self._ims):
+        for i in range(len(self._ims)):
+            # RFE: make it so we can use emumerate on self._ims???
+            frame = self._ims[i]
             mask = frame > self._thresh
             # FIXME: formalize this a little better???
             if np.sum(mask) / float(frame.shape[0]*frame.shape[1]) > 0.05:
@@ -195,14 +197,15 @@ class WriteFrameCache(Writer):
             arrd['%d_col' % i] = col
         arrd['shape'] = self._ims.shape
         arrd['nframes'] = len(self._ims)
-        arrd['dtype'] = self._ims.dtype
+        arrd['dtype'] = str(self._ims.dtype)
         arrd.update(self._process_meta())
         np.savez_compressed(self._cache, **arrd)
 
-    def write(self):
+    def write(self, output_yaml=False):
         """writes frame cache for imageseries
 
         presumes sparse forms are small enough to contain all frames
         """
         self._write_frames()
-        self._write_yml()
+        if output_yaml:
+            self._write_yml()

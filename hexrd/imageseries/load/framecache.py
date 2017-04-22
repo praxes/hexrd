@@ -15,15 +15,18 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
 
     format = 'frame-cache'
 
-    def __init__(self, fname, **kwargs):
+    def __init__(self, fname, format='npz', **kwargs):
         """Constructor for frame cache image series
 
         *fname* - filename of the yml file
         *kwargs* - keyword arguments (none required)
         """
         self._fname = fname
-        self._load_yml()
-        self._load_cache()
+        if format.lower() in ('yml', 'yaml', 'test'):
+            self._load_yml()
+            self._load_cache(from_yml=True)
+        else:
+            self._load_cache()
 
     def _load_yml(self):
         with open(self._fname, "r") as f:
@@ -35,23 +38,53 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
         self._dtype = np.dtype(datad['dtype'])
         self._meta = yamlmeta(d['meta'], path=self._cache)
 
-    def _load_cache(self):
+    def _load_cache(self, from_yml=False):
         """load into list of csr sparse matrices"""
-        bpath = os.path.dirname(self._fname)
-        if os.path.isabs(self._cache):
-            cachepath = self._cache
-        else:
-            cachepath = os.path.join(bpath, self._cache)
-        arrs = np.load(cachepath)
-
         self._framelist = []
-        for i in range(self._nframes):
-            row = arrs["%d_row" % i]
-            col = arrs["%d_col" % i]
-            data = arrs["%d_data" % i]
-            frame = csr_matrix((data, (row, col)),
-                               shape=self._shape, dtype=self._dtype)
-            self._framelist.append(frame)
+        if from_yml:
+            bpath = os.path.dirname(self._fname)
+            if os.path.isabs(self._cache):
+                cachepath = self._cache
+            else:
+                cachepath = os.path.join(bpath, self._cache)
+            arrs = np.load(cachepath)
+            
+            for i in range(self._nframes):
+                row = arrs["%d_row" % i]
+                col = arrs["%d_col" % i]
+                data = arrs["%d_data" % i]
+                frame = csr_matrix((data, (row, col)),
+                                   shape=self._shape, dtype=self._dtype)
+                self._framelist.append(frame)
+        else:
+            arrs = np.load(self._fname)
+            # HACK: while the loaded npz file has a getitem method
+            # that mimicks a dict, it doesn't have a "pop" method.
+            # must make an empty dict to pop after assignment of 
+            # class attributes so we can get to the metadata
+            keysd = dict.fromkeys(arrs.keys())
+            self._nframes = int(arrs['nframes'])
+            self._shape = tuple(arrs['shape'])
+            self._dtype = np.dtype(str(arrs['dtype']))
+            keysd.pop('nframes')
+            keysd.pop('shape')
+            keysd.pop('dtype')
+            for i in range(self._nframes):
+                row = arrs["%d_row" % i]
+                col = arrs["%d_col" % i]
+                data = arrs["%d_data" % i]
+                keysd.pop("%d_row" % i)
+                keysd.pop("%d_col" % i)
+                keysd.pop("%d_data" % i)
+                frame = csr_matrix((data, (row, col)),
+                                   shape=self._shape, 
+                                   dtype=self._dtype)
+                self._framelist.append(frame)
+            # all rmaining keys should be metadata
+            for key in keysd:
+                keysd[key] = arrs[key]
+            self._meta = keysd
+            
 
     @property
     def metadata(self):
@@ -64,7 +97,8 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
 
         Currently returns none
         """
-        #### Currently not used: saved temporarily for np.array trigger
+        # TODO: Remove this. Currently not used; 
+        # saved temporarily for np.array trigger
         metad = {}
         for k, v in indict.items():
             if v == '++np.array':
