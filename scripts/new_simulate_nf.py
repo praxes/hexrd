@@ -150,7 +150,7 @@ def saving_result_handler(filename):
             self.arrays[key] = value
 
         def __del__(self):
-            logging.debug("Writting arrays in %(filename)s", self.__dict__)
+            logging.debug("Writing arrays in %(filename)s", self.__dict__)
             try:
                 np.savez_compressed(open(self.filename, "wb"), **self.arrays)
             except IOError:
@@ -311,8 +311,6 @@ def mockup_experiment():
     inv_deltas = 1.0/deltas
     clip_vals = np.array([ncols, nrows])
 
-
-
     # dilation
     max_diameter = np.sqrt(3)*0.005
     row_dilation = int(np.ceil(0.5 * max_diameter/row_ps))
@@ -327,7 +325,6 @@ def mockup_experiment():
     gold.beamEnergy = valunits.valWUnit("wavelength", "ENERGY", 52, "keV")
     gold.planeData.exclusions = None
     gold.planeData.tThMax = max_pixel_tth #note this comes from info in the detector
-
 
     ns = argparse.Namespace()
     # grains related information
@@ -549,7 +546,13 @@ def _quant_and_clip_confidence(coords, angles, image, base, inv_deltas, clip_val
         zf = np.floor((angles[i] - base[2]) * inv_deltas[2])
 
         in_sensor += 1
-        matches += image[int(zf), int(yf), int(xf)]
+
+        x, y, z = int(xf), int(yf), int(zf)
+
+        x_byte = x // 8
+        x_off = 7 - (x % 8)
+        if image[z, y, x_byte] & (1<<x_off):
+            matches += 1
 
     return 0 if in_sensor == 0 else float(matches)/float(in_sensor)
 
@@ -577,7 +580,10 @@ def get_simulate_diffractions(grain_params, experiment,
 def simulate_diffractions(grain_params, experiment, controller):
     """actual forward simulation of the diffraction"""
 
-    image_stack = np.zeros((experiment.nframes, experiment.nrows, experiment.ncols), dtype=bool)
+    # use a packed array for the image_stack
+    array_dims = (experiment.nframes, experiment.ncols, ((experiment.nrows - 1)//8) + 1)
+    image_stack = np.zeros(array_dims, dtype = np.uint8)
+
     count = len(grain_params)
     subprocess = 'simulate diffractions'
 
@@ -630,6 +636,7 @@ def simulate_diffractions(grain_params, experiment, controller):
 # Note: This could be easily modified so that instead of using an array of
 #       booleans, an array of uint8 could be used so the image is stored
 #       with a bit per pixel.
+
 @numba.njit
 def _write_pixels(coords, angles, image, base, inv_deltas, clip_vals):
     count = len(coords)
@@ -646,7 +653,9 @@ def _write_pixels(coords, angles, image, base, inv_deltas, clip_vals):
 
         z = int(np.floor((angles[i] - base[2]) * inv_deltas[2]))
 
-        image[z, y, x] = True
+        x_byte = x // 8
+        x_off = 7 - (x % 8)
+        image[z, y, x_byte] |= (1 << x_off)
 
 
 # ==============================================================================
@@ -690,11 +699,15 @@ def test_orientations(image_stack, experiment, controller):
                               2*experiment.col_dilation + 1),
                              dtype=np.uint8)
     image_stack_dilated = np.empty_like(image_stack)
+    dilated = np.empty((image_stack.shape[-2], image_stack.shape[-1]<<3),
+                       dtype=np.bool)
     n_images = len(image_stack)
     controller.start(subprocess, n_images)
     for i_image in range(n_images):
-        ski_dilation(image_stack[i_image], dilation_shape,
-                     out=image_stack_dilated[i_image])
+        to_dilate = np.unpackbits(image_stack[i_image], axis=-1)
+        ski_dilation(to_dilate, dilation_shape,
+                     out=dilated)
+        image_stack_dilated[i_image] = np.packbits(dilated, axis=-1)
         controller.update(i_image+1)
     controller.finish(subprocess)
 
@@ -1063,7 +1076,6 @@ if __name__=='__main__':
         profiler.instrument_all(args.inst_profile)
 
     if args.force_spawn_multiprocessing:
-        global _start_method
         _multiprocessing_start_method = 'spawn'
 
     controller = build_controller(args)
