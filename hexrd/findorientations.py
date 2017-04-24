@@ -333,12 +333,13 @@ def cluster_dbscan(qfib_r, qsym, cl_radius, min_samples):
 @clustering_algorithm('ort-dbscan')
 def cluster_ort_dbscan(qfib_r, qsym, cl_radius, min_samples):
     # CAVEAT: the euclidean misorientation of the vector parts of two
-    # quaternion is ~2.01x smaller than the true quaternion misorientation 
-    # for magnitudes < ~5deg
+    # quaternion is ~(2+eps)x smaller than the true quaternion misorientation 
+    # for magnitudes < ~5deg.  The distribution is generally larger than the
+    # full quaternion 2-norm, however!!!
     _check_dbscan()
     dbscan = sklearn.cluster.dbscan
     pts = qfib_r[1:, :].T
-    _, labels = dbscan(pts, eps=0.49*np.radians(cl_radius),
+    _, labels = dbscan(pts, eps=0.5*np.radians(cl_radius),
                        min_samples=min_samples, metric='minkowski', p=2)
     labels = _normalize_labels_from_dbscan(labels)
     qbar = _compute_centroids_dense(labels, qfib_r, qsym)
