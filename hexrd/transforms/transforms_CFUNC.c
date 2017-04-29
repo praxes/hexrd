@@ -376,17 +376,17 @@ void anglesToGvec_cfunc(long int nvecs, double * angs,
 }
 #endif
 
-void anglesToDvec_cfunc(long int nvecs, double *angs,
-                        double *bHat_l, double *eHat_l,
-                        double chi, double *rMat_c,
-                        double *gVec_c)
+void anglesToDvec_cfunc(long int nvecs, double * angs,
+			double * bHat_l, double * eHat_l,
+			double chi, double * rMat_c,
+			double * gVec_c)
 {
     /*
-     * Takes an angle spec (2*theta, eta, omega) for nvecs g-vectors and returns
-     * the unit g-vector components in the crystal frame.
-     *¡¡
-     * For unit g-vector in the lab frame, spec rMat_c = Identity and overwrite
-     * the omega values with zeros.
+     *  takes an angle spec (2*theta, eta, omega) for nvecs g-vectors and
+     *  returns the unit d-vector components in the crystal frame
+     *
+     *  For unit d-vector in the lab frame, spec rMat_c = Identity and
+     *  overwrite the omega values with zeros
      */
     int i, j, k, l;
 
@@ -398,12 +398,12 @@ void anglesToDvec_cfunc(long int nvecs, double *angs,
 
     /* make vector array */
     for (i=0; i<nvecs; i++) {
-        /* components in BEAM frame */
-        double s0 = sin(angs[3*i]);
-        double s1 = sin(angs[3*i+1]);
-        double c0 = cos(angs[3*i]);
-        double c1 = cos(angs[3*i+1]);
-
+	double c0 = cos(angs[3*i]);
+	double c1 = cos(angs[3*i+1]);
+	double s0 = sin(angs[3*i]);
+	double s1 = sin(angs[3*i+1]);
+	
+	/* components in BEAM frame */
         gVec_e[0] = s0*c1;
         gVec_e[1] = s0*s1;
         gVec_e[2] = -c0;
@@ -424,7 +424,7 @@ void anglesToDvec_cfunc(long int nvecs, double *angs,
             for (k=0; k<3; k++) {
                 rMat_ctst[3*j+k] = 0.0;
                 for (l=0; l<3; l++) {
-                    rMat_ctst[3*j+k] += rMat_c[3*l+k]*rMat_s[3*k+l];
+                    rMat_ctst[3*j+k] += rMat_c[3*l+j]*rMat_s[3*k+l];
                 }
             }
             gVec_c_tmp[j] = 0.0;
@@ -434,9 +434,7 @@ void anglesToDvec_cfunc(long int nvecs, double *angs,
             gVec_c[3*i+j] = gVec_c_tmp[j];
         }
     }
-
 }
-
 
 #if USE_C99_CODE
 static inline
