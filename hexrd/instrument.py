@@ -1785,7 +1785,8 @@ class GenerateEtaOmeMaps(object):
 
     """
     def __init__(self, image_series_dict, instrument, plane_data,
-                 active_hkls=None, eta_step=0.25, threshold=None):
+                 active_hkls=None, eta_step=0.25, threshold=None, 
+                 ome_period=(0, 360)):
         """
         image_series must be OmegaImageSeries class
         instrument_params must be a dict (loaded from yaml spec)
@@ -1833,10 +1834,12 @@ class GenerateEtaOmeMaps(object):
         # handle omegas
         omegas_array = image_series_dict[det_key].metadata['omega']
         self._omegas = mapAngle(
-            np.radians(np.average(omegas_array, axis=1))
+            np.radians(np.average(omegas_array, axis=1)), 
+            np.radians(ome_period)
         )
         self._omeEdges = mapAngle(
-            np.radians(np.r_[omegas_array[:, 0], omegas_array[-1, 1]])
+            np.radians(np.r_[omegas_array[:, 0], omegas_array[-1, 1]]), 
+            np.radians(ome_period)
         )
 
         # handle etas

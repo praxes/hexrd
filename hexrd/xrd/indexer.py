@@ -1,12 +1,12 @@
 #! /usr/bin/env python
-# ============================================================
+# =============================================================================
 # Copyright (c) 2012, Lawrence Livermore National Security, LLC.
 # Produced at the Lawrence Livermore National Laboratory.
 # Written by Joel Bernier <bernier2@llnl.gov> and others.
 # LLNL-CODE-529294.
 # All rights reserved.
 #
-# This file is part of HExrd. For details on dowloading the source,
+# This file is part of HEXRD. For details on dowloading the source,
 # see the file COPYING.
 #
 # Please also see the file LICENSE.
@@ -24,7 +24,7 @@
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
-# ============================================================
+# =============================================================================
 import sys
 import os
 import copy
@@ -52,6 +52,8 @@ from hexrd.xrd import transforms      as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd import USE_NUMBA
 
+# FIXME: numba implementation of paintGridThis is broken
+USE_NUMBA = 0  # OVERRIDE NUMBA
 if USE_NUMBA:
     import numba
 
@@ -139,7 +141,7 @@ class GrainSpotter:
         gffData = num.loadtxt(gffFile)
         if gffData.ndim == 1:
             gffData = gffData.reshape(1, len(gffData))
-        gffData_U = gffData[:,6:6+9]
+        gffData_U = gffData[:, 6:6+9]
 
         # process for output
         retval = convertUToRotMat(gffData_U, U0, symTag=symTag)
@@ -153,10 +155,12 @@ class GrainSpotter:
     def __del__(self):
         self.cleanup()
         return
+
     def cleanup(self):
         for fname in self.__tempFNameList:
             os.remove(fname)
         return
+
 
 def convertUToRotMat(Urows, U0, symTag='Oh', display=False):
     """
@@ -176,7 +180,7 @@ def convertUToRotMat(Urows, U0, symTag='Oh', display=False):
             "input must have 9 columns; received %d" % (testDim)
             )
 
-    qin  = quatOfRotMat(Urows.reshape(numU, 3, 3))
+    qin = quatOfRotMat(Urows.reshape(numU, 3, 3))
     # what the hell is happening here?:
     qout = num.dot(
         quatProductMatrix(quatOfRotMat(fableSampCOB), mult='left'),
@@ -199,6 +203,7 @@ def convertUToRotMat(Urows, U0, symTag='Oh', display=False):
     Uout = rotMatOfQuat(qout)
     return Uout
 
+
 def convertRotMatToFableU(rMats, U0=num.eye(3), symTag='Oh', display=False):
     """
     Makes GrainSpotter gff ouput
@@ -210,9 +215,7 @@ def convertRotMatToFableU(rMats, U0=num.eye(3), symTag='Oh', display=False):
     Urows comes from grainspotter's gff output
     U0 comes from xrd.crystallography.latticeVectors.U0
     """
-    numU = num.shape(num.atleast_3d(rMats))[0]
-
-    qin  = quatOfRotMat(num.atleast_3d(rMats))
+    qin = quatOfRotMat(num.atleast_3d(rMats))
     # what the hell is this?:
     qout = num.dot(
         quatProductMatrix(quatOfRotMat(fableSampCOB.T), mult='left'),
@@ -927,18 +930,18 @@ def paintgrid_init(params):
     paramMP['valid_ome_spans'] = _normalize_ranges(paramMP['omeMin'],
                                                    paramMP['omeMax'],
                                                    min(paramMP['omePeriod']))
+    return
 
 
-
-################################################################################
-
+###############################################################################
+#
 # paintGridThis contains the bulk of the process to perform for paintGrid for a
 # given quaternion. This is also used as the basis for multiprocessing, as the
 # work is split in a per-quaternion basis among different processes.
 # The remainding arguments are marshalled into the module variable "paramMP".
-
-# There is a version of PaintGridThis using numba, and another version used when
-# numba is not available. The numba version should be noticeably faster.
+#
+# There is a version of PaintGridThis using numba, and another version used
+# when numba is not available. The numba version should be noticeably faster.
 
 def _check_dilated(eta, ome, dpix_eta, dpix_ome, etaOmeMap, threshold):
     """This is part of paintGridThis:
@@ -948,15 +951,29 @@ def _check_dilated(eta, ome, dpix_eta, dpix_ome, etaOmeMap, threshold):
 
     Note this function is "numba friendly" and will be jitted when using numba.
 
+    TODO: currently behaves like "num.any" call for values above threshold.
+    There is some ambigutiy if there are NaNs in the dilation range, but it
+    hits a value above threshold first.  Is that ok???
+
+    FIXME: works in non-numba implementation of paintGridThis only
+    <JVB 2017-04-27>
     """
     i_max, j_max = etaOmeMap.shape
-    ome_start, ome_stop = max(ome - dpix_ome, 0), min(ome + dpix_ome + 1, i_max)
-    eta_start, eta_stop = max(eta - dpix_eta, 0), min(eta + dpix_eta + 1, j_max)
+    ome_start, ome_stop = (
+        max(ome - dpix_ome, 0),
+        min(ome + dpix_ome + 1, i_max)
+    )
+    eta_start, eta_stop = (
+        max(eta - dpix_eta, 0),
+        min(eta + dpix_eta + 1, j_max)
+    )
 
     for i in range(ome_start, ome_stop):
         for j in range(eta_start, eta_stop):
-            if etaOmeMap[i,j] > threshold:
+            if etaOmeMap[i, j] > threshold:
                 return 1
+            if num.isnan(etaOmeMap[i, j]):
+                return -1
     return 0
 
 
@@ -1003,7 +1020,7 @@ if USE_NUMBA:
         # Compute the oscillation angles of all the symHKLs at once
         oangs_pair = xfcapi.oscillAnglesOfHKLs(symHKLs, 0., rMat, bMat,
                                                wavelength)
-        #pdb.set_trace()
+        # pdb.set_trace()
         return _filter_and_count_hits(oangs_pair[0], oangs_pair[1], symHKLs_ix,
                                       etaEdges, valid_eta_spans,
                                       valid_ome_spans, omeEdges, omePeriod,
@@ -1063,6 +1080,9 @@ if USE_NUMBA:
         Note the function returns both, if it was a hit and if it passed the the
         filtering, as we'll want to discard the filtered values when computing
         the hit percentage.
+        
+        CAVEAT: added map-based nan filtering to _check_dilated; this may not
+        be the best option.  Perhaps filter here? <JVB 2017-04-27>
 
         """
         tth, eta, ome = ang
@@ -1095,9 +1115,10 @@ if USE_NUMBA:
         ome = omeIndices[ome_idx]
         isHit = _check_dilated(eta, ome, dpix_eta, dpix_ome,
                                etaOmeMaps[hkl], threshold[hkl])
-
-        return isHit, 1
-
+        if isHit == -1:
+            return 0, 0
+        else:
+            return isHit, 1
 
     @numba.njit
     def _filter_and_count_hits(angs_0, angs_1, symHKLs_ix, etaEdges,
@@ -1126,20 +1147,26 @@ if USE_NUMBA:
             if i >= end_curr:
                 curr_hkl_idx += 1
                 end_curr = symHKLs_ix[curr_hkl_idx+1]
-            hit, not_filtered = _angle_is_hit(angs_0[i], eta_offset, ome_offset,
-                                              curr_hkl_idx, valid_eta_spans,
-                                              valid_ome_spans, etaEdges,
-                                              omeEdges, etaOmeMaps, etaIndices,
-                                              omeIndices, dpix_eta, dpix_ome,
-                                              threshold)
+
+           # first solution
+            hit, not_filtered = _angle_is_hit(
+                angs_0[i], eta_offset, ome_offset,
+                curr_hkl_idx, valid_eta_spans,
+                valid_ome_spans, etaEdges,
+                omeEdges, etaOmeMaps, etaIndices,
+                omeIndices, dpix_eta, dpix_ome,
+                threshold)
             hits += hit
             total += not_filtered
-            hit, not_filtered = _angle_is_hit(angs_1[i], eta_offset, ome_offset,
-                                              curr_hkl_idx, valid_eta_spans,
-                                              valid_ome_spans, etaEdges,
-                                              omeEdges, etaOmeMaps, etaIndices,
-                                              omeIndices, dpix_eta, dpix_ome,
-                                              threshold)
+          
+            # second solution
+            hit, not_filtered = _angle_is_hit(
+                angs_1[i], eta_offset, ome_offset,
+                curr_hkl_idx, valid_eta_spans,
+                valid_ome_spans, etaEdges,
+                omeEdges, etaOmeMaps, etaIndices,
+                omeIndices, dpix_eta, dpix_ome,
+                threshold)
             hits += hit
             total += not_filtered
 
@@ -1201,13 +1228,12 @@ else:
                                                  valid_ome_spans, omePeriod)
 
         if len(hkl_idx > 0):
-            hits = _count_hits(eta_idx, ome_idx, hkl_idx, etaOmeMaps,
+            hits, predicted = _count_hits(eta_idx, ome_idx, hkl_idx, etaOmeMaps,
                                etaIndices, omeIndices, dpix_eta, dpix_ome,
                                threshold)
-            retval = float(hits) / float(len(hkl_idx))
-        else:
-            retval = 0
-
+            retval = float(hits) / float(predicted)
+            if retval > 1:
+                import pdb; pdb.set_trace()
         return retval
 
     def _normalize_angs_hkls(angs_0, angs_1, omePeriod, symHKLs_ix):
@@ -1307,10 +1333,12 @@ else:
             isHit = _check_dilated(eta, ome, dpix_eta, dpix_ome,
                                    etaOmeMaps[iHKL], threshold[iHKL])
 
-            if isHit:
+            if isHit > 0:
                 hits += 1
+            if isHit == -1:
+                predicted -= 1
 
-        return hits
+        return hits, predicted
 
 
 def writeGVE(spotsArray, fileroot, **kwargs):

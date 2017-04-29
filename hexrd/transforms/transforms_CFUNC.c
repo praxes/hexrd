@@ -75,9 +75,9 @@ void anglesToDvec_cfunc(long int nvecs, double * angs,
 {
   /*
    *  takes an angle spec (2*theta, eta, omega) for nvecs g-vectors and
-   *  returns the unit g-vector components in the crystal frame
+   *  returns the unit d-vector components in the crystal frame
    *
-   *  For unit g-vector in the lab frame, spec rMat_c = Identity and
+   *  For unit d-vector in the lab frame, spec rMat_c = Identity and
    *  overwrite the omega values with zeros
    */
   int i, j, k, l;
@@ -94,7 +94,7 @@ void anglesToDvec_cfunc(long int nvecs, double * angs,
     gVec_e[1] = sin(angs[3*i]) * sin(angs[3*i+1]);
     gVec_e[2] = -cos(angs[3*i]);
 
-    /* take from beam frame to lab frame */
+    /* take from BEAM frame to LAB frame */
     for (j=0; j<3; j++) {
       gVec_l[j] = 0.0;
       for (k=0; k<3; k++) {
@@ -105,7 +105,7 @@ void anglesToDvec_cfunc(long int nvecs, double * angs,
     /* need pointwise rMat_s according to omega */
     makeOscillRotMat_cfunc(chi, angs[3*i+2], rMat_s);
 
-    /* Compute dot(rMat_c.T, rMat_s.T) and hit against gVec_l */
+    /* compute dot(rMat_c.T, rMat_s.T) and hit against gVec_l */
     for (j=0; j<3; j++) {
       for (k=0; k<3; k++) {
 	rMat_ctst[3*j+k] = 0.0;

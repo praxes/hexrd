@@ -19,16 +19,15 @@ app:
 
 requirements:
   build:
-    # - nomkl # in case MKL is broken on Linux
     - h5py
     - numpy
     - python
     - setuptools
   run:
     - dill
+    - fabio
     - h5py
     - matplotlib
-    # - nomkl # in case MKL is broken on Linux
     - numba
     - numpy
     - progressbar >=2.3
@@ -37,6 +36,7 @@ requirements:
     - pyyaml
     - qtconsole
     - scikit-learn
+    - scikit-image
     - scipy
     - wxpython
 
