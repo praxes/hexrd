@@ -120,14 +120,16 @@ def execute(args, parser):
             pr.enable()
 
         # process the data
+        gid_list = None
         if args.grains is not None:
-            args.grains = [int(i) for i in args.grains.split(',')]
+            gid_list = [int(i) for i in args.grains.split(',')]
+            
         fit_grains(
             cfg,
             force=args.force,
             clean=args.clean,
             show_progress=not args.quiet,
-            ids_to_refine=args.grains,
+            ids_to_refine=gid_list,
             )
 
         if args.profile:

@@ -4,9 +4,8 @@ package:
 
 source:
   #git_url: https://github.com/joelvbernier/hexrd.git
-  #git_tag: master # edit to point to specific branch or tag
-  git_url: ../
-  git_tag: v0.3.x
+  #git_tag: v0.3.x
+  path: ../
 
 build:
   detect_binary_files_with_prefix: true
@@ -38,6 +37,7 @@ requirements:
     - scikit-learn
     - scipy
     - wxpython
+    - joblib
 
 test:
   imports:

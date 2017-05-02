@@ -2,7 +2,7 @@
 # This script runs alternative GE_41RT implementation against the one
 # in the hexrd.xrd package. The results are compared against the
 # original using np.allclose() to ensure correctness. Timing information
-# is also gathered used the numbapro.nvtx explicit instrumentation
+# is also gathered used the nvtxpy explicit instrumentation
 # profiler (which happens to be integrated with the nvidia nvvp timeline
 # profiler application).
 #
@@ -26,7 +26,7 @@ import cPickle as pickle
 from scipy import optimize as opt
 import numpy as np
 import numba
-from numbapro import nvtx
+import nvtxpy as nvtx
 # import the reference implementation
 from hexrd.xrd.distortion import GE_41RT
 

@@ -64,8 +64,10 @@ def load_frames(reader, cfg, show_progress=False):
     # TODO: this should be updated to read only the frames requested in cfg
     # either the images start, step, stop, or based on omega start, step, stop
     start = time.time()
-
-    n_frames = reader.getNFrames()
+    if cfg.image_series.images.stop is not None:
+        n_frames = cfg.image_series.images.stop
+    else:
+        n_frames = reader.getNFrames()
     logger.info("reading %d frames of data, storing values > %.1f", n_frames, cfg.fit_grains.threshold)
     if show_progress:
         widgets = [Bar('>'), ' ', ETA(), ' ', ReverseBar('<')]
@@ -121,12 +123,23 @@ def get_frames(reader, cfg, show_progress=False, force=False, clean=False):
 
     # temporary catch if reader is None; i.e. raw data not here but cache is
     # ...NEED TO FIX THIS WHEN AXING OLD READER CLASS!
+    # the stop is treated as total number of frames read, which is inconsistent with 
+    # how the start value is used, which specifies empty frames to skip at the start
+    # of each image.  What a fucking mess!
     if reader is not None:
-        n_frames = reader.getNFrames()
+        # override
+        if cfg.image_series.images.stop is not None:
+            n_frames = cfg.image_series.images.stop
+        else:
+            n_frames = reader.getNFrames()
     else:
-        n_frames = int( (cfg.image_series.omega.stop \
-                         - cfg.image_series.omega.start) \
-                         / float(cfg.image_series.omega.step) )
+        # still need a fix here for when you have cache only...
+        if cfg.image_series.images.stop is not None:
+            n_frames = cfg.image_series.images.stop
+        else:
+            n_frames = int( (cfg.image_series.omega.stop \
+                            - cfg.image_series.omega.start) \
+                            / float(cfg.image_series.omega.step) )
     logger.info("reading %d frames from cache", n_frames)
 
     with np.load(cache_file) as npz:

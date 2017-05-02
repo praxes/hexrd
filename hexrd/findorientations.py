@@ -5,6 +5,7 @@ import logging
 import multiprocessing as mp
 import os
 import time
+from collections import namedtuple
 
 import numpy as np
 #np.seterr(over='ignore', invalid='ignore')
@@ -13,18 +14,15 @@ import scipy.cluster as cluster
 from scipy import ndimage
 
 from hexrd import matrixutil as mutil
+from hexrd.xrd import experiment as expt
 from hexrd.xrd import indexer as idx
 from hexrd.xrd import rotations as rot
 from hexrd.xrd import symmetry as sym
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.coreutil import initialize_experiment
-
 from hexrd.xrd import xrdutil
-from hexrd.xrd.xrdutil import simulateGVecs
-
 from hexrd.xrd import distortion as dFuncs
-
 from hexrd.fitgrains import get_instrument_parameters
 
 logger = logging.getLogger(__name__)
@@ -37,14 +35,22 @@ try:
     import sklearn
     vstring = sklearn.__version__.split('.')
     if vstring[0] == '0' and int(vstring[1]) >= 14:
-        from sklearn.cluster import dbscan
+        import sklearn.cluster
         from sklearn.metrics.pairwise import pairwise_distances
         have_sklearn = True
 except ImportError:
     pass
 
+have_parallel_dbscan = False
+try:
+    import parallel_dbscan
+    have_parallel_dbscan = True
+except ImportError:
+    pass
 
-def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndiv, filt_stdev=0.8, ncpus=1):
+
+def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids,
+                                fiber_ndiv, filt_stdev=1.0, ncpus=1):
     """
     From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
@@ -67,11 +73,11 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
     csym = pd.getLaueGroup()
 
     params = {
-        'bMat':bMat,
-        'chi':chi,   
-        'csym':csym,
-        'fiber_ndiv':fiber_ndiv,
-         }
+        'bMat': bMat,
+        'chi': chi,
+        'csym': csym,
+        'fiber_ndiv': fiber_ndiv
+    }
 
     ############################################
     ##    Labeling of spots from seed hkls    ##
@@ -83,12 +89,11 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
     coms     = []
     for i in seed_hkl_ids:
         # First apply filter
-        this_map_f = -ndimage.filters.gaussian_laplace(eta_ome.dataStore[i], filt_stdev)
+        this_map_f = -ndimage.filters.gaussian_laplace(eta_ome.dataStore[i],
+                                                       filt_stdev)
 
-        labels_t, numSpots_t = ndimage.label(
-            this_map_f > threshold,
-            structureNDI_label
-            )
+        labels_t, numSpots_t = ndimage.label(this_map_f > threshold,
+                                             structureNDI_label )
         coms_t = np.atleast_2d(
             ndimage.center_of_mass(
                 this_map_f,
@@ -96,7 +101,6 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
                 index=np.arange(1, np.amax(labels_t)+1)
                 )
             )
-        #labels.append(labels_t)
         numSpots.append(numSpots_t)
         coms.append(coms_t)
         pass
@@ -106,12 +110,9 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
             if not np.isnan(coms[i][ispot][0]):
                 ome_c = eta_ome.omeEdges[0] + (0.5 + coms[i][ispot][0])*del_ome
                 eta_c = eta_ome.etaEdges[0] + (0.5 + coms[i][ispot][1])*del_eta
-                input_p.append(
-                    np.hstack(
-                        [hkls[:, pd_hkl_ids[i]], 
-                         tTh[pd_hkl_ids[i]], eta_c, ome_c]
-                    )
-                )
+                input_p.append(np.hstack([hkls[:, pd_hkl_ids[i]],
+                                          tTh[pd_hkl_ids[i]],
+                                          eta_c, ome_c]))
                 pass
             pass
         pass
@@ -121,27 +122,27 @@ def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids, fiber_ndi
     qfib = None
     if ncpus > 1:
         # multiple process version
-        pool = mp.Pool(ncpus, discretefiber_init, (params, ))
-        qfib = pool.map(discretefiber_reduced, input_p) # chunksize=chunksize)
+        pool = mp.Pool(ncpus, discrete_fiber_init, (params, ))
+        qfib = pool.map(discrete_fiber_reduced, input_p) # chunksize=chunksize)
         pool.close()
     else:
-        # single process version.
+        # single process version
         global paramMP
-        discretefiber_init(params) # sets paramMP
-        qfib = map(discretefiber_reduced, input_p)
+        discrete_fiber_init(params)
+        qfib = map(discrete_fiber_reduced, input_p)
         paramMP = None # clear paramMP
-    elapsed = (time.time() - start)
-    logger.info("fiber generation took %.3f seconds", elapsed)
-    
+
+    elapsed = (time.time()-start)
+    logger.info('fiber generation took %.3f seconds', elapsed)
+
     return np.hstack(qfib)
 
 
-def discretefiber_init(params):
+def discrete_fiber_init(params):
     global paramMP
     paramMP = params
 
-
-def discretefiber_reduced(params_in):
+def discrete_fiber_reduced(params_in):
     """
     input parameters are [hkl_id, com_ome, com_eta]
     """
@@ -151,7 +152,7 @@ def discretefiber_reduced(params_in):
     fiber_ndiv = paramMP['fiber_ndiv']
 
     hkl = params_in[:3].reshape(3, 1)
-        
+
     gVec_s = xfcapi.anglesToGVec(
         np.atleast_2d(params_in[3:]),
         chi=chi,
@@ -164,10 +165,207 @@ def discretefiber_reduced(params_in):
             B=bMat,
             ndiv=fiber_ndiv,
             invert=False,
-            csym=csym
-            )[0]
-        )
+            csym=csym)[0]
+    )
+
     return tmp
+
+
+_clustering_option = namedtuple('_clustering_option', 'fn')
+_clustering_algorithm_dict = {}
+
+
+class ClusteringError(Exception):
+    """A ClusteringError that contains a reason (message) of failure as well as an
+    optional alternative method of clustering to use."""
+    def __init__(self, message, alternative=None):
+        super(ClusteringError, self).__init__(message)
+        self.alternative = alternative
+
+
+def get_supported_clustering_algorithms():
+    """get a list of the supported clustering algorithms"""
+    # note: this is used by the yaml parser to know available
+    #       options
+    return _clustering_algorithm_dict.keys()
+
+
+def clustering_algorithm(key):
+    """A decorator that registers clustering algorithms automagically.
+
+    A valid cluster algorithm must return an array of [int] indices
+    that map each fiber to its corresponding cluster id.
+
+    Valid clusters id are positive integers, with 0 reserved for noise
+    fibers where applicable.
+
+    """
+    def wrapper(fn):
+        assert key not in _clustering_algorithm_dict
+        val = _clustering_option(fn)
+        _clustering_algorithm_dict.update({key: val })
+        return fn
+
+    return wrapper
+
+
+def _check_dbscan():
+    if not have_sklearn:
+        msg = 'sklearn >= 0.14 required to use dbscan; using fclusterdata'
+        raise ClusteringError(msg, alternative='fclusterdata')
+
+
+def _normalize_labels_from_dbscan(labels):
+    """returns labels normalized as a numpy array with 1-based indices and -1 for
+    noise. Input are the labels as returned by sklearn.cluster.dbscan
+
+    """
+    cl = np.array(labels, dtype=int)
+    noise_points = cl == -1
+    cl += 1
+    cl[noise_points] = -1 # remark it as -1
+    logger.info("dbscan found %d noise points", sum(noise_points))
+    return cl
+
+
+def _compute_centroids_split(cl, qfib_r, qsym):
+    """generic compute centroids (clusters may be split)"""
+    if np.any(cl == -1):
+        nblobs = len(np.unique(cl)) - 1
+    else:
+        nblobs = len(np.unique(cl))
+
+    qbar = np.zeros((4, nblobs))
+    for i in range(nblobs):
+        cluster_indices = (cl == i + 1)
+        this_cluster = qfib_r[:, cluster_indices]
+        npts = sum(cluster_indices)
+        this_cluster = this_cluster.reshape(4, npts)
+        qbar[:, i] = rot.quatAverageCluster(this_cluster, qsym).flatten()
+
+    return np.atleast_2d(qbar)
+
+
+def _compute_centroids_dense(cl, qfib_r, qsym):
+    """compute centroids when clusters are compact"""
+    if np.any(cl == -1):
+        nblobs = len(np.unique(cl)) - 1
+    else:
+        nblobs = len(np.unique(cl))
+
+    qbar = np.zeros((4, nblobs))
+    for i in range(nblobs):
+        cluster_indices = (cl == i + 1)
+        this_cluster = qfib_r[:, cluster_indices]
+        qbar[:, i] = np.average(np.atleast_2d(this_cluster), axis=1)
+    qbar = sym.toFundamentalRegion(mutil.unitVector(qbar), crysSym=qsym)
+    return np.atleast_2d(qbar)
+
+
+def _handle_duplicate_orientations(qbar, qsym, cl_radius):
+    """removes duplicate orienations within a tolerance"""
+
+    if qbar.size > 4:
+        # need nblobs coming in to detect duplicates
+        # WARNING: qbat assumed to be 2-d with shape (4, n)
+        nblobs = qbar.shape[1]
+        logger.info('\tchecking for duplicate orientations...')
+        def quat_distance(x, y):
+            return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
+        cl = cluster.hierarchy.fclusterdata(qbar.T, np.radians(cl_radius),
+                                            criterion='distance',
+                                            metric=quat_distance)
+        nblobs_new = len(np.unique(cl))
+        if nblobs_new < nblobs:
+            logger.info("\tfound %d duplicates within %f degrees"
+                        % (nblobs - nblobs_new, cl_radius))
+
+            # if duplicates found, average the duplicates
+            tmp = np.zeros((4, nblobs_new))
+            for i in range(nblobs_new):
+                # TODO: this could be simplified and made faster.
+                npts = sum(cl == i + 1)
+                duplicates = qbar[:, cl == i+1].reshape(4, npts)
+                tmp[:,i] = rot.quatAverageCluster(duplicates, qsym).flatten()
+                pass
+            qbar = tmp
+            pass
+        pass
+    return qbar
+
+
+@clustering_algorithm('fclusterdata')
+def cluster_fclusterdata(qfib_r, qsym, cl_radius, min_samples):
+    num_ors = qfib_r.shape[1]
+    if num_ors > 25000:
+        if have_sklearn:
+            msg = 'Size too big for fclusterdata. Defaulting to ort-dbscan.'
+            raise ClusteringError(msg, alternative='ort-dbscan')
+        else:
+            msg = 'Size too big for fclusterdata and no dbscan present.'
+            raise ClusteringError(msg)
+
+    pts = qfib_r.T
+    qsym = np.array(qsym.T, order='C').T
+    def quat_distance(x, y):
+        return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
+    labels = cluster.hierarchy.fclusterdata(pts, np.radians(cl_radius),
+                                            criterion='distance', metric = quat_distance)
+    return _compute_centroids_split(labels, qfib_r, qsym), labels
+
+
+@clustering_algorithm('dbscan')
+def cluster_dbscan(qfib_r, qsym, cl_radius, min_samples):
+    # CAVEAT: the euclidean misorientation of two quaternions  
+    # is ~2x smaller than the true quaternion misorientation
+    # for magnitudes < ~5deg
+    _check_dbscan()
+    dbscan = sklearn.cluster.dbscan
+    pts = qfib_r.T
+    _, labels = dbscan(pts, eps=0.5*np.radians(cl_radius),
+                       min_samples=min_samples, metric='minkowski', p=2)
+    labels = _normalize_labels_from_dbscan(labels)
+    qbar = _compute_centroids_dense(labels, qfib_r, qsym)
+    qbar = _handle_duplicate_orientations(qbar, qsym, cl_radius)
+    return qbar, labels
+
+
+@clustering_algorithm('ort-dbscan')
+def cluster_ort_dbscan(qfib_r, qsym, cl_radius, min_samples):
+    # CAVEAT: the euclidean misorientation of the vector parts of two
+    # quaternion is ~(2+eps)x smaller than the true quaternion misorientation 
+    # for magnitudes < ~5deg.  The distribution is generally larger than the
+    # full quaternion 2-norm, however!!!
+    _check_dbscan()
+    dbscan = sklearn.cluster.dbscan
+    pts = qfib_r[1:, :].T
+    _, labels = dbscan(pts, eps=0.5*np.radians(cl_radius),
+                       min_samples=min_samples, metric='minkowski', p=2)
+    labels = _normalize_labels_from_dbscan(labels)
+    qbar = _compute_centroids_dense(labels, qfib_r, qsym)
+    qbar = _handle_duplicate_orientations(qbar, qsym, cl_radius)
+    return qbar, labels
+
+
+@clustering_algorithm('sph-dbscan')
+def cluster_sph_dbscan(qfib_r, qsym, cl_radius, min_samples):
+    _check_dbscan()
+    num_ors = qfib_r.shape[1]
+    if num_ors > 25000:
+        msg = 'Size too big for sph-dbscan. Defaulting to dbscan.'
+        raise ClusteringError(msg, alternative='dbscan')
+
+    dbscan = sklearn.cluster.dbscan
+    pts = qfib_r.T
+    qsym = np.array(qsym.T, order='C').T
+    def quat_distance(x, y):
+        return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
+
+    pdist = pairwise_distances(pts, metric=quat_distance, n_jobs=1)
+    _, labels = dbscan(pdist, eps=np.radians(cl_radius),
+                       min_samples=min_samples, metric='precomputed')
+    labels = _normalize_labels_from_dbscan(labels)
+    return _compute_centroids_split(labels, qfib_r, qsym), labels
 
 
 def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, radius=None):
@@ -186,7 +384,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
     if radius is not None:
         cl_radius = radius
 
-    start = time.clock() # time this
+    t0 = time.clock() # time this
 
     num_above = sum(np.array(compl) > min_compl)
     if num_above == 0:
@@ -197,130 +395,38 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
         qbar = qfib[:, np.array(compl) > min_compl]
         cl = [1]
     else:
-        # use compiled module for distance
-        # just to be safe, must order qsym as C-contiguous
-        qsym  = np.array(qsym.T, order='C').T
-        def quat_distance(x, y):
-            return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
-
-        qfib_r = qfib[:, np.array(compl) > min_compl]
-
-        num_ors = qfib_r.shape[1]
-
-        if num_ors > 25000:
-            if algorithm == 'sph-dbscan' or algorithm == 'fclusterdata':
-                logger.info("falling back to euclidean DBSCAN")
-                algorithm = 'ort-dbscan'
-            #raise RuntimeError, \
-            #    "Requested clustering of %d orientations, which would be too slow!" %qfib_r.shape[1]
+        qfib_r = np.ascontiguousarray(qfib[:, np.array(compl) > min_compl])
 
         logger.info(
             "Feeding %d orientations above %.1f%% to clustering",
-            num_ors, 100*min_compl
+            qfib_r.shape[1], 100*min_compl
             )
 
-        if algorithm == 'dbscan' and not have_sklearn:
-            algorithm = 'fclusterdata'
-            logger.warning(
-                "sklearn >= 0.14 required for dbscan; using fclusterdata"
+        cl_dict = _clustering_algorithm_dict
+        if min_samples is None or cfg.find_orientations.use_quaternion_grid is not None:
+            min_samples = 1
+        cluster_args = [qfib_r, qsym, cl_radius, min_samples]
+        while algorithm is not None:
+            if algorithm not in cl_dict:
+                raise RuntimeError(
+                    "Clustering '{0}' not recognized".format(algorithm)
                 )
+            try:
+                logger.info("Trying '%s' over %d orientations",
+                            algorithm, qfib_r.shape[1])
+                qbar, cl = cl_dict[algorithm].fn(*cluster_args)
+                algorithm_used = algorithm
+                algorithm = None
+            except ClusteringError as error:
+                fb = error.alternative
+                if fb is None:
+                    msg = "Clustering '{0}' failed: {1}\n no fallback."
+                    raise RuntimeError(msg.format(algorithm, error))
+                msg = "Clustering '{0}' failed: {2}\ntrying '{1}'"
+                logger.info(msg.format(algorithm, fb, error))
+                algorithm = fb
 
-        if algorithm == 'dbscan' or algorithm == 'ort-dbscan' or algorithm == 'sph-dbscan':
-            # munge min_samples according to options
-            if min_samples is None or cfg.find_orientations.use_quaternion_grid is not None:
-                min_samples = 1
-
-            if algorithm == 'sph-dbscan':
-                logger.info("using spherical DBSCAN")
-                # compute distance matrix
-                pdist = pairwise_distances(
-                    qfib_r.T, metric=quat_distance, n_jobs=1
-                    )
-
-                # run dbscan
-                core_samples, labels = dbscan(
-                    pdist,
-                    eps=np.radians(cl_radius),
-                    min_samples=min_samples,
-                    metric='precomputed'
-                    )
-            else:
-                if algorithm == 'ort-dbscan':
-                    logger.info("using euclidean orthographic DBSCAN")
-                    pts = qfib_r[1:, :].T
-                    eps = 0.25*np.radians(cl_radius)
-                else:
-                    logger.info("using euclidean DBSCAN")
-                    pts = qfib_r.T
-                    eps = 0.5*np.radians(cl_radius)
-
-                # run dbscan
-                core_samples, labels = dbscan(
-                    pts,
-                    eps=eps,
-                    min_samples=min_samples,
-                    metric='minkowski', p=2,
-                    )
-
-            # extract cluster labels
-            cl = np.array(labels, dtype=int) # convert to array
-            noise_points = cl == -1 # index for marking noise
-            cl += 1 # move index to 1-based instead of 0
-            cl[noise_points] = -1 # re-mark noise as -1
-            logger.info("dbscan found %d noise points", sum(noise_points))
-        elif algorithm == 'fclusterdata':
-            logger.info("using spherical fclusetrdata")
-            cl = cluster.hierarchy.fclusterdata(
-                qfib_r.T,
-                np.radians(cl_radius),
-                criterion='distance',
-                metric=quat_distance
-                )
-        else:
-            raise RuntimeError(
-                "Clustering algorithm %s not recognized" % algorithm
-                )
-
-        # extract number of clusters
-        if np.any(cl == -1):
-            nblobs = len(np.unique(cl)) - 1
-        else:
-            nblobs = len(np.unique(cl))
-
-        """ PERFORM AVERAGING TO GET CLUSTER CENTROIDS """
-        qbar = np.zeros((4, nblobs))
-        for i in range(nblobs):
-            npts = sum(cl == i + 1)
-            qbar[:, i] = rot.quatAverageCluster(
-                qfib_r[:, cl == i + 1].reshape(4, npts), qsym
-            ).flatten()
-            pass
-        pass
-    
-    if (algorithm == 'dbscan' or algorithm == 'ort-dbscan') \
-      and qbar.size/4 > 1:
-        logger.info("\tchecking for duplicate orientations...")
-        cl = cluster.hierarchy.fclusterdata(
-            qbar.T,
-            np.radians(cl_radius),
-            criterion='distance',
-            metric=quat_distance)
-        nblobs_new = len(np.unique(cl)) 
-        if nblobs_new < nblobs:
-            logger.info("\tfound %d duplicates within %f degrees" \
-                        %(nblobs-nblobs_new, cl_radius))
-            tmp = np.zeros((4, nblobs_new))
-            for i in range(nblobs_new):
-                npts = sum(cl == i + 1)
-                tmp[:, i] = rot.quatAverageCluster(
-                    qbar[:, cl == i + 1].reshape(4, npts), qsym
-                ).flatten()
-                pass
-            qbar = tmp
-            pass
-        pass
-    
-    logger.info("clustering took %f seconds", time.clock() - start)
+    logger.info("clustering took %f seconds", time.clock() - t0)
     logger.info(
         "Found %d orientation clusters with >=%.1f%% completeness"
         " and %2f misorientation",
@@ -329,7 +435,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
         cl_radius
         )
 
-    return np.atleast_2d(qbar), cl
+    return qbar, cl
 
 
 def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None, clean=False):
@@ -353,6 +459,7 @@ def load_eta_ome_maps(cfg, pd, reader, detector, hkls=None, clean=False):
     else:
         logger.info('clean option specified; recomputing eta/ome orientation maps')
         return generate_eta_ome_maps(cfg, pd, reader, detector, hkls)
+
 
 def generate_eta_ome_maps(cfg, pd, reader, detector, hkls=None):
 
@@ -403,12 +510,13 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
 
     NOTE: single cfg instance, not iterator!
     """
+
     # ...make this an attribute in cfg?
-    analysis_id = '%s_%s' %(
+    analysis_id = '%s_%s' % (
         cfg.analysis_name.strip().replace(' ', '-'),
-        cfg.material.active.strip().replace(' ', '-'),
-        )
-    
+        cfg.material.active.strip().replace(' ', '-')
+    )
+
     # a goofy call, could be replaced with two more targeted calls
     pd, reader, detector = initialize_experiment(cfg)
 
@@ -433,8 +541,6 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     else:
         distortion = None
 
-    min_compl = cfg.find_orientations.clustering.completeness
-
     # start logger
     logger.info("beginning analysis '%s'", cfg.analysis_name)
 
@@ -447,7 +553,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     try:
         # are we searching the full grid of orientation space?
         qgrid_f = cfg.find_orientations.use_quaternion_grid
-        quats = np.load(qgrid_f)
+        quats = np.load(qgrid_f).T
         logger.info("Using %s for full quaternion search", qgrid_f)
         hkl_ids = None
     except (IOError, ValueError, AttributeError):
@@ -469,7 +575,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
             cfg.find_orientations.threshold,
             cfg.find_orientations.seed_search.hkl_seeds,
             cfg.find_orientations.seed_search.fiber_ndiv,
-            ncpus=cfg.multiprocessing,
+            ncpus=cfg.multiprocessing
             )
         if save_as_ascii:
             np.savetxt(
@@ -478,6 +584,8 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
                 fmt="%.18e",
                 delimiter="\t"
                 )
+            pass
+        pass # close conditional on grid search
 
     # generate the completion maps
     logger.info("Running paintgrid on %d trial orientations", quats.shape[1])
@@ -505,12 +613,10 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
         np.savetxt(os.path.join(cfg.working_dir, 'completeness.dat'), compl)
     else:
         np.save(
-            os.path.join(
-                cfg.working_dir,
-                'scored_orientations_%s.npy' %analysis_id
-                ),
+            os.path.join(cfg.working_dir,
+                         'scored_orientations_%s.npy' % analysis_id),
             np.vstack([quats, compl])
-            )
+        )
 
     ##########################################################
     ##   Simulate N random grains to get neighborhood size  ##
@@ -527,24 +633,26 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
                                       xf.zeroVec.flatten(),
                                       xf.vInv_ref.flatten()
                                       ])
-            sim_results = simulateGVecs(pd,
-                                        detector_params,
-                                        grain_params,
-                                        ome_range=(ome_range,),
-                                        ome_period=(ome_range[0], ome_range[0]+2*np.pi),
-                                        eta_range=np.radians(cfg.find_orientations.eta.range),
-                                        panel_dims=panel_dims,
-                                        pixel_pitch=cfg.instrument.detector.pixels.size,
-                                        distortion=distortion,
-                                        )
+
+            eta_range = np.radians(cfg.find_orientations.eta.range)
+            pixel_pitch = cfg.instrument.detector.pixels.size
+            sim_results = xrdutil.simulateGVecs(
+                pd,
+                detector_params,
+                grain_params,
+                ome_range=(ome_range,),
+                ome_period=(ome_range[0], ome_range[0]+2*np.pi),
+                eta_range=eta_range,
+                panel_dims=panel_dims,
+                pixel_pitch=pixel_pitch,
+                distortion=distortion,
+            )
             refl_per_grain[i] = len(sim_results[0])
             num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
             pass
-        #min_samples = 2
-        min_samples = max(
-            int(np.floor(0.5*min_compl*min(num_seed_refls))),
-            2
-            )
+
+        cfg_completeness = cfg.find_orientations.clustering.completeness
+        min_samples = max(np.floor(cfg_completeness*np.average(num_seed_refls)), 2)
         mean_rpg = int(np.round(np.average(refl_per_grain)))
     else:
         min_samples = 1
@@ -556,18 +664,10 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     # cluster analysis to identify orientation blobs, the final output:
     qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, min_samples=min_samples)
 
-    analysis_id = '%s_%s' %(
-        cfg.analysis_name.strip().replace(' ', '-'),
-        cfg.material.active.strip().replace(' ', '-'),
-        )
-                                
     np.savetxt(
-        os.path.join(
-            cfg.working_dir,
-            'accepted_orientations_%s.dat' %analysis_id
-            ),
+        os.path.join(cfg.working_dir, 'accepted_orientations_%s.dat' % analysis_id),
         qbar.T,
         fmt="%.18e",
-        delimiter="\t")
-
+        delimiter="\t"
+        )
     return

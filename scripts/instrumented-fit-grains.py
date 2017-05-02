@@ -108,7 +108,7 @@ def print_nvtx_profile(nvtx):
 def profiling(profile=False, use_nvtx=False):
     if use_nvtx:
         try:
-            from numbapro import nvtx
+            import nvtxpy as nvtx
             add_nvtx_instrumentation(nvtx)
         except Exception as e:
             import traceback
