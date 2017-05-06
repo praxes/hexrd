@@ -967,7 +967,7 @@ GE reader is supported.
         }
     #
     FLIP_MODES = (FLIP_NONE, FLIP_VERT, FLIP_HORIZ, FLIP_180, FLIP_M90, FLIP_P90, FLIP_T) \
-                 = range(6)
+                 = range(7)
     FLIP_STRS  = ('',        'v',       'h',        'hv',     'cw90',   'ccw90',  't')
     FLIP_DICT  = dict(zip(FLIP_MODES, FLIP_STRS))
     #
