@@ -1184,6 +1184,8 @@ class ReadGE(Framer2DRC):
                 thisframe = thisframe.T[:, ::-1]
             elif self.flipArg == 'ccw90':
                 thisframe = thisframe.T[::-1, :]
+            elif self.flipArg == 't':
+                thisframe = thisframe.T
             else:
                 raise RuntimeError, "unrecognized flip token."
         return thisframe

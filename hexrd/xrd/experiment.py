@@ -966,9 +966,9 @@ GE reader is supported.
         AGG_FUN_MIN : numpy.minimum
         }
     #
-    FLIP_MODES = (FLIP_NONE, FLIP_VERT, FLIP_HORIZ, FLIP_180, FLIP_M90, FLIP_P90) \
+    FLIP_MODES = (FLIP_NONE, FLIP_VERT, FLIP_HORIZ, FLIP_180, FLIP_M90, FLIP_P90, FLIP_T) \
                  = range(6)
-    FLIP_STRS  = ('',        'v',       'h',        'hv',     'cw90',   'ccw90')
+    FLIP_STRS  = ('',        'v',       'h',        'hv',     'cw90',   'ccw90',  't')
     FLIP_DICT  = dict(zip(FLIP_MODES, FLIP_STRS))
     #
     RC = detector.ReadGE        # HARD CODED DETECTOR CHOICE!!!
