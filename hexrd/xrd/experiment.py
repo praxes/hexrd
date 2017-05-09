@@ -1126,11 +1126,15 @@ GE reader is supported.
             drkFile = os.path.join(self.darkDir, self.darkName)
         elif (self.darkMode == ReaderInput.DARK_MODE_ARRAY):
             drkFileName = os.path.join(self.darkDir, self.darkName)
-            drkFile     = ref_reader.frame(
-                buffer=numpy.fromfile(drkFileName,
-                                      dtype=ref_reader.dtypeRead
-                                      )
-                )
+            #drkFile = ref_reader.frame(
+            #    buffer=numpy.fromfile(
+            #        drkFileName,
+            #        dtype=ref_reader.dtypeRead
+            #    )
+            #)
+            drkFile = numpy.load(drkFileName)
+            assert drkFileName.dtype == ref_reader.dtypeRead, \
+                "dark file array has incompatible dtype"
         else:
             drkFile = None
             pass
