@@ -1133,7 +1133,7 @@ GE reader is supported.
             #    )
             #)
             drkFile = numpy.load(drkFileName)
-            assert drkFileName.dtype == ref_reader.dtypeRead, \
+            assert drkFile.dtype == ref_reader.dtypeRead, \
                 "dark file array has incompatible dtype"
         else:
             drkFile = None
