@@ -484,8 +484,15 @@ class HEDMInstrument(object):
             panel = self.detectors[detector_id]
             instr_cfg = panel.config_dict(self.chi, self.tvec)
             native_area = panel.pixel_area  # pixel ref area
-            n_images = len(imgser_dict[detector_id])
-
+            images = imgser_dict[detector_id]
+            if images.ndim == 2:
+                n_images = 1
+                images = np.dstack(images)
+            elif images.ndim == 3:
+                n_images = len(images)
+            else:
+                raise RuntimeError("images must be 2- or 3-d")
+            
             # make rings
             pow_angs, pow_xys = panel.make_powder_rings(
                 plane_data, merge_hkls=True, delta_eta=eta_tol)
@@ -553,7 +560,7 @@ class HEDMInstrument(object):
                     # interpolate
                     if not collapse_tth:
                         ims_data = []
-                    for j_p, image in enumerate(imgser_dict[detector_id]):
+                    for j_p, image in enumerate(images):
                         # catch interpolation type
                         if do_interpolation:
                             tmp = panel.interpolate_bilinear(
