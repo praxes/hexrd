@@ -487,7 +487,7 @@ class HEDMInstrument(object):
             images = imgser_dict[detector_id]
             if images.ndim == 2:
                 n_images = 1
-                images = np.dstack(images)
+                images = np.tile(images, (1, 1, 1))
             elif images.ndim == 3:
                 n_images = len(images)
             else:
