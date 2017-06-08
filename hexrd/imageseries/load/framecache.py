@@ -15,14 +15,14 @@ class FrameCacheImageSeriesAdapter(ImageSeriesAdapter):
 
     format = 'frame-cache'
 
-    def __init__(self, fname, format='npz', **kwargs):
+    def __init__(self, fname, style='npz', **kwargs):
         """Constructor for frame cache image series
 
         *fname* - filename of the yml file
         *kwargs* - keyword arguments (none required)
         """
         self._fname = fname
-        if format.lower() in ('yml', 'yaml', 'test'):
+        if style.lower() in ('yml', 'yaml', 'test'):
             self._load_yml()
             self._load_cache(from_yml=True)
         else:
