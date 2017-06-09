@@ -11,9 +11,9 @@
 #
 # Please also see the file LICENSE.
 #
-# This program is free software; you can redistribute it and/or modify it under the
-# terms of the GNU Lesser General Public License (as published by the Free Software
-# Foundation) version 2.1 dated February 1999.
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License (as published by the Free
+# Software Foundation) version 2.1 dated February 1999.
 #
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
@@ -269,7 +269,7 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
 
     refineFlag = np.array(np.hstack([pFlag, dFlag]), dtype=bool)
     print refineFlag
-    
+
     # pFull[refineFlag] = pFit/scl[refineFlag]
     pFull[refineFlag] = pFit
 
@@ -278,7 +278,7 @@ def objFuncSX(pFit, pFull, pFlag, dFunc, dFlag,
         xys = dFunc(xyo_det[:, :2], dParams)
     else:
         xys = xyo_det[:, :2]
-    
+
     # detector quantities
     wavelength = pFull[0]
 
@@ -411,10 +411,10 @@ def objFuncFitGrain(gFit, gFull, gFlag,
                     omePeriod,
                     simOnly=False, return_value_flag=return_value_flag)
     """
-    
+
     bVec = instrument.beam_vector
     eVec = instrument.eta_vector
-    
+
     # fill out parameters
     gFull[gFlag] = gFit
 
@@ -431,18 +431,18 @@ def objFuncFitGrain(gFit, gFull, gFlag,
     for det_key, panel in instrument.detectors.iteritems():
         rMat_d, tVec_d, chi, tVec_s = extract_detector_transformation(
             instrument.detector_parameters[det_key])
-        
+
         results = reflections_dict[det_key]
         if len(results) == 0:
             continue
-        
+
         """
         extract data from results list
         fields:
           refl_id, gvec_id, hkl, sum_int, max_int, pred_ang, meas_ang, meas_xy
         """
 
-        # WARNING: hkls and derived vectors below must be columnwise; 
+        # WARNING: hkls and derived vectors below must be columnwise;
         # strictly necessary??? change affected APIs instead?
         # <JVB 2017-03-26>
         hkls = np.atleast_2d(
@@ -458,8 +458,7 @@ def objFuncFitGrain(gFit, gFull, gFlag,
             xy_unwarped = panel.distortion[0](
                     meas_xyo[:, :2], panel.distortion[1])
             meas_xyo = np.vstack([xy_unwarped.T, meas_omes]).T
-            
-        
+
         # g-vectors:
         #   1. calculate full g-vector components in CRYSTAL frame from B
         #   2. rotate into SAMPLE frame and apply stretch
