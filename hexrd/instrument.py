@@ -822,10 +822,15 @@ class HEDMInstrument(object):
 
                         # quick check for intensity
                         contains_signal = False
+                        patch_data_raw = []
                         for i_frame in frame_indices:
+                            tmp = ome_imgser[i_frame][ijs[0], ijs[1]]
                             contains_signal = contains_signal or np.any(
-                                ome_imgser[i_frame][ijs[0], ijs[1]] > threshold
+                                tmp > threshold
                             )
+                            patch_data_raw.append(tmp)
+                            pass
+                        patch_data_raw = np.stack(patch_data_raw, axis=0)
                         compl.append(contains_signal)
                         if contains_signal:
 
@@ -891,16 +896,13 @@ class HEDMInstrument(object):
                                     ]
                                 )
                                 max_int = np.max(
-                                    patch_data[
+                                    patch_data_raw[
                                         labels == slabels[closest_peak_idx]
                                     ]
                                 )
                                 # ???: Should this only use labeled pixels?
-                                # max_int = np.max(
-                                #     patch_data[
-                                #         labels == slabels[closest_peak_idx]
-                                #     ]
-                                # )
+                                # Those are segmented from interpolated data,
+                                # not raw; likely ok in most cases.
 
                                 # need xy coords
                                 gvec_c = anglesToGVec(
