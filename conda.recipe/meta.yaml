@@ -1,17 +1,18 @@
 package:
   name: hexrd
-  version: master
-
-source:
-  # git_url: https://github.com/joelvbernier/hexrd.git
-  # git_tag: instrument # edit to point to specific branch or tag
-  path: ../
+  version: {{ environ.get('GIT_DESCRIBE_TAG', '') }}
+          
 build:
   number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
   # detect_binary_files_with_prefix: true
   osx_is_app: yes
   entry_points:
     - hexrd = hexrd.cli:main
+
+source:
+  # git_url: https://github.com/joelvbernier/hexrd.git
+  # git_tag: instrument # edit to point to specific branch or tag
+  path: ../
 
 app:
   entry: hexrd gui
