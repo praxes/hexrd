@@ -75,4 +75,4 @@ directory) and run::
 
     hexrd --verison
 
-It should currently read ``hexrd 0.3.25``
+It should currently read ``hexrd 0.3.25-5-g79aa320``
