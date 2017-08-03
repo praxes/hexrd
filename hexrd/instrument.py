@@ -648,7 +648,8 @@ class HEDMInstrument(object):
         ndiv_ome, ome_del = make_tolerance_grid(
             delta_ome, ome_tol, 1, adjust_window=True,
         )
-        ome_del_c = np.average(np.vstack([ome_del[:-1], ome_del[1:]]), axis=0)
+        # ???
+        # ome_del_c = np.average(np.vstack([ome_del[:-1], ome_del[1:]]), axis=0)
         
         # generate structuring element for connected component labeling
         if ndiv_ome == 1:
@@ -740,7 +741,7 @@ class HEDMInstrument(object):
                 for i_pt, angs in enumerate(ang_centers):
                     # the evaluation omegas;
                     # expand about the central value using tol vector
-                    ome_eval = np.degrees(angs[2]) + ome_del_c
+                    ome_eval = np.degrees(angs[2]) + ome_del
 
                     # ...vectorize the omega_to_frame function to avoid loop?
                     frame_indices = [
@@ -799,7 +800,7 @@ class HEDMInstrument(object):
 
                     # the evaluation omegas;
                     # expand about the central value using tol vector
-                    ome_eval = np.degrees(ang_centers[i_pt, 2]) + ome_del_c
+                    ome_eval = np.degrees(ang_centers[i_pt, 2]) + ome_del
 
                     # ???: vectorize the omega_to_frame function to avoid loop?
                     frame_indices = [
@@ -1386,6 +1387,22 @@ class PlanarDetector(object):
             tvec_c=ct.zeros_3, output_ranges=False, output_etas=False):
         """
         """
+        # in case you want to give it tth angles directly
+        if hasattr(pd, '__len__'):
+            tth = np.array(pd).flatten()
+        else:
+            if merge_hkls:
+                tth_idx, tth_ranges = pd.getMergedRanges()
+                if output_ranges:
+                    tth = np.r_[tth_ranges].flatten()
+                else:
+                    tth = np.array([0.5*sum(i) for i in tth_ranges])
+            else:
+                if output_ranges:
+                    tth = pd.getTThRanges().flatten()
+                else:
+                    tth = pd.getTTh()
+
         if delta_tth is not None:
             pd.tThWidth = np.radians(delta_tth)
         else:
@@ -1407,21 +1424,6 @@ class PlanarDetector(object):
             eta_period[0], eta_period
         )
 
-        # in case you want to give it tth angles directly
-        if hasattr(pd, '__len__'):
-            tth = np.array(pd).flatten()
-        else:
-            if merge_hkls:
-                tth_idx, tth_ranges = pd.getMergedRanges()
-                if output_ranges:
-                    tth = np.r_[tth_ranges].flatten()
-                else:
-                    tth = np.array([0.5*sum(i) for i in tth_ranges])
-            else:
-                if output_ranges:
-                    tth = pd.getTThRanges().flatten()
-                else:
-                    tth = pd.getTTh()
         angs = [np.vstack([i*np.ones(neta), eta, np.zeros(neta)]) for i in tth]
 
         # need xy coords and pixel sizes
