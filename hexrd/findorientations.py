@@ -547,6 +547,16 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
     # load the eta_ome orientation maps
     eta_ome = load_eta_ome_maps(cfg, pd, reader, detector, hkls=hkls, clean=clean)
 
+    # KLUDGE: need to enforce + delta omega in maps for optimized paintGrid
+    # <JVB 2017/08/16>
+    del_ome = eta_ome.omeEdges[1] - eta_ome.omeEdges[0]
+    if np.sign(del_ome) == -1:
+        assert cfg.image_series.omega.step == del_ome, "inconsistency with omega spec"
+        eta_ome.dataStore = eta_ome.dataStore[:, ::-1, :]    # flip omega axis
+        eta_ome.omegas = eta_ome.omegas[::-1]
+        eta_ome.omeEdges = eta_ome.omeEdges[::-1]
+        pass
+
     ome_range = (np.min(eta_ome.omeEdges),
                  np.max(eta_ome.omeEdges)
                  )
