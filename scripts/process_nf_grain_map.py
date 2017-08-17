@@ -25,17 +25,17 @@ from hexrd.grainmap import vtkutil
 #A materials file, is a cPickle file which contains material information like lattice
 #parameters necessary for the reconstruction
 
-det_file='/nfs/chess/aux/cycles/2017-2/f2/hufnagel-633-1/data_reduction/retiga.yml'
+det_file='/####/retiga.yml'
 
-mat_file='/nfs/chess/aux/cycles/2017-2/f2/hufnagel-633-1/data_reduction/materials.cpl' 
+mat_file='/####/materials.cpl' 
 
 #==============================================================================
 # %% OUTPUT INFO -CAN BE EDITED
 #==============================================================================
 
 
-output_dir='/home/dcp99/aux/python_scripts/hexrd_near_field/2017_07_19_HEXRD_NF_Package/'
-output_stem='testing123'
+output_dir='/####/'
+output_stem='####'
 
 #==============================================================================
 # %% NEAR FIELD DATA FILES -CAN BE EDITED
@@ -44,13 +44,13 @@ output_stem='testing123'
 #These are the near field data files used for the reconstruction, a grains.out file
 #from the far field analaysis is used as orientation guess for the grid that will 
 #be used for the near field reconstruction
-grain_out_file='/home/chess_f2/aux_f2/hufnagel-633-1/data_reduction/az31_kb1_vol_1/grains.out'
+grain_out_file='/####/grains.out'
 
 
 #Locations of near field images
-data_folder='/home/chess_f2/raw_f2/hufnagel-633-1/az31-kb1/15/nf/'
+data_folder='/###/'
 
-img_start=10032
+img_start=##
 num_imgs=1441
 
 img_nums=np.arange(img_start,img_start+num_imgs,1)
@@ -62,15 +62,15 @@ img_nums=np.arange(img_start,img_start+num_imgs,1)
 
 
 #Locations of tomography bright field images
-tbf_data_folder='/home/chess_f2/raw_f2/hufnagel-633-1/az31-kb1/13/nf/'
+tbf_data_folder='/####/'
 
-tbf_img_start=9979
+tbf_img_start=##
 tbf_num_imgs=20
 
 #Locations of tomography images
-tomo_data_folder='/home/chess_f2/raw_f2/hufnagel-633-1/az31-kb1/12/nf/'
+tomo_data_folder='/####/'
 
-tomo_img_start=9254
+tomo_img_start=##
 tomo_num_imgs=720
 
 #==============================================================================
