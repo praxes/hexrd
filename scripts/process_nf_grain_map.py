@@ -9,9 +9,9 @@ import multiprocessing as mp
 
 import os
 
-import nfutil
-import tomoutil
-import vtkutil
+from hexrd.grainmap import nfutil
+from hexrd.grainmap import tomoutil
+from hexrd.grainmap import vtkutil
 
 
 
