@@ -23,6 +23,7 @@ requirements:
   build:
     # - nomkl # in case MKL is broken on Linux
     - numpy
+    - numba
     - python
     - setuptools
   run:
