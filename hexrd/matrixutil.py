@@ -764,4 +764,4 @@ def symmToVecds(A):
     vecds[3] = sqr2 * A[2,0]
     vecds[4] = sqr2 * A[2,1]
     vecds[5] = traceToVecdsS(trace3(A))
-return vecds
+    return vecds
