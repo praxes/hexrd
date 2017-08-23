@@ -927,7 +927,9 @@ def gen_trial_exp_data(grain_out_file,det_file,mat_file, x_ray_energy, mat_name,
     experiment.clip_vals = clip_vals
     experiment.bsw = beam_stop_width  
     
-    return experiment
+    nf_to_ff_id_map=cut
+    
+    return experiment, nf_to_ff_id_map
 
 #%%
 
@@ -1065,32 +1067,51 @@ def extract_max_grain_map(confidence,grid_shape,binary_recon_bin=None):
     return conf_squeeze,grains
 #%%
     
-def process_raw_confidence(raw_confidence,vol_shape,tomo_mask=None):
+def process_raw_confidence(raw_confidence,vol_shape,tomo_mask=None,id_remap=None):
     
+    print('Compiling Confidence Map...')
     confidence_map=np.max(raw_confidence,axis=0).reshape(vol_shape)
     grain_map=np.argmax(raw_confidence,axis=0).reshape(vol_shape)
     
+    
     if tomo_mask is not None:
+        print('Applying tomography mask...')
         out_bounds=np.where(tomo_mask==0)  
         confidence_map[:,out_bounds[0],out_bounds[1]] =-0.001   
         grain_map[:,out_bounds[0],out_bounds[1]] =-1 
+
+
+    if id_remap is not None:
+        max_grain_no=np.max(grain_map)
+        grain_map_copy=copy.copy(grain_map)
+        print('Remapping grain ids to ff...')
+        for ii in np.arange(max_grain_no):
+            this_grain=np.where(grain_map==ii)
+            grain_map_copy[this_grain]=id_remap[ii]
+        grain_map=grain_map_copy
 
     return grain_map, confidence_map
     
 #%%
 
-def save_raw_confidence(save_dir,save_stem,raw_confidence):
+def save_raw_confidence(save_dir,save_stem,raw_confidence,id_remap=None):
     print('Saving raw confidence, might take a while...') 
-    np.save(save_dir+save_stem+'_raw_confidence.npy',raw_confidence)   
+    if id_remap is not None:
+        np.savez(save_dir+save_stem+'_raw_confidence.npz',raw_confidence=raw_confidence,id_remap=id_remap)    
+    else:
+        np.savez(save_dir+save_stem+'_raw_confidence.npz',raw_confidence=raw_confidence)   
 #%%    
     
-def save_nf_data(save_dir,save_stem,grain_map,confidence_map,Xs,Ys,Zs,ori_list):
-    print('Saving grain map data...') 
-    np.savez(save_dir+save_stem+'_grain_map_data.npz',grain_map=grain_map,confidence_map=confidence_map,Xs=Xs,Ys=Ys,Zs=Zs,ori_list=ori_list)
+def save_nf_data(save_dir,save_stem,grain_map,confidence_map,Xs,Ys,Zs,ori_list,id_remap=None):
+    print('Saving grain map data...')
+    if id_remap is not None:
+        np.savez(save_dir+save_stem+'_grain_map_data.npz',grain_map=grain_map,confidence_map=confidence_map,Xs=Xs,Ys=Ys,Zs=Zs,ori_list=ori_list,id_remap=id_remap)    
+    else:
+        np.savez(save_dir+save_stem+'_grain_map_data.npz',grain_map=grain_map,confidence_map=confidence_map,Xs=Xs,Ys=Ys,Zs=Zs,ori_list=ori_list)
 
 #%%
 
-def plot_ori_map(grain_map, confidence_map, exp_maps, layer_no):
+def plot_ori_map(grain_map, confidence_map, exp_maps, layer_no,id_remap=None):
     
     grains_plot=np.squeeze(grain_map[layer_no,:,:])
     conf_plot=np.squeeze(confidence_map[layer_no,:,:])
@@ -1100,10 +1121,14 @@ def plot_ori_map(grain_map, confidence_map, exp_maps, layer_no):
     rgb_image[:,:,3]=1.
     
     for ii in np.arange(n_grains):
-        this_grain=np.where(np.squeeze(grains_plot)==ii)
+        if id_remap is not None:
+            this_grain=np.where(np.squeeze(grains_plot)==id_remap[ii])    
+        else:
+            this_grain=np.where(np.squeeze(grains_plot)==ii)
         if np.sum(this_grain[0])>0:
 
             ori=exp_maps[ii,:]
+            
             #cubic mapping
             rgb_image[this_grain[0],this_grain[1],0]=(ori[0]+(np.pi/4.))/(np.pi/2.)
             rgb_image[this_grain[0],this_grain[1],1]=(ori[1]+(np.pi/4.))/(np.pi/2.)
@@ -1114,4 +1139,5 @@ def plot_ori_map(grain_map, confidence_map, exp_maps, layer_no):
     plt.imshow(rgb_image,interpolation='none')
     plt.hold(True)
     plt.imshow(conf_plot,vmin=0.0,vmax=1.,interpolation='none',cmap=plt.cm.gray,alpha=0.5)    
+    
     
