@@ -77,10 +77,10 @@ tomo_num_imgs=720
 # %% USER OPTIONS -CAN BE EDITED
 #==============================================================================
 
-x_ray_energy=41.991 #keV
+x_ray_energy=### #keV
 
 #name of the material for the reconstruction
-mat_name='az31'
+mat_name='MAT_NAME'
 
 #reconstruction with misorientation included, for many grains, this will quickly
 #make the reconstruction size unmanagable
