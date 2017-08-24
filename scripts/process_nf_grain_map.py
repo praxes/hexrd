@@ -77,10 +77,10 @@ tomo_num_imgs=720
 # %% USER OPTIONS -CAN BE EDITED
 #==============================================================================
 
-x_ray_energy=41.991 #keV
+x_ray_energy=### #keV
 
 #name of the material for the reconstruction
-mat_name='az31'
+mat_name='MAT_NAME'
 
 #reconstruction with misorientation included, for many grains, this will quickly
 #make the reconstruction size unmanagable
@@ -132,7 +132,7 @@ v_bnds=[-0.005,0.005]
 # %% LOAD GRAIN DATA
 #==============================================================================
 
-experiment = nfutil.gen_trial_exp_data(grain_out_file,det_file,mat_file, x_ray_energy, mat_name, max_tth, comp_thresh, chi2_thresh, misorientation_bnd, \
+experiment, nf_to_ff_id_map  = nfutil.gen_trial_exp_data(grain_out_file,det_file,mat_file, x_ray_energy, mat_name, max_tth, comp_thresh, chi2_thresh, misorientation_bnd, \
                        misorientation_spacing,ome_range_deg, num_imgs, beam_stop_width)
 
 #==============================================================================
@@ -243,7 +243,7 @@ raw_confidence=nfutil.test_orientations(image_stack, experiment, test_crds,
 # %% POST PROCESS W WHEN TOMOGRAPHY HAS BEEN USED
 #==============================================================================
 
-grain_map, confidence_map = nfutil.process_raw_confidence(raw_confidence,Xs.shape,tomo_mask=tomo_mask)
+grain_map, confidence_map = nfutil.process_raw_confidence(raw_confidence,Xs.shape,tomo_mask=tomo_mask,id_remap=nf_to_ff_id_map)
 
 
 
@@ -252,20 +252,21 @@ grain_map, confidence_map = nfutil.process_raw_confidence(raw_confidence,Xs.shap
 #============================================================================
 
 #This will be a very big file, don't save it if you don't need it
-nfutil.save_raw_confidence(output_dir,output_stem,raw_confidence)
+nfutil.save_raw_confidence(output_dir,output_stem,raw_confidence,id_remap=nf_to_ff_id_map)
 
 
 #==============================================================================
 # %% SAVE PROCESSED GRAIN MAP DATA
 #==============================================================================
 
-nfutil.save_nf_data(output_dir,output_stem,grain_map,confidence_map,Xs,Ys,Zs,experiment.exp_maps)
+nfutil.save_nf_data(output_dir,output_stem,grain_map,confidence_map,Xs,Ys,Zs,experiment.exp_maps,id_remap=nf_to_ff_id_map)
 
-#%%
+#==============================================================================
+# %% PLOTTING SINGLE LAYERS FOR DEBUGGING
+#==============================================================================
 
 layer_no=0
-nfutil.plot_ori_map(grain_map, confidence_map, experiment.exp_maps, layer_no)
-
+nfutil.plot_ori_map(grain_map, confidence_map, experiment.exp_maps, layer_no,id_remap=nf_to_ff_id_map)
 
 #==============================================================================
 # %% SAVE DATA AS VTK
