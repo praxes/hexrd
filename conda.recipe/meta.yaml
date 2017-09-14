@@ -7,14 +7,15 @@ build:
 
   # Note that this will override the default build string with the Python
   # and NumPy versions
-  #string: {{ environ.get('GIT_BUILD_STR', '') }}
+  string: {{ environ.get('GIT_BUILD_STR', '') }}
 
-  detect_binary_files_with_prefix: true
   osx_is_app: yes
   entry_points:
     - hexrd = hexrd.cli:main
 
 source:
+  # git_url: https://github.com/joelvbernier/hexrd.git
+  # git_tag: instrument # edit to point to specific branch or tag
   path: ../
 
 app:
