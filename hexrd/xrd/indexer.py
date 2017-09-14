@@ -1080,7 +1080,7 @@ if USE_NUMBA:
         Note the function returns both, if it was a hit and if it passed the the
         filtering, as we'll want to discard the filtered values when computing
         the hit percentage.
-        
+
         CAVEAT: added map-based nan filtering to _check_dilated; this may not
         be the best option.  Perhaps filter here? <JVB 2017-04-27>
 
@@ -1158,7 +1158,7 @@ if USE_NUMBA:
                 threshold)
             hits += hit
             total += not_filtered
-          
+
             # second solution
             hit, not_filtered = _angle_is_hit(
                 angs_1[i], eta_offset, ome_offset,

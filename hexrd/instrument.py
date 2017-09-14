@@ -492,7 +492,7 @@ class HEDMInstrument(object):
                 n_images = len(images)
             else:
                 raise RuntimeError("images must be 2- or 3-d")
-            
+
             # make rings
             pow_angs, pow_xys = panel.make_powder_rings(
                 plane_data, merge_hkls=True, delta_eta=eta_tol)
@@ -609,7 +609,8 @@ class HEDMInstrument(object):
                    eta_ranges=None, ome_period=(-np.pi, np.pi),
                    dirname='results', filename=None, output_format='text',
                    save_spot_list=False,
-                   quiet=True, lrank=1, check_only=False):
+                   quiet=True, lrank=1, check_only=False,
+                   interp='nearest'):
 
         if eta_ranges is None:
             eta_ranges = [(-np.pi, np.pi), ]
@@ -650,7 +651,7 @@ class HEDMInstrument(object):
         )
         # ???
         # ome_del_c = np.average(np.vstack([ome_del[:-1], ome_del[1:]]), axis=0)
-        
+
         # generate structuring element for connected component labeling
         if ndiv_ome == 1:
             label_struct = ndimage.generate_binary_structure(2, lrank)
@@ -844,11 +845,19 @@ class HEDMInstrument(object):
                                  ome_imgser.omega[frame_indices][-1, 1]]
                             )
                             for i, i_frame in enumerate(frame_indices):
-                                patch_data[i] = \
-                                    panel.interpolate_bilinear(
-                                            xy_eval,
-                                            ome_imgser[i_frame],
-                                    ).reshape(prows, pcols)*nrm_fac
+                                if interp.lower() is 'nearest':
+                                    patch_data[i] = \
+                                        panel.interpolate_nearest(
+                                                xy_eval,
+                                                ome_imgser[i_frame],
+                                                ).reshape(prows, pcols)*nrm_fac
+                                elif interp.lower() is 'bilinear':
+                                    patch_data[i] = \
+                                        panel.interpolate_bilinear(
+                                                xy_eval,
+                                                ome_imgser[i_frame],
+                                                ).reshape(prows, pcols)*nrm_fac
+                                    pass
                                 pass
 
                             # now have interpolated patch data...
@@ -1338,8 +1347,39 @@ class PlanarDetector(object):
         tth_eta = np.vstack([angs[0], angs[1]]).T
         return tth_eta, g_vec
 
+    def interpolate_nearest(self, xy, img, pad_with_nans=True):
+        """
+        TODO: revisit normalization in here?
+
+        """
+        is_2d = img.ndim == 2
+        right_shape = img.shape[0] == self.rows and img.shape[1] == self.cols
+        assert is_2d and right_shape,\
+            "input image must be 2-d with shape (%d, %d)"\
+            % (self.rows, self.cols)
+
+        # initialize output with nans
+        if pad_with_nans:
+            int_xy = np.nan*np.ones(len(xy))
+        else:
+            int_xy = np.zeros(len(xy))
+
+        # clip away points too close to or off the edges of the detector
+        xy_clip, on_panel = self.clip_to_panel(xy, buffer_edges=True)
+
+        # get pixel indices of clipped points
+        i_src = cellIndices(self.row_pixel_vec, xy_clip[:, 1])
+        j_src = cellIndices(self.col_pixel_vec, xy_clip[:, 0])
+
+        # next interpolate across cols
+        int_vals = img[i_src, j_src]
+        int_xy[on_panel] = int_vals
+        return int_xy
+
+
     def interpolate_bilinear(self, xy, img, pad_with_nans=True):
         """
+        TODO: revisit normalization in here?
         """
         is_2d = img.ndim == 2
         right_shape = img.shape[0] == self.rows and img.shape[1] == self.cols
@@ -1556,7 +1596,7 @@ class PlanarDetector(object):
                 )
 
             # filter by eta and omega ranges
-            # get eta range from detector?
+            # ??? get eta range from detector?
             allAngs, allHKLs = xrdutil._filter_hkls_eta_ome(
                 full_hkls, angList, [(-np.pi, np.pi), ], ome_ranges
                 )
@@ -1728,7 +1768,7 @@ class GrainDataWriter_h5(object):
                    pangs, mangs, mxy, gzip=9):
         """
         to be called inside loop over patches
-        
+
         default GZIP level for data arrays is 9
         """
         panel_grp = self.data_grp[panel_id]
@@ -1750,17 +1790,17 @@ class GrainDataWriter_h5(object):
             centers_of_edge_vec(eta_edges),
             centers_of_edge_vec(tth_edges),
             indexing='ij')
-        spot_grp.create_dataset('tth_crd', data=tth_crd, 
+        spot_grp.create_dataset('tth_crd', data=tth_crd,
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('eta_crd', data=eta_crd, 
+        spot_grp.create_dataset('eta_crd', data=eta_crd,
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('ome_crd', data=ome_crd, 
+        spot_grp.create_dataset('ome_crd', data=ome_crd,
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('xy_centers', data=xy_centers, 
+        spot_grp.create_dataset('xy_centers', data=xy_centers,
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('ij_centers', data=ijs, 
+        spot_grp.create_dataset('ij_centers', data=ijs,
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('intensities', data=spot_data, 
+        spot_grp.create_dataset('intensities', data=spot_data,
                                 compression="gzip", compression_opts=gzip)
         return
 
@@ -1796,7 +1836,7 @@ class GenerateEtaOmeMaps(object):
 
     """
     def __init__(self, image_series_dict, instrument, plane_data,
-                 active_hkls=None, eta_step=0.25, threshold=None, 
+                 active_hkls=None, eta_step=0.25, threshold=None,
                  ome_period=(0, 360)):
         """
         image_series must be OmegaImageSeries class
@@ -1845,11 +1885,11 @@ class GenerateEtaOmeMaps(object):
         # handle omegas
         omegas_array = image_series_dict[det_key].metadata['omega']
         self._omegas = mapAngle(
-            np.radians(np.average(omegas_array, axis=1)), 
+            np.radians(np.average(omegas_array, axis=1)),
             np.radians(ome_period)
         )
         self._omeEdges = mapAngle(
-            np.radians(np.r_[omegas_array[:, 0], omegas_array[-1, 1]]), 
+            np.radians(np.r_[omegas_array[:, 0], omegas_array[-1, 1]]),
             np.radians(ome_period)
         )
 
