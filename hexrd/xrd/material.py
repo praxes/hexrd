@@ -61,8 +61,8 @@ class Material(object):
     DFLT_SSMAX  = 50
 
     DFLT_KEV    = valWUnit('wavelength', 'energy', 80.725e0, 'keV')
-    DFLT_STR    = 0.002
-    DFLT_TTH    = 0.002
+    DFLT_STR    = 0.0025
+    DFLT_TTH    = numpy.radians(0.25)
     DFLT_ATOMINFO   = numpy.array([[0,0,0,1]])
     """Fractional Atom Position of an atom in the unit cell followed by the
     number of electrons within that atom. The max number of electrons is 96.

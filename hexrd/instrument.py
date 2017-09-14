@@ -462,6 +462,8 @@ class HEDMInstrument(object):
                                collapse_tth=False, do_interpolation=True):
         """
         TODO: handle wedge boundaries
+
+        FIXME: must handle merged ranges!!!
         """
         if tth_tol is None:
             tth_tol = np.degrees(plane_data.tThWidth)
@@ -649,8 +651,6 @@ class HEDMInstrument(object):
         ndiv_ome, ome_del = make_tolerance_grid(
             delta_ome, ome_tol, 1, adjust_window=True,
         )
-        # ???
-        # ome_del_c = np.average(np.vstack([ome_del[:-1], ome_del[1:]]), axis=0)
 
         # generate structuring element for connected component labeling
         if ndiv_ome == 1:
@@ -737,6 +737,7 @@ class HEDMInstrument(object):
             ang_pixel_size = panel.angularPixelSize(patch_xys[:, 0, :])
 
             # TODO: add polygon testing right here!
+            # done <JVB 06/21/16>
             if check_only:
                 patch_output = []
                 for i_pt, angs in enumerate(ang_centers):
@@ -1375,7 +1376,6 @@ class PlanarDetector(object):
         int_vals = img[i_src, j_src]
         int_xy[on_panel] = int_vals
         return int_xy
-
 
     def interpolate_bilinear(self, xy, img, pad_with_nans=True):
         """
