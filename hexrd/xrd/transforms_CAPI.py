@@ -416,6 +416,7 @@ def rowNorm(a):
     return cnrma
 
 def unitRowVector(vecIn):
+    vecIn = np.ascontiguousarray(vecIn)
     if vecIn.ndim == 1:
         return _transforms_CAPI.unitRowVector(vecIn)
     elif vecIn.ndim == 2:
