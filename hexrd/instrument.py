@@ -846,13 +846,13 @@ class HEDMInstrument(object):
                                  ome_imgser.omega[frame_indices][-1, 1]]
                             )
                             for i, i_frame in enumerate(frame_indices):
-                                if interp.lower() is 'nearest':
+                                if interp.lower() == 'nearest':
                                     patch_data[i] = \
                                         panel.interpolate_nearest(
                                                 xy_eval,
                                                 ome_imgser[i_frame],
                                                 ).reshape(prows, pcols)*nrm_fac
-                                elif interp.lower() is 'bilinear':
+                                elif interp.lower() == 'bilinear':
                                     patch_data[i] = \
                                         panel.interpolate_bilinear(
                                                 xy_eval,
