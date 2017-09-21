@@ -382,7 +382,7 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
     ome0 =         rhsAng - phaseAng
     ome1 = np.pi - rhsAng - phaseAng
 
-    goodOnes_s = -np.isnan(ome0)
+    goodOnes_s = ~np.isnan(ome0)
 
     # DEBUGGING
     assert np.all(np.isnan(ome0) == np.isnan(ome1)), "infeasible hkls do not match for ome0, ome1!"
@@ -416,7 +416,7 @@ def oscillAnglesOfHKLs(hkls, chi, rMat_c, bMat, wavelength,
 
         # make assoc tTh array
         tTh  = 2.*np.arcsin(sintht).flatten()
-        tTh0 = tTh; tTh0[-goodOnes_s] = np.nan
+        tTh0 = tTh; tTh0[~goodOnes_s] = np.nan
         retval = (np.vstack([tTh0.flatten(), eta0.flatten(), ome0.flatten()]),
                   np.vstack([tTh0.flatten(), eta1.flatten(), ome1.flatten()]),)
     else:
