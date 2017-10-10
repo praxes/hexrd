@@ -1,6 +1,5 @@
 package:
   name: hexrd
-  # requires ".dev" tags following official releases, for now:
   version: {{ environ.get('GIT_DESCRIBE_TAG', '')[1:] }}
 
 source:
@@ -21,15 +20,13 @@ app:
 
 requirements:
   build:
-    # - nomkl # in case MKL is broken on Linux
     - numpy
     - numba
     - python
     - setuptools
   run:
-    - dill
+    - joblib
     - matplotlib
-    # - nomkl # in case MKL is broken on Linux
     - numba
     - numpy
     - progressbar >=2.3
@@ -40,7 +37,6 @@ requirements:
     - scikit-learn
     - scipy
     - wxpython
-    - joblib
 
 test:
   imports:
