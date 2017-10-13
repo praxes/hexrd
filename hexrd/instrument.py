@@ -517,8 +517,7 @@ class HEDMInstrument(object):
                     np.hstack([patch_vertices, np.zeros((4*npts, 1))]),
                     panel.rmat, ct.identity_3x3, self.chi,
                     panel.tvec, ct.zeros_3, self.tvec,
-                    panel.distortion
-                    )
+                    panel.distortion)
                 tmp_xy, on_panel = panel.clip_to_panel(det_xy)
 
                 # all vertices must be on...
@@ -611,7 +610,7 @@ class HEDMInstrument(object):
                    eta_ranges=None, ome_period=(-np.pi, np.pi),
                    dirname='results', filename=None, output_format='text',
                    save_spot_list=False,
-                   quiet=True, lrank=1, check_only=False,
+                   quiet=True, check_only=False,
                    interp='nearest'):
 
         if eta_ranges is None:
@@ -654,9 +653,9 @@ class HEDMInstrument(object):
 
         # generate structuring element for connected component labeling
         if ndiv_ome == 1:
-            label_struct = ndimage.generate_binary_structure(2, lrank)
+            label_struct = ndimage.generate_binary_structure(2, 2)
         else:
-            label_struct = ndimage.generate_binary_structure(3, lrank)
+            label_struct = ndimage.generate_binary_structure(3, 3)
 
         # filter by eta and omega ranges
         allAngs, allHKLs = xrdutil._filter_hkls_eta_ome(
@@ -717,8 +716,7 @@ class HEDMInstrument(object):
                 np.hstack([patch_vertices, ome_dupl]),
                 panel.rmat, rMat_c, self.chi,
                 panel.tvec, tVec_c, self.tvec,
-                panel.distortion
-                )
+                panel.distortion)
             scrap, on_panel = panel.clip_to_panel(det_xy)
 
             # all vertices must be on...
@@ -785,7 +783,7 @@ class HEDMInstrument(object):
                     vtx_angs, vtx_xy, conn, areas, xy_eval, ijs = patch
                     prows, pcols = areas.shape
                     nrm_fac = areas/float(native_area)
-
+                    import pdb;pdb.set_trace()
                     # grab hkl info
                     hkl = hkls_p[i_pt, :]
                     hkl_id = hkl_ids[i_pt]
@@ -886,8 +884,10 @@ class HEDMInstrument(object):
                                     closest_peak_idx = 0
                                     pass  # end multipeak conditional
                                 coms = coms[closest_peak_idx]
+                                # meas_omes = \
+                                #     ome_edges[0] + (0.5 + coms[0])*delta_ome
                                 meas_omes = \
-                                    ome_edges[0] + (0.5 + coms[0])*delta_ome
+                                    ome_eval[0] + coms[0]*delta_ome
                                 meas_angs = np.hstack(
                                     [tth_edges[0] + (0.5 + coms[2])*delta_tth,
                                      eta_edges[0] + (0.5 + coms[1])*delta_eta,
@@ -952,8 +952,8 @@ class HEDMInstrument(object):
                                 ).transpose(2, 0, 1)
                                 writer.dump_patch(
                                     detector_id, iRefl, peak_id, hkl_id, hkl,
-                                    tth_edges, eta_edges, ome_edges,
-                                    xyc_arr, ijs, patch_data,
+                                    tth_edges, eta_edges, np.radians(ome_eval),
+                                    xyc_arr, ijs, frame_indices, patch_data,
                                     ang_centers[i_pt], meas_angs, meas_xy)
                             pass  # end conditional on write output
                         pass  # end conditional on check only
@@ -1624,8 +1624,7 @@ class PlanarDetector(object):
                 allAngs,
                 self.rmat, rMat_c, chi,
                 self.tvec, tVec_c, tVec_s,
-                self.distortion
-                )
+                self.distortion)
             xys_p, on_panel = self.clip_to_panel(det_xy)
             valid_xys.append(xys_p)
 
@@ -1781,14 +1780,16 @@ class GrainDataWriter_h5(object):
 
     def dump_patch(self, panel_id,
                    i_refl, peak_id, hkl_id, hkl,
-                   tth_edges, eta_edges, ome_edges,
-                   xy_centers, ijs, spot_data,
-                   pangs, mangs, mxy, gzip=9):
+                   tth_edges, eta_edges, ome_centers,
+                   xy_centers, ijs, frame_indices,
+                   spot_data, pangs, mangs, mxy, gzip=9):
         """
         to be called inside loop over patches
 
         default GZIP level for data arrays is 9
         """
+        fi = np.array(frame_indices, dtype=int)
+
         panel_grp = self.data_grp[panel_id]
         spot_grp = panel_grp.create_group("spot_%05d" % i_refl)
         spot_grp.attrs.create('peak_id', peak_id)
@@ -1804,7 +1805,7 @@ class GrainDataWriter_h5(object):
 
         # get centers crds from edge arrays
         ome_crd, eta_crd, tth_crd = np.meshgrid(
-            centers_of_edge_vec(ome_edges),
+            ome_centers,
             centers_of_edge_vec(eta_edges),
             centers_of_edge_vec(tth_edges),
             indexing='ij')
@@ -1817,6 +1818,8 @@ class GrainDataWriter_h5(object):
         spot_grp.create_dataset('xy_centers', data=xy_centers,
                                 compression="gzip", compression_opts=gzip)
         spot_grp.create_dataset('ij_centers', data=ijs,
+                                compression="gzip", compression_opts=gzip)
+        spot_grp.create_dataset('frame_indices', data=fi,
                                 compression="gzip", compression_opts=gzip)
         spot_grp.create_dataset('intensities', data=spot_data,
                                 compression="gzip", compression_opts=gzip)
