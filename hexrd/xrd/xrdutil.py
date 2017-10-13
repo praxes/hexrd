@@ -45,6 +45,7 @@ from matplotlib.widgets import Slider, Button, RadioButtons
 from matplotlib import cm, colors
 from matplotlib import collections
 
+from hexrd import constants
 from hexrd import plotwrap
 from hexrd import tens
 from hexrd import matrixutil as mutil
@@ -103,6 +104,10 @@ r2d = 1.0/d2r
 epsf      = num.finfo(float).eps # ~2.2e-16
 ten_epsf  = 10 * epsf            # ~2.2e-15
 sqrt_epsf = num.sqrt(epsf)       # ~1.5e-8
+
+bHat_l_DFLT = constants.beam_vec.flatten()
+eHat_l_DFLT = constants.eta_vec.flatten()
+
 
 class FormatEtaOme:
     'for plotting data as a matrix, with ijAsXY=True'
@@ -3595,17 +3600,11 @@ def _project_on_detector_plane(allAngs,
                                rMat_d, rMat_c, chi,
                                tVec_d, tVec_c, tVec_s, distortion):
     # hkls not needed # gVec_cs = num.dot(bMat, allHKLs.T)
-    gVec_cs = xfcapi.anglesToGVec(
-        allAngs, chi=chi, rMat_c=rMat_c
-        )
-    rMat_ss = xfcapi.makeOscillRotMatArray(
-        chi, num.ascontiguousarray(allAngs[:,2])
-        )
-    tmp_xys = xfcapi.gvecToDetectorXYArray(
-        gVec_cs, rMat_d, rMat_ss, rMat_c,
-        tVec_d, tVec_s, tVec_c
-        )
-    valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
+    gVec_cs = xfcapi.anglesToGVec(allAngs, chi=chi, rMat_c=rMat_c)
+    rMat_ss = xfcapi.makeOscillRotMatArray(chi, allAngs[:, 2])
+    tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs, rMat_d, rMat_ss, rMat_c,
+                                           tVec_d, tVec_s, tVec_c)
+    valid_mask = ~(num.isnan(tmp_xys[:, 0]) | num.isnan(tmp_xys[:, 1]))
 
     if distortion is None or len(distortion) == 0:
         det_xy = tmp_xys[valid_mask]
@@ -3686,7 +3685,7 @@ def simulateGVecs(pd, detector_params, grain_params,
         ang_ps = []
     else:
         #...preallocate for speed...?
-        det_xy, rMat_s = _project_on_detector_plane(
+        det_xy, rMat_s = _project_on_detector_plane( 
             allAngs,
             rMat_d, rMat_c, chi,
             tVec_d, tVec_c, tVec_s,
@@ -4606,3 +4605,36 @@ def extract_detector_transformation(detector_params):
         chi = detector_params[6]
         tVec_s = num.ascontiguousarray(detector_params[7:10])
     return rMat_d, tVec_d, chi, tVec_s
+
+
+def _angles_to_xy(angs, 
+                  rMat_d, tVec_d, 
+                  chi, tVec_s, 
+                  rMat_c, tVec_c,
+                  bHat_l=bHat_l_DFLT, 
+                  eHat_l=eHat_l_DFLT, 
+                  distortion=None):
+    """
+    """
+    # make G-vectors
+    gVec_c = xfcapi.anglesToGVec(
+        angs,
+        chi=chi,
+        rMat_c=rMat_c,
+        bHat_l=bHat_l, 
+        eHat_l=eHat_l)
+
+    rMat_s = xfcapi.makeOscillRotMatArray(chi, angs[:, 2])
+
+    # map to xy
+    xy_eval = xfcapi.gvecToDetectorXYArray(
+        gVec_c,
+        rMat_d, rMat_s, rMat_c,
+        tVec_d, tVec_s, tVec_c,
+        beamVec=bHat_l)
+    
+    # apply distortion (if applicable)
+    if distortion is not None and len(distortion) == 2:
+        xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
+    
+    return xy_eval
