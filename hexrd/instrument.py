@@ -788,6 +788,7 @@ class HEDMInstrument(object):
                     vtx_angs, vtx_xy, conn, areas, xy_eval, ijs = patch
                     prows, pcols = areas.shape
                     nrm_fac = areas/float(native_area)
+                    nrm_fac = nrm_fac / np.min(nrm_fac)
 
                     # grab hkl info
                     hkl = hkls_p[i_pt, :]
@@ -811,6 +812,7 @@ class HEDMInstrument(object):
                     frame_indices = [
                         ome_imgser.omega_to_frame(ome)[0] for ome in ome_eval
                     ]
+
                     if -1 in frame_indices:
                         if not quiet:
                             msg = """
@@ -840,6 +842,7 @@ class HEDMInstrument(object):
                         compl.append(contains_signal)
                         if contains_signal:
 
+                            """
                             # initialize patch data array for intensities
                             patch_data = np.zeros(
                                 (len(frame_indices), prows, pcols)
@@ -854,7 +857,7 @@ class HEDMInstrument(object):
                                         panel.interpolate_nearest(
                                                 xy_eval,
                                                 ome_imgser[i_frame],
-                                                ).reshape(prows, pcols)*nrm_fac
+                                                ).reshape(prows, pcols)
                                 elif interp.lower() == 'bilinear':
                                     patch_data[i] = \
                                         panel.interpolate_bilinear(
@@ -863,12 +866,15 @@ class HEDMInstrument(object):
                                                 ).reshape(prows, pcols)*nrm_fac
                                     pass
                                 pass
+                            """
+                            patch_data = patch_data_raw  # * nrm_fac
 
                             # now have interpolated patch data...
                             labels, num_peaks = ndimage.label(
                                 patch_data > threshold, structure=label_struct
                             )
                             slabels = np.arange(1, num_peaks + 1)
+
                             if num_peaks > 0:
                                 peak_id = iRefl
                                 coms = np.array(
