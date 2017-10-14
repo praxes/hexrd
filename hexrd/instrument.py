@@ -589,7 +589,9 @@ class HEDMInstrument(object):
         return panel_data
 
     def simulate_rotation_series(self, plane_data, grain_param_list,
+                                 eta_ranges=[(-np.pi, np.pi), ],
                                  ome_ranges=[(-np.pi, np.pi), ],
+                                 ome_period=(-np.pi, np.pi),
                                  wavelength=None):
         """
         TODO: revisit output; dict, or concatenated list?
@@ -598,7 +600,9 @@ class HEDMInstrument(object):
         for det_key, panel in self.detectors.iteritems():
             results[det_key] = panel.simulate_rotation_series(
                 plane_data, grain_param_list,
-                ome_ranges,
+                eta_ranges=eta_ranges,
+                ome_ranges=ome_ranges,
+                ome_period=ome_period,
                 chi=self.chi, tVec_s=self.tvec,
                 wavelength=wavelength)
         return results
@@ -607,33 +611,12 @@ class HEDMInstrument(object):
                    imgser_dict,
                    tth_tol=0.25, eta_tol=1., ome_tol=1.,
                    npdiv=2, threshold=10,
-                   eta_ranges=None, ome_period=(-np.pi, np.pi),
+                   eta_ranges=[(-np.pi, np.pi), ],
+                   ome_period=(-np.pi, np.pi),
                    dirname='results', filename=None, output_format='text',
                    save_spot_list=False,
                    quiet=True, check_only=False,
                    interp='nearest'):
-
-        if eta_ranges is None:
-            eta_ranges = [(-np.pi, np.pi), ]
-
-        bMat = plane_data.latVecOps['B']
-
-        rMat_c = makeRotMatOfExpMap(grain_params[:3])
-        tVec_c = grain_params[3:6]
-        vInv_s = grain_params[6:]
-
-        # vstacked G-vector id, h, k, l
-        full_hkls = xrdutil._fetch_hkls_from_planedata(plane_data)
-
-        # All possible bragg conditions as vstacked [tth, eta, ome] for
-        # each omega solution
-        angList = np.vstack(
-            oscillAnglesOfHKLs(
-                full_hkls[:, 1:], self.chi,
-                rMat_c, bMat, self.beam_wavelength,
-                vInv=vInv_s,
-            )
-        )
 
         # grab omega ranges from first imageseries
         #
@@ -647,6 +630,7 @@ class HEDMInstrument(object):
         delta_ome = oims0.omega[0, 1] - oims0.omega[0, 0]
 
         # make omega grid for frame expansion around reference frame
+        # in DEGREES
         ndiv_ome, ome_del = make_tolerance_grid(
             delta_ome, ome_tol, 1, adjust_window=True,
         )
@@ -657,27 +641,23 @@ class HEDMInstrument(object):
         else:
             label_struct = ndimage.generate_binary_structure(3, 3)
 
-        # filter by eta and omega ranges
-        allAngs, allHKLs = xrdutil._filter_hkls_eta_ome(
-            full_hkls, angList, eta_ranges, ome_ranges
-            )
-        allAngs[:, 2] = mapAngle(allAngs[:, 2], ome_period)
-
-        # dilate angles tth and eta to patch corners
-        nangs = len(allAngs)
+        #
+        # simulate rotation series
+        #
+        sim_results = self.simulate_rotation_series(
+            plane_data, [grain_params, ],
+            eta_ranges=eta_ranges,
+            ome_ranges=ome_ranges,
+            ome_period=ome_period)
+            
+        # patch vertex generator (global for instrument)
         tol_vec = 0.5*np.radians(
             [-tth_tol, -eta_tol,
              -tth_tol,  eta_tol,
              tth_tol,  eta_tol,
              tth_tol, -eta_tol])
 
-        patch_vertices = (
-            np.tile(allAngs[:, :2], (1, 4)) + np.tile(tol_vec, (nangs, 1))
-        ).reshape(4*nangs, 2)
-        ome_dupl = np.tile(
-            allAngs[:, 2], (4, 1)
-        ).T.reshape(len(patch_vertices), 1)
-
+        # prepare output if requested
         if filename is not None and output_format.lower() == 'hdf5':
             this_filename = os.path.join(dirname, filename)
             writer = GrainDataWriter_h5(
@@ -711,7 +691,27 @@ class HEDMInstrument(object):
             # pull out the OmegaImageSeries for this panel from input dict
             ome_imgser = imgser_dict[detector_id]
 
-            # find points that fall on the panel
+            # extract simulation results
+            sim_results_p = sim_results[detector_id]
+            hkl_ids = sim_results_p[0][0]
+            hkls_p = sim_results_p[1][0]
+            ang_centers = sim_results_p[2][0]
+            xy_centers = sim_results_p[3][0]
+            ang_pixel_size = sim_results_p[4][0]
+            
+            # now verify that full patch falls on detector...
+            # ???: strictly necessary?
+            #
+            # patch vertex array from sim
+            nangs = len(ang_centers)
+            patch_vertices = (
+                np.tile(ang_centers[:, :2], (1, 4)) + np.tile(tol_vec, (nangs, 1))
+            ).reshape(4*nangs, 2)
+            ome_dupl = np.tile(
+                ang_centers[:, 2], (4, 1)
+            ).T.reshape(len(patch_vertices), 1)
+
+            # find vertices that all fall on the panel
             det_xy, rMat_s = xrdutil._project_on_detector_plane(
                 np.hstack([patch_vertices, ome_dupl]),
                 panel.rmat, rMat_c, self.chi,
@@ -721,19 +721,8 @@ class HEDMInstrument(object):
 
             # all vertices must be on...
             patch_is_on = np.all(on_panel.reshape(nangs, 4), axis=1)
-            patch_xys = det_xy.reshape(nangs, 4, 2)[patch_is_on]
-
-            # grab hkls and gvec ids for this panel
-            hkls_p = np.array(allHKLs[patch_is_on, 1:], dtype=int)
-            hkl_ids = np.array(allHKLs[patch_is_on, 0], dtype=int)
-
-            # reflection angles (voxel centers)
-            ang_centers = allAngs[patch_is_on, :]
-
-            # calculate angular (tth, eta) pixel size using
-            # first vertex of each
-            ang_pixel_size = panel.angularPixelSize(patch_xys[:, 0, :])
-
+            patch_xys = det_xy.reshape(nangs, 4, 2)[patch_is_on]            
+            
             # TODO: add polygon testing right here!
             # done <JVB 06/21/16>
             if check_only:
@@ -1568,7 +1557,10 @@ class PlanarDetector(object):
         return np.dot(rmat.T, pts_map_lab - tvec_map_lab)[:2, :].T
 
     def simulate_rotation_series(self, plane_data, grain_param_list,
-                                 ome_ranges, chi=0., tVec_s=ct.zeros_3,
+                                 eta_ranges=[(-np.pi, np.pi), ],
+                                 ome_ranges=[(-np.pi, np.pi), ],
+                                 ome_period=(-np.pi, np.pi),
+                                 chi=0., tVec_s=ct.zeros_3,
                                  wavelength=None):
         """
         """
@@ -1616,8 +1608,9 @@ class PlanarDetector(object):
             # filter by eta and omega ranges
             # ??? get eta range from detector?
             allAngs, allHKLs = xrdutil._filter_hkls_eta_ome(
-                full_hkls, angList, [(-np.pi, np.pi), ], ome_ranges
+                full_hkls, angList, eta_ranges, ome_ranges
                 )
+            allAngs[:, 2] = mapAngle(allAngs[:, 2], ome_period)
 
             # find points that fall on the panel
             det_xy, rMat_s = xrdutil._project_on_detector_plane(
