@@ -617,6 +617,14 @@ class HEDMInstrument(object):
                    save_spot_list=False,
                    quiet=True, check_only=False,
                    interp='nearest'):
+        """
+        Exctract reflection info from a rotation series encoded as an
+        OmegaImageseries object
+        """
+
+        # grain parameters
+        rMat_c = makeRotMatOfExpMap(grain_params[:3])
+        tVec_c = grain_params[3:6]
 
         # grab omega ranges from first imageseries
         #
@@ -649,7 +657,7 @@ class HEDMInstrument(object):
             eta_ranges=eta_ranges,
             ome_ranges=ome_ranges,
             ome_period=ome_period)
-            
+
         # patch vertex generator (global for instrument)
         tol_vec = 0.5*np.radians(
             [-tth_tol, -eta_tol,
@@ -698,14 +706,15 @@ class HEDMInstrument(object):
             ang_centers = sim_results_p[2][0]
             xy_centers = sim_results_p[3][0]
             ang_pixel_size = sim_results_p[4][0]
-            
+
             # now verify that full patch falls on detector...
             # ???: strictly necessary?
             #
             # patch vertex array from sim
             nangs = len(ang_centers)
             patch_vertices = (
-                np.tile(ang_centers[:, :2], (1, 4)) + np.tile(tol_vec, (nangs, 1))
+                np.tile(ang_centers[:, :2], (1, 4)) +
+                np.tile(tol_vec, (nangs, 1))
             ).reshape(4*nangs, 2)
             ome_dupl = np.tile(
                 ang_centers[:, 2], (4, 1)
@@ -721,8 +730,15 @@ class HEDMInstrument(object):
 
             # all vertices must be on...
             patch_is_on = np.all(on_panel.reshape(nangs, 4), axis=1)
-            patch_xys = det_xy.reshape(nangs, 4, 2)[patch_is_on]            
-            
+            patch_xys = det_xy.reshape(nangs, 4, 2)[patch_is_on]
+
+            # re-filter...
+            hkl_ids = hkl_ids[patch_is_on]
+            hkls_p = hkls_p[patch_is_on, :]
+            ang_centers = ang_centers[patch_is_on, :]
+            xy_centers = xy_centers[patch_is_on, :]
+            ang_pixel_size = ang_pixel_size[patch_is_on, :]
+
             # TODO: add polygon testing right here!
             # done <JVB 06/21/16>
             if check_only:
@@ -772,7 +788,7 @@ class HEDMInstrument(object):
                     vtx_angs, vtx_xy, conn, areas, xy_eval, ijs = patch
                     prows, pcols = areas.shape
                     nrm_fac = areas/float(native_area)
-                    import pdb;pdb.set_trace()
+
                     # grab hkl info
                     hkl = hkls_p[i_pt, :]
                     hkl_id = hkl_ids[i_pt]
@@ -828,10 +844,10 @@ class HEDMInstrument(object):
                             patch_data = np.zeros(
                                 (len(frame_indices), prows, pcols)
                             )
-                            ome_edges = np.hstack(
-                                [ome_imgser.omega[frame_indices][:, 0],
-                                 ome_imgser.omega[frame_indices][-1, 1]]
-                            )
+                            # ome_edges = np.hstack(
+                            #     [ome_imgser.omega[frame_indices][:, 0],
+                            #      ome_imgser.omega[frame_indices][-1, 1]]
+                            # )
                             for i, i_frame in enumerate(frame_indices):
                                 if interp.lower() == 'nearest':
                                     patch_data[i] = \

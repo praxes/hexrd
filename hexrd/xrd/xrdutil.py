@@ -3599,11 +3599,17 @@ def _filter_hkls_eta_ome(hkls, angles, eta_range, ome_range):
 def _project_on_detector_plane(allAngs,
                                rMat_d, rMat_c, chi,
                                tVec_d, tVec_c, tVec_s, distortion):
-    # hkls not needed # gVec_cs = num.dot(bMat, allHKLs.T)
+    """
+    utility routine for projecting a list of (tth, eta, ome) onto the
+    detector plane parameterized by the args
+    """
+
     gVec_cs = xfcapi.anglesToGVec(allAngs, chi=chi, rMat_c=rMat_c)
     rMat_ss = xfcapi.makeOscillRotMatArray(chi, allAngs[:, 2])
-    tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs, rMat_d, rMat_ss, rMat_c,
-                                           tVec_d, tVec_s, tVec_c)
+    tmp_xys = xfcapi.gvecToDetectorXYArray(
+        gVec_cs, rMat_d, rMat_ss, rMat_c,
+        tVec_d, tVec_s, tVec_c
+        )
     valid_mask = ~(num.isnan(tmp_xys[:, 0]) | num.isnan(tmp_xys[:, 1]))
 
     if distortion is None or len(distortion) == 0:
