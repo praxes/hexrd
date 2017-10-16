@@ -842,32 +842,23 @@ class HEDMInstrument(object):
                         compl.append(contains_signal)
                         if contains_signal:
 
-                            """
                             # initialize patch data array for intensities
-                            patch_data = np.zeros(
-                                (len(frame_indices), prows, pcols)
-                            )
-                            # ome_edges = np.hstack(
-                            #     [ome_imgser.omega[frame_indices][:, 0],
-                            #      ome_imgser.omega[frame_indices][-1, 1]]
-                            # )
-                            for i, i_frame in enumerate(frame_indices):
-                                if interp.lower() == 'nearest':
-                                    patch_data[i] = \
-                                        panel.interpolate_nearest(
-                                                xy_eval,
-                                                ome_imgser[i_frame],
-                                                ).reshape(prows, pcols)
-                                elif interp.lower() == 'bilinear':
+                            if interp.lower() == 'bilinear':
+                                patch_data = np.zeros(
+                                    (len(frame_indices), prows, pcols))
+                                for i, i_frame in enumerate(frame_indices):
                                     patch_data[i] = \
                                         panel.interpolate_bilinear(
                                                 xy_eval,
                                                 ome_imgser[i_frame],
-                                                ).reshape(prows, pcols)*nrm_fac
-                                    pass
-                                pass
-                            """
-                            patch_data = patch_data_raw  # * nrm_fac
+                                                ).reshape(prows, pcols)  # * nrm_fac
+                            elif interp.lower() == 'nearest':
+                                patch_data = patch_data_raw  # * nrm_fac
+                            else:
+                                raise(RuntimeError,
+                                      "interpolation option '%s' not understood"
+                                      % interp
+                                )
 
                             # now have interpolated patch data...
                             labels, num_peaks = ndimage.label(

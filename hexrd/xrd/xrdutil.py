@@ -3691,7 +3691,7 @@ def simulateGVecs(pd, detector_params, grain_params,
         ang_ps = []
     else:
         #...preallocate for speed...?
-        det_xy, rMat_s = _project_on_detector_plane( 
+        det_xy, rMat_s = _project_on_detector_plane(
             allAngs,
             rMat_d, rMat_c, chi,
             tVec_d, tVec_c, tVec_s,
@@ -4145,34 +4145,25 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
         if distortion is not None and len(distortion) == 2:
             xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
             pass
-        row_indices   = gutil.cellIndices(row_edges, xy_eval[:, 1])
-        col_indices   = gutil.cellIndices(col_edges, xy_eval[:, 0])
+        row_indices = gutil.cellIndices(row_edges, xy_eval[:, 1])
+        col_indices = gutil.cellIndices(col_edges, xy_eval[:, 0])
 
         # append patch data to list
         patches.append(
-            (
-                (
-                    gVec_angs_vtx[:, 0].reshape(m_tth.shape),
-                    gVec_angs_vtx[:, 1].reshape(m_tth.shape),
-                ),
-                (
-                    xy_eval_vtx[:, 0].reshape(m_tth.shape),
-                    xy_eval_vtx[:, 1].reshape(m_tth.shape),
-                ),
-                conn,
-                areas.reshape(sdims[0], sdims[1]),
-                (
-                    xy_eval[:, 0].reshape(sdims[0], sdims[1]),
-                    xy_eval[:, 1].reshape(sdims[0], sdims[1]),
-                ),
-                (
-                    row_indices.reshape(sdims[0], sdims[1]),
-                    col_indices.reshape(sdims[0], sdims[1]),
-                ),
-            )
+            ((gVec_angs_vtx[:, 0].reshape(m_tth.shape),
+              gVec_angs_vtx[:, 1].reshape(m_tth.shape)),
+             (xy_eval_vtx[:, 0].reshape(m_tth.shape),
+              xy_eval_vtx[:, 1].reshape(m_tth.shape)),
+             conn,
+             areas.reshape(sdims[0], sdims[1]),
+             (xy_eval[:, 0].reshape(sdims[0], sdims[1]),
+              xy_eval[:, 1].reshape(sdims[0], sdims[1])),
+             (row_indices.reshape(sdims[0], sdims[1]),
+              col_indices.reshape(sdims[0], sdims[1])))
         )
         pass # close loop over angles
     return patches
+
 
 def pullSpots(pd, detector_params, grain_params, reader,
               ome_period=(-num.pi, num.pi),
@@ -4613,12 +4604,12 @@ def extract_detector_transformation(detector_params):
     return rMat_d, tVec_d, chi, tVec_s
 
 
-def _angles_to_xy(angs, 
-                  rMat_d, tVec_d, 
-                  chi, tVec_s, 
+def _angles_to_xy(angs,
+                  rMat_d, tVec_d,
+                  chi, tVec_s,
                   rMat_c, tVec_c,
-                  bHat_l=bHat_l_DFLT, 
-                  eHat_l=eHat_l_DFLT, 
+                  bHat_l=bHat_l_DFLT,
+                  eHat_l=eHat_l_DFLT,
                   distortion=None):
     """
     """
@@ -4627,7 +4618,7 @@ def _angles_to_xy(angs,
         angs,
         chi=chi,
         rMat_c=rMat_c,
-        bHat_l=bHat_l, 
+        bHat_l=bHat_l,
         eHat_l=eHat_l)
 
     rMat_s = xfcapi.makeOscillRotMatArray(chi, angs[:, 2])
@@ -4638,9 +4629,9 @@ def _angles_to_xy(angs,
         rMat_d, rMat_s, rMat_c,
         tVec_d, tVec_s, tVec_c,
         beamVec=bHat_l)
-    
+
     # apply distortion (if applicable)
     if distortion is not None and len(distortion) == 2:
         xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
-    
+
     return xy_eval
