@@ -1,11 +1,11 @@
 package:
   name: hexrd
-  version: {{ environ.get('GIT_DESCRIBE_TAG', '')[1:] }}
+  version: {{ environ.get('GIT_DESCRIBE_TAG', 'v0.3.xxx') }}
 
 source:
   #git_url: https://github.com/joelvbernier/hexrd.git
   #git_tag: v0.3.x
-  path: ../
+  git_url: ../
 
 build:
   number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
@@ -20,8 +20,8 @@ app:
 
 requirements:
   build:
-    - numpy
     - numba
+    - numpy
     - python
     - setuptools
   run:
