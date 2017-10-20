@@ -102,7 +102,7 @@ class ImageSeriesConfig(Config):
             raise IOError(
                 'Image files not found: %s' % (', '.join(missing))
                 )
-        return res
+        return sorted(res)
 
 
     @property
