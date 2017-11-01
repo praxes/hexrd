@@ -994,6 +994,7 @@ class PlanarDetector(object):
                  name='default',
                  bvec=ct.beam_vec,
                  evec=ct.eta_vec,
+                 saturation_level=None,
                  panel_buffer=None,
                  distortion=None):
         """
@@ -1008,6 +1009,8 @@ class PlanarDetector(object):
         self._pixel_size_row = pixel_size[0]
         self._pixel_size_col = pixel_size[1]
 
+        self._saturation_level = saturation_level
+        
         if panel_buffer is None:
             self._panel_buffer = 25*np.r_[self._pixel_size_col,
                                           self._pixel_size_row]
@@ -1070,6 +1073,16 @@ class PlanarDetector(object):
     @property
     def pixel_area(self):
         return self.pixel_size_row * self.pixel_size_col
+
+    @property
+    def saturation_level(self):
+        return self._saturation_level
+
+    @saturation_level.setter
+    def saturation_level(self, x):
+        if x is not None:
+            assert np.isreal(x)
+        self._saturation_level = x
 
     @property
     def panel_buffer(self):
@@ -1232,6 +1245,9 @@ class PlanarDetector(object):
     def config_dict(self, chi, t_vec_s, sat_level=None):
         """
         """
+        if sat_level is None:
+            sat_level = self.saturation_level
+
         t_vec_s = np.atleast_1d(t_vec_s)
 
         d = dict(
@@ -1251,8 +1267,10 @@ class PlanarDetector(object):
                 t_vec_s=t_vec_s.tolist(),
             ),
         )
+
         if sat_level is not None:
             d['detector']['saturation_level'] = sat_level
+        
         if self.distortion is not None:
             """...HARD CODED DISTORTION! FIX THIS!!!"""
             dist_d = dict(

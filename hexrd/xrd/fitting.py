@@ -114,7 +114,10 @@ def matchOmegas(xyo_det, hkls_idx, chi, rMat_c, bMat, wavelength,
             beamVec=beamVec,
             etaVec=etaVec)
     if np.any(np.isnan(oangs0)):
-        import pdb; pdb.set_trace()
+        # debugging
+        # TODO: remove this
+        import pdb
+        pdb.set_trace()
         nanIdx = np.where(np.isnan(oangs0[:, 0]))[0]
         errorString = "Infeasible parameters for hkls:\n"
         for i in range(len(nanIdx)):
@@ -387,7 +390,8 @@ def objFuncFitGrain(gFit, gFull, gFlag,
                     reflections_dict,
                     bMat, wavelength,
                     omePeriod,
-                    simOnly=False, return_value_flag=return_value_flag):
+                    simOnly=False,
+                    return_value_flag=return_value_flag):
     """
     gFull[0]  = expMap_c[0]
     gFull[1]  = expMap_c[1]
@@ -425,10 +429,17 @@ def objFuncFitGrain(gFit, gFull, gFlag,
     vMat_s = mutil.vecMVToSymm(vInv_s)  # NOTE: Inverse of V from F = V * R
 
     # loop over instrument panels
-    calc_omes_all = []
-    calc_xy_all = []
+    # CAVEAT: keeping track of key ordering in the "detectors" attribute of
+    # instrument here because I am not sure if instatiating them using
+    # dict.fromkeys() preserves the same order if using iteration...
+    # <JVB 2017-10-31>
+    calc_omes_dict = dict.fromkeys(instrument.detectors)
+    calc_xy_dict = dict.fromkeys(instrument.detectors)
     meas_xyo_all = []
+    det_keys_ordered = []
     for det_key, panel in instrument.detectors.iteritems():
+        det_keys_ordered.append(det_key)
+
         rMat_d, tVec_d, chi, tVec_s = extract_detector_transformation(
             instrument.detector_parameters[det_key])
 
@@ -448,6 +459,7 @@ def objFuncFitGrain(gFit, gFull, gFlag,
         hkls = np.atleast_2d(
             np.vstack([x[2] for x in results])
         ).T
+
         meas_xyo = np.atleast_2d(
             np.vstack([np.r_[x[7], x[6][-1]] for x in results])
         )
@@ -458,8 +470,12 @@ def objFuncFitGrain(gFit, gFull, gFlag,
             xy_unwarped = panel.distortion[0](
                     meas_xyo[:, :2], panel.distortion[1])
             meas_xyo = np.vstack([xy_unwarped.T, meas_omes]).T
+            pass
 
-        # g-vectors:
+        # append to meas_omes
+        meas_xyo_all.append(meas_xyo)
+
+        # G-vectors:
         #   1. calculate full g-vector components in CRYSTAL frame from B
         #   2. rotate into SAMPLE frame and apply stretch
         #   3. rotate back into CRYSTAL frame and normalize to unit magnitude
@@ -475,18 +491,23 @@ def objFuncFitGrain(gFit, gFull, gFlag,
             vInv=vInv_s, beamVec=bVec, etaVec=eVec,
             omePeriod=omePeriod)
 
+        # append to omes dict
+        calc_omes_dict[det_key] = calc_omes
+
         # TODO: try Numba implementations
         rMat_s = xfcapi.makeOscillRotMatArray(chi, calc_omes)
         calc_xy = xfcapi.gvecToDetectorXYArray(gHat_c.T,
                                                rMat_d, rMat_s, rMat_c,
                                                tVec_d, tVec_s, tVec_c,
                                                beamVec=bVec)
-        calc_omes_all.append(calc_omes)
-        calc_xy_all.append(calc_xy)
-        meas_xyo_all.append(meas_xyo)
+
+        # append to xy dict
+        calc_xy_dict[det_key] = calc_xy
         pass
-    calc_omes_all = np.hstack(calc_omes_all)
-    calc_xy_all = np.vstack(calc_xy_all)
+
+    # stack results to concatenated arrays
+    calc_omes_all = np.hstack([calc_omes_dict[k] for k in det_keys_ordered])
+    calc_xy_all = np.vstack([calc_xy_dict[k] for k in det_keys_ordered])
     meas_xyo_all = np.vstack(meas_xyo_all)
 
     npts = len(meas_xyo_all)
@@ -498,7 +519,14 @@ def objFuncFitGrain(gFit, gFull, gFlag,
     # return values
     if simOnly:
         # return simulated values
-        retval = np.hstack([calc_xy_all, calc_omes_all.reshape(npts, 1)])
+        if return_value_flag in [None, 1]:
+            retval = np.hstack([calc_xy_all, calc_omes_all.reshape(npts, 1)])
+        else:
+            rd = dict.fromkeys(det_keys_ordered)
+            for det_key in det_keys_ordered:
+                rd[det_key] = {'calc_xy': calc_xy_dict[det_key],
+                               'calc_omes': calc_omes_dict[det_key]}
+            retval = rd
     else:
         # return residual vector
         # IDEA: try angles instead of xys?
