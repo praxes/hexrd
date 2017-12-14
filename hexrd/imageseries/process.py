@@ -71,9 +71,9 @@ class ProcessedImageSeries(ImageSeries):
         elif flip in ('t', 'T'): # transpose (possible shape change)
             pimg = img.T
         elif flip in ('ccw90', 'r90'): # rotate 90 (possible shape change)
-            pimg = img.T[:, ::-1]
-        elif flip in ('cw90', 'r270'): # rotate 270 (possible shape change)
             pimg = img.T[::-1, :]
+        elif flip in ('cw90', 'r270'): # rotate 270 (possible shape change)
+            pimg = img.T[:, ::-1]
         else:
             pimg = img
 
