@@ -459,7 +459,8 @@ class HEDMInstrument(object):
 
     def extract_line_positions(self, plane_data, imgser_dict,
                                tth_tol=None, eta_tol=1., npdiv=2,
-                               collapse_tth=False, do_interpolation=True):
+                               collapse_eta=True, collapse_tth=False,
+                               do_interpolation=True):
         """
         TODO: handle wedge boundaries
 
@@ -576,7 +577,10 @@ class HEDMInstrument(object):
                             patch_data[i_p, j_p] = np.sum(tmp)
                             # ims_data.append(np.sum(tmp))
                         else:
-                            ims_data.append(np.sum(tmp, axis=0))
+                            if collapse_eta:
+                                ims_data.append(np.sum(tmp, axis=0))
+                            else:
+                                ims_data.append(tmp)
                         pass  # close image loop
                     if not collapse_tth:
                         patch_data.append((ang_data, ims_data))
@@ -1010,7 +1014,7 @@ class PlanarDetector(object):
         self._pixel_size_col = pixel_size[1]
 
         self._saturation_level = saturation_level
-        
+
         if panel_buffer is None:
             self._panel_buffer = 25*np.r_[self._pixel_size_col,
                                           self._pixel_size_row]
@@ -1092,7 +1096,7 @@ class PlanarDetector(object):
     def panel_buffer(self, x):
         """if not None, a buffer in mm (x, y)"""
         if x is not None:
-            assert len(x) == 2
+            assert len(x) == 2 or x.ndim == 2
         self._panel_buffer = x
 
     @property
@@ -1270,7 +1274,7 @@ class PlanarDetector(object):
 
         if sat_level is not None:
             d['detector']['saturation_level'] = sat_level
-        
+
         if self.distortion is not None:
             """...HARD CODED DISTORTION! FIX THIS!!!"""
             dist_d = dict(
@@ -1349,11 +1353,28 @@ class PlanarDetector(object):
         xlim = 0.5*self.col_dim
         ylim = 0.5*self.row_dim
         if buffer_edges and self.panel_buffer is not None:
-            xlim -= self.panel_buffer[0]
-            ylim -= self.panel_buffer[1]
-        on_panel_x = np.logical_and(xy[:, 0] >= -xlim, xy[:, 0] <= xlim)
-        on_panel_y = np.logical_and(xy[:, 1] >= -ylim, xy[:, 1] <= ylim)
-        on_panel = np.logical_and(on_panel_x, on_panel_y)
+            if self.panel_buffer.ndim == 2:
+                pix = self.cartToPixel(xy, pixels=True)
+
+                roff = np.logical_or(pix[:, 0] < 0, pix[:, 0] >= self.rows)
+                coff = np.logical_or(pix[:, 1] < 0, pix[:, 1] >= self.cols)
+
+                idx = np.logical_or(roff, coff)
+
+                pix[idx, :] = 0
+
+                on_panel = self.panel_buffer[pix[:, 0], pix[:, 1]]
+                on_panel[idx] = False
+            else:
+                xlim -= self.panel_buffer[0]
+                ylim -= self.panel_buffer[1]
+                on_panel_x = np.logical_and(
+                    xy[:, 0] >= -xlim, xy[:, 0] <= xlim
+                )
+                on_panel_y = np.logical_and(
+                    xy[:, 1] >= -ylim, xy[:, 1] <= ylim
+                )
+                on_panel = np.logical_and(on_panel_x, on_panel_y)
         return xy[on_panel, :], on_panel
 
     def cart_to_angles(self, xy_data):
