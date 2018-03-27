@@ -78,7 +78,6 @@ class TestImageSeriesProcess(ImageSeriesTest):
         diff = compare(is_a1, is_p)
         self.assertAlmostEqual(diff, 0., msg="dark image failed")
 
-
     def test_process_framelist(self):
         a = make_array()
         is_a = imageseries.open(None, 'array', data=a)
@@ -88,3 +87,20 @@ class TestImageSeriesProcess(ImageSeriesTest):
         is_a2 = imageseries.open(None, 'array', data=a[tuple(frames), ...])
         diff = compare(is_a2, is_p)
         self.assertAlmostEqual(diff, 0., msg="frame list failed")
+
+    def test_process_shape(self):
+        a = make_array()
+        is_a = imageseries.open(None, 'array', data=a)
+        ops = []
+        is_p = process.ProcessedImageSeries(is_a, ops)
+        pshape = is_p.shape
+        fshape = is_p[0].shape
+        for i in range(2):
+            self.assertEqual(fshape[i], pshape[i])
+
+    def test_process_dtype(self):
+        a = make_array()
+        is_a = imageseries.open(None, 'array', data=a)
+        ops = []
+        is_p = process.ProcessedImageSeries(is_a, ops)
+        self.assertEqual(is_p.dtype, is_p[0].dtype)
