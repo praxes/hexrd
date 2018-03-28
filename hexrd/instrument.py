@@ -55,6 +55,7 @@ from hexrd.xrd.transforms_CAPI import anglesToGVec, \
                                       makeRotMatOfExpMap, \
                                       mapAngle, \
                                       oscillAnglesOfHKLs, \
+                                      rowNorm, \
                                       validateAngleRanges
 from hexrd.xrd import xrdutil
 from hexrd import constants as ct
@@ -591,6 +592,22 @@ class HEDMInstrument(object):
             pass  # close panel loop
             # pbar.finish()
         return panel_data
+
+    def simulate_laue_pattern(self, plane_data,
+                              minEnergy=5., maxEnergy=35.,
+                              rmat_s=None, grain_params=None):
+        """
+        TODO: revisit output; dict, or concatenated list?
+        """
+        results = dict.fromkeys(self.detectors)
+        for det_key, panel in self.detectors.iteritems():
+            results[det_key] = panel.simulate_laue_pattern(
+                plane_data,
+                minEnergy=minEnergy, maxEnergy=maxEnergy,
+                rmat_s=rmat_s, tvec_s=self.tvec,
+                grain_params=grain_params,
+                beam_vec=self.beam_vector)
+        return results
 
     def simulate_rotation_series(self, plane_data, grain_param_list,
                                  eta_ranges=[(-np.pi, np.pi), ],
@@ -1682,6 +1699,137 @@ class PlanarDetector(object):
             ang_pixel_size.append(self.angularPixelSize(xys_p))
         return valid_ids, valid_hkls, valid_angs, valid_xys, ang_pixel_size
 
+    def simulate_laue_pattern(self, plane_data,
+                              minEnergy=5., maxEnergy=35.,
+                              rmat_s=None, tvec_s=None,
+                              grain_params=None,
+                              beam_vec=None):
+        """
+        """
+        # grab the expanded list of hkls from plane_data
+        hkls = np.hstack(plane_data.getSymHKLs())
+        nhkls_tot = hkls.shape[1]
+
+        # and the unit plane normals (G-vectors) in CRYSTAL FRAME
+        gvec_c = np.dot(plane_data.latVecOps['B'], hkls)
+
+        # parse energy ranges
+        # TODO: allow for spectrum parsing
+        multipleEnergyRanges = False
+        if hasattr(maxEnergy, '__len__'):
+            assert len(maxEnergy) == len(minEnergy), \
+                'energy cutoff ranges must have the same length'
+            multipleEnergyRanges = True
+            lmin = []
+            lmax = []
+            for i in range(len(maxEnergy)):
+                lmin.append(ct.keVToAngstrom(maxEnergy[i]))
+                lmax.append(ct.keVToAngstrom(minEnergy[i]))
+        else:
+            lmin = ct.keVToAngstrom(maxEnergy)
+            lmax = ct.keVToAngstrom(minEnergy)
+
+        # parse grain parameters kwarg
+        if grain_params is None:
+            grain_params = np.atleast_2d(
+                np.hstack([np.zeros(6), ct.identity_6x1])
+            )
+        n_grains = len(grain_params)
+
+        # sample rotation
+        if rmat_s is None:
+            rmat_s = ct.identity_3x3
+
+        # dummy translation vector... make input
+        if tvec_s is None:
+            tvec_s = ct.zeros_3
+
+        # beam vector
+        if beam_vec is None:
+            beam_vec = ct.beam_vec
+
+        # =========================================================================
+        # LOOP OVER GRAINS
+        # =========================================================================
+
+        # pre-allocate output arrays
+        xy_det = np.nan*np.ones((n_grains, nhkls_tot, 2))
+        hkls_in = np.nan*np.ones((n_grains, 3, nhkls_tot))
+        angles = np.nan*np.ones((n_grains, nhkls_tot, 2))
+        dspacing = np.nan*np.ones((n_grains, nhkls_tot))
+        energy = np.nan*np.ones((n_grains, nhkls_tot))
+        for iG, gp in enumerate(grain_params):
+            rmat_c = makeRotMatOfExpMap(gp[:3])
+            tvec_c = gp[3:6].reshape(3, 1)
+            vInv_s = mutil.vecMVToSymm(gp[6:].reshape(6, 1))
+
+            # stretch them: V^(-1) * R * Gc
+            gvec_s_str = np.dot(vInv_s, np.dot(rmat_c, gvec_c))
+            ghat_c_str = mutil.unitVector(np.dot(rmat_c.T, gvec_s_str))
+
+            # project
+            dpts = gvecToDetectorXY(ghat_c_str.T,
+                                    self.rmat, rmat_s, rmat_c,
+                                    self.tvec, tvec_s, tvec_c,
+                                    beamVec=beam_vec)
+
+            # check intersections with detector plane
+            canIntersect = ~np.isnan(dpts[:, 0])
+            npts_in = sum(canIntersect)
+
+            if np.any(canIntersect):
+                dpts = dpts[canIntersect, :].reshape(npts_in, 2)
+                dhkl = hkls[:, canIntersect].reshape(3, npts_in)
+
+                # back to angles
+                tth_eta, gvec_l = detectorXYToGvec(
+                    dpts,
+                    self.rmat, rmat_s,
+                    self.tvec, tvec_s, tvec_c,
+                    beamVec=beam_vec)
+                tth_eta = np.vstack(tth_eta).T
+
+                # warp measured points
+                if self.distortion is not None:
+                    if len(self.distortion) == 2:
+                        dpts = self.distortion[0](
+                            dpts, self.distortion[1],
+                            invert=True)
+                    else:
+                        raise(RuntimeError,
+                              "something is wrong with the distortion")
+
+                # plane spacings and energies
+                dsp = 1. / rowNorm(gvec_s_str[:, canIntersect].T)
+                wlen = 2*dsp*np.sin(0.5*tth_eta[:, 0])
+
+                # clip to detector panel
+                _, on_panel = self.clip_to_panel(dpts, buffer_edges=True)
+
+                if multipleEnergyRanges:
+                    validEnergy = np.zeros(len(wlen), dtype=bool)
+                    for i in range(len(lmin)):
+                        in_energy_range = np.logical_and(
+                                wlen >= lmin[i],
+                                wlen <= lmax[i])
+                        validEnergy = validEnergy | in_energy_range
+                        pass
+                else:
+                    validEnergy = np.logical_and(wlen >= lmin, wlen <= lmax)
+                    pass
+
+                # index for valid reflections
+                keepers = np.where(np.logical_and(on_panel, validEnergy))[0]
+
+                # assign output arrays
+                xy_det[iG][keepers, :] = dpts[keepers, :]
+                hkls_in[iG][:, keepers] = dhkl[:, keepers]
+                angles[iG][keepers, :] = tth_eta[keepers, :]
+                dspacing[iG, keepers] = dsp[keepers]
+                energy[iG, keepers] = ct.keVToAngstrom(wlen[keepers])
+                pass    # close conditional on valids
+            pass    # close loop on grains
+        return xy_det, hkls_in, angles, dspacing, energy
 
 # =============================================================================
 # UTILITIES
