@@ -46,24 +46,24 @@ class TestImageSeriesProcess(ImageSeriesTest):
         self._runfliptest(a, flip, aflip)
 
     def test_process_flip_vh(self):
-        """Processed image series: flip horizontal"""
+        """Processed image series: flip vertical + horizontal"""
         flip = 'vh'
         a = make_array()
         aflip = a[:, ::-1, ::-1]
         self._runfliptest(a, flip, aflip)
 
     def test_process_flip_r90(self):
-        """Processed image series: flip horizontal"""
+        """Processed image series: flip counterclockwise 90"""
         flip = 'ccw90'
         a = make_array()
-        aflip = np.transpose(a, (0, 2, 1))[:, :, ::-1]
+        aflip = np.transpose(a, (0, 2, 1))[:, ::-1, :]
         self._runfliptest(a, flip, aflip)
 
     def test_process_flip_r270(self):
-        """Processed image series: flip horizontal"""
+        """Processed image series: flip clockwise 90 """
         flip = 'cw90'
         a = make_array()
-        aflip = np.transpose(a, (0, 2, 1))[:, ::-1, :]
+        aflip = np.transpose(a, (0, 2, 1))[:, :, ::-1]
         self._runfliptest(a, flip, aflip)
 
     def test_process_dark(self):
