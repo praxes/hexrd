@@ -69,5 +69,7 @@ zeros_6x1 = np.zeros((6, 1))
 beam_vec = -lab_z
 eta_vec = lab_x
 
+
 # for energy/wavelength conversions
-keVToAngstrom = lambda x: (1e7*sc.c*sc.h/sc.e) / float(x)
+def keVToAngstrom(x):
+    return (1e7*sc.c*sc.h/sc.e) / np.array(x, dtype=float)
