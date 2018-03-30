@@ -4127,7 +4127,7 @@ class Spots(object):
                 num.array(self.__marks[indices], dtype=bool)
                 )
             """
-            whereUnclaimed = num.where(-claimed)[0]
+            whereUnclaimed = num.where(~claimed)[0]
             if indices is None:
                 for iSpot in whereUnclaimed:
                     claimed[iSpot] = self.__marks[iSpot] > 0
