@@ -58,6 +58,7 @@ from hexrd.xrd.transforms_CAPI import anglesToGVec, \
                                       rowNorm, \
                                       validateAngleRanges
 from hexrd.xrd import xrdutil
+from hexrd.xrd.crystallography import PlaneData
 from hexrd import constants as ct
 
 # from hexrd.utils.progressbar import ProgressBar, Bar, ETA, ReverseBar
@@ -117,9 +118,7 @@ def calc_angles_from_beam_vec(bvec):
     bvec = np.atleast_2d(bvec).reshape(3, 1)
     nvec = mutil.unitVector(-bvec)
     azim = float(
-        np.degrees(
-            0.5*np.pi + np.arctan2(nvec[0], nvec[2])
-        )
+        np.degrees(np.arctan2(nvec[2], nvec[0]))
     )
     pola = float(np.degrees(np.arccos(nvec[1])))
     return azim, pola
@@ -593,7 +592,7 @@ class HEDMInstrument(object):
             # pbar.finish()
         return panel_data
 
-    def simulate_laue_pattern(self, plane_data,
+    def simulate_laue_pattern(self, crystal_data,
                               minEnergy=5., maxEnergy=35.,
                               rmat_s=None, grain_params=None):
         """
@@ -602,7 +601,7 @@ class HEDMInstrument(object):
         results = dict.fromkeys(self.detectors)
         for det_key, panel in self.detectors.iteritems():
             results[det_key] = panel.simulate_laue_pattern(
-                plane_data,
+                crystal_data,
                 minEnergy=minEnergy, maxEnergy=maxEnergy,
                 rmat_s=rmat_s, tvec_s=self.tvec,
                 grain_params=grain_params,
@@ -1699,19 +1698,30 @@ class PlanarDetector(object):
             ang_pixel_size.append(self.angularPixelSize(xys_p))
         return valid_ids, valid_hkls, valid_angs, valid_xys, ang_pixel_size
 
-    def simulate_laue_pattern(self, plane_data,
+    def simulate_laue_pattern(self, crystal_data,
                               minEnergy=5., maxEnergy=35.,
                               rmat_s=None, tvec_s=None,
                               grain_params=None,
                               beam_vec=None):
         """
         """
-        # grab the expanded list of hkls from plane_data
-        hkls = np.hstack(plane_data.getSymHKLs())
-        nhkls_tot = hkls.shape[1]
+        if isinstance(crystal_data, PlaneData):
 
-        # and the unit plane normals (G-vectors) in CRYSTAL FRAME
-        gvec_c = np.dot(plane_data.latVecOps['B'], hkls)
+            plane_data = crystal_data
+
+            # grab the expanded list of hkls from plane_data
+            hkls = np.hstack(plane_data.getSymHKLs())
+
+            # and the unit plane normals (G-vectors) in CRYSTAL FRAME
+            gvec_c = np.dot(plane_data.latVecOps['B'], hkls)
+        elif len(crystal_data) == 2:
+            # !!! should clean this up
+            hkls = np.array(crystal_data[0])
+            bmat = crystal_data[1]
+            gvec_c = np.dot(bmat, hkls)
+        else:
+            raise(RuntimeError, 'argument list not understood')
+        nhkls_tot = hkls.shape[1]
 
         # parse energy ranges
         # TODO: allow for spectrum parsing
