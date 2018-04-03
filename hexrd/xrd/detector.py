@@ -2052,7 +2052,7 @@ class MultiRingBinned:
                     if rhoPxEff < numRho * 0.5:
                         raise RuntimeError, 'rhoPx %d for %d peaks is less than half of target' % (rhoPx, nPeaks)
 
-            return numRho, npdiv, rhoPxRange
+            return numRho, int(npdiv), rhoPxRange
 
         polImgSingle = None
         if singleRebin:
