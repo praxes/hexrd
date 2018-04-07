@@ -99,14 +99,37 @@ class cmapPanel(wx.Panel):
                                         'Colormap:  ',
                                         style=wx.ALIGN_RIGHT)
 
-        self.cmap_nameList = ['autumn', 'bone', 'bone_r', 'bwr', 'cool', 'copper',
-                              'flag', 'gray', 'gray_r', 'hot', 'hot_r',
-                              'hsv', 'jet', 'pink', 'prism', 'spring',
-                              'summer', 'winter', 'spectral']
+        # list of sequential colormap names
+        self.cmap_nameList = [
+            'afmhot', 'afmhot_r',
+            'autumn', 'autumn_r',
+            'binary', 'binary_r',
+            'bone', 'bone_r',
+            'cool', 'cool_r',
+            'copper', 'copper_r',
+            'cubehelix', 'cubehelix_r',
+            'gist_earth', 'gist_earth_r',
+            'gist_gray', 'gist_gray_r',
+            'gist_heat', 'gist_heat_r',
+            'gist_yarg', 'gist_yarg_r',
+            'gnuplot', 'gnuplot_r',
+            'gnuplot2','gnuplot2_r',
+            'gray', 'gray_r',
+            'hot', 'hot_r',
+            'inferno', 'inferno_r',
+            'magma', 'magma_r',
+            'pink', 'pink_r',
+            'plasma', 'plasma_r',
+            'spring', 'spring_r',
+            'summer', 'summer_r',
+            'terrain', 'terrain_r',
+            'viridis', 'viridis_r',
+            'winter', 'winter_r']
+
         self.cmap_cho = wx.Choice(self, wx.NewId(),
                                   choices=self.cmap_nameList)
 
-        self.cmap_name = 'bone'
+        self.cmap_name = 'inferno'
         self.cmap_cho.SetStringSelection(self.cmap_name)
 
         self.cmin_val = 0

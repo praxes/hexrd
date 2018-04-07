@@ -490,7 +490,7 @@ def fiberSearch(spotsArray, hklList,
         thisHKLID = planeData.getHKLID(hklList[iHKL])
         thisRingSpots0   = spotsArray.getHKLSpots(thisHKLID)
         thisRingSpots0W  = num.where(thisRingSpots0)[0]
-        unclaimedOfThese = -spotsArray.checkClaims(indices=thisRingSpots0W)
+        unclaimedOfThese = ~spotsArray.checkClaims(indices=thisRingSpots0W)
         thisRingSpots    = copy.deepcopy(thisRingSpots0)
         thisRingSpots[thisRingSpots0W] = unclaimedOfThese
         if friedelOnly:
@@ -518,7 +518,7 @@ def fiberSearch(spotsArray, hklList,
             (when requested)
         """
         for iRefl, stuff in enumerate(spotsIteratorI):
-            unclaimedOfThese = -spotsArray.checkClaims(indices=thisRingSpots0W)
+            unclaimedOfThese = ~spotsArray.checkClaims(indices=thisRingSpots0W)
             thisRingSpots    = copy.deepcopy(thisRingSpots0)
             thisRingSpots[thisRingSpots0W] = unclaimedOfThese
             if friedelOnly:
@@ -612,7 +612,7 @@ def fiberSearch(spotsArray, hklList,
                                   'claimed' % (numConfl)
                         grainList.append(foundGrain)
                         nGrains += 1
-                numUnClaimed = num.sum(-spotsArray.checkClaims())
+                numUnClaimed = num.sum(~spotsArray.checkClaims())
                 numClaimed = numTotal - numUnClaimed
                 pctClaimed = num.float(numClaimed) / numTotal
                 print "Found %d grains so far, %f%% claimed" \
