@@ -1343,7 +1343,7 @@ def getFriedelPair(tth0, eta0, *ome0, **kwargs):
     eta_min = num.nan * num.ones_like(ome_min)
 
     # mark feasible reflections
-    goodOnes = -num.isnan(ome_min)
+    goodOnes = ~num.isnan(ome_min)
 
     numGood  = sum(goodOnes)
     tmp_eta  = num.empty(numGood)
