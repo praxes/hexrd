@@ -1732,11 +1732,11 @@ class EtaOmeMaps(object):
 # not ready # class BaseEtaOme(object):
 # not ready #     """
 # not ready #     eta-ome map base class derived from new YAML config
-# not ready # 
+# not ready #
 # not ready #     ...for now...
-# not ready # 
+# not ready #
 # not ready #     must provide:
-# not ready # 
+# not ready #
 # not ready #     self.dataStore
 # not ready #     self.planeData
 # not ready #     self.iHKLList
@@ -1744,7 +1744,7 @@ class EtaOmeMaps(object):
 # not ready #     self.omeEdges # IN RADIANS
 # not ready #     self.etas     # IN RADIANS
 # not ready #     self.omegas   # IN RADIANS
-# not ready # 
+# not ready #
 # not ready #     This wrapper will provide all but dataStore.
 # not ready #     """
 # not ready #     def __init__(self, cfg, reader=None, eta_step=None):
@@ -1754,34 +1754,34 @@ class EtaOmeMaps(object):
 # not ready #         """
 # not ready #         self.cfg = cfg
 # not ready #         self.instr_cfg = get_instrument_parameters(cfg)
-# not ready # 
+# not ready #
 # not ready #         # currently hard-coded to do reader from npz frame cache
 # not ready #         # kwarg *MUST* be 'new' style reader
 # not ready #         if reader is None:
 # not ready #             self.__reader = get_frames(reader, self.cfg)
 # not ready #         else:
 # not ready #             self.__reader = reader
-# not ready # 
+# not ready #
 # not ready #         # set eta_step IN DEGREES
 # not ready #         if eta_step is None:
 # not ready #             self._eta_step = self.cfg.image_series.omega.step
 # not ready #         else:
 # not ready #             self._eta_step = abs(eta_step) # just in case negative...
-# not ready # 
+# not ready #
 # not ready #         material_list = cPickle.load(open(cfg.material.definitions, 'r'))
 # not ready #         material_names = [material_list[i].name for i in range(len(material_list))]
 # not ready #         material_dict = dict(zip(material_names, material_list))
 # not ready #         self.planeData = material_dict[cfg.material.active].planeData
-# not ready # 
+# not ready #
 # not ready #         self._iHKLList = None
-# not ready # 
+# not ready #
 # not ready #         self._etaEdges = None
 # not ready #         self._omeEdges = None
 # not ready #         self._etas = None
 # not ready #         self._omegas = None
-# not ready # 
+# not ready #
 # not ready #         return
-# not ready # 
+# not ready #
 # not ready #     @property
 # not ready #     def iHKLList(self):
 # not ready #         return self._iHKLList
@@ -1792,7 +1792,7 @@ class EtaOmeMaps(object):
 # not ready #         """
 # not ready #         if ids is not None:
 # not ready #             assert hasattr(ids, '__len__'), "ids must be a list or list-like object"
-# not ready # 
+# not ready #
 # not ready #         # start with all available
 # not ready #         active_hkls = range(pd.hkls.shape[1])
 # not ready #         # check cfg file
@@ -1801,7 +1801,7 @@ class EtaOmeMaps(object):
 # not ready #         active_hkls = active_hkls if temp == 'all' else temp
 # not ready #         # override with hkls from command line, if specified
 # not ready #         return ids if ids is not None else active_hkls
-# not ready # 
+# not ready #
 # not ready #     @property
 # not ready #     def omegas(self):
 # not ready #         return self._omegas
@@ -1814,11 +1814,11 @@ class EtaOmeMaps(object):
 # not ready #         ome_start = self.__reader[1][0]
 # not ready #         ome_step  = self.__reader[1][1]
 # not ready #         return ome_step*(num.arange(num_ome) + 0.5) + ome_start
-# not ready # 
+# not ready #
 # not ready #     @property
 # not ready #     def eta_step(self):
 # not ready #         return self._eta_step
-# not ready # 
+# not ready #
 # not ready #     @property
 # not ready #     def etas(self):
 # not ready #         return self._etas
@@ -1826,12 +1826,12 @@ class EtaOmeMaps(object):
 # not ready #     def etas(self):
 # not ready #         """
 # not ready #         range is forced to be [-180, 180] for now, so step must be positive
-# not ready # 
+# not ready #
 # not ready #         step is same as omega unless specified (in degrees)
 # not ready #         """
 # not ready #         num_eta = int(360/float(abs(self.eta_step)))
 # not ready #         return num.radians(self.eta_step)*(num.arange(num_eta) + 0.5) - num.pi
-# not ready # 
+# not ready #
 # not ready #     @property
 # not ready #     def omeEdges(self):
 # not ready #         return self._omeEdges
@@ -1839,28 +1839,28 @@ class EtaOmeMaps(object):
 # not ready #     def omeEdges(self):
 # not ready #         ome_step = self.omegas[1] - self.omegas[0] # same as self.__reader[1][1]
 # not ready #         return num.hstack([self.omegas - 0.5*ome_step, self.omegas[-1] + 0.5*ome_step])
-# not ready # 
+# not ready #
 # not ready #     @property
 # not ready #     def etaEdges(self):
 # not ready #         return self._etaEdges
 # not ready #     @etaEdges.getter
 # not ready #     def etaEdges(self):
 # not ready #         return num.hstack([self.etas - 0.5*eta_step, self.etas[-1] + 0.5*eta_step])
-# not ready # 
+# not ready #
 # not ready # class EtaOmeMaps(BaseEtaOme):
 # not ready #     """
 # not ready #     """
 # not ready #     def __init__(self, cfg, reader=None, eta_step=None,
 # not ready #                  omega=0., tVec_s=num.zeros(3),
 # not ready #                  npdiv=2):
-# not ready # 
+# not ready #
 # not ready #         # first init the base class
 # not ready #         super( EtaOmeMaps, self ).__init__(cfg, reader=reader, eta_step=eta_step)
-# not ready # 
+# not ready #
 # not ready #         # grac relevant tolerances for patches
 # not ready #         tth_tol = num.degrees(self.planeData.tThWidth)
 # not ready #         eta_tol = num.degrees(abs(self.etas[1]-self.etas[0]))
-# not ready # 
+# not ready #
 # not ready #         # grab distortion
 # not ready #         if instr_cfg['detector']['distortion']['function_name'] is None:
 # not ready #             distortion = None
@@ -1878,28 +1878,28 @@ class EtaOmeMaps(object):
 # not ready #             ])
 # not ready #         pixel_pitch = instr_cfg['detector']['pixels']['size']
 # not ready #         chi = self.instr_cfg['oscillation_stage']['chi'] # in DEGREES
-# not ready # 
+# not ready #
 # not ready #         # 6 detector affine xform parameters
 # not ready #         rMat_d = makeDetectorRotMat(detector_params[:3])
 # not ready #         tVec_d = detector_params[3:6]
-# not ready # 
+# not ready #
 # not ready #         # 'dummy' sample frame rot mat
 # not ready #         rMats_s = makeOscillRotMat(num.radians([chi, omega]))
-# not ready # 
+# not ready #
 # not ready #         # since making maps for all eta, must hand trivial crystal params
 # not ready #         rMat_c = num.eye(3)
 # not ready #         tVec_c = num.zeros(3)
-# not ready # 
+# not ready #
 # not ready #         # make angle arrays for patches
 # not ready #         neta = len(self.etas)
 # not ready #         nome = len(reader[0])
-# not ready # 
+# not ready #
 # not ready #         # make full angs list
 # not ready #         angs = [num.vstack([tth*num.ones(neta),
 # not ready #                            etas,
 # not ready #                            num.zeros(nome)])
 # not ready #                 for tth in self.planeData.getTTh()]
-# not ready # 
+# not ready #
 # not ready #         """SET MAPS CONTAINER AS ATTRIBUTE"""
 # not ready #         self.dataStore = num.zeros((len(angs), nome, neta))
 # not ready #         for i_ring in range(len(angs)):
@@ -1908,7 +1908,7 @@ class EtaOmeMaps(object):
 # not ready #             xydet_ring = xfcapi.gvecToDetectorXY(gVec_ring_l,
 # not ready #                                                  rMat_d, rMat_s, rMat_c,
 # not ready #                                                  tVec_d, tVec_s, tVec_c)
-# not ready # 
+# not ready #
 # not ready #             if distortion is not None:
 # not ready #                 det_xy = distortion[0](xydet_ring,
 # not ready #                                        distortion[1],
@@ -1917,7 +1917,7 @@ class EtaOmeMaps(object):
 # not ready #                                       rMat_d, rMat_s,
 # not ready #                                       tVec_d, tVec_s, tVec_c,
 # not ready #                                       distortion=distortion)
-# not ready # 
+# not ready #
 # not ready #             patches = make_reflection_patches(self.instr_cfg,
 # not ready #                                               angs[i_ring].T[:, :2], ang_ps,
 # not ready #                                               omega=None,
@@ -1925,7 +1925,7 @@ class EtaOmeMaps(object):
 # not ready #                                               distortion=distortion,
 # not ready #                                               npdiv=npdiv, quiet=False,
 # not ready #                                               compute_areas_func=gutil.compute_areas)
-# not ready # 
+# not ready #
 # not ready #             for i in range(nome):
 # not ready #                 this_frame = num.array(reader[0][i].todense())
 # not ready #                 for j in range(neta):
@@ -3814,7 +3814,7 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
     # beam vector
     if beamVec is None:
         beamVec = xfcapi.bVec_ref
-    
+
     # data to loop
     # ...WOULD IT BE CHEAPER TO CARRY ZEROS OR USE CONDITIONAL?
     if omega is None:
@@ -4021,8 +4021,10 @@ def pullSpots(pd, detector_params, grain_params, reader,
                       "meas tth          \tmeas eta          \t meas ome          \t" + \
                       "meas X            \tmeas Y            \t meas ome\n#"
         if output_hdf5:
-            gw = GrainDataWriter_h5(fid.name.split('.')[0], detector_params, grain_params)
-    
+            # !!! this is a bit kludgey as it puts constraints on the filename...
+            h5fname = fid.name.split('.')[0]
+            gw = GrainDataWriter_h5(h5fname, detector_params, grain_params)
+
     iRefl = 0
     spot_list = []
     for hklid, hkl, angs, xy, pix in zip(*sim_g):
@@ -4336,7 +4338,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 #              "               \t%f               \t%f               \t%f" % tuple(nans_3)
                 pass
             print >> fid, output_str
-            
+
             if output_hdf5:
                 if peakId < 0:
                     mangs = nans_3
@@ -4393,26 +4395,36 @@ class GrainDataWriter_h5(object):
             self.fid = filename
         else:
             self.fid = h5py.File(filename + '.hdf5', 'w')
-        
+
         # add instrument groups and attributes
         self.instr_grp = self.fid.create_group('instrument')
         rMat_d, tVec_d, chi, tVec_s = extract_detector_transformation(detector_params)
-        self.instr_grp.attrs.create('rmat_d', rMat_d)
-        self.instr_grp.attrs.create('tvec_d', tVec_d.flatten())
-        self.instr_grp.attrs.create('chi', chi)
-        self.instr_grp.attrs.create('tvec_s', tVec_s.flatten())
-        
+        #self.instr_grp.attrs.create('rmat_d', rMat_d)
+        #self.instr_grp.attrs.create('tvec_d', tVec_d.flatten())
+        #self.instr_grp.attrs.create('chi', chi)
+        #self.instr_grp.attrs.create('tvec_s', tVec_s.flatten())
+        self.instr_grp.create_dataset('rmat_d', data=rMat_d)
+        self.instr_grp.create_dataset('tvec_d', data=tVec_d.flatten())
+        self.instr_grp.create_dataset('chi', data=chi)
+        self.instr_grp.create_dataset('tvec_s', data=tVec_s.flatten())
+
+
+
         self.grain_grp = self.fid.create_group('grain')
         rMat_c = xfcapi.makeRotMatOfExpMap(grain_params[:3])
         tVec_c = num.array(grain_params[3:6]).flatten()
         vInv_s = num.array(grain_params[6:]).flatten()
         vMat_s = inv(mutil.vecMVToSymm(vInv_s))
-        self.grain_grp.attrs.create('rmat_c', rMat_c)
-        self.grain_grp.attrs.create('tvec_c', tVec_c.flatten())
-        self.grain_grp.attrs.create('inv(V)_s', vInv_s)
-        self.grain_grp.attrs.create('vmat_s', vMat_s)
-        
-        # add grain parameter 
+        #self.grain_grp.attrs.create('rmat_c', rMat_c)
+        #self.grain_grp.attrs.create('tvec_c', tVec_c.flatten())
+        #self.grain_grp.attrs.create('inv(V)_s', vInv_s)
+        #self.grain_grp.attrs.create('vmat_s', vMat_s)
+        self.grain_grp.create_dataset('rmat_c', data=rMat_c)
+        self.grain_grp.create_dataset('tvec_c', data=tVec_c.flatten())
+        self.grain_grp.create_dataset('inv(V)_s', data=vInv_s)
+        self.grain_grp.create_dataset('vmat_s', data=vMat_s)
+
+        # add grain parameter
         data_key = 'reflection_data'
         self.data_grp = self.fid.create_group(data_key)
 
@@ -4423,7 +4435,7 @@ class GrainDataWriter_h5(object):
     def close(self):
         self.fid.close()
 
-    def dump_patch(self, 
+    def dump_patch(self,
                    i_refl, peak_id, hkl_id, hkl,
                    tth_centers, eta_centers, ome_centers,
                    xy_centers, ijs, frame_indices,
@@ -4431,10 +4443,10 @@ class GrainDataWriter_h5(object):
         """
         to be called inside loop over patches
 
-        default GZIP level for data arrays is 9
+        default GZIP level for data arrays is 4
         """
-        fi = num.array(frame_indices, dtype=int)
 
+        # create spot group
         spot_grp = self.data_grp.create_group("spot_%05d" % i_refl)
         spot_grp.attrs.create('peak_id', peak_id)
         spot_grp.attrs.create('hkl_id', hkl_id)
@@ -4449,6 +4461,7 @@ class GrainDataWriter_h5(object):
 
         # get centers crds from edge arrays
         ome_dim, eta_dim, tth_dim = spot_data.shape
+
         tth_crd = tth_centers.reshape(eta_dim, tth_dim)
         eta_crd = eta_centers.reshape(eta_dim, tth_dim)
         ome_crd = num.tile(ome_centers, (eta_dim*tth_dim, 1)).T.reshape(ome_dim, eta_dim, tth_dim)
@@ -4460,11 +4473,11 @@ class GrainDataWriter_h5(object):
                                 compression="gzip", compression_opts=gzip)
         spot_grp.create_dataset('ome_crd', data=ome_crd,
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('xy_centers', data=xy_centers,
+        spot_grp.create_dataset('xy_centers', data=xy_centers.T.reshape(2, eta_dim, tth_dim),
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('ij_centers', data=ijs,
+        spot_grp.create_dataset('ij_centers', data=ijs.reshape(2, eta_dim, tth_dim),
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('frame_indices', data=fi,
+        spot_grp.create_dataset('frame_indices', data=num.array(frame_indices, dtype=int),
                                 compression="gzip", compression_opts=gzip)
         spot_grp.create_dataset('intensities', data=spot_data,
                                 compression="gzip", compression_opts=gzip)
