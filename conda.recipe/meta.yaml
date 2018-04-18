@@ -25,6 +25,7 @@ requirements:
     - python
     - setuptools
   run:
+    - h5py
     - joblib
     - matplotlib
     - numba

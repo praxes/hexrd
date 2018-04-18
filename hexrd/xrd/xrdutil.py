@@ -32,11 +32,11 @@ import math
 from math import pi
 import shelve
 
-
+import h5py
 
 import numpy as num
 from scipy import sparse
-from scipy.linalg import svd
+from scipy.linalg import svd, inv
 from scipy import ndimage
 import scipy.optimize as opt
 
@@ -101,6 +101,10 @@ r2d = 1.0/d2r
 epsf      = num.finfo(float).eps # ~2.2e-16
 ten_epsf  = 10 * epsf            # ~2.2e-15
 sqrt_epsf = num.sqrt(epsf)       # ~1.5e-8
+
+nans_2 = num.nan*num.ones(2)
+nans_3 = num.nan*num.ones(3)
+nans_6 = num.nan*num.ones(6)
 
 class FormatEtaOme:
     'for plotting data as a matrix, with ijAsXY=True'
@@ -1883,8 +1887,8 @@ class EtaOmeMaps(object):
 # not ready #         rMats_s = makeOscillRotMat(num.radians([chi, omega]))
 # not ready # 
 # not ready #         # since making maps for all eta, must hand trivial crystal params
-# not ready #         rMat_c = np.eye(3)
-# not ready #         tVec_c = np.zeros(3)
+# not ready #         rMat_c = num.eye(3)
+# not ready #         tVec_c = num.zeros(3)
 # not ready # 
 # not ready #         # make angle arrays for patches
 # not ready #         neta = len(self.etas)
@@ -3913,7 +3917,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
               npdiv=1, threshold=10,
               doClipping=False, filename=None,
               save_spot_list=False, use_closest=True,
-              quiet=True):
+              quiet=True, output_hdf5=True):
     """
     Function for pulling spots from a reader object for
     specific detector panel and crystal specifications
@@ -4016,6 +4020,9 @@ def pullSpots(pd, detector_params, grain_params, reader,
                       "pred tth          \tpred eta          \t pred ome          \t" + \
                       "meas tth          \tmeas eta          \t meas ome          \t" + \
                       "meas X            \tmeas Y            \t meas ome\n#"
+        if output_hdf5:
+            gw = GrainDataWriter_h5(fid.name.split('.')[0], detector_params, grain_params)
+    
     iRefl = 0
     spot_list = []
     for hklid, hkl, angs, xy, pix in zip(*sim_g):
@@ -4098,11 +4105,13 @@ def pullSpots(pd, detector_params, grain_params, reader,
         patch_i = patch_i.flatten(); patch_j = patch_j.flatten()
 
         # read frame in, splitting reader if necessary
+        # !!! in cases without full ranges, perhaps skip spot completely if ome_tol falls outside ranges?
         split_reader = False
         if min(frame_indices) < 0:
             if full_range > 0:
                 reidx = num.where(frame_indices >= 0)[0]
                 sdims[0] = len(reidx)
+                ome_centers = ome_centers[reidx]
                 frame_indices = frame_indices[reidx]
             elif full_range == 0:
                 split_reader = True
@@ -4114,6 +4123,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
             if full_range > 0:
                 reidx = num.where(frame_indices < nframes)[0]
                 sdims[0] = len(reidx)
+                ome_centers = ome_centers[reidx]
                 frame_indices = frame_indices[reidx]
             elif full_range == 0:
                 split_reader = True
@@ -4287,7 +4297,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
             if peakId >= 0:
                 w_dict['refl_xyo']  = (new_xy[0], new_xy[1], com_angs[2])
             else:
-                w_dict['refl_xyo']  = tuple(num.nan*num.ones(3))
+                w_dict['refl_xyo']  = tuple(nans_3)
             w_dict['angles']        = angs
             w_dict['ang_grid']      = gVec_angs
             w_dict['row_indices']   = row_indices
@@ -4296,27 +4306,60 @@ def pullSpots(pd, detector_params, grain_params, reader,
             spot_list.append(w_dict)
             pass
         if filename is not None:
+            nans_tabbed_12_2 = '{:^12}\t{:^12}\t'
+            nans_tabbed_18_6 = '{:^18}\t{:^18}\t{:^18}\t{:^18}\t{:^18}\t{:^18}'
+            output_str = \
+              '{:<6d}\t{:<6d}\t'.format(int(peakId), int(hklid)) + \
+              '{:<3d}\t{:<3d}\t{:<3d}\t'.format(*num.array(hkl, dtype=int))
             if peakId >= 0:
-                print >> fid, "%d\t%d\t"                 % (peakId, hklid)                     + \
-                              "%d\t%d\t%d\t"             % tuple(hkl)                          + \
-                              "%1.6e\t%1.6e\t"           % (spot_intensity, max_intensity)     + \
-                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                         + \
-                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(com_angs)                     + \
-                              "%1.12e\t%1.12e\t%1.12e"   % (new_xy[0], new_xy[1], com_angs[2])
+                output_str += \
+                    '{:<1.6e}\t{:<1.6e}\t'.format(spot_intensity, max_intensity) + \
+                    '{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t'.format(*angs) + \
+                    '{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t'.format(*com_angs) + \
+                    '{:<1.12e}\t{:<1.12e}\t{:<1.12e}'.format(new_xy[0], new_xy[1], com_angs[2])
+                #print >> fid, "%d\t%d\t"                 % (peakId, hklid)                     + \
+                #              "%d\t%d\t%d\t"             % tuple(hkl)                          + \
+                #              "%1.6e\t%1.6e\t"           % (spot_intensity, max_intensity)     + \
+                #              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                         + \
+                #              "%1.12e\t%1.12e\t%1.12e\t" % tuple(com_angs)                     + \
+                #              "%1.12e\t%1.12e\t%1.12e"   % (new_xy[0], new_xy[1], com_angs[2])
             else:
-                print >> fid, "%d\t%d\t"                 % (peakId, hklid)            + \
-                              "%d\t%d\t%d\t"             % tuple(hkl)                 + \
-                              "%f         \t%f         \t"                 % tuple(num.nan*num.ones(2)) + \
-                              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                + \
-                              "%f               \t%f               \t%f" % tuple(num.nan*num.ones(3)) + \
-                              "               \t%f               \t%f               \t%f"   % tuple(num.nan*num.ones(3))
+                output_str += \
+                  nans_tabbed_12_2.format(*nans_2) + \
+                  '{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t'.format(*angs) + \
+                  nans_tabbed_18_6.format(*nans_6)
+                #print >> fid, "%d\t%d\t"                 % (peakId, hklid)            + \
+                #              "%d\t%d\t%d\t"             % tuple(hkl)                 + \
+                #              "%f         \t%f         \t" % tuple(nans_2) + \
+                #              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                + \
+                #              "%f               \t%f               \t%f" % tuple(nans_3) + \
+                #              "               \t%f               \t%f               \t%f" % tuple(nans_3)
+                pass
+            print >> fid, output_str
+            
+            if output_hdf5:
+                if peakId < 0:
+                    mangs = nans_3
+                    mxy = nans_2
+                else:
+                    mangs = com_angs
+                    mxy = new_xy
+                ijs = num.stack([row_indices, col_indices])
+                gw.dump_patch(
+                   iRefl, peakId, hklid, hkl,
+                   tth_eta_cen[:, 0], tth_eta_cen[:, 1], ome_centers,
+                   xy_eval, ijs, frame_indices,
+                   spot_data, angs, mangs, mxy, gzip=9)
                 pass
             pass
         iRefl += 1
         pass
-    if filename is not None: fid.close()
-
+    if filename is not None:
+        fid.close()
+        if output_hdf5:
+            gw.close()
     return spot_list
+
 
 def extract_detector_transformation(detector_params):
     """
@@ -4338,3 +4381,91 @@ def extract_detector_transformation(detector_params):
         chi    = detector_params[6]
         tVec_s = num.ascontiguousarray(detector_params[7:10])
     return rMat_d, tVec_d, chi, tVec_s
+
+
+class GrainDataWriter_h5(object):
+    """
+    TODO: add material spec
+    """
+    def __init__(self, filename, detector_params, grain_params):
+        use_attr = True
+        if isinstance(filename, h5py.File):
+            self.fid = filename
+        else:
+            self.fid = h5py.File(filename + '.hdf5', 'w')
+        
+        # add instrument groups and attributes
+        self.instr_grp = self.fid.create_group('instrument')
+        rMat_d, tVec_d, chi, tVec_s = extract_detector_transformation(detector_params)
+        self.instr_grp.attrs.create('rmat_d', rMat_d)
+        self.instr_grp.attrs.create('tvec_d', tVec_d.flatten())
+        self.instr_grp.attrs.create('chi', chi)
+        self.instr_grp.attrs.create('tvec_s', tVec_s.flatten())
+        
+        self.grain_grp = self.fid.create_group('grain')
+        rMat_c = xfcapi.makeRotMatOfExpMap(grain_params[:3])
+        tVec_c = num.array(grain_params[3:6]).flatten()
+        vInv_s = num.array(grain_params[6:]).flatten()
+        vMat_s = inv(mutil.vecMVToSymm(vInv_s))
+        self.grain_grp.attrs.create('rmat_c', rMat_c)
+        self.grain_grp.attrs.create('tvec_c', tVec_c.flatten())
+        self.grain_grp.attrs.create('inv(V)_s', vInv_s)
+        self.grain_grp.attrs.create('vmat_s', vMat_s)
+        
+        # add grain parameter 
+        data_key = 'reflection_data'
+        self.data_grp = self.fid.create_group(data_key)
+
+    # FIXME: throws exception when called after close method
+    # def __del__(self):
+    #    self.close()
+
+    def close(self):
+        self.fid.close()
+
+    def dump_patch(self, 
+                   i_refl, peak_id, hkl_id, hkl,
+                   tth_centers, eta_centers, ome_centers,
+                   xy_centers, ijs, frame_indices,
+                   spot_data, pangs, mangs, mxy, gzip=4):
+        """
+        to be called inside loop over patches
+
+        default GZIP level for data arrays is 9
+        """
+        fi = num.array(frame_indices, dtype=int)
+
+        spot_grp = self.data_grp.create_group("spot_%05d" % i_refl)
+        spot_grp.attrs.create('peak_id', peak_id)
+        spot_grp.attrs.create('hkl_id', hkl_id)
+        spot_grp.attrs.create('hkl', hkl)
+        spot_grp.attrs.create('predicted_angles', pangs)
+        if mangs is None:
+            mangs = num.nan*num.ones(3)
+        spot_grp.attrs.create('measured_angles', mangs)
+        if mxy is None:
+            mxy = num.nan*num.ones(3)
+        spot_grp.attrs.create('measured_xy', mxy)
+
+        # get centers crds from edge arrays
+        ome_dim, eta_dim, tth_dim = spot_data.shape
+        tth_crd = tth_centers.reshape(eta_dim, tth_dim)
+        eta_crd = eta_centers.reshape(eta_dim, tth_dim)
+        ome_crd = num.tile(ome_centers, (eta_dim*tth_dim, 1)).T.reshape(ome_dim, eta_dim, tth_dim)
+
+        # make datasets
+        spot_grp.create_dataset('tth_crd', data=tth_crd,
+                                compression="gzip", compression_opts=gzip)
+        spot_grp.create_dataset('eta_crd', data=eta_crd,
+                                compression="gzip", compression_opts=gzip)
+        spot_grp.create_dataset('ome_crd', data=ome_crd,
+                                compression="gzip", compression_opts=gzip)
+        spot_grp.create_dataset('xy_centers', data=xy_centers,
+                                compression="gzip", compression_opts=gzip)
+        spot_grp.create_dataset('ij_centers', data=ijs,
+                                compression="gzip", compression_opts=gzip)
+        spot_grp.create_dataset('frame_indices', data=fi,
+                                compression="gzip", compression_opts=gzip)
+        spot_grp.create_dataset('intensities', data=spot_data,
+                                compression="gzip", compression_opts=gzip)
+        return

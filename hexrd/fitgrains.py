@@ -268,7 +268,7 @@ class FitGrainsWorker(object):
         self._pbar = kwargs.get('progressbar', None)
 
 
-    def pull_spots(self, grain_id, grain_params, iteration):
+    def pull_spots(self, grain_id, grain_params, iteration, output_hdf5=False):
         # need to calc panel dims on the fly
         xdim = self._p['pixel_pitch'][1] * self._p['ncols']
         ydim = self._p['pixel_pitch'][0] * self._p['nrows']
@@ -292,6 +292,7 @@ class FitGrainsWorker(object):
             threshold=self._p['threshold'],
             doClipping=False,
             filename=self._p['spots_stem'] % grain_id,
+            output_hdf5=output_hdf5
             )
 
 
@@ -315,7 +316,7 @@ class FitGrainsWorker(object):
         unsat_spots = refl_table[:, 6] < self._p['saturation_level']
         pred_ome = refl_table[:, 9]
         if angularDifference(ome_start, ome_stop, units='degrees') > 0:
-            # if here, incomplete have omega range and
+            # if here, have incomplete omega range and
             # clip the refelctions very close to the edges to avoid
             # problems with the least squares...
             if np.sign(ome_step) < 0:
@@ -469,7 +470,7 @@ class FitGrainsWorker(object):
         
         # final pull spots if enabled
         if not self._p['fit_only']:
-            self.pull_spots(id, grain_params, -1)
+            self.pull_spots(id, grain_params, -1, output_hdf5=True)
 
         eMat = self.get_e_mat(grain_params)
         resd = self.get_residuals(grain_params)
