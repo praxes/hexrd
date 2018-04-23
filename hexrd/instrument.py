@@ -690,7 +690,7 @@ class HEDMInstrument(object):
             this_filename = os.path.join(dirname, filename)
             writer = GrainDataWriter_h5(
                 os.path.join(dirname, filename),
-                self.write_config())
+                self.write_config(), grain_params)
 
         # =====================================================================
         # LOOP OVER PANELS
@@ -1955,8 +1955,8 @@ class GrainDataWriter_h5(object):
     """
     TODO: add material spec
     """
-    def __init__(self, filename, instr_cfg):
-        use_attr = True
+    def __init__(self, filename, instr_cfg, grain_params, use_attr=False):
+        
         if isinstance(filename, h5py.File):
             self.fid = filename
         else:
@@ -1967,6 +1967,24 @@ class GrainDataWriter_h5(object):
         # add instrument groups and attributes
         self.instr_grp = self.fid.create_group('instrument')
         unwrap_dict_to_h5(self.instr_grp, icfg, asattr=use_attr)
+
+        # add grain group
+        self.grain_grp = self.fid.create_group('grain')
+        rmat_c = makeRotMatOfExpMap(grain_params[:3])
+        tvec_c = np.array(grain_params[3:6]).flatten()
+        vinv_s = np.array(grain_params[6:]).flatten()
+        vmat_s = np.linalg.inv(mutil.vecMVToSymm(vinv_s))
+        
+        if use_attr:    # attribute version
+            self.grain_grp.attrs.create('rmat_c', rmat_c)
+            self.grain_grp.attrs.create('tvec_c', tvec_c)
+            self.grain_grp.attrs.create('inv(V)_s', vinv_s)
+            self.grain_grp.attrs.create('vmat_s', vmat_s)
+        else:    # dataset version
+            self.grain_grp.create_dataset('rmat_c', data=rmat_c)
+            self.grain_grp.create_dataset('tvec_c', data=tvec_c)
+            self.grain_grp.create_dataset('inv(V)_s', data=vinv_s)
+            self.grain_grp.create_dataset('vmat_s', data=vmat_s)
 
         data_key = 'reflection_data'
         self.data_grp = self.fid.create_group(data_key)
