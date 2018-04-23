@@ -53,7 +53,6 @@ from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd import USE_NUMBA
 
 # FIXME: numba implementation of paintGridThis is broken
-USE_NUMBA = 0  # OVERRIDE NUMBA
 if USE_NUMBA:
     import numba
 

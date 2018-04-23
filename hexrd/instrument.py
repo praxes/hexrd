@@ -1956,7 +1956,7 @@ class GrainDataWriter_h5(object):
     TODO: add material spec
     """
     def __init__(self, filename, instr_cfg, grain_params, use_attr=False):
-        
+
         if isinstance(filename, h5py.File):
             self.fid = filename
         else:
@@ -1974,7 +1974,7 @@ class GrainDataWriter_h5(object):
         tvec_c = np.array(grain_params[3:6]).flatten()
         vinv_s = np.array(grain_params[6:]).flatten()
         vmat_s = np.linalg.inv(mutil.vecMVToSymm(vinv_s))
-        
+
         if use_attr:    # attribute version
             self.grain_grp.attrs.create('rmat_c', rmat_c)
             self.grain_grp.attrs.create('tvec_c', tvec_c)
@@ -2025,16 +2025,25 @@ class GrainDataWriter_h5(object):
         spot_grp.attrs.create('measured_xy', mxy)
 
         # get centers crds from edge arrays
-        ome_crd, eta_crd, tth_crd = np.meshgrid(
-            ome_centers,
-            centers_of_edge_vec(eta_edges),
-            centers_of_edge_vec(tth_edges),
-            indexing='ij')
+        # FIXME: export full coordinate arrays, or just center vectors???
+        #
+        # ome_crd, eta_crd, tth_crd = np.meshgrid(
+        #     ome_centers,
+        #     centers_of_edge_vec(eta_edges),
+        #     centers_of_edge_vec(tth_edges),
+        #     indexing='ij')
+        #
+        # ome_dim, eta_dim, tth_dim = spot_data.shape
+
+        # !!! for now just exporting center vectors for spot_data
+        tth_crd = centers_of_edge_vec(tth_edges)
+        eta_crd = centers_of_edge_vec(eta_edges)
+
         spot_grp.create_dataset('tth_crd', data=tth_crd,
                                 compression="gzip", compression_opts=gzip)
         spot_grp.create_dataset('eta_crd', data=eta_crd,
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('ome_crd', data=ome_crd,
+        spot_grp.create_dataset('ome_crd', data=ome_centers,
                                 compression="gzip", compression_opts=gzip)
         spot_grp.create_dataset('xy_centers', data=xy_centers,
                                 compression="gzip", compression_opts=gzip)
