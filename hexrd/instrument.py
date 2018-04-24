@@ -875,10 +875,9 @@ class HEDMInstrument(object):
                             elif interp.lower() == 'nearest':
                                 patch_data = patch_data_raw  # * nrm_fac
                             else:
-                                raise(RuntimeError,
-                                      "interpolation option '%s' not understood"
-                                      % interp
-                                )
+                                msg = "interpolation option " + \
+                                    "'%s' not understood"
+                                raise(RuntimeError, msg % interp)
 
                             # now have interpolated patch data...
                             labels, num_peaks = ndimage.label(
@@ -1014,8 +1013,8 @@ class PlanarDetector(object):
                  name='default',
                  bvec=ct.beam_vec,
                  evec=ct.eta_vec,
-                 saturation_level=None,
                  panel_buffer=None,
+                 roi=None,
                  distortion=None):
         """
         panel buffer is in pixels...
@@ -1034,6 +1033,8 @@ class PlanarDetector(object):
         if panel_buffer is None:
             self._panel_buffer = 25*np.r_[self._pixel_size_col,
                                           self._pixel_size_row]
+
+        self._roi = roi
 
         self._tvec = np.array(tvec).flatten()
         self._tilt = np.array(tilt).flatten()
@@ -1114,6 +1115,24 @@ class PlanarDetector(object):
         if x is not None:
             assert len(x) == 2 or x.ndim == 2
         self._panel_buffer = x
+
+    @property
+    def roi(self):
+        return self._roi
+
+    @roi.setter
+    def roi(self, vertex_array):
+        """
+        vertex array must be
+
+        [[r0, c0], [r1, c1], ..., [rn, cn]]
+
+        and have len >= 3
+
+        does NOT need to repeat start vertex for closure
+        """
+        assert len(vertex_array) >= 3
+        self._roi = vertex_array
 
     @property
     def row_dim(self):
@@ -1364,33 +1383,48 @@ class PlanarDetector(object):
 
     def clip_to_panel(self, xy, buffer_edges=True):
         """
+        if self.roi is not None, uses it by default
+
+        TODO: check if need shape kwarg
+        TODO: optimize ROI search better than list comprehension below
+        TODO: panel_buffer can be a 2-d boolean mask, but needs testing
+
         """
         xy = np.atleast_2d(xy)
-        xlim = 0.5*self.col_dim
-        ylim = 0.5*self.row_dim
-        if buffer_edges and self.panel_buffer is not None:
-            if self.panel_buffer.ndim == 2:
-                pix = self.cartToPixel(xy, pixels=True)
 
-                roff = np.logical_or(pix[:, 0] < 0, pix[:, 0] >= self.rows)
-                coff = np.logical_or(pix[:, 1] < 0, pix[:, 1] >= self.cols)
+        if self.roi is not None:
+            ij_crds = self.cartToPixel(xy, pixels=True)
+            ii, jj = polygon(self.roi[:, 0], self.roi[:, 1],
+                             shape=(self.rows, self.cols))
+            on_panel_rows = [i in ii for i in ij_crds[:, 0]]
+            on_panel_cols = [j in jj for j in ij_crds[:, 1]]
+            on_panel = np.logical_and(on_panel_rows, on_panel_cols)
+        else:
+            xlim = 0.5*self.col_dim
+            ylim = 0.5*self.row_dim
+            if buffer_edges and self.panel_buffer is not None:
+                if self.panel_buffer.ndim == 2:
+                    pix = self.cartToPixel(xy, pixels=True)
 
-                idx = np.logical_or(roff, coff)
+                    roff = np.logical_or(pix[:, 0] < 0, pix[:, 0] >= self.rows)
+                    coff = np.logical_or(pix[:, 1] < 0, pix[:, 1] >= self.cols)
 
-                pix[idx, :] = 0
+                    idx = np.logical_or(roff, coff)
 
-                on_panel = self.panel_buffer[pix[:, 0], pix[:, 1]]
-                on_panel[idx] = False
-            else:
-                xlim -= self.panel_buffer[0]
-                ylim -= self.panel_buffer[1]
-                on_panel_x = np.logical_and(
-                    xy[:, 0] >= -xlim, xy[:, 0] <= xlim
-                )
-                on_panel_y = np.logical_and(
-                    xy[:, 1] >= -ylim, xy[:, 1] <= ylim
-                )
-                on_panel = np.logical_and(on_panel_x, on_panel_y)
+                    pix[idx, :] = 0
+
+                    on_panel = self.panel_buffer[pix[:, 0], pix[:, 1]]
+                    on_panel[idx] = False
+                else:
+                    xlim -= self.panel_buffer[0]
+                    ylim -= self.panel_buffer[1]
+                    on_panel_x = np.logical_and(
+                        xy[:, 0] >= -xlim, xy[:, 0] <= xlim
+                    )
+                    on_panel_y = np.logical_and(
+                        xy[:, 1] >= -ylim, xy[:, 1] <= ylim
+                    )
+                    on_panel = np.logical_and(on_panel_x, on_panel_y)
         return xy[on_panel, :], on_panel
 
     def cart_to_angles(self, xy_data):

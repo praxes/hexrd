@@ -20,7 +20,6 @@ app:
 
 requirements:
   build:
-    - h5py
     - numba
     - numpy
     - python
@@ -29,6 +28,7 @@ requirements:
     - dill
     - fabio
     - h5py
+    - joblib
     - matplotlib
     - numba
     - numpy
