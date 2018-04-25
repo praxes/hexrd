@@ -1,5 +1,6 @@
-git describe --tags --dirty > %SRC_DIR%/__conda_version__.txt
-%PYTHON% %RECIPE_DIR%/format_version.py %SRC_DIR%/__conda_version__.txt
+REM !!! need to replace for proper versioning under setuptools???
+REM git describe --tags --dirty > %SRC_DIR%/__conda_version__.txt
+REM %PYTHON% %RECIPE_DIR%/format_version.py %SRC_DIR%/__conda_version__.txt
 
 rmdir build /s /q
 
