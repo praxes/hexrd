@@ -1013,6 +1013,7 @@ class PlanarDetector(object):
                  name='default',
                  bvec=ct.beam_vec,
                  evec=ct.eta_vec,
+                 saturation_level=None,
                  panel_buffer=None,
                  roi=None,
                  distortion=None):
