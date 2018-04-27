@@ -63,6 +63,8 @@ else: # not USE_NUMBA
 def load_frames(reader, cfg, show_progress=False):
     # TODO: this should be updated to read only the frames requested in cfg
     # either the images start, step, stop, or based on omega start, step, stop
+    if reader is None:
+        raise(IOError, "specified image files not found")
     start = time.time()
     if cfg.image_series.images.stop is not None:
         n_frames = cfg.image_series.images.stop
