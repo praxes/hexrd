@@ -1032,7 +1032,7 @@ class PlanarDetector(object):
         self._saturation_level = saturation_level
 
         if panel_buffer is None:
-            self._panel_buffer = 25*np.r_[self._pixel_size_col,
+            self._panel_buffer = 20*np.r_[self._pixel_size_col,
                                           self._pixel_size_row]
 
         self._roi = roi
