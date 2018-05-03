@@ -746,7 +746,7 @@ class HEDMInstrument(object):
                 panel.rmat, rMat_c, self.chi,
                 panel.tvec, tVec_c, self.tvec,
                 panel.distortion)
-            scrap, on_panel = panel.clip_to_panel(det_xy)
+            _, on_panel = panel.clip_to_panel(det_xy, buffer_edges=False)
 
             # all vertices must be on...
             patch_is_on = np.all(on_panel.reshape(nangs, 4), axis=1)
@@ -806,6 +806,7 @@ class HEDMInstrument(object):
 
                     # strip relevant objects out of current patch
                     vtx_angs, vtx_xy, conn, areas, xy_eval, ijs = patch
+
                     prows, pcols = areas.shape
                     nrm_fac = areas/float(native_area)
                     nrm_fac = nrm_fac / np.min(nrm_fac)
@@ -936,7 +937,7 @@ class HEDMInstrument(object):
                                 # Those are segmented from interpolated data,
                                 # not raw; likely ok in most cases.
 
-                                # need xy coords
+                                # need MEASURED xy coords
                                 gvec_c = anglesToGVec(
                                     meas_angs,
                                     chi=self.chi,
@@ -959,6 +960,30 @@ class HEDMInstrument(object):
                                     pass
                                 # FIXME: why is this suddenly necessary???
                                 meas_xy = meas_xy.squeeze()
+
+                                # need PREDICTED xy coords
+                                gvec_c = anglesToGVec(
+                                    ang_centers[i_pt],
+                                    chi=self.chi,
+                                    rMat_c=rMat_c,
+                                    bHat_l=self.beam_vector)
+                                rMat_s = makeOscillRotMat(
+                                    [self.chi, ang_centers[i_pt][2]]
+                                )
+                                pred_xy = gvecToDetectorXY(
+                                    gvec_c,
+                                    panel.rmat, rMat_s, rMat_c,
+                                    panel.tvec, self.tvec, tVec_c,
+                                    beamVec=self.beam_vector)
+                                if panel.distortion is not None:
+                                    # FIXME: distortion handling
+                                    pred_xy = panel.distortion[0](
+                                        np.atleast_2d(pred_xy),
+                                        panel.distortion[1],
+                                        invert=True).flatten()
+                                    pass
+                                # FIXME: why is this suddenly necessary???
+                                pred_xy = pred_xy.squeeze()
                                 pass  # end num_peaks > 0
                             pass  # end contains_signal
                         # write output
@@ -975,7 +1000,7 @@ class HEDMInstrument(object):
                                     detector_id, iRefl, peak_id, hkl_id, hkl,
                                     tth_edges, eta_edges, np.radians(ome_eval),
                                     xyc_arr, ijs, frame_indices, patch_data,
-                                    ang_centers[i_pt], meas_angs, meas_xy)
+                                    ang_centers[i_pt], pred_xy, meas_angs, meas_xy)
                             pass  # end conditional on write output
                         pass  # end conditional on check only
                         patch_output.append([
@@ -1426,6 +1451,8 @@ class PlanarDetector(object):
                         xy[:, 1] >= -ylim, xy[:, 1] <= ylim
                     )
                     on_panel = np.logical_and(on_panel_x, on_panel_y)
+            elif not buffer_edges:
+                on_panel = np.ones(len(xy), dtype=bool)
         return xy[on_panel, :], on_panel
 
     def cart_to_angles(self, xy_data):
@@ -2038,7 +2065,7 @@ class GrainDataWriter_h5(object):
                    i_refl, peak_id, hkl_id, hkl,
                    tth_edges, eta_edges, ome_centers,
                    xy_centers, ijs, frame_indices,
-                   spot_data, pangs, mangs, mxy, gzip=9):
+                   spot_data, pangs, pxy, mangs, mxy, gzip=9):
         """
         to be called inside loop over patches
 
@@ -2052,6 +2079,7 @@ class GrainDataWriter_h5(object):
         spot_grp.attrs.create('hkl_id', hkl_id)
         spot_grp.attrs.create('hkl', hkl)
         spot_grp.attrs.create('predicted_angles', pangs)
+        spot_grp.attrs.create('predicted_xy', pxy)
         if mangs is None:
             mangs = np.nan*np.ones(3)
         spot_grp.attrs.create('measured_angles', mangs)
