@@ -3917,6 +3917,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
               npdiv=1, threshold=10,
               doClipping=False, filename=None,
               save_spot_list=False, use_closest=True,
+              discard_at_bounds=True,
               quiet=True, output_hdf5=True):
     """
     Function for pulling spots from a reader object for
@@ -3983,6 +3984,8 @@ def pullSpots(pd, detector_params, grain_params, reader,
 
     iframe  = num.arange(0, nframes)
 
+    # If this is 0, then scan covers a full 360
+    # !!! perhaps need to catch roundoff better?
     full_range = xf.angularDifference(ome_range[0], ome_range[1])
 
     if ome_tol <= 0.5*r2d*abs(del_ome):
@@ -4111,10 +4114,18 @@ def pullSpots(pd, detector_params, grain_params, reader,
         split_reader = False
         if min(frame_indices) < 0:
             if full_range > 0:
-                reidx = num.where(frame_indices >= 0)[0]
-                sdims[0] = len(reidx)
-                ome_centers = ome_centers[reidx]
-                frame_indices = frame_indices[reidx]
+                if discard_at_bounds:
+                    # our tol box has run outside scan range
+                    # !!! in this case we will DISCARD the spot
+                    if not quiet:
+                        print "(%d, %d, %d): window falls below omega range; skipping..." \
+                          % tuple(hkl)
+                    continue
+                else:
+                    reidx = num.where(frame_indices >= 0)[0]
+                    sdims[0] = len(reidx)
+                    ome_centers = ome_centers[reidx]
+                    frame_indices = frame_indices[reidx]
             elif full_range == 0:
                 split_reader = True
                 reidx1 = num.where(frame_indices <  0)[0]
@@ -4123,10 +4134,18 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 oidx2  = frame_indices[reidx2]
         if max(frame_indices) >= nframes:
             if full_range > 0:
-                reidx = num.where(frame_indices < nframes)[0]
-                sdims[0] = len(reidx)
-                ome_centers = ome_centers[reidx]
-                frame_indices = frame_indices[reidx]
+                if discard_at_bounds:
+                    # our tol box has run outside scan range
+                    # !!! in this case we will DISCARD the spot
+                    if not quiet:
+                        print "(%d, %d, %d): window falls above omega range; skipping..." \
+                          % tuple(hkl)
+                    continue
+                else:
+                    reidx = num.where(frame_indices < nframes)[0]
+                    sdims[0] = len(reidx)
+                    ome_centers = ome_centers[reidx]
+                    frame_indices = frame_indices[reidx]
             elif full_range == 0:
                 split_reader = True
                 reidx1 = num.where(frame_indices <  nframes)[0]
@@ -4141,7 +4160,6 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 frames = num.hstack([f1, f2])
             else:
                 frames = reader[0][frame_indices[0]:sdims[0]+frame_indices[0]]
-
         else:
             rdr = reader.makeNew()
             if split_reader:
@@ -4259,6 +4277,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 spot_intensity = num.sum(spot_data[labels == 1])
                 max_intensity  = num.max(spot_data[labels == 1])
                 pass
+
             if coms is not None:
                 com_angs = num.array([tth_edges[0] + (0.5 + coms[2])*delta_tth,
                                       eta_edges[0] + (0.5 + coms[1])*delta_eta,
@@ -4280,9 +4299,32 @@ def pullSpots(pd, detector_params, grain_params, reader,
             spot_intensity = num.nan
             max_intensity  = num.nan
             pass
+
+        # #################################
+        # generate PREDICTED xy coords
+        rMat_s = xfcapi.makeOscillRotMat([chi, angs[2]])
+        gVec_c = xf.anglesToGVec(num.atleast_2d(angs), bVec, eVec,
+                                 rMat_s=rMat_s, rMat_c=rMat_c)
+        # these are on ``ideal'' detector
+        pxy = xfcapi.gvecToDetectorXY(
+            gVec_c.T,
+            rMat_d, rMat_s, rMat_c,
+            tVec_d, tVec_s, tVec_c
+        ).flatten()
+        # apply inverser distortion (if provided)
+        if distortion is not None and len(distortion) == 2:
+            pxy = distortion[0](
+                num.atleast_2d(new_xy),
+                distortion[1],
+                invert=True
+            ).flatten()
         #
+        # #################################
+
+        # =====================================================================
         # OUTPUT
-        #
+        # =====================================================================
+
         # output dictionary
         if save_spot_list:
             w_dict = {}
@@ -4351,7 +4393,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                    iRefl, peakId, hklid, hkl,
                    tth_eta_cen[:, 0], tth_eta_cen[:, 1], ome_centers,
                    xy_eval, ijs, frame_indices,
-                   spot_data, angs, mangs, mxy, gzip=9)
+                   spot_data, angs, pxy, mangs, mxy, gzip=9)
                 pass
             pass
         iRefl += 1
@@ -4439,7 +4481,7 @@ class GrainDataWriter_h5(object):
                    i_refl, peak_id, hkl_id, hkl,
                    tth_centers, eta_centers, ome_centers,
                    xy_centers, ijs, frame_indices,
-                   spot_data, pangs, mangs, mxy, gzip=4):
+                   spot_data, pangs, pxy, mangs, mxy, gzip=4):
         """
         to be called inside loop over patches
 
@@ -4452,6 +4494,7 @@ class GrainDataWriter_h5(object):
         spot_grp.attrs.create('hkl_id', hkl_id)
         spot_grp.attrs.create('hkl', hkl)
         spot_grp.attrs.create('predicted_angles', pangs)
+        spot_grp.attrs.create('predicted_xy', pxy)
         if mangs is None:
             mangs = num.nan*num.ones(3)
         spot_grp.attrs.create('measured_angles', mangs)
