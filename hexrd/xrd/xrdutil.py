@@ -36,7 +36,7 @@ import h5py
 
 import numpy as num
 from scipy import sparse
-from scipy.linalg import svd, inv
+from scipy.linalg import svd
 from scipy import ndimage
 import scipy.optimize as opt
 
@@ -501,13 +501,14 @@ def makePathVariantPoles(rMatRef, fromPhase,
 
     return qVecList
 
+
 def displayPathVariants(data, rMatRef, fromPhase,
                         pathList,
                         planeDataDict,
                         detectorGeom, omeMin, omeMax,
                         phaseForDfltPD=None,
-                        markerList = markerListDflt,
-                        hklList = None,
+                        markerList=markerListDflt,
+                        hklList=None,
                         color=None,
                         pointKWArgs={},
                         hklIDs=None, pw=None):
@@ -3358,12 +3359,18 @@ def _filter_hkls_eta_ome(hkls, angles, eta_range, ome_range):
 def _project_on_detector_plane(allAngs,
                                rMat_d, rMat_c, chi,
                                tVec_d, tVec_c, tVec_s, distortion):
-    # hkls not needed # gVec_cs = num.dot(bMat, allHKLs.T)
+    """
+    utility routine for projecting a list of (tth, eta, ome) onto the
+    detector plane parameterized by the args
+    """
+
     gVec_cs = xfcapi.anglesToGVec(allAngs, chi=chi, rMat_c=rMat_c)
-    rMat_ss = xfcapi.makeOscillRotMatArray(chi, allAngs[:,2])
-    tmp_xys = xfcapi.gvecToDetectorXYArray(gVec_cs, rMat_d, rMat_ss, rMat_c,
-                                           tVec_d, tVec_s, tVec_c)
-    valid_mask = ~(num.isnan(tmp_xys[:,0]) | num.isnan(tmp_xys[:,1]))
+    rMat_ss = xfcapi.makeOscillRotMatArray(chi, allAngs[:, 2])
+    tmp_xys = xfcapi.gvecToDetectorXYArray(
+        gVec_cs, rMat_d, rMat_ss, rMat_c,
+        tVec_d, tVec_s, tVec_c
+        )
+    valid_mask = ~(num.isnan(tmp_xys[:, 0]) | num.isnan(tmp_xys[:, 1]))
 
     if distortion is None or len(distortion) == 0:
         det_xy = tmp_xys[valid_mask]
@@ -3474,6 +3481,7 @@ def simulateGVecs(pd, detector_params, grain_params,
                                   distortion=distortion)
 
     return valid_ids, valid_hkl, valid_ang, valid_xy, ang_ps
+
 
 
 def simulateLauePattern(hkls, bMat,
@@ -3772,7 +3780,7 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
 
     pixel_pitch is [row_size, column_size] in mm
 
-    DISTORTION HANDING IS STILL A KLUDGE
+    FIXME: DISTORTION HANDING IS STILL A KLUDGE!!!
 
     patches are:
 
@@ -3787,6 +3795,13 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
    t  | x | x | x | ... | x | x | x |
    a  ------------- ... -------------
 
+   outputs are:
+       (tth_vtx, eta_vtx),
+       (x_vtx, y_vtx),
+       connectivity,
+       subpixel_areas,
+       (x_center, y_center),
+       (i_row, j_col)
     """
     npts = len(tth_eta)
 
@@ -3893,18 +3908,21 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
         col_indices   = gutil.cellIndices(col_edges, xy_eval[:, 0])
 
         # append patch data to list
-        patches.append(((gVec_angs_vtx[:, 0].reshape(m_tth.shape),
-                         gVec_angs_vtx[:, 1].reshape(m_tth.shape)),
-                        (xy_eval_vtx[:, 0].reshape(m_tth.shape),
-                         xy_eval_vtx[:, 1].reshape(m_tth.shape)),
-                        conn,
-                        areas.reshape(sdims[0], sdims[1]),
-                        (row_indices.reshape(sdims[0], sdims[1]),
-                         col_indices.reshape(sdims[0], sdims[1]))
-                        )
-                    )
-        pass
+        patches.append(
+            ((gVec_angs_vtx[:, 0].reshape(m_tth.shape),
+              gVec_angs_vtx[:, 1].reshape(m_tth.shape)),
+             (xy_eval_vtx[:, 0].reshape(m_tth.shape),
+              xy_eval_vtx[:, 1].reshape(m_tth.shape)),
+             conn,
+             areas.reshape(sdims[0], sdims[1]),
+             (xy_eval[:, 0].reshape(sdims[0], sdims[1]),
+              xy_eval[:, 1].reshape(sdims[0], sdims[1])),
+             (row_indices.reshape(sdims[0], sdims[1]),
+              col_indices.reshape(sdims[0], sdims[1])))
+        )
+        pass # close loop over angles
     return patches
+
 
 def pullSpots(pd, detector_params, grain_params, reader,
               ome_period=(-num.pi, num.pi),
@@ -4412,11 +4430,11 @@ def extract_detector_transformation(detector_params):
     """    # extract variables for convenience
     if isinstance(detector_params, dict):
         rMat_d = xfcapi.makeDetectorRotMat(
-            instr_cfg['detector']['transform']['tilt_angles']
+            detector_params['detector']['transform']['tilt_angles']
             )
-        tVec_d = num.r_[instr_cfg['detector']['transform']['t_vec_d']]
-        chi = instr_cfg['oscillation_stage']['chi']
-        tVec_s = num.r_[instr_cfg['oscillation_stage']['t_vec_s']]
+        tVec_d = num.r_[detector_params['detector']['transform']['t_vec_d']]
+        chi = detector_params['oscillation_stage']['chi']
+        tVec_s = num.r_[detector_params['oscillation_stage']['t_vec_s']]
     else:
         assert len(detector_params >= 10), \
             "list of detector parameters must have length >= 10"
@@ -4456,7 +4474,7 @@ class GrainDataWriter_h5(object):
         rMat_c = xfcapi.makeRotMatOfExpMap(grain_params[:3])
         tVec_c = num.array(grain_params[3:6]).flatten()
         vInv_s = num.array(grain_params[6:]).flatten()
-        vMat_s = inv(mutil.vecMVToSymm(vInv_s))
+        vMat_s = num.linalg.inv(mutil.vecMVToSymm(vInv_s))
         #self.grain_grp.attrs.create('rmat_c', rMat_c)
         #self.grain_grp.attrs.create('tvec_c', tVec_c.flatten())
         #self.grain_grp.attrs.create('inv(V)_s', vInv_s)
