@@ -3598,7 +3598,8 @@ def _filter_hkls_eta_ome(hkls, angles, eta_range, ome_range):
 
 def _project_on_detector_plane(allAngs,
                                rMat_d, rMat_c, chi,
-                               tVec_d, tVec_c, tVec_s, distortion):
+                               tVec_d, tVec_c, tVec_s,
+                               distortion):
     """
     utility routine for projecting a list of (tth, eta, ome) onto the
     detector plane parameterized by the args

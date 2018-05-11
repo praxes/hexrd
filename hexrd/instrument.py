@@ -870,9 +870,9 @@ class HEDMInstrument(object):
                                 for i, i_frame in enumerate(frame_indices):
                                     patch_data[i] = \
                                         panel.interpolate_bilinear(
-                                                xy_eval,
-                                                ome_imgser[i_frame],
-                                                ).reshape(prows, pcols)  # * nrm_fac
+                                            xy_eval,
+                                            ome_imgser[i_frame],
+                                        ).reshape(prows, pcols)  # * nrm_fac
                             elif interp.lower() == 'nearest':
                                 patch_data = patch_data_raw  # * nrm_fac
                             else:
@@ -960,30 +960,6 @@ class HEDMInstrument(object):
                                     pass
                                 # FIXME: why is this suddenly necessary???
                                 meas_xy = meas_xy.squeeze()
-
-                                # need PREDICTED xy coords
-                                gvec_c = anglesToGVec(
-                                    ang_centers[i_pt],
-                                    chi=self.chi,
-                                    rMat_c=rMat_c,
-                                    bHat_l=self.beam_vector)
-                                rMat_s = makeOscillRotMat(
-                                    [self.chi, ang_centers[i_pt][2]]
-                                )
-                                pred_xy = gvecToDetectorXY(
-                                    gvec_c,
-                                    panel.rmat, rMat_s, rMat_c,
-                                    panel.tvec, self.tvec, tVec_c,
-                                    beamVec=self.beam_vector)
-                                if panel.distortion is not None:
-                                    # FIXME: distortion handling
-                                    pred_xy = panel.distortion[0](
-                                        np.atleast_2d(pred_xy),
-                                        panel.distortion[1],
-                                        invert=True).flatten()
-                                    pass
-                                # FIXME: why is this suddenly necessary???
-                                pred_xy = pred_xy.squeeze()
                                 pass  # end num_peaks > 0
                             pass  # end contains_signal
                         # write output
@@ -1000,7 +976,8 @@ class HEDMInstrument(object):
                                     detector_id, iRefl, peak_id, hkl_id, hkl,
                                     tth_edges, eta_edges, np.radians(ome_eval),
                                     xyc_arr, ijs, frame_indices, patch_data,
-                                    ang_centers[i_pt], pred_xy, meas_angs, meas_xy)
+                                    ang_centers[i_pt], xy_centers[i_pt],
+                                    meas_angs, meas_xy)
                             pass  # end conditional on write output
                         pass  # end conditional on check only
                         patch_output.append([
