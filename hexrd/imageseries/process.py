@@ -83,7 +83,7 @@ class ProcessedImageSeries(ImageSeries):
     #
     @property
     def dtype(self):
-        return self._imser.dtype
+        return self[0].dtype
 
     @property
     def shape(self):

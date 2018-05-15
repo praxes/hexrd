@@ -46,24 +46,24 @@ class TestImageSeriesProcess(ImageSeriesTest):
         self._runfliptest(a, flip, aflip)
 
     def test_process_flip_vh(self):
-        """Processed image series: flip horizontal"""
+        """Processed image series: flip vertical + horizontal"""
         flip = 'vh'
         a = make_array()
         aflip = a[:, ::-1, ::-1]
         self._runfliptest(a, flip, aflip)
 
     def test_process_flip_r90(self):
-        """Processed image series: flip horizontal"""
+        """Processed image series: flip counterclockwise 90"""
         flip = 'ccw90'
         a = make_array()
-        aflip = np.transpose(a, (0, 2, 1))[:, :, ::-1]
+        aflip = np.transpose(a, (0, 2, 1))[:, ::-1, :]
         self._runfliptest(a, flip, aflip)
 
     def test_process_flip_r270(self):
-        """Processed image series: flip horizontal"""
+        """Processed image series: flip clockwise 90 """
         flip = 'cw90'
         a = make_array()
-        aflip = np.transpose(a, (0, 2, 1))[:, ::-1, :]
+        aflip = np.transpose(a, (0, 2, 1))[:, :, ::-1]
         self._runfliptest(a, flip, aflip)
 
     def test_process_dark(self):
@@ -78,7 +78,6 @@ class TestImageSeriesProcess(ImageSeriesTest):
         diff = compare(is_a1, is_p)
         self.assertAlmostEqual(diff, 0., msg="dark image failed")
 
-
     def test_process_framelist(self):
         a = make_array()
         is_a = imageseries.open(None, 'array', data=a)
@@ -88,3 +87,20 @@ class TestImageSeriesProcess(ImageSeriesTest):
         is_a2 = imageseries.open(None, 'array', data=a[tuple(frames), ...])
         diff = compare(is_a2, is_p)
         self.assertAlmostEqual(diff, 0., msg="frame list failed")
+
+    def test_process_shape(self):
+        a = make_array()
+        is_a = imageseries.open(None, 'array', data=a)
+        ops = []
+        is_p = process.ProcessedImageSeries(is_a, ops)
+        pshape = is_p.shape
+        fshape = is_p[0].shape
+        for i in range(2):
+            self.assertEqual(fshape[i], pshape[i])
+
+    def test_process_dtype(self):
+        a = make_array()
+        is_a = imageseries.open(None, 'array', data=a)
+        ops = []
+        is_p = process.ProcessedImageSeries(is_a, ops)
+        self.assertEqual(is_p.dtype, is_p[0].dtype)
