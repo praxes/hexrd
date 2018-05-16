@@ -826,11 +826,10 @@ def paintGrid(quats, etaOmeMaps,
         'etaTol': etaTol,
         'etaIndices': etaIndices,
         'etaEdges': etaOmeMaps.etaEdges,
-        'etaOmeMaps': etaOmeMaps.dataStore,
+        'etaOmeMaps': num.stack(etaOmeMaps.dataStore),
         'bMat': bMat,
         'threshold': threshold
         }
-
 
     # do the mapping
     start = time.time()
@@ -843,13 +842,14 @@ def paintGrid(quats, etaOmeMaps,
     else:
         # single process version.
         global paramMP
-        paintgrid_init(params) # sets paramMP
+        paintgrid_init(params)    # sets paramMP
         retval = map(paintGridThis, quats.T)
-        paramMP = None # clear paramMP
+        paramMP = None    # clear paramMP
     elapsed = (time.time() - start)
     logger.info("paintGrid took %.3f seconds", elapsed)
 
     return retval
+
 
 def _meshgrid2d(x, y):
     """
@@ -1058,7 +1058,6 @@ if USE_NUMBA:
 
         return li
 
-
     @numba.njit
     def _angle_is_hit(ang, eta_offset, ome_offset, hkl, valid_eta_spans,
                       valid_ome_spans, etaEdges, omeEdges, etaOmeMaps,
@@ -1076,7 +1075,7 @@ if USE_NUMBA:
 
         - actual check for a hit, using dilation for the tolerance.
 
-        Note the function returns both, if it was a hit and if it passed the the
+        Note the function returns both, if it was a hit and if it passed the
         filtering, as we'll want to discard the filtered values when computing
         the hit percentage.
 
@@ -1147,7 +1146,7 @@ if USE_NUMBA:
                 curr_hkl_idx += 1
                 end_curr = symHKLs_ix[curr_hkl_idx+1]
 
-           # first solution
+            # first solution
             hit, not_filtered = _angle_is_hit(
                 angs_0[i], eta_offset, ome_offset,
                 curr_hkl_idx, valid_eta_spans,
@@ -1170,7 +1169,6 @@ if USE_NUMBA:
             total += not_filtered
 
         return float(hits)/float(total) if total != 0 else 0.0
-
 
     @numba.njit
     def _map_angle(angle, offset):

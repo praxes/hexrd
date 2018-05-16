@@ -1937,25 +1937,26 @@ class GrainDataWriter(object):
     """
     """
     def __init__(self, filename):
-        sp3_str = '{:12}\t{:12}\t{:12}'
-        dp3_str = '{:20}\t{:20}\t{:20}'
-        self._header = \
-            sp3_str.format(
-                '# grain ID', 'completeness', 'chi^2') + '\t' + \
-            dp3_str.format(
-                'exp_map_c[0]', 'exp_map_c[1]', 'exp_map_c[2]') + '\t' + \
-            dp3_str.format(
-                't_vec_c[0]', 't_vec_c[1]', 't_vec_c[2]') + '\t' + \
-            dp3_str.format(
-                'inv(V_s)[0,0]',
-                'inv(V_s)[1,1]',
-                'inv(V_s)[2,2]') + '\t' + \
-            dp3_str.format(
-                'inv(V_s)[1,2]*√2', 'inv(V_s)[0,2]*√2', 'inv(V_s)[0,2]*√2'
-            ) + '\t' + dp3_str.format(
-                'ln(V_s)[0,0]', 'ln(V_s)[1,1]', 'ln(V_s)[2,2]') + '\t' + \
-            dp3_str.format(
-                'ln(V_s)[1,2]', 'ln(V_s)[0,2]', 'ln(V_s)[0,1]')
+        self._delim = '  '
+        header_items = (
+            '# grain ID', 'completeness', 'chi^2',
+            'exp_map_c[0]', 'exp_map_c[1]', 'exp_map_c[2]',
+            't_vec_c[0]', 't_vec_c[1]', 't_vec_c[2]',
+            'inv(V_s)[0,0]', 'inv(V_s)[1,1]', 'inv(V_s)[2,2]',
+            'inv(V_s)[1,2]*sqrt(2)',
+            'inv(V_s)[0,2]*sqrt(2)',
+            'inv(V_s)[0,2]*sqrt(2)',
+            'ln(V_s)[0,0]', 'ln(V_s)[1,1]', 'ln(V_s)[2,2]',
+            'ln(V_s)[1,2]', 'ln(V_s)[0,2]', 'ln(V_s)[0,1]'
+        )
+        self._header = self._delim.join(
+            [self._delim.join(
+                np.tile('{:<12}', 3)
+                ).format(*header_items[:3]),
+             self._delim.join(
+                np.tile('{:<23}', len(header_items) - 3)
+                ).format(*header_items[3:])]
+        )
         if isinstance(filename, file):
             self.fid = filename
         else:
@@ -1977,16 +1978,17 @@ class GrainDataWriter(object):
         emat = logm(np.linalg.inv(mutil.vecMVToSymm(grain_params[6:])))
         evec = mutil.symmToVecMV(emat, scale=False)
 
-        dp3_e_str = '{:<1.12e}\t{:<1.12e}\t{:<1.12e}'
-        dp6_e_str = \
-            '{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t{:<1.12e}'
-        output_str = \
-            '{:<12d}\t{:<12f}\t{:<12f}\t'.format(
-                grain_id, completeness, chisq) + \
-            dp3_e_str.format(*grain_params[:3]) + '\t' + \
-            dp3_e_str.format(*grain_params[3:6]) + '\t' + \
-            dp6_e_str.format(*grain_params[6:]) + '\t' + \
-            dp6_e_str.format(*evec)
+        res = [int(grain_id), completeness, chisq] \
+            + grain_params.tolist() \
+            + evec.tolist()
+        output_str = self._delim.join(
+            [self._delim.join(
+                ['{:<12d}', '{:<12f}', '{:<12e}']
+             ).format(*res[:3]),
+             self._delim.join(
+                np.tile('{:<23.16e}', len(res) - 3)
+             ).format(*res[3:])]
+        )
         print(output_str, file=self.fid)
         return output_str
 
