@@ -741,7 +741,7 @@ class HEDMInstrument(object):
             ).T.reshape(len(patch_vertices), 1)
 
             # find vertices that all fall on the panel
-            det_xy, rMat_s = xrdutil._project_on_detector_plane(
+            det_xy, _ = xrdutil._project_on_detector_plane(
                 np.hstack([patch_vertices, ome_dupl]),
                 panel.rmat, rMat_c, self.chi,
                 panel.tvec, tVec_c, self.tvec,
@@ -794,6 +794,7 @@ class HEDMInstrument(object):
                 # make the tth,eta patches for interpolation
                 patches = xrdutil.make_reflection_patches(
                     instr_cfg, ang_centers[:, :2], ang_pixel_size,
+                    omega=ang_centers[:, 2],
                     tth_tol=tth_tol, eta_tol=eta_tol,
                     rMat_c=rMat_c, tVec_c=tVec_c,
                     distortion=panel.distortion,
@@ -2042,7 +2043,7 @@ class GrainDataWriter_h5(object):
                    i_refl, peak_id, hkl_id, hkl,
                    tth_edges, eta_edges, ome_centers,
                    xy_centers, ijs, frame_indices,
-                   spot_data, pangs, pxy, mangs, mxy, gzip=9):
+                   spot_data, pangs, pxy, mangs, mxy, gzip=2):
         """
         to be called inside loop over patches
 

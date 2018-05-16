@@ -3599,27 +3599,34 @@ def _filter_hkls_eta_ome(hkls, angles, eta_range, ome_range):
 def _project_on_detector_plane(allAngs,
                                rMat_d, rMat_c, chi,
                                tVec_d, tVec_c, tVec_s,
-                               distortion):
+                               distortion,
+                               beamVec=constants.beam_vec):
     """
     utility routine for projecting a list of (tth, eta, ome) onto the
     detector plane parameterized by the args
     """
+    gVec_cs = xfcapi.anglesToGVec(allAngs,
+                                  chi=chi,
+                                  rMat_c=rMat_c,
+                                  bHat_l=beamVec)
 
-    gVec_cs = xfcapi.anglesToGVec(allAngs, chi=chi, rMat_c=rMat_c)
     rMat_ss = xfcapi.makeOscillRotMatArray(chi, allAngs[:, 2])
+
     tmp_xys = xfcapi.gvecToDetectorXYArray(
         gVec_cs, rMat_d, rMat_ss, rMat_c,
-        tVec_d, tVec_s, tVec_c
-        )
+        tVec_d, tVec_s, tVec_c,
+        beamVec=beamVec)
+
     valid_mask = ~(num.isnan(tmp_xys[:, 0]) | num.isnan(tmp_xys[:, 1]))
 
-    if distortion is None or len(distortion) == 0:
-        det_xy = tmp_xys[valid_mask]
-    else:
-        det_xy = distortion[0](tmp_xys[valid_mask],
+    det_xy = num.atleast_2d(tmp_xys[valid_mask, :])
+
+    # FIXME: distortion kludge
+    if distortion is not None and len(distortion) == 2:
+        det_xy = distortion[0](det_xy,
                                distortion[1],
                                invert=True)
-    return det_xy, rMat_ss[-1]
+    return det_xy, rMat_ss
 
 
 def simulateGVecs(pd, detector_params, grain_params,
@@ -4013,7 +4020,8 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
                             tth_tol=0.2, eta_tol=1.0,
                             rMat_c=num.eye(3), tVec_c=num.zeros((3, 1)),
                             distortion=None,
-                            npdiv=1, quiet=False, compute_areas_func=gutil.compute_areas,
+                            npdiv=1, quiet=False,
+                            compute_areas_func=gutil.compute_areas,
                             beamVec=None):
     """
     prototype function for making angular patches on a detector
@@ -4059,10 +4067,12 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
 
     panel_dims = (
         -0.5*num.r_[frame_ncols*pixel_size[1], frame_nrows*pixel_size[0]],
-         0.5*num.r_[frame_ncols*pixel_size[1], frame_nrows*pixel_size[0]]
+        0.5*num.r_[frame_ncols*pixel_size[1], frame_nrows*pixel_size[0]]
         )
-    row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_size[1] + panel_dims[0][1]
-    col_edges = num.arange(frame_ncols + 1)*pixel_size[0] + panel_dims[0][0]
+    row_edges = num.arange(frame_nrows + 1)[::-1]*pixel_size[1] \
+        + panel_dims[0][1]
+    col_edges = num.arange(frame_ncols + 1)*pixel_size[0] \
+        + panel_dims[0][0]
 
     # sample frame
     chi = instr_cfg['oscillation_stage']['chi']
@@ -4081,71 +4091,68 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
 
     patches = []
     for angs, pix in zip(full_angs, ang_pixel_size):
-        ndiv_tth = npdiv*num.ceil( tth_tol/num.degrees(pix[0]) )
-        ndiv_eta = npdiv*num.ceil( eta_tol/num.degrees(pix[1]) )
+        ndiv_tth = npdiv*num.ceil(tth_tol/num.degrees(pix[0]))
+        ndiv_eta = npdiv*num.ceil(eta_tol/num.degrees(pix[1]))
 
-        tth_del = num.arange(0, ndiv_tth+1)*tth_tol/float(ndiv_tth) - 0.5*tth_tol
-        eta_del = num.arange(0, ndiv_eta+1)*eta_tol/float(ndiv_eta) - 0.5*eta_tol
+        tth_del = num.arange(0, ndiv_tth + 1)*tth_tol/float(ndiv_tth) \
+                  - 0.5*tth_tol
+        eta_del = num.arange(0, ndiv_eta + 1)*eta_tol/float(ndiv_eta) \
+                  - 0.5*eta_tol
 
         # store dimensions for convenience
         #   * etas and tths are bin vertices, ome is already centers
-        sdims = [ len(eta_del)-1, len(tth_del)-1 ]
+        sdims = [len(eta_del) - 1, len(tth_del) - 1]
+
+        # FOR ANGULAR MESH
+        conn = gutil.cellConnectivity(
+            sdims[0],
+            sdims[1],
+            origin='ll'
+        )
 
         # meshgrid args are (cols, rows), a.k.a (fast, slow)
         m_tth, m_eta = num.meshgrid(tth_del, eta_del)
-        npts_patch   = m_tth.size
+        npts_patch = m_tth.size
 
         # calculate the patch XY coords from the (tth, eta) angles
         # * will CHEAT and ignore the small perturbation the different
         #   omega angle values causes and simply use the central value
         gVec_angs_vtx = num.tile(angs, (npts_patch, 1)) \
-                        + num.radians(
-                            num.vstack([m_tth.flatten(),
-                                        m_eta.flatten(),
-                                        num.zeros(npts_patch)
-                                       ]).T
-                                     )
+            + num.radians(
+                num.vstack([m_tth.flatten(),
+                            m_eta.flatten(),
+                            num.zeros(npts_patch)
+                ]).T
+            )
 
-        # FOR ANGULAR MESH
-        conn = gutil.cellConnectivity( sdims[0], sdims[1], origin='ll')
-
-        rMat_s = xfcapi.makeOscillRotMat([chi, angs[2]])
-
-        # make G-vectors
-        gVec_c = xfcapi.anglesToGVec(
-            gVec_angs_vtx,
-            chi=chi,
-            rMat_c=rMat_c,
-            bHat_l=beamVec)
-        xy_eval_vtx = xfcapi.gvecToDetectorXY(
-            gVec_c,
-            rMat_d, rMat_s, rMat_c,
-            tVec_d, tVec_s, tVec_c,
-            beamVec=beamVec)
-        if distortion is not None and len(distortion) == 2:
-            xy_eval_vtx = distortion[0](xy_eval_vtx, distortion[1], invert=True)
-            pass
+        xy_eval_vtx, _ = _project_on_detector_plane(
+                gVec_angs_vtx,
+                rMat_d, rMat_c,
+                chi,
+                tVec_d, tVec_c, tVec_s,
+                distortion,
+                beamVec=beamVec)
 
         areas = compute_areas_func(xy_eval_vtx, conn)
 
         # EVALUATION POINTS
         #   * for lack of a better option will use centroids
-        tth_eta_cen = gutil.cellCentroids( num.atleast_2d(gVec_angs_vtx[:, :2]), conn )
-        gVec_angs  = num.hstack([tth_eta_cen,
-                                 num.tile(angs[2], (len(tth_eta_cen), 1))])
-        gVec_c = xfcapi.anglesToGVec(
-            gVec_angs,
-            chi=chi,
-            rMat_c=rMat_c,
-            bHat_l=beamVec)
-        xy_eval = xfcapi.gvecToDetectorXY(
-            gVec_c,
-            rMat_d, rMat_s, rMat_c,
-            tVec_d, tVec_s, tVec_c,
-            beamVec=beamVec)
-        if distortion is not None and len(distortion) == 2:
-            xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
-            pass
+        tth_eta_cen = gutil.cellCentroids(
+            num.atleast_2d(gVec_angs_vtx[:, :2]),
+            conn
+        )
+
+        gVec_angs = num.hstack([tth_eta_cen,
+                                num.tile(angs[2], (len(tth_eta_cen), 1))])
+
+        xy_eval, _ = _project_on_detector_plane(
+                gVec_angs,
+                rMat_d, rMat_c,
+                chi,
+                tVec_d, tVec_c, tVec_s,
+                distortion,
+                beamVec=beamVec)
+
         row_indices = gutil.cellIndices(row_edges, xy_eval[:, 1])
         col_indices = gutil.cellIndices(col_edges, xy_eval[:, 0])
 
@@ -4162,7 +4169,7 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
              (row_indices.reshape(sdims[0], sdims[1]),
               col_indices.reshape(sdims[0], sdims[1])))
         )
-        pass # close loop over angles
+        pass    # close loop over angles
     return patches
 
 
@@ -4741,11 +4748,11 @@ class GrainDataWriter_h5(object):
                    i_refl, peak_id, hkl_id, hkl,
                    tth_centers, eta_centers, ome_centers,
                    xy_centers, ijs, frame_indices,
-                   spot_data, pangs, pxy, mangs, mxy, gzip=4):
+                   spot_data, pangs, pxy, mangs, mxy, gzip=2):
         """
         to be called inside loop over patches
 
-        default GZIP level for data arrays is 4
+        default GZIP level for data arrays is 2
         """
 
         # create spot group
@@ -4767,7 +4774,9 @@ class GrainDataWriter_h5(object):
 
         tth_crd = tth_centers.reshape(eta_dim, tth_dim)
         eta_crd = eta_centers.reshape(eta_dim, tth_dim)
-        ome_crd = num.tile(ome_centers, (eta_dim*tth_dim, 1)).T.reshape(ome_dim, eta_dim, tth_dim)
+        ome_crd = num.tile(
+            ome_centers, (eta_dim*tth_dim, 1)
+        ).T.reshape(ome_dim, eta_dim, tth_dim)
 
         # make datasets
         spot_grp.create_dataset('tth_crd', data=tth_crd,
@@ -4776,45 +4785,15 @@ class GrainDataWriter_h5(object):
                                 compression="gzip", compression_opts=gzip)
         spot_grp.create_dataset('ome_crd', data=ome_crd,
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('xy_centers', data=xy_centers.T.reshape(2, eta_dim, tth_dim),
+        spot_grp.create_dataset('xy_centers',
+                                data=xy_centers.T.reshape(2, eta_dim, tth_dim),
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('ij_centers', data=ijs.reshape(2, eta_dim, tth_dim),
+        spot_grp.create_dataset('ij_centers',
+                                data=ijs.reshape(2, eta_dim, tth_dim),
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('frame_indices', data=num.array(frame_indices, dtype=int),
+        spot_grp.create_dataset('frame_indices',
+                                data=num.array(frame_indices, dtype=int),
                                 compression="gzip", compression_opts=gzip)
         spot_grp.create_dataset('intensities', data=spot_data,
                                 compression="gzip", compression_opts=gzip)
         return
-
-
-def _angles_to_xy(angs,
-                  rMat_d, tVec_d,
-                  chi, tVec_s,
-                  rMat_c, tVec_c,
-                  bHat_l=bHat_l_DFLT,
-                  eHat_l=eHat_l_DFLT,
-                  distortion=None):
-    """
-    """
-    # make G-vectors
-    gVec_c = xfcapi.anglesToGVec(
-        angs,
-        chi=chi,
-        rMat_c=rMat_c,
-        bHat_l=bHat_l,
-        eHat_l=eHat_l)
-
-    rMat_s = xfcapi.makeOscillRotMatArray(chi, angs[:, 2])
-
-    # map to xy
-    xy_eval = xfcapi.gvecToDetectorXYArray(
-        gVec_c,
-        rMat_d, rMat_s, rMat_c,
-        tVec_d, tVec_s, tVec_c,
-        beamVec=bHat_l)
-
-    # apply distortion (if applicable)
-    if distortion is not None and len(distortion) == 2:
-        xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
-
-    return xy_eval
