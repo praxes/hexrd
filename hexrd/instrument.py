@@ -873,6 +873,7 @@ class HEDMInstrument(object):
                                         panel.interpolate_bilinear(
                                             xy_eval,
                                             ome_imgser[i_frame],
+                                            pad_with_nans=False
                                         ).reshape(prows, pcols)  # * nrm_fac
                             elif interp.lower() == 'nearest':
                                 patch_data = patch_data_raw  # * nrm_fac
@@ -968,7 +969,8 @@ class HEDMInstrument(object):
                             if output_format.lower() == 'text':
                                 writer.dump_patch(
                                     peak_id, hkl_id, hkl, sum_int, max_int,
-                                    ang_centers[i_pt], meas_angs, meas_xy)
+                                    ang_centers[i_pt], meas_angs,
+                                    xy_centers[i_pt], meas_xy)
                             elif output_format.lower() == 'hdf5':
                                 xyc_arr = xy_eval.reshape(
                                     prows, pcols, 2
@@ -1890,14 +1892,21 @@ class PatchDataWriter(object):
     """
     """
     def __init__(self, filename):
-        dp3_str = '{:18}\t{:18}\t{:18}'
-        self._header = \
-            '{:6}\t{:6}\t'.format('# ID', 'PID') + \
-            '{:3}\t{:3}\t{:3}\t'.format('H', 'K', 'L') + \
-            '{:12}\t{:12}\t'.format('sum(int)', 'max(int)') + \
-            dp3_str.format('pred tth', 'pred eta', 'pred ome') + '\t' + \
-            dp3_str.format('meas tth', 'meas eta', 'meas ome') + '\t' + \
-            '{:18}\t{:18}'.format('meas X', 'meas Y')
+        self._delim = '  '
+        header_items = (
+            '# ID', 'PID',
+            'H', 'K', 'L',
+            'sum(int)', 'max(int)',
+            'pred tth', 'pred eta', 'pred ome',
+            'meas tth', 'meas eta', 'meas ome',
+            'pred X', 'pred Y',
+            'meas X', 'meas Y'
+        )
+        self._header = self._delim.join([
+            self._delim.join(np.tile('{:<6}', 5)).format(*header_items[:5]),
+            self._delim.join(np.tile('{:<12}', 2)).format(*header_items[5:7]),
+            self._delim.join(np.tile('{:<23}', 10)).format(*header_items[7:17])
+        ])
         if isinstance(filename, file):
             self.fid = filename
         else:
@@ -1912,23 +1921,27 @@ class PatchDataWriter(object):
 
     def dump_patch(self, peak_id, hkl_id,
                    hkl, spot_int, max_int,
-                   pangs, mangs, xy):
-        nans_tabbed_12 = '{:^12}\t{:^12}\t'
-        nans_tabbed_18 = '{:^18}\t{:^18}\t{:^18}\t{:^18}\t{:^18}'
-        output_str = \
-            '{:<6d}\t{:<6d}\t'.format(int(peak_id), int(hkl_id)) + \
-            '{:<3d}\t{:<3d}\t{:<3d}\t'.format(*np.array(hkl, dtype=int))
-        if peak_id >= 0:
-            output_str += \
-                '{:<1.6e}\t{:<1.6e}\t'.format(spot_int, max_int) + \
-                '{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t'.format(*pangs) + \
-                '{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t'.format(*mangs) + \
-                '{:<1.12e}\t{:<1.12e}'.format(xy[0], xy[1])
-        else:
-            output_str += \
-                nans_tabbed_12.format(*np.ones(2)*np.nan) + \
-                '{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t'.format(*pangs) + \
-                nans_tabbed_18.format(*np.ones(5)*np.nan)
+                   pangs, mangs, pxy, mxy):
+        """
+        !!! maybe need to check that last four inputs are arrays
+        """
+        if mangs is None:
+            mangs = np.ones(3)*np.nan
+        if mxy is None:
+            mxy = np.ones(2)*np.nan
+        res = [int(peak_id), int(hkl_id)] \
+            + np.array(hkl, dtype=int).tolist() \
+            + [spot_int, max_int] \
+            + pangs.tolist() \
+            + mangs.tolist() \
+            + pxy.tolist() \
+            + mxy.tolist()
+
+        output_str = self._delim.join(
+            [self._delim.join(np.tile('{:<6d}', 5)).format(*res[:5]),
+             self._delim.join(np.tile('{:<12e}', 2)).format(*res[5:7]),
+             self._delim.join(np.tile('{:<23.16e}', 10)).format(*res[7:])]
+        )
         print(output_str, file=self.fid)
         return output_str
 
@@ -2055,9 +2068,9 @@ class GrainDataWriter_h5(object):
 
         panel_grp = self.data_grp[panel_id]
         spot_grp = panel_grp.create_group("spot_%05d" % i_refl)
-        spot_grp.attrs.create('peak_id', peak_id)
-        spot_grp.attrs.create('hkl_id', hkl_id)
-        spot_grp.attrs.create('hkl', hkl)
+        spot_grp.attrs.create('peak_id', int(peak_id))
+        spot_grp.attrs.create('hkl_id', int(hkl_id))
+        spot_grp.attrs.create('hkl', np.array(hkl, dtype=int))
         spot_grp.attrs.create('predicted_angles', pangs)
         spot_grp.attrs.create('predicted_xy', pxy)
         if mangs is None:
