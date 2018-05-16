@@ -1926,9 +1926,11 @@ class PatchDataWriter(object):
         !!! maybe need to check that last four inputs are arrays
         """
         if mangs is None:
+            spot_int = np.nan
+            max_int = np.nan
             mangs = np.ones(3)*np.nan
-        if mxy is None:
             mxy = np.ones(2)*np.nan
+        
         res = [int(peak_id), int(hkl_id)] \
             + np.array(hkl, dtype=int).tolist() \
             + [spot_int, max_int] \
