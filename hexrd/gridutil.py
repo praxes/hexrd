@@ -58,7 +58,7 @@ def cellIndices(edges, points_1d):
         idx = ceil( (points_1d - edges[0]) / delta ) - 1
     else:
         raise RuntimeError, "edges array gives delta of 0"
-    # ...will catch exceptions elsewhere... 
+    # ...will catch exceptions elsewhere...
     # if np.any(np.logical_or(idx < 0, idx > len(edges) - 1)):
     #     raise RuntimeWarning, "some input points are outside the grid"
     return array(idx, dtype=int)
@@ -134,7 +134,7 @@ if USE_NUMBA:
                 v1x = vtx_x - vtx0x
                 v1y = vtx_y - vtx0y
                 acc += v0x*v1y - v1x*v0y
-    
+
             areas[i] = 0.5 * acc
         return areas
 else:
@@ -159,7 +159,7 @@ else:
         for i in range(len(conn)):
             polygon = [[xy_eval_vtx[conn[i, j], 0],
                         xy_eval_vtx[conn[i, j], 1]] for j in range(4)]
-            areas[i] = gutil.computeArea(polygon)
+            areas[i] = computeArea(polygon)
         return areas
 
 def computeArea(polygon):
@@ -168,12 +168,12 @@ def computeArea(polygon):
     """
     n_vertices = len(polygon)
     polygon = array(polygon)
-    
+
     triv = array([ [ [0, i-1], [0, i] ] for i in range(2, n_vertices) ])
-             
+
     area = 0
     for i in range(len(triv)):
-        tvp = diff( hstack([ polygon[triv[i][0], :], 
+        tvp = diff( hstack([ polygon[triv[i][0], :],
                              polygon[triv[i][1], :] ]), axis=0).flatten()
         area += 0.5 * cross(tvp[:2], tvp[2:])
     return area
@@ -202,14 +202,14 @@ def computeIntersection(line1, line2):
     line1 = [ [x0, y0], [x1, y1] ]
     line1 = [ [x3, y3], [x4, y4] ]
 
-    
+
      <http://en.wikipedia.org/wiki/Line-line_intersection>
     """
     intersection = zeros(2)
 
     l1 = array(line1)
     l2 = array(line2)
-     
+
     det_l1 = det(l1)
     det_l2 = det(l2)
 
@@ -234,7 +234,7 @@ def isinside(point, boundary, ccw=True):
     """
     pointPositionVector = hstack([         point - boundary[0, :], 0.])
     boundaryVector      = hstack([boundary[1, :] - boundary[0, :], 0.])
-    
+
     crossVector = cross(pointPositionVector, boundaryVector)
 
     inside = False
@@ -246,7 +246,7 @@ def isinside(point, boundary, ccw=True):
             inside = True
     else:
         inside = True
-    
+
     return inside
 
 def sutherlandHodgman(subjectPolygon, clipPolygon):
@@ -254,30 +254,30 @@ def sutherlandHodgman(subjectPolygon, clipPolygon):
     """
     subjectPolygon = array(subjectPolygon)
     clipPolygon    = array(clipPolygon)
-    
+
     numClipEdges = len(clipPolygon)
 
     prev_clipVertex = clipPolygon[-1, :]
- 
+
     # loop over clipping edges
     outputList = array(subjectPolygon)
     for iClip in range(numClipEdges):
-         
+
         curr_clipVertex = clipPolygon[iClip, :]
 
-        clipBoundary = vstack([ curr_clipVertex, 
+        clipBoundary = vstack([ curr_clipVertex,
                                 prev_clipVertex ])
- 
+
         inputList  = array(outputList)
         if len(inputList) > 0:
-            prev_subjectVertex = inputList[-1, :]            
+            prev_subjectVertex = inputList[-1, :]
 
         outputList = []
-        
+
         for iInput in range(len(inputList)):
 
             curr_subjectVertex = inputList[iInput, :]
-            
+
             if isinside(curr_subjectVertex, clipBoundary):
                 if not isinside(prev_subjectVertex, clipBoundary):
                     subjectLineSegment = vstack([ curr_subjectVertex,
@@ -292,7 +292,7 @@ def sutherlandHodgman(subjectPolygon, clipPolygon):
                 pass
             prev_subjectVertex = curr_subjectVertex
             prev_clipVertex = curr_clipVertex
-            pass            
+            pass
         pass
     return outputList
 

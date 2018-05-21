@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-#! /usr/bin/env python
-# ============================================================
+# =============================================================================
 # Copyright (c) 2012, Lawrence Livermore National Security, LLC.
 # Produced at the Lawrence Livermore National Laboratory.
 # Written by Joel Bernier <bernier2@llnl.gov> and others.
@@ -25,7 +24,7 @@
 # License along with this program (see file LICENSE); if not, write to
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
-# ============================================================
+# =============================================================================
 """
 Created on Fri Dec  9 13:05:27 2016
 
@@ -88,6 +87,13 @@ t_vec_d_DFLT = np.r_[0., 0., -1000.]
 chi_DFLT = 0.
 t_vec_s_DFLT = np.zeros(3)
 
+# [wavelength, chi, tvec_s, expmap_c, tec_c], len is 11
+instr_param_flags_DFLT = np.array(
+    [0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1],
+    dtype=bool)
+panel_param_flags_DFLT = np.array(
+    [1, 1, 1, 1, 1, 1],
+    dtype=bool)
 
 # =============================================================================
 # UTILITY METHODS
@@ -248,6 +254,10 @@ class HEDMInstrument(object):
             ]
             self._chi = instrument_config['oscillation_stage']['chi']
 
+        self._param_flags = np.hstack(
+            [instr_param_flags_DFLT,
+             np.tile(panel_param_flags_DFLT, self._num_panels)]
+        )
         return
 
     # properties for physical size of rectangular detector
@@ -330,9 +340,46 @@ class HEDMInstrument(object):
             panel = self.detectors[detector_id]
             panel.evec = self._eta_vector
 
+    @property
+    def param_flags(self):
+        return self._param_flags
+
+    @param_flags.setter
+    def param_flags(self, x):
+        x = np.array(x, dtype=bool).flatten()
+        assert len(x) == 11 + 6*self.num_panels, \
+            "length of parameter list must be %d; you gave %d" \
+            % (len(self._param_flags), len(x))
+        self._param_flags = x
+
     # =========================================================================
     # METHODS
     # =========================================================================
+
+    def calibration_params(self, expmap_c, tvec_c):
+        plist = np.zeros(11 + 6*self.num_panels)
+
+        plist[0] = self.beam_wavelength
+        plist[1] = self.chi
+        plist[2], plist[3], plist[4] = self.tvec
+        plist[5], plist[6], plist[7] = expmap_c
+        plist[8], plist[9], plist[10] = tvec_c
+
+        ii = 11
+        for panel in self.detectors.itervalues():
+            plist[ii:ii + 6] = np.hstack([
+                panel.tilt.flatten(),
+                panel.tvec.flatten(),
+            ])
+            ii += 6
+
+        # FIXME: FML!!!
+        # this assumes old style distiortion = (func, params)
+        retval = plist
+        for panel in self.detectors.itervalues():
+            if panel.distortion is not None:
+                retval = np.hstack([retval, panel.distortion[1]])
+        return retval
 
     def write_config(self, filename=None, calibration_dict={}):
         """ WRITE OUT YAML FILE """
@@ -844,6 +891,7 @@ class HEDMInstrument(object):
                         continue
                     else:
                         # initialize spot data parameters
+                        # !!! maybe change these to nan to not fuck up writer
                         peak_id = -999
                         sum_int = None
                         max_int = None
@@ -1930,7 +1978,7 @@ class PatchDataWriter(object):
             max_int = np.nan
             mangs = np.ones(3)*np.nan
             mxy = np.ones(2)*np.nan
-        
+
         res = [int(peak_id), int(hkl_id)] \
             + np.array(hkl, dtype=int).tolist() \
             + [spot_int, max_int] \
