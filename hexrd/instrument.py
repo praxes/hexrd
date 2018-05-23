@@ -2108,7 +2108,7 @@ class GrainDataWriter_h5(object):
                    i_refl, peak_id, hkl_id, hkl,
                    tth_edges, eta_edges, ome_centers,
                    xy_centers, ijs, frame_indices,
-                   spot_data, pangs, pxy, mangs, mxy, gzip=2):
+                   spot_data, pangs, pxy, mangs, mxy, gzip=1):
         """
         to be called inside loop over patches
 
