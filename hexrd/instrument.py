@@ -232,9 +232,9 @@ class HEDMInstrument(object):
             det_list = []
             for pix, xform, dist in zip(pixel_info, affine_info, distortion):
                 # HARD CODED GE DISTORTION !!! FIX
-                dist_tuple = None
+                dist_list = None
                 if dist is not None:
-                    dist_tuple = (GE_41RT, dist['parameters'])
+                    dist_list = [GE_41RT, dist['parameters']]
 
                 det_list.append(
                     PlanarDetector(
@@ -244,7 +244,7 @@ class HEDMInstrument(object):
                         tilt=xform['tilt_angles'],
                         bvec=self._beam_vector,
                         evec=ct.eta_vec,
-                        distortion=dist_tuple)
+                        distortion=dist_list)
                     )
                 pass
             self._detectors = dict(zip(detector_ids, det_list))
@@ -793,7 +793,7 @@ class HEDMInstrument(object):
                 panel.rmat, rMat_c, self.chi,
                 panel.tvec, tVec_c, self.tvec,
                 panel.distortion)
-            _, on_panel = panel.clip_to_panel(det_xy, buffer_edges=False)
+            _, on_panel = panel.clip_to_panel(det_xy, buffer_edges=True)
 
             # all vertices must be on...
             patch_is_on = np.all(on_panel.reshape(nangs, 4), axis=1)
@@ -1480,7 +1480,13 @@ class PlanarDetector(object):
                     )
                     on_panel = np.logical_and(on_panel_x, on_panel_y)
             elif not buffer_edges:
-                on_panel = np.ones(len(xy), dtype=bool)
+                    on_panel_x = np.logical_and(
+                        xy[:, 0] >= -xlim, xy[:, 0] <= xlim
+                    )
+                    on_panel_y = np.logical_and(
+                        xy[:, 1] >= -ylim, xy[:, 1] <= ylim
+                    )
+                    on_panel = np.logical_and(on_panel_x, on_panel_y)
         return xy[on_panel, :], on_panel
 
     def cart_to_angles(self, xy_data):

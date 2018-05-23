@@ -100,17 +100,22 @@ else:
 
         xi, yi = in_[:, 0], in_[:,1]
         ri = np.sqrt(xi*xi + yi*yi)
-        if ri < sqrt_epsf:
-            ri_inv = 0.0
-        else:
-            ri_inv = 1.0/ri
+        # !!! adding fix TypeError when processings list of coords
+        zfix = []
+        if np.any(ri) < sqrt_epsf:
+            zfix = ri < sqrt_epsf
+            ri[zfix] = 1.0
+        ri_inv = 1.0/ri
+        ri_inv[zfix] = 0.
+
         sinni = yi*ri_inv
         cosni = xi*ri_inv
         ro = ri
         cos2ni = cosni*cosni - sinni*sinni
         sin2ni = 2*sinni*cosni
         cos4ni = cos2ni*cos2ni - sin2ni*sin2ni
-
+        
+        # FIXME: looks like we hae a problem here, should iterate over single coord pairs?
         for i in range(maxiter): # newton solver iteration
             ratio = ri*rxi
             fx = (p0*ratio**p3*cos2ni +
