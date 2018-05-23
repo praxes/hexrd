@@ -3372,10 +3372,11 @@ def _project_on_detector_plane(allAngs,
         )
     valid_mask = ~(num.isnan(tmp_xys[:, 0]) | num.isnan(tmp_xys[:, 1]))
 
-    if distortion is None or len(distortion) == 0:
-        det_xy = tmp_xys[valid_mask]
-    else:
-        det_xy = distortion[0](tmp_xys[valid_mask],
+    det_xy = num.atleast_2d(tmp_xys[valid_mask, :])
+
+    # FIXME: distortion kludge
+    if distortion is not None and len(distortion) == 2:
+        det_xy = distortion[0](det_xy,
                                distortion[1],
                                invert=True)
     return det_xy, rMat_ss[-1]
@@ -4095,9 +4096,15 @@ def pullSpots(pd, detector_params, grain_params, reader,
         else:
             # evaluation points...
             #   * for lack of a better option will use centroids
-            tth_eta_cen = gutil.cellCentroids( num.atleast_2d(gVec_angs_vtx[:, :2]), conn )
-            gVec_angs  = num.hstack([tth_eta_cen,
-                                     num.tile(angs[2], (len(tth_eta_cen), 1))])
+            tth_eta_cen = gutil.cellCentroids(
+                num.atleast_2d(gVec_angs_vtx[:, :2]),
+                conn
+            )
+            gVec_angs = num.hstack(
+                [tth_eta_cen,
+                 num.tile(angs[2], (len(tth_eta_cen), 1))
+                ]
+            )
             gVec_c = xfcapi.anglesToGVec(gVec_angs,
                                          bHat_l=bVec,
                                          eHat_l=eVec,
@@ -4110,13 +4117,14 @@ def pullSpots(pd, detector_params, grain_params, reader,
         if distortion is not None and len(distortion) == 2:
             xy_eval = distortion[0](xy_eval, distortion[1], invert=True)
             pass
-        row_indices   = gutil.cellIndices(row_edges, xy_eval[:, 1])
+        
+        row_indices = gutil.cellIndices(row_edges, xy_eval[:, 1])
         if num.any(row_indices < 0) or num.any(row_indices >= frame_nrows):
             # CHECKED OK # pdb.set_trace()
             if not quiet:
                 print "(%d, %d, %d): window falls off detector; skipping..." % tuple(hkl)
             continue
-        col_indices   = gutil.cellIndices(col_edges, xy_eval[:, 0])
+        col_indices = gutil.cellIndices(col_edges, xy_eval[:, 0])
         if num.any(col_indices < 0) or num.any(col_indices >= frame_ncols):
             # CHECKED OK # pdb.set_trace()
             if not quiet:
@@ -4284,7 +4292,9 @@ def pullSpots(pd, detector_params, grain_params, reader,
                         max_intensity  = num.nan
                     else:
                         peakId = iRefl
-                        coms   = ndimage.center_of_mass(spot_data, labels=labels, index=slabels[maxi_idx])
+                        coms   = ndimage.center_of_mass(
+                            spot_data, labels=labels, index=slabels[maxi_idx]
+                        )
                         #
                         spot_intensity = num.sum(spot_data[labels == slabels[maxi_idx]])
                         max_intensity  = num.max(spot_data[labels == slabels[maxi_idx]])
@@ -4297,19 +4307,24 @@ def pullSpots(pd, detector_params, grain_params, reader,
                 pass
 
             if coms is not None:
-                com_angs = num.array([tth_edges[0] + (0.5 + coms[2])*delta_tth,
-                                      eta_edges[0] + (0.5 + coms[1])*delta_eta,
-                                      ome_centers[0] + coms[0]*delta_ome],
-                                      order='C')
+                com_angs = num.array([
+                    tth_edges[0] + (0.5 + coms[2])*delta_tth,
+                    eta_edges[0] + (0.5 + coms[1])*delta_eta,
+                    ome_centers[0] + coms[0]*delta_ome], order='C')
                 rMat_s = xfcapi.makeOscillRotMat([chi, com_angs[2]])
-                gVec_c = xf.anglesToGVec(num.atleast_2d(com_angs), bVec, eVec,
-                                         rMat_s=rMat_s, rMat_c=rMat_c)
+                gVec_c = xf.anglesToGVec(
+                    num.atleast_2d(com_angs), bVec, eVec,
+                    rMat_s=rMat_s, rMat_c=rMat_c)
                 # these are on ``ideal'' detector
-                new_xy = xfcapi.gvecToDetectorXY(gVec_c.T,
-                                                 rMat_d, rMat_s, rMat_c,
-                                                 tVec_d, tVec_s, tVec_c).flatten()
+                new_xy = xfcapi.gvecToDetectorXY(
+                    gVec_c.T,
+                    rMat_d, rMat_s, rMat_c,
+                    tVec_d, tVec_s, tVec_c).flatten()
                 if distortion is not None and len(distortion) == 2:
-                    new_xy = distortion[0](num.atleast_2d(new_xy), distortion[1], invert=True).flatten()
+                    new_xy = distortion[0](
+                        num.atleast_2d(new_xy),
+                        distortion[1],
+                        invert=True).flatten()
         else:
             peakId   = -999
             com_angs = None
@@ -4317,27 +4332,6 @@ def pullSpots(pd, detector_params, grain_params, reader,
             spot_intensity = num.nan
             max_intensity  = num.nan
             pass
-
-        # #################################
-        # generate PREDICTED xy coords
-        rMat_s = xfcapi.makeOscillRotMat([chi, angs[2]])
-        gVec_c = xf.anglesToGVec(num.atleast_2d(angs), bVec, eVec,
-                                 rMat_s=rMat_s, rMat_c=rMat_c)
-        # these are on ``ideal'' detector
-        pxy = xfcapi.gvecToDetectorXY(
-            gVec_c.T,
-            rMat_d, rMat_s, rMat_c,
-            tVec_d, tVec_s, tVec_c
-        ).flatten()
-        # apply inverser distortion (if provided)
-        if distortion is not None and len(distortion) == 2:
-            pxy = distortion[0](
-                num.atleast_2d(new_xy),
-                distortion[1],
-                invert=True
-            ).flatten()
-        #
-        # #################################
 
         # =====================================================================
         # OUTPUT
@@ -4379,23 +4373,11 @@ def pullSpots(pd, detector_params, grain_params, reader,
                     '{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t'.format(*angs) + \
                     '{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t'.format(*com_angs) + \
                     '{:<1.12e}\t{:<1.12e}\t{:<1.12e}'.format(new_xy[0], new_xy[1], com_angs[2])
-                #print >> fid, "%d\t%d\t"                 % (peakId, hklid)                     + \
-                #              "%d\t%d\t%d\t"             % tuple(hkl)                          + \
-                #              "%1.6e\t%1.6e\t"           % (spot_intensity, max_intensity)     + \
-                #              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                         + \
-                #              "%1.12e\t%1.12e\t%1.12e\t" % tuple(com_angs)                     + \
-                #              "%1.12e\t%1.12e\t%1.12e"   % (new_xy[0], new_xy[1], com_angs[2])
             else:
                 output_str += \
                   nans_tabbed_12_2.format(*nans_2) + \
                   '{:<1.12e}\t{:<1.12e}\t{:<1.12e}\t'.format(*angs) + \
                   nans_tabbed_18_6.format(*nans_6)
-                #print >> fid, "%d\t%d\t"                 % (peakId, hklid)            + \
-                #              "%d\t%d\t%d\t"             % tuple(hkl)                 + \
-                #              "%f         \t%f         \t" % tuple(nans_2) + \
-                #              "%1.12e\t%1.12e\t%1.12e\t" % tuple(angs)                + \
-                #              "%f               \t%f               \t%f" % tuple(nans_3) + \
-                #              "               \t%f               \t%f               \t%f" % tuple(nans_3)
                 pass
             print >> fid, output_str
 
@@ -4411,7 +4393,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
                    iRefl, peakId, hklid, hkl,
                    tth_eta_cen[:, 0], tth_eta_cen[:, 1], ome_centers,
                    xy_eval, ijs, frame_indices,
-                   spot_data, angs, pxy, mangs, mxy, gzip=9)
+                   spot_data, angs, xy, mangs, mxy, gzip=9)
                 pass
             pass
         iRefl += 1
@@ -4499,11 +4481,11 @@ class GrainDataWriter_h5(object):
                    i_refl, peak_id, hkl_id, hkl,
                    tth_centers, eta_centers, ome_centers,
                    xy_centers, ijs, frame_indices,
-                   spot_data, pangs, pxy, mangs, mxy, gzip=4):
+                   spot_data, pangs, pxy, mangs, mxy, gzip=1):
         """
         to be called inside loop over patches
 
-        default GZIP level for data arrays is 4
+        default GZIP level for data arrays is 1
         """
 
         # create spot group
@@ -4525,7 +4507,9 @@ class GrainDataWriter_h5(object):
 
         tth_crd = tth_centers.reshape(eta_dim, tth_dim)
         eta_crd = eta_centers.reshape(eta_dim, tth_dim)
-        ome_crd = num.tile(ome_centers, (eta_dim*tth_dim, 1)).T.reshape(ome_dim, eta_dim, tth_dim)
+        ome_crd = num.tile(
+            ome_centers, (eta_dim*tth_dim, 1)
+        ).T.reshape(ome_dim, eta_dim, tth_dim)
 
         # make datasets
         spot_grp.create_dataset('tth_crd', data=tth_crd,
@@ -4534,12 +4518,16 @@ class GrainDataWriter_h5(object):
                                 compression="gzip", compression_opts=gzip)
         spot_grp.create_dataset('ome_crd', data=ome_crd,
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('xy_centers', data=xy_centers.T.reshape(2, eta_dim, tth_dim),
+        spot_grp.create_dataset('xy_centers',
+                                data=xy_centers.T.reshape(2, eta_dim, tth_dim),
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('ij_centers', data=ijs.reshape(2, eta_dim, tth_dim),
+        spot_grp.create_dataset('ij_centers',
+                                data=ijs.reshape(2, eta_dim, tth_dim),
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('frame_indices', data=num.array(frame_indices, dtype=int),
+        spot_grp.create_dataset('frame_indices',
+                                data=num.array(frame_indices, dtype=int),
                                 compression="gzip", compression_opts=gzip)
-        spot_grp.create_dataset('intensities', data=spot_data,
+        spot_grp.create_dataset('intensities',
+                                data=spot_data,
                                 compression="gzip", compression_opts=gzip)
         return

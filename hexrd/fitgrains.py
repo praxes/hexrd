@@ -224,30 +224,32 @@ def write_grains_file(cfg, results, output_name=None):
     # while also keeping the width of the lines to a minimum, settled
     # on %19.12g representation.
     header_items = (
-        'grain ID', 'completeness', 'chi2',
+        '# grain ID', 'completeness', 'chi2',
         'xi[0]', 'xi[1]', 'xi[2]', 'tVec_c[0]', 'tVec_c[1]', 'tVec_c[2]',
         'vInv_s[0]', 'vInv_s[1]', 'vInv_s[2]', 'vInv_s[4]*sqrt(2)',
         'vInv_s[5]*sqrt(2)', 'vInv_s[6]*sqrt(2)', 'ln(V[0,0])',
         'ln(V[1,1])', 'ln(V[2,2])', 'ln(V[1,2])', 'ln(V[0,2])', 'ln(V[0,1])',
         )
     len_items = []
-    for i in header_items[1:]:
+    for i in header_items[3:]:
         temp = len(i)
-        len_items.append(temp if temp > 19 else 19) # for %19.12g
-    fmtstr = '#%13s  ' + '  '.join(['%%%ds' % i for i in len_items]) + '\n'
-    f.write(fmtstr % header_items)
+        len_items.append(temp if temp > 23 else 23) # for %23.16e, fits +/-
+    fmtstr = '{:12}  {:12}  {:12}  ' + \
+             '  '.join(['{:<%d}' % i for i in len_items]) + '\n'
+    f.write(fmtstr.format(*header_items))
     for (id, g_refined, compl, eMat, resd) in sorted(results):
         res_items = (
-            id, compl, resd, g_refined[0], g_refined[1], g_refined[2],
+            int(id), compl, resd, g_refined[0], g_refined[1], g_refined[2],
             g_refined[3], g_refined[4], g_refined[5], g_refined[6],
             g_refined[7], g_refined[8], g_refined[9], g_refined[10],
             g_refined[11], eMat[0, 0], eMat[1, 1], eMat[2, 2], eMat[1, 2],
             eMat[0, 2], eMat[0, 1],
             )
         fmtstr = (
-            '%14d  ' + '  '.join(['%%%d.12g' % i for i in len_items]) + '\n'
-            )
-        f.write(fmtstr % res_items)
+            '{:<12d}  {:<12f}  {:<12e}  ' + \
+            '  '.join(['{:<%d.16e}' % i for i in len_items]) + '\n'
+            )        
+        f.write(fmtstr.format(*res_items))
 
 
 
