@@ -1,4 +1,6 @@
 """Stats for imageseries"""
+from __future__ import print_function
+
 import numpy as np
 import logging
 
@@ -38,13 +40,12 @@ def percentile(ims, pct, nframes=0):
     dt = ims.dtype
     (nr, nc) = ims.shape
     nrpb  = _rows_in_buffer(nframes, nf*nc*dt.itemsize)
-    print 'rows per buffer: ', nrpb
+    print('Buffering percentile calculation with', nrpb, 'rows per buffer.')
     # now build the result a rectangle at a time
     img = np.zeros_like(ims[0])
     for rr in _row_ranges(nr, nrpb):
         rect = np.array([[rr[0], rr[1]], [0, nc]])
         pims = PIS(ims, [('rectangle', rect)])
-        print 'pims: ', len(pims), pims.shape
         img[rr[0]:rr[1], :] = np.percentile(_toarray(pims, nf), pct, axis=0)
     return img
 
