@@ -716,9 +716,7 @@ class HEDMInstrument(object):
         else:
             label_struct = ndimage.generate_binary_structure(3, 3)
 
-        #
         # simulate rotation series
-        #
         sim_results = self.simulate_rotation_series(
             plane_data, [grain_params, ],
             eta_ranges=eta_ranges,
@@ -910,8 +908,8 @@ class HEDMInstrument(object):
                             pass
                         patch_data_raw = np.stack(patch_data_raw, axis=0)
                         compl.append(contains_signal)
-                        if contains_signal:
 
+                        if contains_signal:
                             # initialize patch data array for intensities
                             if interp.lower() == 'bilinear':
                                 patch_data = np.zeros(
@@ -1011,6 +1009,8 @@ class HEDMInstrument(object):
                                 # FIXME: why is this suddenly necessary???
                                 meas_xy = meas_xy.squeeze()
                                 pass  # end num_peaks > 0
+                        else:
+                            patch_data = patch_data_raw
                             pass  # end contains_signal
                         # write output
                         if filename is not None:
