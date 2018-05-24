@@ -73,8 +73,9 @@ class Writer(object):
 
 class WriteH5(Writer):
     fmt = 'hdf5'
-    dflt_gzip = 4
+    dflt_gzip = 1
     dflt_chrows = 0
+    dflt_shuffle = True
 
     def __init__(self, ims, fname, **kwargs):
         """Write imageseries in HDF5 file
@@ -111,6 +112,11 @@ class WriteH5(Writer):
     @property
     def h5opts(self):
         d = {}
+
+        # shuffle
+        shuffle = self._opts.pop('shuffle', self.dflt_shuffle)
+        d['shuffle'] = shuffle
+
         # compression
         compress = self._opts.pop('gzip', self.dflt_gzip)
         if compress > 9:
