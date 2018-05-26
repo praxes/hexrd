@@ -716,9 +716,7 @@ class HEDMInstrument(object):
         else:
             label_struct = ndimage.generate_binary_structure(3, 3)
 
-        #
         # simulate rotation series
-        #
         sim_results = self.simulate_rotation_series(
             plane_data, [grain_params, ],
             eta_ranges=eta_ranges,
@@ -910,8 +908,8 @@ class HEDMInstrument(object):
                             pass
                         patch_data_raw = np.stack(patch_data_raw, axis=0)
                         compl.append(contains_signal)
-                        if contains_signal:
 
+                        if contains_signal:
                             # initialize patch data array for intensities
                             if interp.lower() == 'bilinear':
                                 patch_data = np.zeros(
@@ -1011,6 +1009,8 @@ class HEDMInstrument(object):
                                 # FIXME: why is this suddenly necessary???
                                 meas_xy = meas_xy.squeeze()
                                 pass  # end num_peaks > 0
+                        else:
+                            patch_data = patch_data_raw
                             pass  # end contains_signal
                         # write output
                         if filename is not None:
@@ -2118,7 +2118,7 @@ class GrainDataWriter_h5(object):
         """
         to be called inside loop over patches
 
-        default GZIP level for data arrays is 9
+        default GZIP level for data arrays is 1
         """
         fi = np.array(frame_indices, dtype=int)
 
@@ -2151,20 +2151,28 @@ class GrainDataWriter_h5(object):
         tth_crd = centers_of_edge_vec(tth_edges)
         eta_crd = centers_of_edge_vec(eta_edges)
 
+        shuffle_data = True  # reduces size by 20%
         spot_grp.create_dataset('tth_crd', data=tth_crd,
-                                compression="gzip", compression_opts=gzip)
+                                compression="gzip", compression_opts=gzip,
+                                shuffle=shuffle_data)
         spot_grp.create_dataset('eta_crd', data=eta_crd,
-                                compression="gzip", compression_opts=gzip)
+                                compression="gzip", compression_opts=gzip,
+                                shuffle=shuffle_data)
         spot_grp.create_dataset('ome_crd', data=ome_centers,
-                                compression="gzip", compression_opts=gzip)
+                                compression="gzip", compression_opts=gzip,
+                                shuffle=shuffle_data)
         spot_grp.create_dataset('xy_centers', data=xy_centers,
-                                compression="gzip", compression_opts=gzip)
+                                compression="gzip", compression_opts=gzip,
+                                shuffle=shuffle_data)
         spot_grp.create_dataset('ij_centers', data=ijs,
-                                compression="gzip", compression_opts=gzip)
+                                compression="gzip", compression_opts=gzip,
+                                shuffle=shuffle_data)
         spot_grp.create_dataset('frame_indices', data=fi,
-                                compression="gzip", compression_opts=gzip)
+                                compression="gzip", compression_opts=gzip,
+                                shuffle=shuffle_data)
         spot_grp.create_dataset('intensities', data=spot_data,
-                                compression="gzip", compression_opts=gzip)
+                                compression="gzip", compression_opts=gzip,
+                                shuffle=shuffle_data)
         return
 
 
