@@ -1368,7 +1368,7 @@ class PlanarDetector(object):
             """...HARD CODED DISTORTION! FIX THIS!!!"""
             dist_d = dict(
                 function_name='GE_41RT',
-                parameters=self.distortion[1]
+                parameters=self.distortion[1].tolist()
             )
             d['detector']['distortion'] = dist_d
         return d
