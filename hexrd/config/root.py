@@ -3,26 +3,21 @@ import logging
 import multiprocessing as mp
 import sys
 
+import yaml
+
 from hexrd.utils.decorators import memoized
+from hexrd import imageseries
 
 from .config import Config
 from .instrument import InstrumentConfig
 from .findorientations import FindOrientationsConfig
 from .fitgrains import FitGrainsConfig
-from .imageseries import ImageSeriesConfig
 from .material import MaterialConfig
-from .utils import null
-
 
 logger = logging.getLogger('hexrd.config')
 
 
-
 class RootConfig(Config):
-
-
-    _dirty = False
-
 
     @property
     def analysis_name(self):
@@ -31,41 +26,28 @@ class RootConfig(Config):
     def analysis_name(self, val):
         self.set('analysis_name', val)
 
-
     @property
     def analysis_dir(self):
         return os.path.join(self.working_dir, self.analysis_name)
-
-
-    @property
-    def dirty(self):
-        return self._dirty
-
 
     @property
     def find_orientations(self):
         return FindOrientationsConfig(self)
 
-
     @property
     def fit_grains(self):
         return FitGrainsConfig(self)
 
-
-    @property
-    def image_series(self):
-        return ImageSeriesConfig(self)
-
-
     @property
     def instrument(self):
-        return InstrumentConfig(self)
-
+        instr_file = self.get('instrument')
+        with open(instr_file, 'r') as f:
+            icfg = yaml.load(f)
+        return InstrumentConfig(icfg)
 
     @property
     def material(self):
         return MaterialConfig(self)
-
 
     @property
     def multiprocessing(self):
@@ -105,6 +87,7 @@ class RootConfig(Config):
                 )
             res = temp
         return res
+
     @multiprocessing.setter
     def multiprocessing(self, val):
         if val in ('half', 'all', -1):
@@ -116,7 +99,6 @@ class RootConfig(Config):
                 '"multiprocessing": must be 1:%d, got %s'
                 % (mp.cpu_count(), val)
                 )
-
 
     @property
     def working_dir(self):
@@ -137,6 +119,7 @@ class RootConfig(Config):
                 '"working_dir" not specified, defaulting to "%s"' % temp
                 )
             return temp
+
     @working_dir.setter
     def working_dir(self, val):
         val = os.path.abspath(val)
@@ -144,46 +127,19 @@ class RootConfig(Config):
             raise IOError('"working_dir": "%s" does not exist' % val)
         self.set('working_dir', val)
 
+    @property
+    def image_series(self):
+        """return the imageseries dictionary"""
+        if not hasattr(self, '_image_dict'):
+            self._image_dict = dict()
+            fmt = self.get('image_series:format')
+            imsdata = self.get('image_series:data')
+            for ispec in imsdata:
+                fname = ispec['file']
+                args = ispec['args']
+                ims = imageseries.open(fname, fmt, **args)
+                oms = imageseries.omega.OmegaImageSeries(ims)
+                panel = ims.metadata['panel']
+                self._image_dict[panel] = ims
 
-    def dump(self, filename):
-        import yaml
-
-        with open(filename, 'w') as f:
-            yaml.dump(self._cfg, f)
-        self._dirty = False
-
-
-    def get(self, key, default=null):
-        args = key.split(':')
-        args, item = args[:-1], args[-1]
-        temp = self._cfg
-        for arg in args:
-            temp = temp.get(arg, {})
-            # intermediate block may be None:
-            temp = {} if temp is None else temp
-        try:
-            res = temp[item]
-        except KeyError:
-            if default is not null:
-                logger.info(
-                    '%s not specified, defaulting to %s', key, default
-                    )
-                res = temp.get(item, default)
-            else:
-                raise RuntimeError(
-                    '%s must be specified in configuration file' % key
-                    )
-        return res
-
-
-    def set(self, key, val):
-        args = key.split(':')
-        args, item = args[:-1], args[-1]
-        temp = self._cfg
-        for arg in args:
-            temp = temp.get(arg, {})
-            # intermediate block may be None:
-            temp = {} if temp is None else temp
-        if temp.get(item, null) != val:
-            temp[item] = val
-            self._dirty = True
+        return self._image_dict
