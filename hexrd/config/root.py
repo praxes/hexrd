@@ -9,7 +9,7 @@ from hexrd.utils.decorators import memoized
 from hexrd import imageseries
 
 from .config import Config
-from .instrument import InstrumentConfig
+from .instrument import Instrument
 from .findorientations import FindOrientationsConfig
 from .fitgrains import FitGrainsConfig
 from .material import MaterialConfig
@@ -43,7 +43,7 @@ class RootConfig(Config):
         instr_file = self.get('instrument')
         with open(instr_file, 'r') as f:
             icfg = yaml.load(f)
-        return InstrumentConfig(icfg)
+        return Instrument(icfg)
 
     @property
     def material(self):

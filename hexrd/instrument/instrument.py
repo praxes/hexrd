@@ -71,9 +71,6 @@ from skimage.draw import polygon
 # PARAMETERS
 # =============================================================================
 
-beam_energy_DFLT = 65.351
-beam_vec_DFLT = ct.beam_vec
-
 eta_vec_DFLT = ct.eta_vec
 
 panel_id_DFLT = "generic"
@@ -98,22 +95,6 @@ panel_param_flags_DFLT = np.array(
 # =============================================================================
 # UTILITY METHODS
 # =============================================================================
-
-
-def calc_beam_vec(azim, pola):
-    """
-    Calculate unit beam propagation vector from
-    spherical coordinate spec in DEGREES
-
-    ...MAY CHANGE; THIS IS ALSO LOCATED IN XRDUTIL!
-    """
-    tht = np.radians(azim)
-    phi = np.radians(pola)
-    bv = np.r_[
-        np.sin(phi)*np.cos(tht),
-        np.cos(phi),
-        np.sin(phi)*np.sin(tht)]
-    return -bv
 
 
 def calc_angles_from_beam_vec(bvec):

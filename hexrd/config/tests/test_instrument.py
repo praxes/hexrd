@@ -1,39 +1,21 @@
 import os
 
 from .common import TestConfig, test_data
-
+from ..instrument import Instrument, Beam
 
 reference_data = \
 """
-analysis_name: foo
-working_dir: %(tempdir)s
+beam: {}
 ---
-instrument:
+beam:
+  energy: 2.0
+  vector: {azimuth: 0.0, polar_angle: 0.0}
 ---
-instrument:
-  parameters: %(nonexistent_file)s
-  detector:
-    parameters_old: %(nonexistent_file)s
-    pixels:
----
-instrument:
-  parameters: %(existing_file)s
-  detector:
-    pixels:
-      size: 1
-      rows: 1024
-      columns: 2048
----
-instrument:
-  parameters: %(nonexistent_file)s
-  detector:
-    parameters_old: %(existing_file)s
-    pixels:
-      size: [1, 2]
+instrument: instrument.yaml
 """ % test_data
 
 
-class TestInstrumentConfig(TestConfig):
+class TestInstrument(TestConfig):
 
 
     @classmethod
@@ -41,106 +23,44 @@ class TestInstrumentConfig(TestConfig):
         return reference_data
 
 
-    def test_parameters(self):
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[0].instrument, 'parameters'
-            )
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[1].instrument, 'parameters'
-            )
-        self.assertRaises(
-            IOError,
-            getattr, self.cfgs[2].instrument, 'parameters'
-            )
-        self.assertEqual(
-            self.cfgs[3].instrument.parameters,
-            test_data['existing_file']
-            )
-        # next test should succeed, converting from old parameters
-        self.assertEqual(
-            self.cfgs[4].instrument.parameters,
-            os.path.join(test_data['tempdir'], test_data['nonexistent_file'])
-            )
-
-
-
-class TestDetectorConfig(TestConfig):
-
+class TestBeam(TestConfig):
 
     @classmethod
     def get_reference_data(cls):
         return reference_data
 
+    def test_beam_energy_dflt(self):
+        bcfg = Beam(self.cfgs[0])
+        energy = bcfg.energy
+        self.assertEqual(energy, Beam.beam_energy_DFLT, "Incorrect default beam energy")
 
-    def test_parameters_old(self):
-        self.assertEqual(self.cfgs[0].instrument.detector.parameters_old, None)
-        self.assertEqual(self.cfgs[1].instrument.detector.parameters_old, None)
-        self.assertRaises(
-            IOError,
-            getattr, self.cfgs[2].instrument.detector, 'parameters_old'
-            )
-        self.assertEqual(
-            self.cfgs[4].instrument.detector.parameters_old,
-            os.path.join(test_data['tempdir'], test_data['existing_file'])
-            )
+    def test_beam_energy(self):
+        bcfg = Beam(self.cfgs[1])
+        energy = bcfg.energy
+        self.assertEqual(energy, 2.0, "Incorrect beam energy")
 
+    def test_beam_vector_dflt(self):
+        bcfg = Beam(self.cfgs[0])
+        bvecdflt = Beam.beam_vec_DFLT
+        bvec = bcfg.vector
 
+        self.assertEqual(bvec[0], bvecdflt[0], "Incorrect default beam vector")
+        self.assertEqual(bvec[1], bvecdflt[1], "Incorrect default beam vector")
+        self.assertEqual(bvec[2], bvecdflt[2], "Incorrect default beam vector")
 
-class TestDetectorPixelsConfig(TestConfig):
+    def test_beam_vector_dflt(self):
+        bcfg = Beam(self.cfgs[0])
+        bvecdflt = Beam.beam_vec_DFLT
+        bvec = bcfg.vector
 
+        self.assertEqual(bvec[0], bvecdflt[0], "Incorrect default beam vector")
+        self.assertEqual(bvec[1], bvecdflt[1], "Incorrect default beam vector")
+        self.assertEqual(bvec[2], bvecdflt[2], "Incorrect default beam vector")
 
-    @classmethod
-    def get_reference_data(cls):
-        return reference_data
+    def test_beam_vector(self):
+        bcfg = Beam(self.cfgs[1])
+        bvec = bcfg.vector
 
-
-    def test_columns(self):
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[0].instrument.detector.pixels, 'columns'
-            )
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[1].instrument.detector.pixels, 'columns'
-            )
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[2].instrument.detector.pixels, 'columns'
-            )
-        self.assertEqual(self.cfgs[3].instrument.detector.pixels.columns, 2048)
-
-
-
-    def test_size(self):
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[0].instrument.detector.pixels, 'size'
-            )
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[1].instrument.detector.pixels, 'size'
-            )
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[2].instrument.detector.pixels, 'size'
-            )
-        self.assertEqual(self.cfgs[3].instrument.detector.pixels.size, [1, 1])
-        self.assertEqual(self.cfgs[4].instrument.detector.pixels.size, [1, 2])
-
-
-    def test_rows(self):
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[0].instrument.detector.pixels, 'rows'
-            )
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[1].instrument.detector.pixels, 'rows'
-            )
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[2].instrument.detector.pixels, 'rows'
-            )
-        self.assertEqual(self.cfgs[3].instrument.detector.pixels.rows, 1024)
+        self.assertEqual(bvec[0], 0.0, "Incorrect default beam vector")
+        self.assertEqual(bvec[1], -1.0, "Incorrect default beam vector")
+        self.assertEqual(bvec[2], 0.0, "Incorrect default beam vector")
