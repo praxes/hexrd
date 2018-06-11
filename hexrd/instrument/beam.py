@@ -1,6 +1,8 @@
 """Beam parameters"""
 import numpy as np
 
+from hexrd import constants
+
 class Beam(object):
 
     def __init__(self, energy, vector):
@@ -14,6 +16,10 @@ class Beam(object):
     @property
     def vector(self):
         return self._vector
+
+    @property
+    def wavelength(self):
+        return constants.keVToAngstrom(self.energy)
 
 
 def calc_beam_vec(azim, pola):
@@ -30,3 +36,17 @@ def calc_beam_vec(azim, pola):
         np.cos(phi),
         np.sin(phi)*np.sin(tht)]
     return -bv
+
+
+def calc_angles_from_beam_vec(bvec):
+    """
+    Return the azimuth and polar angle from a beam
+    vector
+    """
+    bvec = np.atleast_2d(bvec).reshape(3, 1)
+    nvec = mutil.unitVector(-bvec)
+    azim = float(
+        np.degrees(np.arctan2(nvec[2], nvec[0]))
+    )
+    pola = float(np.degrees(np.arccos(nvec[1])))
+    return azim, pola

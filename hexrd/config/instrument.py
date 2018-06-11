@@ -6,14 +6,16 @@ from .config import Config
 from hexrd import constants
 
 class Instrument(Config):
-
+    # Note: instrument is instantiated with a yaml dictionary; use self
+    #       to instantiate classes based on this one
     @property
     def hedm(self):
-        return instrument.HEDMInstrument(self._cfg)
+        return instrument.HEDMInstrument(self.beam, self._cfg)
 
+    @property
     def beam(self):
-        bcfg = Beam(self._cfg)
-        return(instrument.beam(bcfg.energy, bcfg.vector))
+        bcfg = Beam(self)
+        return instrument.beam.Beam(bcfg.energy, bcfg.vector)
 
 class Beam(Config):
 

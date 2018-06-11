@@ -97,20 +97,6 @@ panel_param_flags_DFLT = np.array(
 # =============================================================================
 
 
-def calc_angles_from_beam_vec(bvec):
-    """
-    Return the azimuth and polar angle from a beam
-    vector
-    """
-    bvec = np.atleast_2d(bvec).reshape(3, 1)
-    nvec = mutil.unitVector(-bvec)
-    azim = float(
-        np.degrees(np.arctan2(nvec[2], nvec[0]))
-    )
-    pola = float(np.degrees(np.arccos(nvec[1])))
-    return azim, pola
-
-
 def migrate_instrument_config(instrument_config):
     """utility function to generate old instrument config dictionary"""
     cfg_list = []
@@ -160,10 +146,12 @@ class HEDMInstrument(object):
     * Distortion needs to be moved to a class with registry; tuple unworkable
     * where should reference eta be defined? currently set to default config
     """
-    def __init__(self, instrument_config=None,
+    def __init__(self, beam, instrument_config=None,
                  image_series=None, eta_vector=None,
-                 instrument_name="instrument"):
-        self._id = instrument_name
+                 name="instrument"):
+        self._id = name
+        self._beam = beam
+        print(beam, self.beam)
 
         if eta_vector is None:
             self._eta_vector = eta_vec_DFLT
@@ -172,8 +160,6 @@ class HEDMInstrument(object):
 
         if instrument_config is None:
             self._num_panels = 1
-            self._beam_energy = beam_energy_DFLT
-            self._beam_vector = beam_vec_DFLT
 
             self._detectors = dict(
                 panel_id_DFLT=PlanarDetector(
@@ -181,7 +167,7 @@ class HEDMInstrument(object):
                     pixel_size=pixel_size_DFLT,
                     tvec=t_vec_d_DFLT,
                     tilt=tilt_angles_DFLT,
-                    bvec=self._beam_vector,
+                    bvec=self.beam.vector,
                     evec=self._eta_vector,
                     distortion=None),
                 )
@@ -190,11 +176,6 @@ class HEDMInstrument(object):
             self._chi = chi_DFLT
         else:
             self._num_panels = len(instrument_config['detectors'])
-            self._beam_energy = instrument_config['beam']['energy']  # keV
-            self._beam_vector = calc_beam_vec(
-                instrument_config['beam']['vector']['azimuth'],
-                instrument_config['beam']['vector']['polar_angle'],
-                )
             ct.eta_vec
             # now build detector dict
             detector_ids = instrument_config['detectors'].keys()
@@ -223,7 +204,7 @@ class HEDMInstrument(object):
                         pixel_size=pix['size'],
                         tvec=xform['t_vec_d'],
                         tilt=xform['tilt_angles'],
-                        bvec=self._beam_vector,
+                        bvec=self.beam.vector,
                         evec=ct.eta_vec,
                         distortion=dist_list)
                     )
@@ -280,46 +261,24 @@ class HEDMInstrument(object):
         self._chi = float(x)
 
     @property
-    def beam_energy(self):
-        return self._beam_energy
+    def beam(self):
+        return self._beam
 
-    @beam_energy.setter
-    def beam_energy(self, x):
-        self._beam_energy = float(x)
+    @property
+    def beam_energy(self):
+        return self.beam.energy
 
     @property
     def beam_wavelength(self):
-        return ct.keVToAngstrom(self.beam_energy)
+        return self.beam.wavelength
 
     @property
     def beam_vector(self):
-        return self._beam_vector
-
-    @beam_vector.setter
-    def beam_vector(self, x):
-        x = np.array(x).flatten()
-        assert len(x) == 3 and sum(x*x) > 1-ct.sqrt_epsf, \
-            'input must have length = 3 and have unit magnitude'
-        self._beam_vector = x
-        # ...maybe change dictionary item behavior for 3.x compatibility?
-        for detector_id in self.detectors:
-            panel = self.detectors[detector_id]
-            panel.bvec = self._beam_vector
+        return self.beam.vector
 
     @property
     def eta_vector(self):
         return self._eta_vector
-
-    @eta_vector.setter
-    def eta_vector(self, x):
-        x = np.array(x).flatten()
-        assert len(x) == 3 and sum(x*x) > 1-ct.sqrt_epsf, \
-            'input must have length = 3 and have unit magnitude'
-        self._eta_vector = x
-        # ...maybe change dictionary item behavior for 3.x compatibility?
-        for detector_id in self.detectors:
-            panel = self.detectors[detector_id]
-            panel.evec = self._eta_vector
 
     @property
     def param_flags(self):
