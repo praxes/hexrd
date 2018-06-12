@@ -1,5 +1,6 @@
 import os
 
+import hexrd.instrument
 from .common import TestConfig, test_data
 from ..instrument import Instrument, Beam, OscillationStage
 
@@ -24,6 +25,17 @@ class TestInstrument(TestConfig):
     @classmethod
     def get_reference_data(cls):
         return reference_data
+
+    def test_beam(self):
+        icfg = Instrument(self.cfgs[1])
+        b = icfg.beam
+        self.assertTrue(isinstance(b, hexrd.instrument.beam.Beam), "Failed to produce a Beam instance")
+
+    def test_oscillation_stage(self):
+        icfg = Instrument(self.cfgs[2])
+        ostage = icfg.oscillation_stage
+        self.assertTrue(isinstance(ostage, hexrd.instrument.oscillation_stage.OscillationStage),
+                        "Failed to produce an OscillationStage instance")
 
 
 class TestBeam(TestConfig):
