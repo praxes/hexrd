@@ -1,5 +1,7 @@
 import os
 
+import numpy as np
+
 from hexrd import instrument
 from .config import Config
 
@@ -16,6 +18,12 @@ class Instrument(Config):
     def beam(self):
         bcfg = Beam(self)
         return instrument.beam.Beam(bcfg.energy, bcfg.vector)
+
+    @property
+    def oscillation_stage(self):
+        oscfg = OscillationStage(self)
+        return instrument.oscillation_stage.OscillationStage(oscfg.tvec, oscfg.chi)
+
 
 class Beam(Config):
 
@@ -41,3 +49,23 @@ class Beam(Config):
         az = d['azimuth']
         pa = d['polar_angle']
         return instrument.beam.calc_beam_vec(az, pa)
+
+
+class OscillationStage(Config):
+
+    chi_DFLT = 0.
+    tvec_DFLT = np.zeros(3)
+
+    BASEKEY = 'oscillation_stage'
+
+    def get(self, key, **kwargs):
+        """get item with given key"""
+        return self._cfg.get(':'.join([self.BASEKEY, key]), **kwargs)
+
+    @property
+    def tvec(self):
+        return self.get('t_vec_s', default=self.tvec_DFLT)
+
+    @property
+    def chi(self):
+        return self.get('chi', default=self.chi_DFLT)

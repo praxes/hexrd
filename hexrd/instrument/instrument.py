@@ -81,9 +81,6 @@ pixel_size_DFLT = (0.2, 0.2)
 tilt_angles_DFLT = np.zeros(3)
 t_vec_d_DFLT = np.r_[0., 0., -1000.]
 
-chi_DFLT = 0.
-t_vec_s_DFLT = np.zeros(3)
-
 # [wavelength, chi, tvec_s, expmap_c, tec_c], len is 11
 instr_param_flags_DFLT = np.array(
     [0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1],
@@ -171,9 +168,6 @@ class HEDMInstrument(object):
                     evec=self._eta_vector,
                     distortion=None),
                 )
-
-            self._tvec = t_vec_s_DFLT
-            self._chi = chi_DFLT
         else:
             self._num_panels = len(instrument_config['detectors'])
             ct.eta_vec
