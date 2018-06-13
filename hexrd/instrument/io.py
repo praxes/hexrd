@@ -1,4 +1,4 @@
-"""Utilities for output"
+"""Utilities for output"""
 import h5py
 import numpy as np
 from scipy.linalg.matfuncs import logm
