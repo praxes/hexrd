@@ -2,6 +2,7 @@
 import numpy as np
 
 from hexrd import constants
+from hexrd import matrixutil as mutil
 
 class Beam(object):
 
