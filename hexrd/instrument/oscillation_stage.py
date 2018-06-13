@@ -1,4 +1,5 @@
 """Oscillation stage parameters"""
+from __future__ import print_function
 
 
 class OscillationStage(object):

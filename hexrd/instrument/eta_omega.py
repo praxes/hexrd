@@ -1,4 +1,6 @@
-"""Module for eta-omega maps"
+"""Module for eta-omega maps"""
+from __future__ import print_function
+
 import numpy as np
 
 from hexrd import matrixutil as mutil
