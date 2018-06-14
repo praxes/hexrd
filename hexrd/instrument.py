@@ -47,6 +47,7 @@ from hexrd.gridutil import cellIndices, make_tolerance_grid
 from hexrd import matrixutil as mutil
 from hexrd.valunits import valWUnit
 from hexrd.xrd.transforms_CAPI import anglesToGVec, \
+                                      angularDifference, \
                                       detectorXYToGvec, \
                                       gvecToDetectorXY, \
                                       makeDetectorRotMat, \
@@ -1368,7 +1369,7 @@ class PlanarDetector(object):
             """...HARD CODED DISTORTION! FIX THIS!!!"""
             dist_d = dict(
                 function_name='GE_41RT',
-                parameters=self.distortion[1].tolist()
+                parameters=np.r_[self.distortion[1]].tolist()
             )
             d['detector']['distortion'] = dist_d
         return d
@@ -2263,7 +2264,13 @@ class GenerateEtaOmeMaps(object):
             np.radians(np.r_[omegas_array[:, 0], omegas_array[-1, 1]]),
             np.radians(ome_period)
         )
-
+        
+        # !!! must avoid the case where omeEdges[0] = omeEdges[-1] for the
+        # indexer to work properly
+        if abs(self._omeEdges[0] - self._omeEdges[-1]) <= ct.sqrt_epsf:
+            del_ome = np.radians(omegas_array[0, 1] - omegas_array[0, 0])    # signed
+            self._omeEdges[-1] = self._omeEdges[-2] + del_ome
+        
         # handle etas
         # WARNING: unlinke the omegas in imageseries metadata,
         # these are in RADIANS and represent bin centers
