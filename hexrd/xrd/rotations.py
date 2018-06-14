@@ -28,13 +28,14 @@
 #
 # Module containing functions relevant to rotations
 #
-import sys, os, time
+import sys
+import time
 import numpy
 from numpy import \
-     arange, array, asarray, atleast_1d, average, \
-     ndarray, diag, empty, ones, zeros, \
+     arange, arctan2, array, asarray, atleast_1d, average, \
+     ndarray, diag, zeros, \
      cross, dot, pi, arccos, arcsin, cos, sin, sqrt, \
-     sort, squeeze, tile, vstack, hstack, r_, c_, ix_, \
+     sort, tile, vstack, hstack, c_, ix_, \
      abs, mod, sign, \
      finfo, isscalar
 from numpy import float_ as nFloat
@@ -46,19 +47,22 @@ from hexrd.matrixutil import columnNorm, unitVector, skewMatrixOfVector, \
     multMatArray, nullSpace
 #
 #  Module Data
-tinyRotAng   = finfo(float).eps         # ~2e-16
-angularUnits = 'radians'                # module-level angle units
-I3           = array([[1., 0., 0.],     # (3, 3) identity
-                      [0., 1., 0.],
-                      [0., 0., 1.]])
+tinyRotAng = finfo(float).eps         # ~2e-16
+angularUnits = 'radians'              # module-level angle units
+I3 = array([[1., 0., 0.],   # (3, 3) identity
+            [0., 1., 0.],
+            [0., 0., 1.]])
 #
 periodDict = {'degrees': 360.0, 'radians': 2*numpy.pi}
+
+
 #
 #  ================================================== Functions
 #
 def arccosSafe(temp):
     """
-    Protect against numbers slightly larger than 1 in magnitude due to round-off
+    Protect against numbers slightly larger than 1 in magnitude
+    due to round-off
     """
     temp = atleast_1d(temp)
     if (abs(temp) > 1.00001).any():
@@ -635,6 +639,76 @@ def angleAxisOfRotMat(R):
         raxis[:, special] = saxis
 
     return angle, unitVector(raxis)
+
+
+def make_rmat_euler(tilt_angles, axes_order, extrinsic=True):
+    """
+    extrinsic or intrinsic by kw
+    """
+    axes = numpy.eye(3)
+
+    axes_dict = dict(x=0, y=1, z=2)
+
+    # orders = []
+    # for l in [''.join(i) for i in itertools.product(['x', 'y', 'z'], repeat=3)]:
+    # if numpy.sum(numpy.array([j for j in l]) == l[0]) < 3:
+    #    if l[1] != l[0] and l[2] != l[1]:
+    #         orders.append(l)
+
+    orders = [
+        'xyz', 'zyx',
+        'zxy', 'yxz',
+        'yzx', 'xzy',
+        'xyx', 'xzx',
+        'yxy', 'yzy',
+        'zxz', 'zyz',
+    ]
+
+    axo = axes_order.lower()
+    assert axo in orders and len(axes_order) == 3, \
+        '%s is not a valid choice' % axes_order
+
+    if extrinsic:
+        rmats = numpy.zeros((3, 3, 3))
+        for i, ax in enumerate(axo):
+            rmats[i] = rotMatOfExpMap(
+                tilt_angles[i]*axes[axes_dict[ax]]
+            )
+        return numpy.dot(rmats[2], numpy.dot(rmats[1], rmats[0]))
+    else:
+        rm0 = rotMatOfExpMap(
+            tilt_angles[0]*axes[axes_dict[axo[0]]]
+        )
+        rm1 = rotMatOfExpMap(
+            tilt_angles[1]*rm0[:, axes_dict[axo[1]]]
+        )
+        rm2 = rotMatOfExpMap(
+            tilt_angles[2]*numpy.dot(rm1, rm0[:, axes_dict[axo[2]]])
+        )
+        return numpy.dot(rm2, numpy.dot(rm1, rm0))
+
+
+def angles_from_rmat_xyz(rmat):
+    """
+    calculate x-y-z euler angles from a rotation matrix in
+    the PASSIVE convention
+    """
+    eps = sqrt(finfo('float').eps)
+    ry = -arcsin(rmat[2, 0])
+    sgny = sign(ry)
+    if abs(ry) < 0.5*pi - eps:
+        cosy = cos(ry)
+        rz = arctan2(rmat[1, 0]/cosy, rmat[0, 0]/cosy)
+        rx = arctan2(rmat[2, 1]/cosy, rmat[2, 2]/cosy)
+    else:
+        rz = 0.5*arctan2(sgny*rmat[1, 2], sgny*rmat[0, 2])
+        if sgny > 0:
+            rx = -rz
+        else:
+            rx = rz
+    return rx, ry, rz
+
+
 #
 #  ==================== Fiber
 #
