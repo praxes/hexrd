@@ -51,7 +51,7 @@ def execute(args, parser):
     import yaml
 
     from hexrd import config
-    from hexrd.findorientations import find_orientations
+    from hexrd.actions.find_orientations import find_orientations
 
 
     # make sure hkls are passed in as a list of ints
@@ -84,7 +84,7 @@ def execute(args, parser):
         cfg.analysis_name.strip().replace(' ', '-'),
         cfg.material.active.strip().replace(' ', '-'),
         )
-    
+
     # prepare the analysis directory
     quats_f = os.path.join(
         cfg.working_dir,
