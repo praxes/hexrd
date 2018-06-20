@@ -57,6 +57,10 @@ from hexrd.xrd.transforms_CAPI import anglesToGVec, \
 from hexrd.xrd import xrdutil
 from hexrd import constants as ct
 
+# FIXME: distortion kludge
+from hexrd.xrd.distortion import GE_41RT  # BAD, VERY BAD!!!
+
+
 from skimage.draw import polygon
 
 # =============================================================================
@@ -66,12 +70,6 @@ from skimage.draw import polygon
 eta_vec_DFLT = ct.eta_vec
 
 panel_id_DFLT = "generic"
-nrows_DFLT = 2048
-ncols_DFLT = 2048
-pixel_size_DFLT = (0.2, 0.2)
-
-tilt_angles_DFLT = np.zeros(3)
-t_vec_d_DFLT = np.r_[0., 0., -1000.]
 
 # [wavelength, chi, tvec_s, expmap_c, tec_c], len is 11
 instr_param_flags_DFLT = np.array(

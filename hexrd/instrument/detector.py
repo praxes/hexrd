@@ -19,9 +19,6 @@ from hexrd.xrd.transforms_CAPI import anglesToGVec, \
                                       rowNorm, \
                                       validateAngleRanges
 
-# FIXME: distortion kludge
-from hexrd.xrd.distortion import GE_41RT  # BAD, VERY BAD!!!
-
 class PlanarDetector(object):
     """
     base class for 2D planar, rectangular row-column detector
