@@ -12,7 +12,9 @@ class Instrument(Config):
     #       to instantiate classes based on this one
     @property
     def hedm(self):
-        return instrument.HEDMInstrument(self.beam, self._cfg)
+        return instrument.HEDMInstrument(self.beam,
+                                         self.detector_dict,
+                                         self.oscillation_stage)
 
     @property
     def beam(self):

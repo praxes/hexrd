@@ -43,7 +43,7 @@ class RootConfig(Config):
         instr_file = self.get('instrument')
         with open(instr_file, 'r') as f:
             icfg = yaml.load(f)
-        return Instrument(icfg)
+        return Instrument(Config(icfg))
 
     @property
     def material(self):
@@ -139,7 +139,10 @@ class RootConfig(Config):
                 args = ispec['args']
                 ims = imageseries.open(fname, fmt, **args)
                 oms = imageseries.omega.OmegaImageSeries(ims)
-                panel = ims.metadata['panel']
+                try:
+                    panel=ispec['panel']
+                except KeyError:
+                    panel = ims.metadata['panel']
                 self._image_dict[panel] = ims
 
         return self._image_dict

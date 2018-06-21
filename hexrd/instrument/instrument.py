@@ -67,10 +67,6 @@ from skimage.draw import polygon
 # PARAMETERS
 # =============================================================================
 
-eta_vec_DFLT = ct.eta_vec
-
-panel_id_DFLT = "generic"
-
 # [wavelength, chi, tvec_s, expmap_c, tec_c], len is 11
 instr_param_flags_DFLT = np.array(
     [0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1],
@@ -133,72 +129,18 @@ class HEDMInstrument(object):
     * Distortion needs to be moved to a class with registry; tuple unworkable
     * where should reference eta be defined? currently set to default config
     """
-    def __init__(self, beam, instrument_config=None,
+    def __init__(self, beam, detectors, oscillation_stage,
                  image_series=None, eta_vector=None,
                  name="instrument"):
         self._id = name
         self._beam = beam
-        print(beam, self.beam)
+        self._detectors = detectors
+        self._oscillation_stage = oscillation_stage
 
-        if eta_vector is None:
-            self._eta_vector = eta_vec_DFLT
-        else:
-            self._eta_vector = eta_vector
-
-        if instrument_config is None:
-            self._num_panels = 1
-
-            self._detectors = dict(
-                panel_id_DFLT=PlanarDetector(
-                    rows=nrows_DFLT, cols=ncols_DFLT,
-                    pixel_size=pixel_size_DFLT,
-                    tvec=t_vec_d_DFLT,
-                    tilt=tilt_angles_DFLT,
-                    bvec=self.beam.vector,
-                    evec=self._eta_vector,
-                    distortion=None),
-                )
-        else:
-            self._num_panels = len(instrument_config['detectors'])
-            ct.eta_vec
-            # now build detector dict
-            detector_ids = instrument_config['detectors'].keys()
-            pixel_info = [instrument_config['detectors'][i]['pixels']
-                          for i in detector_ids]
-            affine_info = [instrument_config['detectors'][i]['transform']
-                           for i in detector_ids]
-            distortion = []
-            for i in detector_ids:
-                try:
-                    distortion.append(
-                        instrument_config['detectors'][i]['distortion']
-                        )
-                except KeyError:
-                    distortion.append(None)
-            det_list = []
-            for pix, xform, dist in zip(pixel_info, affine_info, distortion):
-                # HARD CODED GE DISTORTION !!! FIX
-                dist_list = None
-                if dist is not None:
-                    dist_list = [GE_41RT, dist['parameters']]
-
-                det_list.append(
-                    PlanarDetector(
-                        rows=pix['rows'], cols=pix['columns'],
-                        pixel_size=pix['size'],
-                        tvec=xform['t_vec_d'],
-                        tilt=xform['tilt_angles'],
-                        bvec=self.beam.vector,
-                        evec=ct.eta_vec,
-                        distortion=dist_list)
-                    )
-                pass
-            self._detectors = dict(zip(detector_ids, det_list))
-
-            self._tvec = np.r_[
-                instrument_config['oscillation_stage']['t_vec_s']
-            ]
-            self._chi = instrument_config['oscillation_stage']['chi']
+        self._eta_vector = ct.eta_vec if eta_vector is None else eta_vector
+        self._num_panels = len(detectors)
+        self._tvec = oscillation_stage.tvec
+        self._chi = oscillation_stage.chi
 
         self._param_flags = np.hstack(
             [instr_param_flags_DFLT,
@@ -226,24 +168,20 @@ class HEDMInstrument(object):
             pdict[key] = panel.config_dict(self.chi, self.tvec)
         return pdict
 
+    # Oscillation stage
+    @property
+    def oscillation_stage(self):
+        return self._oscillation_stage
+
     @property
     def tvec(self):
         return self._tvec
-
-    @tvec.setter
-    def tvec(self, x):
-        x = np.array(x).flatten()
-        assert len(x) == 3, 'input must have length = 3'
-        self._tvec = x
 
     @property
     def chi(self):
         return self._chi
 
-    @chi.setter
-    def chi(self, x):
-        self._chi = float(x)
-
+    # Beam properties
     @property
     def beam(self):
         return self._beam
@@ -260,6 +198,7 @@ class HEDMInstrument(object):
     def beam_vector(self):
         return self.beam.vector
 
+    # Miscellaneous parameters
     @property
     def eta_vector(self):
         return self._eta_vector
