@@ -433,7 +433,7 @@ def objFuncFitGrain(gFit, gFull, gFlag,
     # instrument here because I am not sure if instatiating them using
     # dict.fromkeys() preserves the same order if using iteration...
     # <JVB 2017-10-31>
-    calc_omes_dict = dict.fromkeys(instrument.detectors)
+    calc_omes_dict = dict.fromkeys(instrument.detectors, [])
     calc_xy_dict = dict.fromkeys(instrument.detectors)
     meas_xyo_all = []
     det_keys_ordered = []
@@ -507,7 +507,11 @@ def objFuncFitGrain(gFit, gFull, gFlag,
 
     # stack results to concatenated arrays
     calc_omes_all = np.hstack([calc_omes_dict[k] for k in det_keys_ordered])
-    calc_xy_all = np.vstack([calc_xy_dict[k] for k in det_keys_ordered])
+    tmp = []
+    for k in det_keys_ordered:
+        if calc_xy_dict[k] is not None:
+            tmp.append(calc_xy_dict[k])
+    calc_xy_all = np.vstack(tmp)
     meas_xyo_all = np.vstack(meas_xyo_all)
 
     npts = len(meas_xyo_all)
