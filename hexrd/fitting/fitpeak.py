@@ -143,7 +143,7 @@ def fit_pk_parms_1d(p0,x,f,pktype):
     elif pktype == 'split_pvoigt':
         lb=[p0[0]*0.5,np.min(x),0.,      0.,      0., 0., 0.,None]
         ub=[p0[0]*2.0,np.max(x),4.*p0[2],4.*p0[2],1., 1., 2.*p0[4],None]         
-        
+        fitArgs=(x,f,pktype,weight,lb,ub)
         p, outflag = optimize.leastsq(fit_pk_obj_1d_bnded, p0, args=fitArgs,ftol=ftol,xtol=xtol) 
         
     elif pktype == 'tanh_stepdown':
