@@ -538,6 +538,8 @@ def test_orientations(image_stack, experiment, test_crds, controller,multiproces
     
     del _multiprocessing_start_method
     
+    pool.close()
+    
     return confidence
 
 
@@ -785,9 +787,10 @@ def gen_trial_exp_data(grain_out_file,det_file,mat_file, x_ray_energy, mat_name,
     mis_amt=misorientation_bnd*np.pi/180.
     spacing=misorientation_spacing*np.pi/180.
     
-    ori_pts = np.arange(-mis_amt, (mis_amt+spacing),spacing)
+    ori_pts = np.arange(-mis_amt, (mis_amt+(spacing*0.999)),spacing)
     num_ori_grid_pts=ori_pts.shape[0]**3
     num_oris=exp_maps.shape[0]
+    
     
     XsO, YsO, ZsO = np.meshgrid(ori_pts, ori_pts, ori_pts)
     
@@ -1004,6 +1007,8 @@ def scan_detector_parm(image_stack, experiment,test_crds,controller,parm_to_opt,
     #3-ytilt
     #4-ztilt
     
+    multiprocessing_start_method = 'fork' if hasattr(os, 'fork') else 'spawn'
+    
     #current detector parameters, note the value for the actively optimized parameters will be ignored
     distance=experiment.detector_params[5]#mm
     x_cen=experiment.detector_params[3]#mm
@@ -1035,7 +1040,7 @@ def scan_detector_parm(image_stack, experiment,test_crds,controller,parm_to_opt,
         elif parm_to_opt==3:
             rMat_d_tmp=makeDetectorRotMat([xtilt,parm_vector[jj],ztilt])
         elif parm_to_opt==4:
-            rMat_d_tmp=makeDetectorRotMat(xtilt,ytilt,parm_vector[jj])  
+            rMat_d_tmp=makeDetectorRotMat([xtilt,ytilt,parm_vector[jj]])  
         else:
             rMat_d_tmp=makeDetectorRotMat([xtilt,ytilt,ztilt])
         
@@ -1045,7 +1050,7 @@ def scan_detector_parm(image_stack, experiment,test_crds,controller,parm_to_opt,
         
         
         conf=test_orientations(image_stack, experiment, test_crds,
-                      controller=controller)
+                      controller,multiprocessing_start_method)
         
         
         trial_data[jj]=np.max(conf,axis=0).reshape(slice_shape)

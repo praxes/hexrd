@@ -53,8 +53,9 @@ def output_grain_map_vtk(data_location,data_stems,output_stem,vol_spacing,top_do
             Zs_stitched[((i)*num_layers):((i)*num_layers+num_layers),:,:]=Zss[num_scans-1-i]
             Ys_stitched[((i)*num_layers):((i)*num_layers+num_layers),:,:]=Yss[num_scans-1-i]+vol_spacing*i    
         else:
-            grain_map_stitched[((i)*num_layers):((i)*num_layers[i]+num_layers),:,:]=grain_maps[i]
-            confidence_stitched[((i)*num_layers):((i)*num_layers[i]+num_layers),:,:]=confidence_maps[i]
+            
+            grain_map_stitched[((i)*num_layers):((i)*num_layers+num_layers),:,:]=grain_maps[i]
+            confidence_stitched[((i)*num_layers):((i)*num_layers+num_layers),:,:]=confidence_maps[i]
             Xs_stitched[((i)*num_layers):((i)*num_layers+num_layers),:,:]=Xss[i]
             Zs_stitched[((i)*num_layers):((i)*num_layers+num_layers),:,:]=Zss[i]
             Ys_stitched[((i)*num_layers):((i)*num_layers+num_layers),:,:]=Yss[i]+vol_spacing*i
