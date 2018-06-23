@@ -73,94 +73,100 @@ x_ray_energy = '/###/'  # keV
 # name of the material for the reconstruction
 mat_name = 'MAT_NAME'
 
-#reconstruction with misorientation included, for many grains, this will quickly
-#make the reconstruction size unmanagable
-misorientation_bnd=0.0 #degrees
-misorientation_spacing=0.25 #degress
+# reconstruction with misorientation included, for many grains,
+# this will quickly make the reconstruction size unmanagable
+misorientation_bnd = 0.0  # degrees
+misorientation_spacing = 0.25  # degrees
 
-beam_stop_width=0.55#mm, assumed to be in the center of the detector
+beam_stop_width = 0.55  # mm, assumed to be in the center of the detector
 
+ome_range_deg = [(0., 360.), ]  # degrees
 
-ome_range_deg=[(0.,360.)] #degrees
+# maximu bragg angle 2theta in degrees
+# if -1, all peaks that will hit the detector are calculated
+max_tth = -1.
 
+# image processing
+num_for_dark = 250  # num images to use for median data
+threshold = 3.
 
-max_tth=-1. #degrees, if a negative number is input, all peaks that will hit the detector are calculated
+# !!! DO NOT CHANGE ANY OF THESE UNLESS YOU KNOW WHAT YOU ARE DOING
+num_erosions = 3  # num iterations of images erosion
+num_dilations = 2  # num iterations of images erosion
+ome_dilation_iter = 1  # num iterations of 3d image stack dilations
+chunk_size = 500  # chunksize for multiprocessing
 
-#image processing
-num_for_dark=250#num images to use for median data
-threshold=3.
-num_erosions=3 #num iterations of images erosion, don't mess with unless you know what you're doing
-num_dilations=2 #num iterations of images erosion, don't mess with unless you know what you're doing
-ome_dilation_iter=1 #num iterations of 3d image stack dilations, don't mess with unless you know what you're doing
+# thresholds for accepting FF grains in NF reconstruction
+min_completeness = 0.5
+max_chisq = 0.05
 
-chunk_size=500#chunksize for multiprocessing, don't mess with unless you know what you're doing
+# tomography options
+layer_row = 1024  # row of layer to use to find the specimen cross section
 
-#thresholds for grains in reconstructions
-comp_thresh=0.5 #only use orientations from grains with completnesses ABOVE this threshold
-chi2_thresh=0.05 #only use orientations from grains BELOW this chi^2
+# TOMO OPTIONS
+# !!! Don't change these unless you know what you are doing
+# this will close small holes and remove noise
+recon_thresh = 0.00006  # usually varies between 0.0001 and 0.0005
+noise_obj_size = 5000
+min_hole_size = 5000
 
+# cross sectional to reconstruct (should be at least 20%-30% over sample width)
+cross_sectional_dim = 1.00
 
-#tomography options
-layer_row=1024 # row of layer to use to find the cross sectional specimen shape
+voxel_spacing = 0.005  # voxel spacing for the near field reconstruction in mm
+v_bnds = [-0.005, 0.005]  # vertical (y) reconstruction voxel bounds in mm
 
-#Don't change these unless you know what you are doing, this will close small holes
-#and remove noise
-recon_thresh=0.00006#usually varies between 0.0001 and 0.0005
-noise_obj_size=5000
-min_hole_size=5000
-
-
-cross_sectional_dim=1.35 #cross sectional to reconstruct (should be at least 20%-30% over sample width)
-#voxel spacing for the near field reconstruction
-voxel_spacing=0.005#in mm
-##vertical (y) reconstruction voxel bounds in mm
-v_bnds=[-0.005,0.005]
-
-
-
-
-#==============================================================================
+# =============================================================================
 # %% LOAD GRAIN DATA
-#==============================================================================
+# =============================================================================
 
-experiment, nf_to_ff_id_map  = nfutil.gen_trial_exp_data(grain_out_file,det_file,mat_file, x_ray_energy, mat_name, max_tth, comp_thresh, chi2_thresh, misorientation_bnd, \
-                       misorientation_spacing,ome_range_deg, num_imgs, beam_stop_width)
+experiment, nf_to_ff_id_map = nfutil.gen_trial_exp_data(
+    grain_out_file, det_file, mat_file, x_ray_energy, mat_name,
+    max_tth, min_completeness, max_chisq, misorientation_bnd,
+    misorientation_spacing, ome_range_deg, num_imgs, beam_stop_width
+)
 
-#==============================================================================
+# =============================================================================
 # %% TOMO PROCESSING - GENERATE BRIGHT FIELD
-#==============================================================================
+# =============================================================================
 
-tbf=tomoutil.gen_bright_field(tbf_data_folder,tbf_img_start,tbf_num_imgs,experiment.nrows,experiment.ncols)
+tbf = tomoutil.gen_bright_field(
+    tbf_data_folder, tbf_img_start, tbf_num_imgs,
+    experiment.nrows, experiment.ncols
+)
 
-#==============================================================================
+# =============================================================================
 # %% TOMO PROCESSING - BUILD RADIOGRAPHS
-#==============================================================================
+# =============================================================================
 
+rad_stack = tomoutil.gen_attenuation_rads(
+    tomo_data_folder, tbf, tomo_img_start, tomo_num_imgs,
+    experiment.nrows, experiment.ncols
+)
 
-rad_stack=tomoutil.gen_attenuation_rads(tomo_data_folder,tbf,tomo_img_start,tomo_num_imgs,experiment.nrows,experiment.ncols)
-
-
-#==============================================================================
+# =============================================================================
 # %% TOMO PROCESSING - INVERT SINOGRAM
-#==============================================================================
+# =============================================================================
 
-reconstruction_fbp=tomoutil.tomo_reconstruct_layer(rad_stack,cross_sectional_dim,layer_row=layer_row,\
-                                                   start_tomo_ang=ome_range_deg[0][0],end_tomo_ang=ome_range_deg[0][1],\
-                                                   tomo_num_imgs=tomo_num_imgs, center=experiment.detector_params[3])
+reconstruction_fbp = tomoutil.tomo_reconstruct_layer(
+    rad_stack, cross_sectional_dim, layer_row=layer_row,
+    start_tomo_ang=ome_range_deg[0][0], end_tomo_ang=ome_range_deg[0][1],
+    tomo_num_imgs=tomo_num_imgs, center=experiment.detector_params[3]
+)
 
-#==============================================================================
+# =============================================================================
 # %% TOMO PROCESSING - VIEW RAW FILTERED BACK PROJECTION
-#==============================================================================
+# =============================================================================
 
 plt.close('all')
-plt.imshow(reconstruction_fbp,vmin=0.75e-4,vmax=2e-4)
-#Use this image to view the raw reconstruction, estimate threshold levels. and
-#figure out if the rotation axis position needs to be corrected
+plt.imshow(reconstruction_fbp, vmin=0.75e-4, vmax=2e-4)
+# Use this image to view the raw reconstruction, estimate threshold levels. and
+# figure out if the rotation axis position needs to be corrected
 
 
-#==============================================================================
+# =============================================================================
 # %% TOMO PROCESSING - CLEAN TOMO RECONSTRUCTION
-#==============================================================================
+# =============================================================================
 
 binary_recon = tomoutil.threshold_and_clean_tomo_layer(
     reconstruction_fbp,
