@@ -7,8 +7,20 @@ import logging
 import multiprocessing as mp
 
 import numpy as np
-from scipy import ndimage
 import timeit
+from scipy import ndimage, cluster
+
+have_sklearn = False
+try:
+    import sklearn
+    vstring = sklearn.__version__.split('.')
+    if vstring[0] == '0' and int(vstring[1]) >= 14:
+        from sklearn.cluster import dbscan
+        from sklearn.metrics.pairwise import pairwise_distances
+        have_sklearn = True
+except ImportError:
+    pass
+
 
 from hexrd import instrument
 from hexrd import matrixutil as mutil
@@ -194,3 +206,161 @@ def discretefiber_reduced(params_in):
             )[0]
         )
     return tmp
+
+def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, radius=None):
+    """
+    """
+    algorithm = cfg.find_orientations.clustering.algorithm
+
+    # check for override on completeness threshold
+    if compl_thresh is not None:
+        min_compl = compl_thresh
+
+    # check for override on radius
+    if radius is not None:
+        cl_radius = radius
+
+    start = time.clock() # time this
+
+    num_above = sum(np.array(compl) > min_compl)
+    if num_above == 0:
+        # nothing to cluster
+        qbar = cl = np.array([])
+    elif num_above == 1:
+        # short circuit
+        qbar = qfib[:, np.array(compl) > min_compl]
+        cl = [1]
+    else:
+        # use compiled module for distance
+        # just to be safe, must order qsym as C-contiguous
+        qsym  = np.array(qsym.T, order='C').T
+        def quat_distance(x, y):
+            return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
+
+        qfib_r = qfib[:, np.array(compl) > min_compl]
+
+        num_ors = qfib_r.shape[1]
+
+        if num_ors > 25000:
+            if algorithm == 'sph-dbscan' or algorithm == 'fclusterdata':
+                logger.info("falling back to euclidean DBSCAN")
+                algorithm = 'ort-dbscan'
+            #raise RuntimeError, \
+            #    "Requested clustering of %d orientations, which would be too slow!" %qfib_r.shape[1]
+
+        logger.info(
+            "Feeding %d orientations above %.1f%% to clustering",
+            num_ors, 100*min_compl
+            )
+
+        if algorithm == 'dbscan' and not have_sklearn:
+            algorithm = 'fclusterdata'
+            logger.warning(
+                "sklearn >= 0.14 required for dbscan; using fclusterdata"
+                )
+
+        if algorithm == 'dbscan' or algorithm == 'ort-dbscan' or algorithm == 'sph-dbscan':
+            # munge min_samples according to options
+            if min_samples is None or cfg.find_orientations.use_quaternion_grid is not None:
+                min_samples = 1
+
+            if algorithm == 'sph-dbscan':
+                logger.info("using spherical DBSCAN")
+                # compute distance matrix
+                pdist = pairwise_distances(
+                    qfib_r.T, metric=quat_distance, n_jobs=1
+                    )
+
+                # run dbscan
+                core_samples, labels = dbscan(
+                    pdist,
+                    eps=np.radians(cl_radius),
+                    min_samples=min_samples,
+                    metric='precomputed'
+                    )
+            else:
+                if algorithm == 'ort-dbscan':
+                    logger.info("using euclidean orthographic DBSCAN")
+                    pts = qfib_r[1:, :].T
+                    eps = 0.25*np.radians(cl_radius)
+                else:
+                    logger.info("using euclidean DBSCAN")
+                    pts = qfib_r.T
+                    eps = 0.5*np.radians(cl_radius)
+
+                # run dbscan
+                core_samples, labels = dbscan(
+                    pts,
+                    eps=eps,
+                    min_samples=min_samples,
+                    metric='minkowski', p=2,
+                    )
+
+            # extract cluster labels
+            cl = np.array(labels, dtype=int) # convert to array
+            noise_points = cl == -1 # index for marking noise
+            cl += 1 # move index to 1-based instead of 0
+            cl[noise_points] = -1 # re-mark noise as -1
+            logger.info("dbscan found %d noise points", sum(noise_points))
+        elif algorithm == 'fclusterdata':
+            logger.info("using spherical fclusetrdata")
+            cl = cluster.hierarchy.fclusterdata(
+                qfib_r.T,
+                np.radians(cl_radius),
+                criterion='distance',
+                metric=quat_distance
+                )
+        else:
+            raise RuntimeError(
+                "Clustering algorithm %s not recognized" % algorithm
+                )
+
+        # extract number of clusters
+        if np.any(cl == -1):
+            nblobs = len(np.unique(cl)) - 1
+        else:
+            nblobs = len(np.unique(cl))
+
+        """ PERFORM AVERAGING TO GET CLUSTER CENTROIDS """
+        qbar = np.zeros((4, nblobs))
+        for i in range(nblobs):
+            npts = sum(cl == i + 1)
+            qbar[:, i] = rot.quatAverageCluster(
+                qfib_r[:, cl == i + 1].reshape(4, npts), qsym
+            ).flatten()
+            pass
+        pass
+
+    if (algorithm == 'dbscan' or algorithm == 'ort-dbscan') \
+      and qbar.size/4 > 1:
+        logger.info("\tchecking for duplicate orientations...")
+        cl = cluster.hierarchy.fclusterdata(
+            qbar.T,
+            np.radians(cl_radius),
+            criterion='distance',
+            metric=quat_distance)
+        nblobs_new = len(np.unique(cl))
+        if nblobs_new < nblobs:
+            logger.info("\tfound %d duplicates within %f degrees" \
+                        %(nblobs-nblobs_new, cl_radius))
+            tmp = np.zeros((4, nblobs_new))
+            for i in range(nblobs_new):
+                npts = sum(cl == i + 1)
+                tmp[:, i] = rot.quatAverageCluster(
+                    qbar[:, cl == i + 1].reshape(4, npts), qsym
+                ).flatten()
+                pass
+            qbar = tmp
+            pass
+        pass
+
+    logger.info("clustering took %f seconds", time.clock() - start)
+    logger.info(
+        "Found %d orientation clusters with >=%.1f%% completeness"
+        " and %2f misorientation",
+        qbar.size/4,
+        100.*min_compl,
+        cl_radius
+        )
+
+    return np.atleast_2d(qbar), cl

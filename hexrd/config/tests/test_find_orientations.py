@@ -7,10 +7,6 @@ reference_data = \
 """
 analysis_name: analysis
 working_dir: %(tempdir)s
-image_series:
-  omega:
-    start: -180
-    step: 0.25
 ---
 find_orientations:
   orientation_maps:
@@ -181,10 +177,11 @@ class TestOmegaConfig(TestConfig):
             self.cfgs[1].find_orientations.omega.period,
             [0, 360]
             )
-        self.assertEqual(
-            self.cfgs[2].find_orientations.omega.period,
-            [0, -360]
-            )
+        ## Do we allow ranges going backwards?
+        #self.assertEqual(
+        #    self.cfgs[2].find_orientations.omega.period,
+        #    [0, -360]
+        #    )
         self.assertRaises(
             RuntimeError,
             getattr, self.cfgs[3].find_orientations.omega, 'period'
@@ -308,7 +305,7 @@ class TestOrientationMapsConfig(TestConfig):
     def test_active_hkls(self):
         self.assertEqual(
             self.cfgs[0].find_orientations.orientation_maps.active_hkls,
-            'all'
+            None
             )
         self.assertEqual(
             self.cfgs[1].find_orientations.orientation_maps.active_hkls,

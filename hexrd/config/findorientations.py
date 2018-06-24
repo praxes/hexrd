@@ -98,7 +98,7 @@ class OmegaConfig(Config):
     @property
     def period(self):
         key = 'find_orientations:omega:period'
-        temp = self._cfg.get(key)
+        temp = self._cfg.get(key, [-180., 180])
         range = np.abs(temp[1]-temp[0])
         if range != 360:
             raise RuntimeError(
@@ -117,11 +117,13 @@ class OmegaConfig(Config):
 
 class EtaConfig(Config):
 
+    tolerance_dflt = 0.5
+
     @property
     def tolerance(self):
         return self._cfg.get(
             'find_orientations:eta:tolerance',
-            2 * self._cfg.image_series.omega.step
+            self.tolerance_dflt
             )
 
     @property
