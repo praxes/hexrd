@@ -49,7 +49,6 @@ from hexrd.valunits import valWUnit
 from hexrd.xrd.transforms_CAPI import anglesToGVec, \
                                       detectorXYToGvec, \
                                       gvecToDetectorXY, \
-                                      makeDetectorRotMat, \
                                       makeOscillRotMat, \
                                       makeRotMatOfExpMap, \
                                       mapAngle, \
@@ -71,6 +70,8 @@ from skimage.draw import polygon
 # PARAMETERS
 # =============================================================================
 
+instrument_name_DFLT = 'GE'
+
 beam_energy_DFLT = 65.351
 beam_vec_DFLT = ct.beam_vec
 
@@ -81,7 +82,7 @@ nrows_DFLT = 2048
 ncols_DFLT = 2048
 pixel_size_DFLT = (0.2, 0.2)
 
-tilt_angles_DFLT = np.zeros(3)
+tilt_params_DFLT = np.zeros(3)
 t_vec_d_DFLT = np.r_[0., 0., -1000.]
 
 chi_DFLT = 0.
@@ -181,8 +182,8 @@ class HEDMInstrument(object):
     """
     def __init__(self, instrument_config=None,
                  image_series=None, eta_vector=None,
-                 instrument_name="instrument"):
-        self._id = instrument_name
+                 instrument_name=None):
+        self._id = instrument_name_DFLT
 
         if eta_vector is None:
             self._eta_vector = eta_vec_DFLT
@@ -190,6 +191,8 @@ class HEDMInstrument(object):
             self._eta_vector = eta_vector
 
         if instrument_config is None:
+            if instrument_name is not None:
+                self._id = instrument_name
             self._num_panels = 1
             self._beam_energy = beam_energy_DFLT
             self._beam_vector = beam_vec_DFLT
@@ -199,7 +202,7 @@ class HEDMInstrument(object):
                     rows=nrows_DFLT, cols=ncols_DFLT,
                     pixel_size=pixel_size_DFLT,
                     tvec=t_vec_d_DFLT,
-                    tilt=tilt_angles_DFLT,
+                    tilt=tilt_params_DFLT,
                     bvec=self._beam_vector,
                     evec=self._eta_vector,
                     distortion=None),
@@ -208,6 +211,11 @@ class HEDMInstrument(object):
             self._tvec = t_vec_s_DFLT
             self._chi = chi_DFLT
         else:
+            if instrument_name is None:
+                if 'id' in instrument_config:
+                    self._id = instrument_config['id']
+            else:
+                self._id = instrument_name
             self._num_panels = len(instrument_config['detectors'])
             self._beam_energy = instrument_config['beam']['energy']  # keV
             self._beam_vector = calc_beam_vec(
@@ -317,9 +325,14 @@ class HEDMInstrument(object):
     @beam_vector.setter
     def beam_vector(self, x):
         x = np.array(x).flatten()
-        assert len(x) == 3 and sum(x*x) > 1-ct.sqrt_epsf, \
-            'input must have length = 3 and have unit magnitude'
-        self._beam_vector = x
+        if len(x) == 3:
+            assert sum(x*x) > 1-ct.sqrt_epsf, \
+                'input must have length = 3 and have unit magnitude'
+            self._beam_vector = x
+        elif len(x) == 2:
+            self._beam_vector = calc_beam_vec(*x)
+        else:
+            raise RuntimeError("input must be a unit vector or angle pair")
         # ...maybe change dictionary item behavior for 3.x compatibility?
         for detector_id in self.detectors:
             panel = self.detectors[detector_id]
@@ -1264,7 +1277,7 @@ class PlanarDetector(object):
 
     @property
     def rmat(self):
-        return makeDetectorRotMat(self.tilt)
+        return makeRotMatOfExpMap(self.tilt)
 
     @property
     def normal(self):
