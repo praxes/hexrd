@@ -454,7 +454,7 @@ class HEDMInstrument(object):
             pow_angs, pow_xys, eta_idx, full_etas = panel.make_powder_rings(
                 plane_data,
                 merge_hkls=False, delta_eta=eta_tol,
-                output_etas=True)
+                full_output=True)
 
             ptth, peta = panel.pixel_angles
             ring_maps = []
