@@ -25,7 +25,7 @@ requirements:
     - python
     - setuptools
   run:
-    - fabio
+    #- fabio
     - h5py
     - matplotlib
     - numba
