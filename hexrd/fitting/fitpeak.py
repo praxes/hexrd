@@ -201,6 +201,108 @@ def fit_mpk_parms_1d(p0,x,f0,pktype,num_pks,bgtype=None,bnds=None):
     return p.x
 
 
+def estimate_mpk_parms_1d(pk_pos_0,x,f,pktype='pvoigt',bgtype='linear',fwhm_guess=0.07):
+
+    
+    num_pks=len(pk_pos_0)
+    min_val=np.min(f)
+
+
+
+    if pktype == 'gaussian' or pktype == 'lorentzian':
+        p0tmp=np.zeros([num_pks,3])
+        p0tmp_lb=np.zeros([num_pks,3])
+        p0tmp_ub=np.zeros([num_pks,3])
+         
+        #x is just 2theta values
+        #make guess for the initital parameters
+        for ii in np.arange(num_pks):
+            pt=np.argmin(np.abs(x-pk_pos_0[ii]))        
+            p0tmp[ii,:]=[(f[pt]-min_val),pk_pos_0[ii],fwhm_guess]
+            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-0.02,fwhm_guess*0.5] 
+            p0tmp_ub[ii,:]=[(f[pt]-min_val)*10.0,pk_pos_0[ii]+0.02,fwhm_guess*2.0]  
+    elif pktype == 'pvoigt':
+        p0tmp=np.zeros([num_pks,4])
+        p0tmp_lb=np.zeros([num_pks,4])
+        p0tmp_ub=np.zeros([num_pks,4])
+         
+        #x is just 2theta values
+        #make guess for the initital parameters
+        for ii in np.arange(num_pks):
+            pt=np.argmin(np.abs(x-pk_pos_0[ii]))        
+            p0tmp[ii,:]=[(f[pt]-min_val),pk_pos_0[ii],fwhm_guess,0.5]
+            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-0.02,fwhm_guess*0.5,0.0] 
+            p0tmp_ub[ii,:]=[(f[pt]-min_val)*10.0,pk_pos_0[ii]+0.02,fwhm_guess*2.0,1.0]  
+    elif pktype == 'split_pvoigt':
+        p0tmp=np.zeros([num_pks,6])
+        p0tmp_lb=np.zeros([num_pks,6])
+        p0tmp_ub=np.zeros([num_pks,6])
+         
+        #x is just 2theta values
+        #make guess for the initital parameters
+        for ii in np.arange(num_pks):
+            pt=np.argmin(np.abs(x-pk_pos_0[ii]))        
+            p0tmp[ii,:]=[(f[pt]-min_val),pk_pos_0[ii],fwhm_guess,fwhm_guess,0.5,0.5]
+            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-0.02,fwhm_guess*0.5,fwhm_guess*0.5,0.0,0.0] 
+            p0tmp_ub[ii,:]=[(f[pt]-min_val)*10.0,pk_pos_0[ii]+0.02,fwhm_guess*2.0,fwhm_guess*2.0,1.0,1.0]  
+
+
+    if bgtype=='linear':    
+        num_pk_parms=len(p0tmp.ravel())    
+        p0=np.zeros(num_pk_parms+2)
+        lb=np.zeros(num_pk_parms+2)
+        ub=np.zeros(num_pk_parms+2)
+        p0[:num_pk_parms]=p0tmp.ravel()
+        lb[:num_pk_parms]=p0tmp_lb.ravel()
+        ub[:num_pk_parms]=p0tmp_ub.ravel()
+        
+        
+        p0[-2]=min_val
+          
+        lb[-2]=-float('inf')
+        lb[-1]=-float('inf')
+        
+        ub[-2]=float('inf')
+        ub[-1]=float('inf')       
+        
+    elif bgtype=='constant':
+        num_pk_parms=len(p0tmp.ravel())    
+        p0=np.zeros(num_pk_parms+1)
+        lb=np.zeros(num_pk_parms+1)
+        ub=np.zeros(num_pk_parms+1)
+        p0[:num_pk_parms]=p0tmp.ravel()
+        lb[:num_pk_parms]=p0tmp_lb.ravel()
+        ub[:num_pk_parms]=p0tmp_ub.ravel()
+        
+        
+        p0[-1]=min_val
+        lb[-1]=-float('inf')
+        ub[-1]=float('inf')   
+    
+    elif bgtype=='quadratic':
+        num_pk_parms=len(p0tmp.ravel())    
+        p0=np.zeros(num_pk_parms+3)
+        lb=np.zeros(num_pk_parms+3)
+        ub=np.zeros(num_pk_parms+3)
+        p0[:num_pk_parms]=p0tmp.ravel()
+        lb[:num_pk_parms]=p0tmp_lb.ravel()
+        ub[:num_pk_parms]=p0tmp_ub.ravel()
+        
+        
+        p0[-3]=min_val     
+        lb[-3]=-float('inf')
+        lb[-2]=-float('inf')
+        lb[-1]=-float('inf')        
+        ub[-3]=float('inf')
+        ub[-2]=float('inf')     
+        ub[-1]=float('inf')                    
+        
+    bnds=(lb,ub)
+    
+ 
+    
+    
+    return p0, bnds
 
 def eval_pk_deriv_1d(p,x,y0,pktype):
 
@@ -511,7 +613,7 @@ def calc_pk_integrated_intensities(p,x,pktype,num_pks):
     elif pktype == 'pvoigt':
         p_fit=np.reshape(p[:4*num_pks],[num_pks,4])
     elif pktype == 'split_pvoigt':
-        p_fit=np.reshape(p[:6*num_pks],[num_pks,5])   
+        p_fit=np.reshape(p[:6*num_pks],[num_pks,6])   
         
     for ii in np.arange(num_pks):
         if pktype == 'gaussian':

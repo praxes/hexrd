@@ -27,6 +27,7 @@ requirements:
   run:
     #- fabio
     - h5py
+    - imageio
     - matplotlib
     - numba
     - numpy

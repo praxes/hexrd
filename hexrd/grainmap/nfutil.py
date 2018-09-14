@@ -32,6 +32,7 @@ import yaml
 import cPickle as cpl
 
 import scipy.ndimage as img
+import imageio as imgio
 
 import matplotlib.pyplot as plt
 
@@ -965,7 +966,7 @@ def gen_nf_dark(data_folder,img_nums,num_for_dark,nrows,ncols,dark_type='median'
     print('Loading data for dark generation...')
     for ii in np.arange(num_for_dark):
         print('Image #: ' + str(ii))
-        dark_stack[ii,:,:]=img.imread(data_folder+'%s'%(stem)+str(img_nums[ii]).zfill(num_digits)+ext)
+        dark_stack[ii,:,:]=imgio.imread(data_folder+'%s'%(stem)+str(img_nums[ii]).zfill(num_digits)+ext)
         #image_stack[ii,:,:]=np.flipud(tmp_img>threshold)
     
     if dark_type=='median':   
@@ -987,7 +988,7 @@ def gen_nf_image_stack(data_folder,img_nums,dark,num_erosions,num_dilations,ome_
     print('Loading and Cleaning Images...')
     for ii in np.arange(img_nums.shape[0]):
         print('Image #: ' + str(ii))
-        tmp_img=img.imread(data_folder+'%s'%(stem)+str(img_nums[ii]).zfill(num_digits)+ext)-dark
+        tmp_img=imgio.imread(data_folder+'%s'%(stem)+str(img_nums[ii]).zfill(num_digits)+ext)-dark
         #image procesing
         image_stack[ii,:,:]=img.morphology.binary_erosion(tmp_img>threshold,iterations=num_erosions)
         image_stack[ii,:,:]=img.morphology.binary_dilation(image_stack[ii,:,:],iterations=num_dilations)
