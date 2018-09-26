@@ -4,6 +4,9 @@ import numpy as np
 import scipy as sp
 
 import scipy.ndimage as img
+import imageio as imgio
+import skimage.transform as xformimg
+
 
 from skimage.transform import iradon, radon, rescale
 
@@ -23,7 +26,7 @@ def gen_bright_field(tbf_data_folder,tbf_img_start,tbf_num_imgs,nrows,ncols,stem
     print('Loading data for median bright field...')
     for ii in np.arange(tbf_num_imgs):
         print('Image #: ' + str(ii))
-        tbf_stack[ii,:,:]=img.imread(tbf_data_folder+'%s'%(stem)+str(tbf_img_nums[ii]).zfill(num_digits)+ext)
+        tbf_stack[ii,:,:]=imgio.imread(tbf_data_folder+'%s'%(stem)+str(tbf_img_nums[ii]).zfill(num_digits)+ext)
         #image_stack[ii,:,:]=np.flipud(tmp_img>threshold)
     print('making median...')
     
@@ -45,7 +48,7 @@ def gen_attenuation_rads(tomo_data_folder,tbf,tomo_img_start,tomo_num_imgs,nrows
     print('Loading and Calculating Absorption Radiographs ...')
     for ii in np.arange(tomo_num_imgs):
         print('Image #: ' + str(ii))
-        tmp_img=img.imread(tomo_data_folder+'%s'%(stem)+str(tomo_img_nums[ii]).zfill(num_digits)+ext)
+        tmp_img=imgio.imread(tomo_data_folder+'%s'%(stem)+str(tomo_img_nums[ii]).zfill(num_digits)+ext)
         
         rad_stack[ii,:,:]=-np.log(tmp_img.astype(float)/tbf.astype(float))
         
@@ -122,7 +125,11 @@ def crop_and_rebin_tomo_layer(binary_recon,recon_thresh,voxel_spacing,pixel_size
     new_rows=np.round(rows/scaling).astype(int)
     new_cols=np.round(cols/scaling).astype(int)
     
-    binary_recon_bin=np.floor(sp.misc.imresize(binary_recon,[new_rows,new_cols])/255).astype(bool)
+    tmp_resize=xformimg.resize(binary_recon,[new_rows,new_cols],preserve_range=True)
+    #tmp_resize_norm=tmp_resize/255
+    tmp_resize_norm_force=np.floor(tmp_resize)
+    
+    binary_recon_bin=tmp_resize_norm_force.astype(bool)
     
     
     cut_edge=int(np.round((binary_recon_bin.shape[0]*voxel_spacing-cross_sectional_dim)/2./voxel_spacing))

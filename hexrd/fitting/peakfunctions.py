@@ -297,12 +297,13 @@ def _split_pvoigt1d_no_bg(p,x):
     xl=x<x0
 
     #+
-    r=np.where(xr)
-    f[xr]=A*_unit_pvoigt1d(p[[1,3,5]],x[xr])
+    r=np.where(xr)[0]
+    
+    f[r]=A*_unit_pvoigt1d(p[[1,3,5]],x[r])
 
     #-
-    l=np.where(xl)
-    f[xl]=A*_unit_pvoigt1d(p[[1,2,4]],x[xl])
+    l=np.where(xl)[0]
+    f[l]=A*_unit_pvoigt1d(p[[1,2,4]],x[l])
 
     return f
 
@@ -567,3 +568,78 @@ def gaussian3d(p,x,y,z):
 
     f=_gaussian3d_no_bg(p[:5],x,y)+(bg0+bg1x*x+bg1y*y+bg1z*z)
     return f
+
+
+
+def _mpeak_1d_no_bg(p,x,pktype,num_pks):  
+
+    """
+    Required Arguments:
+    p -- (m x u) list of peak parameters for number of peaks (m is the number of
+    parameters per peak ("gaussian" and "lorentzian" - 3, "pvoigt" - 4,  "split_pvoigt"
+    - 5)
+    x -- (n) ndarray of coordinate positions for dimension 1
+    pktype -- string, type of analytic function that will be used to fit the data,
+    current options are "gaussian","lorentzian","pvoigt" (psuedo voigt), and
+    "split_pvoigt" (split psuedo voigt)
+    num_pks -- integer 'u' indicating the number of pks, must match length of p
+
+    Outputs:
+    f -- (n) ndarray of function values at positions (x)
+    """
+   
+    f=np.zeros(len(x))
+    
+    if pktype == 'gaussian' or pktype == 'lorentzian':
+        p_fit=np.reshape(p[:3*num_pks],[num_pks,3])
+    elif pktype == 'pvoigt':
+        p_fit=np.reshape(p[:4*num_pks],[num_pks,4])
+    elif pktype == 'split_pvoigt':
+        p_fit=np.reshape(p[:6*num_pks],[num_pks,5])   
+        
+    for ii in np.arange(num_pks):
+        if pktype == 'gaussian':
+            f=f+_gaussian1d_no_bg(p_fit[ii],x)
+        elif pktype == 'lorentzian':
+            f=f+_lorentzian1d_no_bg(p_fit[ii],x)
+        elif pktype == 'pvoigt':
+            f=f+_pvoigt1d_no_bg(p_fit[ii],x)
+        elif pktype == 'split_pvoigt':
+            f=f+_split_pvoigt1d_no_bg(p_fit[ii],x)
+            
+    return f
+    
+def mpeak_1d(p,x,pktype,num_pks,bgtype=None):  
+    """
+    Required Arguments:
+    p -- (m x u) list of peak parameters for number of peaks (m is the number of
+    parameters per peak ("gaussian" and "lorentzian" - 3, "pvoigt" - 4,  "split_pvoigt"
+    - 5)
+    x -- (n) ndarray of coordinate positions for dimension 1
+    pktype -- string, type of analytic function that will be used to fit the data,
+    current options are "gaussian","lorentzian","pvoigt" (psuedo voigt), and
+    "split_pvoigt" (split psuedo voigt)
+    num_pks -- integer 'u' indicating the number of pks, must match length of p
+    pktype -- string, background functions, available options are "constant",
+    "linear", and "quadratic"
+
+    Outputs:
+    f -- (n) ndarray of function values at positions (x)
+    """
+
+
+    
+    f=_mpeak_1d_no_bg(p,x,pktype,num_pks)
+    
+    if bgtype=='linear':    
+        f=f+p[-2]+p[-1]*x #c0=p[-2], c1=p[-1]
+    elif bgtype=='constant':
+        f=f+p[-1] #c0=p[-1]    
+    elif bgtype=='quadratic':
+        f=f+p[-3]+p[-2]*x+p[-1]*x**2 #c0=p[-3], c1=p[-2], c2=p[-1], 
+            
+    return f
+
+
+
+
