@@ -317,7 +317,7 @@ class HEDMInstrument(object):
             pow_angs, pow_xys, eta_idx, full_etas = panel.make_powder_rings(
                 plane_data,
                 merge_hkls=False, delta_eta=eta_tol,
-                output_etas=True)
+                full_output=True)
 
             ptth, peta = panel.pixel_angles
             ring_maps = []
@@ -372,23 +372,20 @@ class HEDMInstrument(object):
                                collapse_eta=True, collapse_tth=False,
                                do_interpolation=True):
         """
-        TODO: handle wedge boundaries
+        export 'caked' sector data over an instrument
 
-        FIXME: must handle merged ranges!!!
+        FIXME: must handle merged ranges (fixed by JVB 2018/06/28)
         """
-        if tth_tol is None:
-            tth_tol = np.degrees(plane_data.tThWidth)
-        tol_vec = 0.5*np.radians(
-            [-tth_tol, -eta_tol,
-             -tth_tol,  eta_tol,
-             tth_tol,  eta_tol,
-             tth_tol, -eta_tol])
-        #
-        # pbar = ProgressBar(
-        #     widgets=[Bar('>'), ' ', ETA(), ' ', ReverseBar('<')],
-        #     maxval=self.num_panels,
-        # ).start()
-        #
+
+        plane_data = plane_data.makeNew()  # make local copy to munge
+        if tth_tol is not None:
+            plane_data.tThWidth = np.radians(tth_tol)
+        tth_ranges = np.degrees(plane_data.getMergedRanges()[1])
+        tth_tols = np.vstack([i[1] - i[0] for i in tth_ranges])
+
+        # =====================================================================
+        # LOOP OVER DETECTORS
+        # =====================================================================
         panel_data = dict.fromkeys(self.detectors)
         for i_det, detector_id in enumerate(self.detectors):
             print("working on detector '%s'..." % detector_id)
@@ -409,40 +406,22 @@ class HEDMInstrument(object):
             # make rings
             pow_angs, pow_xys = panel.make_powder_rings(
                 plane_data, merge_hkls=True, delta_eta=eta_tol)
-            n_rings = len(pow_angs)
 
+            # =================================================================
+            # LOOP OVER RING SETS
+            # =================================================================
             ring_data = []
-            for i_ring in range(n_rings):
+            for i_ring, these_data in enumerate(zip(pow_angs, pow_xys)):
                 print("working on ring %d..." % i_ring)
-                these_angs = pow_angs[i_ring]
 
-                # make sure no one falls off...
-                npts = len(these_angs)
-                patch_vertices = (np.tile(these_angs, (1, 4)) +
-                                  np.tile(tol_vec, (npts, 1))
-                                  ).reshape(4*npts, 2)
-
-                # find points that fall on the panel
-                # WARNING: ignoring effect of crystal tvec
-                det_xy, rMat_s = xrdutil._project_on_detector_plane(
-                    np.hstack([patch_vertices, np.zeros((4*npts, 1))]),
-                    panel.rmat, ct.identity_3x3, self.chi,
-                    panel.tvec, ct.zeros_3, self.tvec,
-                    panel.distortion)
-                tmp_xy, on_panel = panel.clip_to_panel(det_xy)
-
-                # all vertices must be on...
-                patch_is_on = np.all(on_panel.reshape(npts, 4), axis=1)
-
-                # reflection angles (voxel centers) and
-                # pixel size in (tth, eta)
-                ang_centers = these_angs[patch_is_on]
-                ang_pixel_size = panel.angularPixelSize(tmp_xy[::4, :])
+                # points are already checked to fall on detector
+                angs = these_data[0]
+                xys = these_data[1]
 
                 # make the tth,eta patches for interpolation
                 patches = xrdutil.make_reflection_patches(
-                    instr_cfg, ang_centers, ang_pixel_size,
-                    tth_tol=tth_tol, eta_tol=eta_tol,
+                    instr_cfg, angs, panel.angularPixelSize(xys),
+                    tth_tol=tth_tols[i_ring], eta_tol=eta_tol,
                     distortion=panel.distortion,
                     npdiv=npdiv, quiet=True,
                     beamVec=self.beam_vector)
@@ -450,7 +429,7 @@ class HEDMInstrument(object):
                 # loop over patches
                 # FIXME: fix initialization
                 if collapse_tth:
-                    patch_data = np.zeros((len(ang_centers), n_images))
+                    patch_data = np.zeros((len(angs), n_images))
                 else:
                     patch_data = []
                 for i_p, patch in enumerate(patches):
@@ -461,7 +440,7 @@ class HEDMInstrument(object):
                                     vtx_angs[1][[0, -1], 0])
                     else:
                         ang_data = (vtx_angs[0][0, :],
-                                    ang_centers[i_p][-1])
+                                    angs[i_p][-1])
                     prows, pcols = areas.shape
                     area_fac = areas/float(native_area)
                     # need to reshape eval pts for interpolation

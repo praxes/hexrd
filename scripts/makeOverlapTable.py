@@ -4,54 +4,97 @@ Spyder Editor
 
 This is a temporary script file.
 """
+from __future__ import print_function
 
-import argparse, os, sys
+import argparse
+import os
+import sys
+import time
+import yaml
 
-import cPickle
+try:
+    import dill as cpl
+except(ImportError):
+    import cPickle as cpl
 
 import numpy as np
 
-from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm
 
 from hexrd import config
+from hexrd import instrument
 from hexrd.xrd import transforms_CAPI as xfcapi
-from hexrd.coreutil import get_instrument_parameters
 
 from sklearn.cluster import dbscan
 
-from scipy import cluster
+
+# =============================================================================
+# PARAMETERS
+# =============================================================================
+
+do_plots = False
+save_fig = False
+
+
+# =============================================================================
+# LOCAL FUNCTIONS
+# =============================================================================
+
+# plane data
+def load_pdata(cpkl, key):
+    with file(cpkl, "r") as matf:
+        mat_list = cpl.load(matf)
+    return dict(zip([i.name for i in mat_list], mat_list))[key].planeData
+
+
+# instrument
+def load_instrument(yml):
+    with file(yml, 'r') as f:
+        icfg = yaml.load(f)
+    return instrument.HEDMInstrument(instrument_config=icfg)
+
 
 def adist(ang0, ang1):
-    resd = xfcapi.angularDifference(ang0 ,ang1)
+    resd = xfcapi.angularDifference(ang0, ang1)
     return np.sqrt(sum(resd**2))
 
+
+def postprocess_dbscan(labels):
+    cl = np.array(labels, dtype=int)  # convert to array
+    noise_points = cl == -1           # index for marking noise
+    cl += 1                           # move index to 1-based instead of 0
+    cl[noise_points] = -1             # re-mark noise as -1
+
+    # extract number of clusters
+    if np.any(cl == -1):
+        nblobs = len(np.unique(cl)) - 1
+    else:
+        nblobs = len(np.unique(cl))
+    return cl, nblobs
+
+
 def build_overlap_table(cfg, tol_mult=0.5):
-    
-    icfg = get_instrument_parameters(cfg)
-    
+
+    # get instrument object
+    instr = load_instrument(cfg.instrument.parameters)
+
+    # load grain table
     gt = np.loadtxt(
         os.path.join(cfg.analysis_dir, 'grains.out')
     )
-    
     ngrains = len(gt)
-    
-    mat_list = cPickle.load(open(cfg.material.definitions, 'r'))
-    mat_names = [mat_list[i].name for i in range(len(mat_list))]
-    mat_dict = dict(zip(mat_names, mat_list))
-    
-    matl = mat_dict[cfg.material.active]
-    
-    pd = matl.planeData
+
+    # get plane data
+    pd = load_pdata(cfg.material.definitions, cfg.material.active)
     pd.exclusions = np.zeros(len(pd.exclusions), dtype=bool)
     pd.tThMax = np.radians(cfg.fit_grains.tth_max)
     pd.tThWidth = np.radians(cfg.fit_grains.tolerance.tth[-1])
-    
+
     # for clustering...
     eps = tol_mult*np.radians(
         min(
-            min(cfg.fit_grains.tolerance.eta), 
+            min(cfg.fit_grains.tolerance.eta),
             2*min(cfg.fit_grains.tolerance.omega)
         )
     )
@@ -63,167 +106,210 @@ def build_overlap_table(cfg, tol_mult=0.5):
         pids.append(
             [pd.hklDataList[hklids[i]]['hklID'] for i in range(len(hklids))]
         )
-        
+
     # Make table of unit diffraction vectors
-    st = []
-    for i in range(ngrains):
-        this_st = np.loadtxt(
-            os.path.join(cfg.analysis_dir, 'spots_%05d.out' %i)
-            )
-        #... do all predicted?
-        valid_spt = this_st[:, 0] >= 0
-        #valid_spt = np.ones(len(this_st), dtype=bool)
+    overlap_table_dict = {}
+    for det_key, panel in instr.detectors.iteritems():
+        st = []
+        for i in range(ngrains):
+            this_st = np.loadtxt(
+                os.path.join(cfg.analysis_dir,
+                             os.path.join(det_key, 'spots_%05d.out' % i)
+                             )
+                )
 
-        angs = this_st[valid_spt, 7:10]
+            # ??? do all predicted?
+            valid_spt = this_st[:, 0] >= 0
+            # valid_spt = np.ones(len(this_st), dtype=bool)
 
-        dvec = xfcapi.anglesToDVec(
-            angs, 
-            chi=icfg['oscillation_stage']['chi']
-        )
+            # !!! double check this is still correct
+            angs = this_st[valid_spt, 7:10]
 
-        # [ grainID, reflID, hklID, D_s[0], D_s[1], D_s[2], tth, eta, ome ]
-        st.append(
-            np.hstack([
-                i*np.ones((sum(valid_spt), 1)),
-                this_st[valid_spt, :2], 
-                dvec, 
+            # get unit diffraction vectors
+            dvec = xfcapi.anglesToDVec(
                 angs,
-            ])
-        )
+                chi=instr.chi
+            )
 
-    # make overlap table
-    # [[range_0], [range_1], ..., [range_n]]
-    # range_0 = [grainIDs, reflIDs, hklIDs] that are within tol
-    overlap_table = []
-    ii = 0
-    for pid in pids:
-        tmp = []; a = []; b = []; c = []
-        for j in range(len(pid)):
-            a.append(
-                np.vstack(
-                    [st[i][st[i][:, 2] == pid[j], 3:6] for i in range(len(st))]
-                )
+            # [ grainID, reflID, hklID, D_s[0], D_s[1], D_s[2], tth, eta, ome ]
+            st.append(
+                np.hstack([
+                    i*np.ones((sum(valid_spt), 1)),
+                    this_st[valid_spt, :2],
+                    dvec,
+                    angs,
+                ])
             )
-            b.append(
-                np.vstack(
-                    [st[i][st[i][:, 2] == pid[j], 0:3] for i in range(len(st))]
-                )
-            )
-            c.append(
-                np.vstack(
-                    [st[i][st[i][:, 2] == pid[j], 6:9] for i in range(len(st))]
-                )
-            )
-            pass
-        a = np.vstack(a)
-        b = np.vstack(b)
-        c = np.vstack(c)    
-        if len(a) > 0:
-            # run dbscan
-            core_samples, labels = dbscan(
-                a,
-                eps=eps,
-                min_samples=2,
-                metric='minkowski', p=2,
-            )
-            
-            cl = np.array(labels, dtype=int) # convert to array
-            noise_points = cl == -1 # index for marking noise
-            cl += 1 # move index to 1-based instead of 0
-            cl[noise_points] = -1 # re-mark noise as -1
-            
-            # extract number of clusters
-            if np.any(cl == -1):
-                nblobs = len(np.unique(cl)) - 1
-            else:
-                nblobs = len(np.unique(cl))
-            
-            for i in range(1, nblobs+1):
-                # put in check on omega here
-                these_angs = c[np.where(cl == i)[0], :]
-                local_cl = cluster.hierarchy.fclusterdata(
-                    these_angs[:, 1:],
-                    eps,
-                    criterion='distance',
-                    metric=adist
+
+        # =========================================================================
+        #                          make overlap table
+        # =========================================================================
+        # [[range_0], [range_1], ..., [range_n]]
+        # range_0 = [grainIDs, reflIDs, hklIDs] that are within tol
+        overlap_table = []
+        ii = 0
+        for pid in pids:
+            print("processing ring set %d" % ii)
+            start0 = time.clock()
+            tmp = []
+            a = []  # unit diffraction vectors in sample frame
+            b = []  # [grainID, reflID, hklID]
+            c = []  # predicted angles [tth, eta, ome]
+            for j in range(len(pid)):
+                a.append(
+                    np.vstack(
+                        [st[i][st[i][:, 2] == pid[j], 3:6]
+                            for i in range(len(st))]
                     )
-                local_nblobs = len(np.unique(local_cl))
-                if local_nblobs < len(these_angs):
-                    for j in range(1, local_nblobs + 1):
-                        npts = sum(local_cl == j)
-                        if npts >= 2:
-                            cl_idx = np.where(local_cl == j)[0]
-                            #import pdb; pdb.set_trace()
-                            tmp.append(
-                                b[np.where(cl == i)[0][cl_idx], :]
-                            )
-        print "processing ring set %d" %ii
-        ii += 1
-        overlap_table.append(tmp)
-    return overlap_table
-    
+                )
+                b.append(
+                    np.vstack(
+                        [st[i][st[i][:, 2] == pid[j], 0:3]
+                            for i in range(len(st))]
+                    )
+                )
+                c.append(
+                    np.vstack(
+                        [st[i][st[i][:, 2] == pid[j], 6:9]
+                            for i in range(len(st))]
+                    )
+                )
+                pass
+            a = np.vstack(a)  # unit diffraction vectors in sample frame
+            b = np.vstack(b)  # [grainID, reflID, hklID]
+            c = np.vstack(c)  # predicted angles [tth, eta, ome]
+            if len(a) > 0:
+                # run dbscan
+                core_samples, labels = dbscan(
+                    a,
+                    eps=eps,
+                    min_samples=2,
+                    metric='minkowski', p=2,
+                )
+                cl, nblobs = postprocess_dbscan(labels)
+                elapsed0 = time.clock() - start0
+                print("\tdbscan took %.2f seconds" % elapsed0)
+                # import pdb; pdb.set_trace()
+                print("\tcollapsing incidentals for %d candidates..." % nblobs)
+                start1 = time.clock()                      # time this
+                for i in range(1, nblobs + 1):
+                    # put in check on omega here
+                    these_angs = c[np.where(cl == i)[0], :]
+                    # local_cl = cluster.hierarchy.fclusterdata(
+                    #     these_angs[:, 1:],
+                    #     eps,
+                    #     criterion='distance',
+                    #     metric=adist
+                    #     )
+                    # local_nblobs = len(np.unique(local_cl))
+                    _, local_labels = dbscan(
+                        these_angs[:, 1:],
+                        eps=eps,
+                        min_samples=2,
+                        metric=adist,
+                        n_jobs=-1,
+                    )
+                    local_cl, local_nblobs = postprocess_dbscan(local_labels)
+
+                    if local_nblobs < len(these_angs):
+                        for j in range(1, local_nblobs + 1):
+                            npts = sum(local_cl == j)
+                            if npts >= 2:
+                                cl_idx = np.where(local_cl == j)[0]
+                                # import pdb; pdb.set_trace()
+                                tmp.append(
+                                    b[np.where(cl == i)[0][cl_idx], :]
+                                )
+                elapsed1 = time.clock() - start1
+                print("\tomega filtering took %.2f seconds" % elapsed1)
+            ii += 1
+            overlap_table.append(tmp)
+        overlap_table_dict[det_key] = overlap_table
+    return overlap_table_dict
+
+
 def build_discrete_cmap(ngrains):
-    
+
     # define the colormap
-    cmap = plt.cm.jet
-    
+    cmap = plt.cm.inferno
+
     # extract all colors from the .jet map
     cmaplist = [cmap(i) for i in range(cmap.N)]
-    
+
     # create the new map
     cmap = cmap.from_list('Custom cmap', cmaplist, cmap.N)
-    
+
     # define the bins and normalize
     bounds = np.linspace(0, ngrains, ngrains+1)
     norm = BoundaryNorm(bounds, cmap.N)
 
     return cmap, norm
-    
-#%%
+
+
+# =============================================================================
+# %% CLI
+# =============================================================================
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Make overlap table from cfg file')
     parser.add_argument(
-        'cfg', metavar='cfg_filename', 
+        'cfg', metavar='cfg_filename',
         type=str, help='a YAML config filename')
     parser.add_argument(
-        '-m', '--multiplier', 
-        help='multiplier on angular tolerance', 
+        '-m', '--multiplier',
+        help='multiplier on angular tolerance',
         type=float, default=0.5)
+    parser.add_argument(
+        '-b', '--block-id',
+        help='block-id in config',
+        type=int, default=0)
 
     args = vars(parser.parse_args(sys.argv[1:]))
-    
-    cfg = config.open(args['cfg'])[0]
-    print "loaded config file %s" %args['cfg']
-    overlap_table = build_overlap_table(cfg)
-    np.savez(os.path.join(cfg.analysis_dir, 'overlap_table.npz'), 
+
+    print("loaded config file %s" % args['cfg'])
+    print("will use block %d" % args['block_id'])
+    cfg = config.open(args['cfg'])[args['block_id']]
+    overlap_table = build_overlap_table(cfg, tol_mult=args['multiplier'])
+    np.savez(os.path.join(cfg.analysis_dir, 'overlap_table.npz'),
              *overlap_table)
-#%%
-#fig = plt.figure()
-#ax = fig.add_subplot(111, projection='3d')
-# 
-#etas = np.radians(np.linspace(0, 359, num=360))
-#cx = np.cos(etas)
-#cy = np.sin(etas)
-#cz = np.zeros_like(etas)
-#
-#ax.plot(cx, cy, cz, c='b')
-#ax.plot(cx, cz, cy, c='g')
-#ax.plot(cz, cx, cy, c='r')
-#ax.scatter3D(a[:, 0], a[:, 1], a[:, 2], c=b[:, 0], cmap=cmap, norm=norm, marker='o', s=20)
-#
-#ax.set_xlabel(r'$\mathbf{\mathrm{X}}_s$')
-#ax.set_ylabel(r'$\mathbf{\mathrm{Y}}_s$')
-#ax.set_zlabel(r'$\mathbf{\mathrm{Z}}_s$')
-#
-#ax.elev = 124
-#ax.azim = -90
-#
-#ax.axis('equal')
-#
-##fname = "overlaps_%03d.png"
-##for i in range(360):
-##    ax.azim += i
-##    fig.savefig(
-##        fname %i, dpi=200, facecolor='w', edgecolor='w',
-##        orientation='landcape')
+
+
+# =============================================================================
+# %% OPTIONAL PLOTTING
+# =============================================================================
+
+if do_plots:
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    etas = np.radians(np.linspace(0, 359, num=360))
+    cx = np.cos(etas)
+    cy = np.sin(etas)
+    cz = np.zeros_like(etas)
+
+    ax.plot(cx, cy, cz, c='b')
+    ax.plot(cx, cz, cy, c='g')
+    ax.plot(cz, cx, cy, c='r')
+
+    # !!!  need a and b
+    cmap, norm = build_discrete_cmap(len(b))
+    ax.scatter3D(a[:, 0], a[:, 1], a[:, 2], c=b[:, 0],
+                 cmap=cmap, norm=norm, marker='o', s=20)
+
+    ax.set_xlabel(r'$\mathbf{\mathrm{X}}_s$')
+    ax.set_ylabel(r'$\mathbf{\mathrm{Y}}_s$')
+    ax.set_zlabel(r'$\mathbf{\mathrm{Z}}_s$')
+
+    ax.elev = 124
+    ax.azim = -90
+
+    ax.axis('equal')
+
+    if save_fig:
+        fname = "overlaps_%03d.png"
+        for i in range(360):
+            ax.azim += i
+            fig.savefig(
+                fname % i, dpi=200, facecolor='w', edgecolor='w',
+                orientation='landcape')

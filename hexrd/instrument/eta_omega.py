@@ -82,6 +82,13 @@ class GenerateEtaOmeMaps(object):
             np.radians(ome_period)
         )
 
+        # !!! must avoid the case where omeEdges[0] = omeEdges[-1] for the
+        # indexer to work properly
+        if abs(self._omeEdges[0] - self._omeEdges[-1]) <= ct.sqrt_epsf:
+            # !!! SIGNED delta ome
+            del_ome = np.radians(omegas_array[0, 1] - omegas_array[0, 0])
+            self._omeEdges[-1] = self._omeEdges[-2] + del_ome
+
         # handle etas
         # WARNING: unlinke the omegas in imageseries metadata,
         # these are in RADIANS and represent bin centers

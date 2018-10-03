@@ -33,8 +33,6 @@ import numpy as num
 import csv
 import os
 
-from IPython import embed
-
 from scipy import constants as C
 
 from hexrd.matrixutil import sqrt, unitVector, columnNorm, sum

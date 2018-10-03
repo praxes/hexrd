@@ -336,7 +336,7 @@ class PlanarDetector(object):
             """...HARD CODED DISTORTION! FIX THIS!!!"""
             dist_d = dict(
                 function_name='GE_41RT',
-                parameters=self.distortion[1]
+                parameters=np.r_[self.distortion[1]].tolist()
             )
             d['detector']['distortion'] = dist_d
         return d
@@ -563,35 +563,49 @@ class PlanarDetector(object):
             self, pd, merge_hkls=False, delta_tth=None,
             delta_eta=10., eta_period=None,
             rmat_s=ct.identity_3x3,  tvec_s=ct.zeros_3,
-            tvec_c=ct.zeros_3, output_ranges=False, output_etas=False):
+            tvec_c=ct.zeros_3, full_output=False):
         """
         """
         # in case you want to give it tth angles directly
         if hasattr(pd, '__len__'):
             tth = np.array(pd).flatten()
+            if delta_tth is None:
+                raise RuntimeError(
+                    "If supplying a 2theta list as first arg, "
+                    + "must supply a delta_tth")
+            sector_vertices = np.tile(
+                0.5*np.radians([-delta_tth, -delta_eta,
+                                -delta_tth, delta_eta,
+                                delta_tth, delta_eta,
+                                delta_tth, -delta_eta,
+                                0.0, 0.0]), (len(tth), 1)
+                )
         else:
-            if merge_hkls:
-                tth_idx, tth_ranges = pd.getMergedRanges()
-                if output_ranges:
-                    tth = np.r_[tth_ranges].flatten()
-                else:
-                    tth = np.array([0.5*sum(i) for i in tth_ranges])
+            # Okay, we have a PlaneData object
+            pd = PlaneData.makeNew(pd)    # make a copy to munge
+            if delta_tth is not None:
+                pd.tThWidth = np.radians(delta_tth)
             else:
-                if output_ranges:
-                    tth = pd.getTThRanges().flatten()
-                else:
-                    tth = pd.getTTh()
+                delta_tth = np.degrees(pd.tThWidth)
 
-        if delta_tth is not None:
-            pd.tThWidth = np.radians(delta_tth)
-        else:
-            delta_tth = np.degrees(pd.tThWidth)
-        sector_vec = 0.5*np.radians(
-            [-delta_tth, -delta_eta,
-             -delta_tth,  delta_eta,
-             delta_tth,  delta_eta,
-             delta_tth, -delta_eta]
-        )
+            # conversions, meh...
+            del_eta = np.radians(delta_eta)
+
+            # do merging if asked
+            if merge_hkls:
+                _, tth_ranges = pd.getMergedRanges()
+                tth = np.array([0.5*sum(i) for i in tth_ranges])
+            else:
+                tth_ranges = pd.getTThRanges()
+                tth = pd.getTTh()
+            tth_pm = tth_ranges - np.tile(tth, (2, 1)).T
+            sector_vertices = np.vstack(
+                [[i[0], -del_eta,
+                  i[0], del_eta,
+                  i[1], del_eta,
+                  i[1], -del_eta,
+                  0.0, 0.0]
+                 for i in tth_pm])
 
         # for generating rings
         if eta_period is None:
@@ -609,49 +623,43 @@ class PlanarDetector(object):
         valid_ang = []
         valid_xy = []
         map_indices = []
+        npp = 5  # [ll, ul, ur, lr, center]
         for i_ring in range(len(angs)):
+            # expand angles to patch vertices
             these_angs = angs[i_ring].T
-            gVec_ring_l = anglesToGVec(these_angs, bHat_l=self.bvec)
-            xydet_ring = gvecToDetectorXY(
-                gVec_ring_l,
-                self.rmat, rmat_s, ct.identity_3x3,
-                self.tvec, tvec_s, tvec_c,
-                beamVec=self.bvec)
-            xydet_ring, on_panel = self.clip_to_panel(xydet_ring)
-            nangs_r = len(xydet_ring)
-
-            # now expand and check to see which sectors (patches) fall off
             patch_vertices = (
-                np.tile(these_angs[on_panel, :2], (1, 4)) +
-                np.tile(sector_vec, (nangs_r, 1))
-            ).reshape(4*nangs_r, 2)
+                np.tile(these_angs[:, :2], (1, npp))
+                + np.tile(sector_vertices[i_ring], (neta, 1))
+            ).reshape(npp*neta, 2)
 
             # duplicate ome array
             ome_dupl = np.tile(
-                these_angs[on_panel, 2], (4, 1)
-            ).T.reshape(len(patch_vertices), 1)
+                these_angs[:, 2], (npp, 1)
+            ).T.reshape(npp*neta, 1)
 
-            # find vertices that fall on the panel
+            # find vertices that all fall on the panel
             gVec_ring_l = anglesToGVec(
                 np.hstack([patch_vertices, ome_dupl]),
                 bHat_l=self.bvec)
-            tmp_xy = gvecToDetectorXY(
+            all_xy = gvecToDetectorXY(
                 gVec_ring_l,
                 self.rmat, rmat_s, ct.identity_3x3,
                 self.tvec, tvec_s, tvec_c,
                 beamVec=self.bvec)
-            tmp_xy, on_panel_p = self.clip_to_panel(tmp_xy)
+            _, on_panel = self.clip_to_panel(all_xy)
 
             # all vertices must be on...
-            patch_is_on = np.all(on_panel_p.reshape(nangs_r, 4), axis=1)
+            patch_is_on = np.all(on_panel.reshape(neta, npp), axis=1)
+            patch_xys = all_xy.reshape(neta, 5, 2)[patch_is_on]
 
-            idx = np.where(on_panel)[0][patch_is_on]
+            idx = np.where(patch_is_on)[0]
 
-            valid_ang.append(these_angs[idx, :2])
-            valid_xy.append(xydet_ring[patch_is_on])
+            valid_ang.append(these_angs[patch_is_on, :2])
+            valid_xy.append(patch_xys[:, -1, :].squeeze())
             map_indices.append(idx)
             pass
-        if output_etas:
+        # ??? is this option necessary?
+        if full_output:
             return valid_ang, valid_xy, map_indices, eta
         else:
             return valid_ang, valid_xy

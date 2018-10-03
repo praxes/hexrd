@@ -16,7 +16,7 @@ except ImportError:
     pass
 
 try:
-    from numbapro import nvtx
+    import nvtxpy as nvtx
 except ImportError:
     pass
 

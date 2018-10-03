@@ -95,7 +95,7 @@ class WriteH5(Writer):
     #
     def write(self):
         """Write imageseries to HDF5 file"""
-        f = h5py.File(self._fname, "a")
+        f = h5py.File(self._fname, "w")
         g = f.create_group(self._path)
         s0, s1 = self._shape
 

@@ -25,10 +25,9 @@ requirements:
     - python
     - setuptools
   run:
-    - dill
-    - fabio
+    #- fabio
     - h5py
-    - joblib
+    - imageio
     - matplotlib
     - numba
     - numpy
@@ -36,7 +35,6 @@ requirements:
     - python
     - python.app # [osx]
     - pyyaml
-    - qtconsole
     - scikit-image
     - scikit-learn
     - scipy
@@ -45,17 +43,17 @@ requirements:
 test:
   imports:
     - hexrd
-  commands:
-    - hexrd -V
-    - hexrd -h
-    - hexrd help
-    - hexrd find-orientations -h
-    - hexrd help find-orientations
-    - hexrd fit-grains -h
-    - hexrd help fit-grains
-    - hexrd gui -h
-    - hexrd help gui
-    - hexrd test
+   #commands:
+   #  - hexrd -V
+   #  - hexrd -h
+   #  - hexrd help
+   #  - hexrd find-orientations -h
+   #  - hexrd help find-orientations
+   #  - hexrd fit-grains -h
+   #  - hexrd help fit-grains
+   #  - hexrd gui -h
+   #  - hexrd help gui
+   #  - hexrd test
 
 about:
   license: LGPL
