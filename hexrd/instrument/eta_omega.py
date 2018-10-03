@@ -6,6 +6,7 @@ import numpy as np
 from hexrd import matrixutil as mutil
 from hexrd.valunits import valWUnit
 from hexrd.xrd.transforms_CAPI import mapAngle
+from hexrd import constants as ct
 
 class GenerateEtaOmeMaps(object):
     """

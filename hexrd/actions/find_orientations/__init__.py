@@ -6,6 +6,7 @@ import os
 import numpy as np
 import timeit
 
+from hexrd import constants as cnst
 from hexrd import instrument
 from hexrd.xrd import indexer
 from hexrd.xrd import transforms_CAPI as xfcapi

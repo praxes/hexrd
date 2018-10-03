@@ -4,6 +4,8 @@ from __future__ import print_function
 import h5py
 import numpy as np
 from scipy.linalg.matfuncs import logm
+
+from hexrd import matrixutil as mutil
 from hexrd.xrd.transforms_CAPI import makeRotMatOfExpMap
 
 class PatchDataWriter(object):
