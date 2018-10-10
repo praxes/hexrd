@@ -26,11 +26,8 @@ def average(ims, nframes=0):
 
 def median(ims, nframes=0):
     """return image with median values over all frames"""
-    # could be done by rectangle by rectangle if full series
-    # too  big for memory
-    nf = _nframes(ims, nframes)
-    out = np.empty(ims.shape, dtype=ims.dtype)
-    return np.median(_toarray(ims, nf), axis=0, out=out)
+    # use percentile since it has better performance
+    return percentile(ims, 50, nframes=nframes)
 
 def percentile(ims, pct, nframes=0):
     """return image with given percentile values over all frames"""
@@ -40,7 +37,7 @@ def percentile(ims, pct, nframes=0):
     dt = ims.dtype
     (nr, nc) = ims.shape
     nrpb  = _rows_in_buffer(nframes, nf*nc*dt.itemsize)
-    print('Buffering percentile calculation with', nrpb, 'rows per buffer.')
+
     # now build the result a rectangle at a time
     img = np.zeros_like(ims[0])
     for rr in _row_ranges(nr, nrpb):
