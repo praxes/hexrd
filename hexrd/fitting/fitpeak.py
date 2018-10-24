@@ -201,7 +201,7 @@ def fit_mpk_parms_1d(p0,x,f0,pktype,num_pks,bgtype=None,bnds=None):
     return p.x
 
 
-def estimate_mpk_parms_1d(pk_pos_0,x,f,pktype='pvoigt',bgtype='linear',fwhm_guess=0.07):
+def estimate_mpk_parms_1d(pk_pos_0,x,f,pktype='pvoigt',bgtype='linear',fwhm_guess=0.07,center_bnd=0.02):
 
     
     num_pks=len(pk_pos_0)
@@ -219,8 +219,8 @@ def estimate_mpk_parms_1d(pk_pos_0,x,f,pktype='pvoigt',bgtype='linear',fwhm_gues
         for ii in np.arange(num_pks):
             pt=np.argmin(np.abs(x-pk_pos_0[ii]))        
             p0tmp[ii,:]=[(f[pt]-min_val),pk_pos_0[ii],fwhm_guess]
-            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-0.02,fwhm_guess*0.5] 
-            p0tmp_ub[ii,:]=[(f[pt]-min_val)*10.0,pk_pos_0[ii]+0.02,fwhm_guess*2.0]  
+            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-center_bnd,fwhm_guess*0.5] 
+            p0tmp_ub[ii,:]=[(f[pt]-min_val)*10.0,pk_pos_0[ii]+center_bnd,fwhm_guess*2.0]  
     elif pktype == 'pvoigt':
         p0tmp=np.zeros([num_pks,4])
         p0tmp_lb=np.zeros([num_pks,4])
@@ -231,8 +231,8 @@ def estimate_mpk_parms_1d(pk_pos_0,x,f,pktype='pvoigt',bgtype='linear',fwhm_gues
         for ii in np.arange(num_pks):
             pt=np.argmin(np.abs(x-pk_pos_0[ii]))        
             p0tmp[ii,:]=[(f[pt]-min_val),pk_pos_0[ii],fwhm_guess,0.5]
-            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-0.02,fwhm_guess*0.5,0.0] 
-            p0tmp_ub[ii,:]=[(f[pt]-min_val)*10.0,pk_pos_0[ii]+0.02,fwhm_guess*2.0,1.0]  
+            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-center_bnd,fwhm_guess*0.5,0.0] 
+            p0tmp_ub[ii,:]=[(f[pt]-min_val+1.)*10.0,pk_pos_0[ii]+center_bnd,fwhm_guess*2.0,1.0]  
     elif pktype == 'split_pvoigt':
         p0tmp=np.zeros([num_pks,6])
         p0tmp_lb=np.zeros([num_pks,6])
@@ -243,8 +243,8 @@ def estimate_mpk_parms_1d(pk_pos_0,x,f,pktype='pvoigt',bgtype='linear',fwhm_gues
         for ii in np.arange(num_pks):
             pt=np.argmin(np.abs(x-pk_pos_0[ii]))        
             p0tmp[ii,:]=[(f[pt]-min_val),pk_pos_0[ii],fwhm_guess,fwhm_guess,0.5,0.5]
-            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-0.02,fwhm_guess*0.5,fwhm_guess*0.5,0.0,0.0] 
-            p0tmp_ub[ii,:]=[(f[pt]-min_val)*10.0,pk_pos_0[ii]+0.02,fwhm_guess*2.0,fwhm_guess*2.0,1.0,1.0]  
+            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-center_bnd,fwhm_guess*0.5,fwhm_guess*0.5,0.0,0.0] 
+            p0tmp_ub[ii,:]=[(f[pt]-min_val)*10.0,pk_pos_0[ii]+center_bnd,fwhm_guess*2.0,fwhm_guess*2.0,1.0,1.0]  
 
 
     if bgtype=='linear':    
