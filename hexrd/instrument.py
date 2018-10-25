@@ -514,11 +514,14 @@ class HEDMInstrument(object):
         FIXME: must handle merged ranges (fixed by JVB 2018/06/28)
         """
 
-        plane_data = plane_data.makeNew()  # make local copy to munge
-        if tth_tol is not None:
-            plane_data.tThWidth = np.radians(tth_tol)
-        tth_ranges = np.degrees(plane_data.getMergedRanges()[1])
-        tth_tols = np.vstack([i[1] - i[0] for i in tth_ranges])
+        if not hasattr(plane_data, '__len__'):
+            plane_data = plane_data.makeNew()  # make local copy to munge
+            if tth_tol is not None:
+                plane_data.tThWidth = np.radians(tth_tol)
+            tth_ranges = np.degrees(plane_data.getMergedRanges()[1])
+            tth_tols = np.vstack([i[1] - i[0] for i in tth_ranges])
+        else:
+            tth_tols=np.ones(len(plane_data))*tth_tol
 
         # =====================================================================
         # LOOP OVER DETECTORS
@@ -542,14 +545,14 @@ class HEDMInstrument(object):
 
             # make rings
             pow_angs, pow_xys = panel.make_powder_rings(
-                plane_data, merge_hkls=True, delta_eta=eta_tol)
+                plane_data, merge_hkls=True, delta_tth=tth_tol, delta_eta=eta_tol)
 
             # =================================================================
             # LOOP OVER RING SETS
             # =================================================================
             ring_data = []
             for i_ring, these_data in enumerate(zip(pow_angs, pow_xys)):
-                print("working on ring %d..." % i_ring)
+                print("working on 2theta bin (ring) %d..." % i_ring)
 
                 # points are already checked to fall on detector
                 angs = these_data[0]
@@ -588,8 +591,9 @@ class HEDMInstrument(object):
                     # interpolate
                     if not collapse_tth:
                         ims_data = []
-                    for j_p, image in enumerate(images):
+                    for j_p in np.arange(len(images)):
                         # catch interpolation type
+                        image=images[j_p]
                         if do_interpolation:
                             tmp = panel.interpolate_bilinear(
                                     xy_eval,
@@ -1624,11 +1628,13 @@ class PlanarDetector(object):
 
         neta = int(360./float(delta_eta))
         eta = mapAngle(
-            np.radians(delta_eta*(np.linspace(0, neta - 1, num=neta) + 0.5)) +
+            #np.radians(delta_eta*(np.linspace(0., neta - 1, num=neta) + 0.5)) + #dp change, don't like 0.5
+            np.radians(delta_eta*(np.linspace(0., neta - 1, num=neta))) +
             eta_period[0], eta_period
         )
 
         angs = [np.vstack([i*np.ones(neta), eta, np.zeros(neta)]) for i in tth]
+        
 
         # need xy coords and pixel sizes
         valid_ang = []
@@ -1662,6 +1668,7 @@ class PlanarDetector(object):
             # all vertices must be on...
             patch_is_on = np.all(on_panel.reshape(neta, npp), axis=1)
             patch_xys = all_xy.reshape(neta, 5, 2)[patch_is_on]
+           
 
             idx = np.where(patch_is_on)[0]
 
