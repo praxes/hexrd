@@ -2,6 +2,7 @@
 from __future__ import print_function
 import abc
 import os
+import warnings
 
 import numpy as np
 import h5py
@@ -195,12 +196,18 @@ class WriteFrameCache(Writer):
             frame = self._ims[i]
             mask = frame > self._thresh
             # FIXME: formalize this a little better???
-            if np.sum(mask) / float(frame.shape[0]*frame.shape[1]) > 0.25:
-                raise Warning("frame %d is less than 75%% sparse" % i)
+            # -- maybe set a hard limit of total nonzeros for the imageseries
+            # -- could pass as a kwarg on open
+            fullness = np.sum(mask) / float(frame.shape[0]*frame.shape[1])
+            if  fullness > 0.05:
+                sparseness = 100.*(1 -fullness)
+                msg = "frame %d is %4.2f%% sparse (cutoff is 95%%)" % (i, sparseness)
+                warnings.warn(msg)
+
             row, col = mask.nonzero()
-            arrd['%d_data' % i] = frame[mask]
             arrd['%d_row' % i] = row
             arrd['%d_col' % i] = col
+            arrd['%d_data' % i] = frame[mask]
         arrd['shape'] = self._ims.shape
         arrd['nframes'] = len(self._ims)
         arrd['dtype'] = str(self._ims.dtype)
