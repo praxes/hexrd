@@ -298,7 +298,7 @@ def _split_pvoigt1d_no_bg(p,x):
 
     #+
     r=np.where(xr)[0]
-    
+
     f[r]=A*_unit_pvoigt1d(p[[1,3,5]],x[r])
 
     #-
@@ -571,7 +571,7 @@ def gaussian3d(p,x,y,z):
 
 
 
-def _mpeak_1d_no_bg(p,x,pktype,num_pks):  
+def _mpeak_1d_no_bg(p,x,pktype,num_pks):
 
     """
     Required Arguments:
@@ -587,16 +587,16 @@ def _mpeak_1d_no_bg(p,x,pktype,num_pks):
     Outputs:
     f -- (n) ndarray of function values at positions (x)
     """
-   
+
     f=np.zeros(len(x))
-    
+
     if pktype == 'gaussian' or pktype == 'lorentzian':
         p_fit=np.reshape(p[:3*num_pks],[num_pks,3])
     elif pktype == 'pvoigt':
         p_fit=np.reshape(p[:4*num_pks],[num_pks,4])
     elif pktype == 'split_pvoigt':
-        p_fit=np.reshape(p[:6*num_pks],[num_pks,5])   
-        
+        p_fit=np.reshape(p[:6*num_pks],[num_pks,6])   
+
     for ii in np.arange(num_pks):
         if pktype == 'gaussian':
             f=f+_gaussian1d_no_bg(p_fit[ii],x)
@@ -606,10 +606,10 @@ def _mpeak_1d_no_bg(p,x,pktype,num_pks):
             f=f+_pvoigt1d_no_bg(p_fit[ii],x)
         elif pktype == 'split_pvoigt':
             f=f+_split_pvoigt1d_no_bg(p_fit[ii],x)
-            
+
     return f
-    
-def mpeak_1d(p,x,pktype,num_pks,bgtype=None):  
+
+def mpeak_1d(p,x,pktype,num_pks,bgtype=None):
     """
     Required Arguments:
     p -- (m x u) list of peak parameters for number of peaks (m is the number of
@@ -628,18 +628,14 @@ def mpeak_1d(p,x,pktype,num_pks,bgtype=None):
     """
 
 
-    
+
     f=_mpeak_1d_no_bg(p,x,pktype,num_pks)
-    
-    if bgtype=='linear':    
+
+    if bgtype=='linear':
         f=f+p[-2]+p[-1]*x #c0=p[-2], c1=p[-1]
     elif bgtype=='constant':
-        f=f+p[-1] #c0=p[-1]    
+        f=f+p[-1] #c0=p[-1]
     elif bgtype=='quadratic':
-        f=f+p[-3]+p[-2]*x+p[-1]*x**2 #c0=p[-3], c1=p[-2], c2=p[-1], 
-            
+        f=f+p[-3]+p[-2]*x+p[-1]*x**2 #c0=p[-3], c1=p[-2], c2=p[-1],
+
     return f
-
-
-
-
