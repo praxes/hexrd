@@ -4,7 +4,10 @@ import numpy as np
 import scipy as sp
 
 import scipy.ndimage as img
-import imageio as imgio
+try:
+    import imageio as imgio
+except(ImportError):
+    from skimage import io as imgio
 import skimage.transform as xformimg
 
 
