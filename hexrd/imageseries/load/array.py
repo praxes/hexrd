@@ -3,6 +3,9 @@
 from . import ImageSeriesAdapter
 from ..imageseriesiter import ImageSeriesIterator
 
+import numpy as np
+
+
 class ArrayImageSeriesAdapter(ImageSeriesAdapter):
     """collection of images in numpy array"""
 
@@ -16,7 +19,17 @@ class ArrayImageSeriesAdapter(ImageSeriesAdapter):
                  . 'data' = a 3D array (double/float)
                  . 'metadata' = a dictionary
         """
-        self._data = kwargs['data']
+        data_arr = np.array(kwargs['data'])
+        if data_arr.ndim < 3:
+            self._data = np.tile(data_arr, (1, 1, 1))
+        elif data_arr.ndim == 3:
+            self._data = data_arr
+        else:
+            raise RuntimeError(
+                    'input array must be 2-d or 3-d; you provided ndim=%d'
+                    % data_arr.ndim
+                )
+
         self._meta = kwargs.pop('meta', dict())
         self._shape = self._data.shape
         self._nframes = self._shape[0]
@@ -44,7 +57,7 @@ class ArrayImageSeriesAdapter(ImageSeriesAdapter):
     def __iter__(self):
         return ImageSeriesIterator(self)
 
-    #@memoize
+    # @memoize
     def __len__(self):
         return self._nframes
 
