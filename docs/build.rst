@@ -19,13 +19,43 @@ environments, you should be able to run::
 Building
 --------
 
-The procedure for building/installing is as follows
+First, the dependencies for building an environment to run hexrd::
+
+    - cython
+    - dask
+    - distributed
+    - fabio <pip>
+    - h5py
+    - matplotlib
+    - numba
+    - numpy
+    - progressbar >=2.3
+    - python
+    - pyyaml
+    - scikit-image
+    - scikit-learn
+    - scipy
+    - wxpython ==3
+
+If you will be running scripts of you own, I also strongly suggest adding spyder::
+
+    - spyder
+
+For example, to buid an environment to run hexrd v0.5.x, do the following::
+
+    conda create --name hexrd_0.5 cython dask distributed h5py matplotlib numba numpy=1.15 progressbar=2.3 python=2.7 pyyaml scikit-image scikit-learn scipy spyder wxpython=3
+
+Then install in develop mode using disutils::
+  
+    python setup.py develop
+    
+The procedure for building/installing with conda-build is as follows
 
 First, update conda and conda-build::
 
     conda update conda
     conda update conda-build
-
+    
 Second, using ``conda-build``, purge previous builds (recommended,
 not strictly required)::
 
