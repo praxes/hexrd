@@ -32,8 +32,10 @@ import yaml
 import cPickle as cpl
 
 import scipy.ndimage as img
-import imageio as imgio
-
+try:
+    import imageio as imgio
+except(ImportError):
+    from skimage import io as imgio
 import matplotlib.pyplot as plt
 
 # ==============================================================================

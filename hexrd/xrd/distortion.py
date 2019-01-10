@@ -141,11 +141,12 @@ else:
         rxi = 1.0/rhoMax
 
         xi, yi = in_[:, 0], in_[:,1]
+
+        # !!! included fix on ValueError for array--like in_
         ri = np.sqrt(xi*xi + yi*yi)
-        if ri < sqrt_epsf:
-            ri_inv = 0.0
-        else:
-            ri_inv = 1.0/ri
+        ri[ri < sqrt_epsf] = np.inf
+        ri_inv = 1.0/ri
+
         sinni = yi*ri_inv
         cosni = xi*ri_inv
         cos2ni = cosni*cosni - sinni*sinni

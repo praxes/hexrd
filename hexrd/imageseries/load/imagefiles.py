@@ -50,9 +50,8 @@ class ImageFilesImageSeriesAdapter(ImageSeriesAdapter):
             img = fabio.open(imgf)
         else:
             (fnum, frame) = self._file_and_frame(key)
-            imgf = self._files[fnum]
-            img0 = fabio.open(imgf)
-            img = img0.getframe(frame)
+            fimg = self.infolist[fnum].fabioimage
+            img = fimg.getframe(frame)
 
         return img.data
 
@@ -197,6 +196,7 @@ class FileInfo(object):
         self._fabioclass = img.classname
         self._imgframes = img.nframes
         self.dat = img.data
+        self.fabioimage = img
 
         d = kwargs.copy()
         self._empty = d.pop('empty', 0)
