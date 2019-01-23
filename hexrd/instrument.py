@@ -248,8 +248,8 @@ class HEDMInstrument(object):
                     PlanarDetector(
                         rows=pix['rows'], cols=pix['columns'],
                         pixel_size=pix['size'],
-                        tvec=xform['t_vec_d'],
-                        tilt=xform['tilt_angles'],
+                        tvec=xform['translation'],
+                        tilt=xform['tilt'],
                         bvec=self._beam_vector,
                         evec=ct.eta_vec,
                         distortion=dist_list)
@@ -258,7 +258,7 @@ class HEDMInstrument(object):
             self._detectors = dict(zip(detector_ids, det_list))
 
             self._tvec = np.r_[
-                instrument_config['oscillation_stage']['t_vec_s']
+                instrument_config['oscillation_stage']['translation']
             ]
             self._chi = instrument_config['oscillation_stage']['chi']
 
@@ -400,6 +400,8 @@ class HEDMInstrument(object):
 
         par_dict = {}
 
+        par_dict['id'] = self.id
+
         azim, pola = calc_angles_from_beam_vec(self.beam_vector)
         beam = dict(
             energy=self.beam_energy,
@@ -415,7 +417,7 @@ class HEDMInstrument(object):
 
         ostage = dict(
             chi=self.chi,
-            t_vec_s=self.tvec.tolist()
+            translation=self.tvec.tolist()
         )
         par_dict['oscillation_stage'] = ostage
 
@@ -1342,8 +1344,8 @@ class PlanarDetector(object):
         d = dict(
             detector=dict(
                 transform=dict(
-                    tilt_angles=self.tilt.tolist(),
-                    t_vec_d=self.tvec.tolist(),
+                    tilt=self.tilt.tolist(),
+                    translation=self.tvec.tolist(),
                 ),
                 pixels=dict(
                     rows=self.rows,
@@ -1353,7 +1355,7 @@ class PlanarDetector(object):
             ),
             oscillation_stage=dict(
                 chi=chi,
-                t_vec_s=t_vec_s.tolist(),
+                translation=t_vec_s.tolist(),
             ),
         )
 
@@ -1647,7 +1649,7 @@ class PlanarDetector(object):
         )
 
         angs = [np.vstack([i*np.ones(neta), eta, np.zeros(neta)]) for i in tth]
-        
+
 
         # need xy coords and pixel sizes
         valid_ang = []
@@ -1681,7 +1683,7 @@ class PlanarDetector(object):
             # all vertices must be on...
             patch_is_on = np.all(on_panel.reshape(neta, npp), axis=1)
             patch_xys = all_xy.reshape(neta, 5, 2)[patch_is_on]
-           
+
 
             idx = np.where(patch_is_on)[0]
 

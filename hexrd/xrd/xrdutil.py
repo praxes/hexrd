@@ -1797,10 +1797,10 @@ class GenerateEtaOmeMaps(object):
 
         # stack parameters
         detector_params = num.hstack([
-            instrument_params['detector']['transform']['tilt_angles'],
-            instrument_params['detector']['transform']['t_vec_d'],
+            instrument_params['detector']['transform']['tilt'],
+            instrument_params['detector']['transform']['translation'],
             instrument_params['oscillation_stage']['chi'],
-            instrument_params['oscillation_stage']['t_vec_s'],
+            instrument_params['oscillation_stage']['translation'],
             ])
         pixel_pitch = instrument_params['detector']['pixels']['size']
 
@@ -2112,10 +2112,10 @@ class EtaOmeMaps(object):
 # not ready #                           )
 # not ready #         # stack parameters
 # not ready #         detector_params = num.hstack([
-# not ready #             instr_cfg['detector']['transform']['tilt_angles'],
-# not ready #             instr_cfg['detector']['transform']['t_vec_d'],
+# not ready #             instr_cfg['detector']['transform']['tilt'],
+# not ready #             instr_cfg['detector']['transform']['translation'],
 # not ready #             instr_cfg['oscillation_stage']['chi'],
-# not ready #             instr_cfg['oscillation_stage']['t_vec_s'],
+# not ready #             instr_cfg['oscillation_stage']['translation'],
 # not ready #             ])
 # not ready #         pixel_pitch = instr_cfg['detector']['pixels']['size']
 # not ready #         chi = self.instr_cfg['oscillation_stage']['chi'] # in DEGREES
@@ -4056,10 +4056,10 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
     npts = len(tth_eta)
 
     # detector frame
-    rMat_d = xfcapi.makeDetectorRotMat(
-        instr_cfg['detector']['transform']['tilt_angles']
+    rMat_d = xfcapi.makeRotMatOfExpMap(
+        num.r_[instr_cfg['detector']['transform']['tilt']]
         )
-    tVec_d = num.r_[instr_cfg['detector']['transform']['t_vec_d']]
+    tVec_d = num.r_[instr_cfg['detector']['transform']['translation']]
     pixel_size = instr_cfg['detector']['pixels']['size']
 
     frame_nrows = instr_cfg['detector']['pixels']['rows']
@@ -4076,7 +4076,7 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
 
     # sample frame
     chi = instr_cfg['oscillation_stage']['chi']
-    tVec_s = num.r_[instr_cfg['oscillation_stage']['t_vec_s']]
+    tVec_s = num.r_[instr_cfg['oscillation_stage']['translation']]
 
     # beam vector
     if beamVec is None:
@@ -4679,11 +4679,11 @@ def extract_detector_transformation(detector_params):
     """    # extract variables for convenience
     if isinstance(detector_params, dict):
         rMat_d = xfcapi.makeDetectorRotMat(
-            detector_params['detector']['transform']['tilt_angles']
+            detector_params['detector']['transform']['tilt']
             )
-        tVec_d = num.r_[detector_params['detector']['transform']['t_vec_d']]
+        tVec_d = num.r_[detector_params['detector']['transform']['translation']]
         chi = detector_params['oscillation_stage']['chi']
-        tVec_s = num.r_[detector_params['oscillation_stage']['t_vec_s']]
+        tVec_s = num.r_[detector_params['oscillation_stage']['translation']]
     else:
         assert len(detector_params >= 10), \
             "list of detector parameters must have length >= 10"
