@@ -883,7 +883,6 @@ class Experiment(object):
         # if (frameNum == self.__curFrame): return
         # NOTE:  instantiate new reader even when requested frame is current
         # frame because reader properties may have changed
-
         if haveReader and (frameNum > self.__curFrame):
             nskip = frameNum - self.__curFrame - 1
             self.__active_img = self.__active_reader.read(nframes=rdFrames,
