@@ -5,8 +5,11 @@ import os
 import warnings
 
 import numpy as np
+
 import h5py
 import yaml
+
+MAX_NZ_FRACTION = 0.1    # 10% sparsity trigger for frame-cache write
 
 
 def write(ims, fname, fmt, **kwargs):
@@ -192,22 +195,25 @@ class WriteFrameCache(Writer):
         """also save shape array as originally done (before yaml)"""
         arrd = dict()
         for i in range(len(self._ims)):
-            # RFE: make it so we can use emumerate on self._ims???
+            # ???: make it so we can use emumerate on self._ims?
+            # FIXME: in __init__() of ProcessedImageSeries:
+            # 'ProcessedImageSeries' object has no attribute '_adapter'
             frame = self._ims[i]
             mask = frame > self._thresh
-            # FIXME: formalize this a little better???
-            # -- maybe set a hard limit of total nonzeros for the imageseries
-            # -- could pass as a kwarg on open
+            # FIXME: formalize this a little better
+            # ???: maybe set a hard limit of total nonzeros for the imageseries
+            # ???: could pass as a kwarg on open
             fullness = np.sum(mask) / float(frame.shape[0]*frame.shape[1])
-            if  fullness > 0.05:
-                sparseness = 100.*(1 -fullness)
-                msg = "frame %d is %4.2f%% sparse (cutoff is 95%%)" % (i, sparseness)
+            if fullness > MAX_NZ_FRACTION:
+                sparseness = 100.*(1 - fullness)
+                msg = "frame %d is %4.2f%% sparse (cutoff is 95%%)" \
+                    % (i, sparseness)
                 warnings.warn(msg)
-
             row, col = mask.nonzero()
             arrd['%d_row' % i] = row
             arrd['%d_col' % i] = col
             arrd['%d_data' % i] = frame[mask]
+            pass
         arrd['shape'] = self._ims.shape
         arrd['nframes'] = len(self._ims)
         arrd['dtype'] = str(self._ims.dtype)
@@ -222,3 +228,55 @@ class WriteFrameCache(Writer):
         self._write_frames()
         if output_yaml:
             self._write_yml()
+
+
+"""
+# =============================================================================
+# Numba-fied frame cache writer
+# =============================================================================
+
+
+if USE_NUMBA:
+    @numba.njit
+    def extract_ijv(in_array, threshold, out_i, out_j, out_v):
+        n = 0
+        w, h = in_array.shape
+
+        for i in range(w):
+            for j in range(h):
+                v = in_array[i, j]
+                if v > threshold:
+                    out_v[n] = v
+                    out_i[n] = i
+                    out_j[n] = j
+                    n += 1
+
+        return n
+
+    class CooMatrixBuilder(object):
+        def __init__(self, shape, dtype=np.uint16):
+            self._shape = shape
+            self._dtype = dtype
+            self._size = self._shape[0]*self._shape[1]
+            self.v_buff = np.empty(self._size, dtype=self._dtype)
+            self.i_buff = np.empty(self._size, dtype=self._dtype)
+            self.j_buff = np.empty(self._size, dtype=self._dtype)
+
+        def build_matrix(self, frame, threshold):
+            count = extract_ijv(frame, threshold,
+                                self.i_buff, self.j_buff, self.v_buff)
+            return coo_matrix((self.v_buff[0:count].copy(),
+                               (self.i_buff[0:count].copy(),
+                                self.j_buff[0:count].copy())),
+                              shape=frame.shape)
+else:    # not USE_NUMBA
+    class CooMatrixBuilder(object):
+        def __init__(self, shape, dtype=np.uint16):
+            self._shape = shape
+            self._dtype = dtype
+
+        def build_matrix(self, frame, threshold):
+            mask = frame > threshold
+            return coo_matrix((frame[mask], mask.nonzero()),
+                              shape=frame.shape)
+"""

@@ -7,7 +7,7 @@ import logging
 from hexrd.imageseries.process import ProcessedImageSeries as PIS
 
 # Default Buffer: 100 MB
-STATS_BUFFER = 1.e8
+STATS_BUFFER = 419430400    # 50 GE frames
 
 def max(ims, nframes=0):
     nf = _nframes(ims, nframes)
