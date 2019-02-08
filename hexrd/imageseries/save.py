@@ -197,13 +197,21 @@ class WriteFrameCache(Writer):
     def _write_frames(self):
         """also save shape array as originally done (before yaml)"""
         buff_size = self._ims.shape[0]*self._ims.shape[1]
+        rows = np.empty(buff_size, dtype=np.uint16)
+        cols = np.empty(buff_size, dtype=np.uint16)
+        vals = np.empty(buff_size, dtype=self._ims.dtype)
         arrd = dict()
         for i in range(len(self._ims)):
             # ???: make it so we can use emumerate on self._ims?
             # FIXME: in __init__() of ProcessedImageSeries:
             # 'ProcessedImageSeries' object has no attribute '_adapter'
-            rows, cols, vals = extract_ijv(self._ims[i], self._thresh)
-            count = len(vals)
+
+            # wrapper to find (sparse) pixels above threshold
+            count = extract_ijv(self._ims[i], self._thresh,
+                                rows, cols, vals)
+
+            # check the sparsity
+            #
             # FIXME: formalize this a little better
             # ???: maybe set a hard limit of total nonzeros for the imageseries
             # ???: could pass as a kwarg on open
@@ -213,9 +221,9 @@ class WriteFrameCache(Writer):
                 msg = "frame %d is %4.2f%% sparse (cutoff is 95%%)" \
                     % (i, sparseness)
                 warnings.warn(msg)
-            arrd['%d_row' % i] = rows
-            arrd['%d_col' % i] = cols
-            arrd['%d_data' % i] = vals
+            arrd['%d_row' % i] = rows[:count].copy()
+            arrd['%d_col' % i] = cols[:count].copy()
+            arrd['%d_data' % i] = vals[:count].copy()
             pass
         arrd['shape'] = self._ims.shape
         arrd['nframes'] = len(self._ims)
@@ -240,30 +248,24 @@ class WriteFrameCache(Writer):
 
 if USE_NUMBA:
     @numba.njit
-    def _extract_ijv(in_array, threshold, out_i, out_j, out_v):
+    def extract_ijv(in_array, threshold, out_i, out_j, out_v):
         n = 0
         w, h = in_array.shape
         for i in range(w):
             for j in range(h):
                 v = in_array[i, j]
                 if v > threshold:
-                    out_v[n] = v
                     out_i[n] = i
                     out_j[n] = j
+                    out_v[n] = v
                     n += 1
         return n
-
-    def extract_ijv(in_array, threshold):
-        assert in_array.ndim == 2, "input array must be 2-d"
-        buff_size = in_array.shape[0]*in_array.shape[1]
-        i = np.empty(buff_size, dtype=np.uint16)
-        j = np.empty(buff_size, dtype=np.uint16)
-        v = np.empty(buff_size, dtype=np.int)
-        count = _extract_ijv(in_array, threshold, i, j, v)
-        return i[:count], j[:count], v[:count]
 else:    # not USE_NUMBA
-    def extract_ijv(in_array, threshold):
+    def extract_ijv(in_array, threshold, out_i, out_j, out_v):
         mask = in_array > threshold
-        i, j = mask.nonzero()
-        v = in_array[mask]
-        return i, j, v
+        n = sum(mask)
+        tmp_i, tmp_j = mask.nonzero()
+        out_i[:n] = tmp_i
+        out_j[:n] = tmp_j
+        out_v[:n] = in_array[mask]
+        return n

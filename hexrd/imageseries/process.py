@@ -5,6 +5,7 @@ import numpy as np
 
 from .baseclass import ImageSeries
 
+
 class ProcessedImageSeries(ImageSeries):
     """Images series with mapping applied to frames"""
     FLIP = 'flip'
@@ -55,24 +56,25 @@ class ProcessedImageSeries(ImageSeries):
 
     def _subtract_dark(self, img, dark):
         # need to check for values below zero
-        return np.where(img > dark, img-dark, 0)
+        # !!! careful, truncation going on here;necessary to promote dtype?
+        return np.where(img > dark, img - dark, 0)
 
     def _rectangle(self, img, r):
         # restrict to rectangle
-        return img[r[0,0]:r[0,1], r[1,0]:r[1,1]]
+        return img[r[0, 0]:r[0, 1], r[1, 0]:r[1, 1]]
 
     def _flip(self, img, flip):
-        if flip in ('y','v'): # about y-axis (vertical)
+        if flip in ('y', 'v'):  # about y-axis (vertical)
             pimg = img[:, ::-1]
-        elif flip in ('x', 'h'): # about x-axis (horizontal)
+        elif flip in ('x', 'h'):  # about x-axis (horizontal)
             pimg = img[::-1, :]
-        elif flip in ('vh', 'hv', 'r180'): # 180 degree rotation
+        elif flip in ('vh', 'hv', 'r180'):  # 180 degree rotation
             pimg = img[::-1, ::-1]
-        elif flip in ('t', 'T'): # transpose (possible shape change)
+        elif flip in ('t', 'T'):  # transpose (possible shape change)
             pimg = img.T
-        elif flip in ('ccw90', 'r90'): # rotate 90 (possible shape change)
+        elif flip in ('ccw90', 'r90'):  # rotate 90 (possible shape change)
             pimg = img.T[::-1, :]
-        elif flip in ('cw90', 'r270'): # rotate 270 (possible shape change)
+        elif flip in ('cw90', 'r270'):  # rotate 270 (possible shape change)
             pimg = img.T[:, ::-1]
         else:
             pimg = img
@@ -81,6 +83,7 @@ class ProcessedImageSeries(ImageSeries):
     #
     # ==================== API
     #
+
     @property
     def dtype(self):
         return self[0].dtype
@@ -108,4 +111,4 @@ class ProcessedImageSeries(ImageSeries):
         """list of operations to apply"""
         return self._oplist
 
-    pass # end class
+    pass  # end class
