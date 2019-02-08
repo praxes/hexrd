@@ -256,8 +256,8 @@ if USE_NUMBA:
     def extract_ijv(in_array, threshold):
         assert in_array.ndim == 2, "input array must be 2-d"
         buff_size = in_array.shape[0]*in_array.shape[1]
-        i = np.empty(buff_size, dtype=np.int)
-        j = np.empty(buff_size, dtype=np.int)
+        i = np.empty(buff_size, dtype=np.uint16)
+        j = np.empty(buff_size, dtype=np.uint16)
         v = np.empty(buff_size, dtype=np.int)
         count = _extract_ijv(in_array, threshold, i, j, v)
         return i[:count], j[:count], v[:count]
