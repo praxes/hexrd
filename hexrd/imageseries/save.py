@@ -4,7 +4,10 @@ import abc
 import os
 import warnings
 
+from hexrd import USE_NUMBA
+
 import numpy as np
+import numba
 
 import h5py
 import yaml
@@ -193,26 +196,26 @@ class WriteFrameCache(Writer):
 
     def _write_frames(self):
         """also save shape array as originally done (before yaml)"""
+        buff_size = self._ims.shape[0]*self._ims.shape[1]
         arrd = dict()
         for i in range(len(self._ims)):
             # ???: make it so we can use emumerate on self._ims?
             # FIXME: in __init__() of ProcessedImageSeries:
             # 'ProcessedImageSeries' object has no attribute '_adapter'
-            frame = self._ims[i]
-            mask = frame > self._thresh
+            rows, cols, vals = extract_ijv(self._ims[i], self._thresh)
+            count = len(vals)
             # FIXME: formalize this a little better
             # ???: maybe set a hard limit of total nonzeros for the imageseries
             # ???: could pass as a kwarg on open
-            fullness = np.sum(mask) / float(frame.shape[0]*frame.shape[1])
+            fullness = count / float(buff_size)
             if fullness > MAX_NZ_FRACTION:
                 sparseness = 100.*(1 - fullness)
                 msg = "frame %d is %4.2f%% sparse (cutoff is 95%%)" \
                     % (i, sparseness)
                 warnings.warn(msg)
-            row, col = mask.nonzero()
-            arrd['%d_row' % i] = row
-            arrd['%d_col' % i] = col
-            arrd['%d_data' % i] = frame[mask]
+            arrd['%d_row' % i] = rows
+            arrd['%d_col' % i] = cols
+            arrd['%d_data' % i] = vals
             pass
         arrd['shape'] = self._ims.shape
         arrd['nframes'] = len(self._ims)
@@ -230,7 +233,6 @@ class WriteFrameCache(Writer):
             self._write_yml()
 
 
-"""
 # =============================================================================
 # Numba-fied frame cache writer
 # =============================================================================
@@ -238,10 +240,9 @@ class WriteFrameCache(Writer):
 
 if USE_NUMBA:
     @numba.njit
-    def extract_ijv(in_array, threshold, out_i, out_j, out_v):
+    def _extract_ijv(in_array, threshold, out_i, out_j, out_v):
         n = 0
         w, h = in_array.shape
-
         for i in range(w):
             for j in range(h):
                 v = in_array[i, j]
@@ -250,33 +251,19 @@ if USE_NUMBA:
                     out_i[n] = i
                     out_j[n] = j
                     n += 1
-
         return n
 
-    class CooMatrixBuilder(object):
-        def __init__(self, shape, dtype=np.uint16):
-            self._shape = shape
-            self._dtype = dtype
-            self._size = self._shape[0]*self._shape[1]
-            self.v_buff = np.empty(self._size, dtype=self._dtype)
-            self.i_buff = np.empty(self._size, dtype=self._dtype)
-            self.j_buff = np.empty(self._size, dtype=self._dtype)
-
-        def build_matrix(self, frame, threshold):
-            count = extract_ijv(frame, threshold,
-                                self.i_buff, self.j_buff, self.v_buff)
-            return coo_matrix((self.v_buff[0:count].copy(),
-                               (self.i_buff[0:count].copy(),
-                                self.j_buff[0:count].copy())),
-                              shape=frame.shape)
+    def extract_ijv(in_array, threshold):
+        assert in_array.ndim == 2, "input array must be 2-d"
+        buff_size = in_array.shape[0]*in_array.shape[1]
+        i = np.empty(buff_size, dtype=np.int)
+        j = np.empty(buff_size, dtype=np.int)
+        v = np.empty(buff_size, dtype=np.int)
+        count = _extract_ijv(in_array, threshold, i, j, v)
+        return i[:count], j[:count], v[:count]
 else:    # not USE_NUMBA
-    class CooMatrixBuilder(object):
-        def __init__(self, shape, dtype=np.uint16):
-            self._shape = shape
-            self._dtype = dtype
-
-        def build_matrix(self, frame, threshold):
-            mask = frame > threshold
-            return coo_matrix((frame[mask], mask.nonzero()),
-                              shape=frame.shape)
-"""
+    def extract_ijv(in_array, threshold):
+        mask = in_array > threshold
+        i, j = mask.nonzero()
+        v = in_array[mask]
+        return i, j, v

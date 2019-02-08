@@ -92,6 +92,7 @@ def load_frames(reader, cfg, show_progress=False):
     return reader
 
 def cache_frames(reader, cfg, show_progress=False, overwrite=True):
+    start = time.time()
     cache_file = os.path.join(cfg.analysis_dir, 'frame_cache.npz')
     # load the data
     reader = load_frames(reader, cfg, show_progress)
@@ -103,7 +104,6 @@ def cache_frames(reader, cfg, show_progress=False, overwrite=True):
         arrs['%d_data' % i] = coo.data
         arrs['%d_row' % i] = coo.row
         arrs['%d_col' % i] = coo.col
-    start = time.time()
     np.savez_compressed(cache_file, **arrs)
     elapsed = time.time()-start
     logger.info('wrote %d frames to cache in %g seconds', len(reader[0]), elapsed)
@@ -123,7 +123,7 @@ def get_frames(reader, cfg, show_progress=False, force=False, clean=False):
 
     # temporary catch if reader is None; i.e. raw data not here but cache is
     # ...NEED TO FIX THIS WHEN AXING OLD READER CLASS!
-    # the stop is treated as total number of frames read, which is inconsistent with 
+    # the stop is treated as total number of frames read, which is inconsistent with
     # how the start value is used, which specifies empty frames to skip at the start
     # of each image.  What a fucking mess!
     if reader is not None:
