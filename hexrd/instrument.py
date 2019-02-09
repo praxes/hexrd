@@ -451,12 +451,14 @@ class HEDMInstrument(object):
             # native_area = panel.pixel_area  # pixel ref area
 
             # make rings clipped to panel
-            pow_angs, pow_xys, eta_idx, full_etas = panel.make_powder_rings(
+            # !!! eta_idx has the same length as plane_data.exclusions
+            # !!! eta_edges is the list of eta bin EDGES
+            pow_angs, pow_xys, eta_idx, eta_edges = panel.make_powder_rings(
                 plane_data,
                 merge_hkls=False, delta_eta=eta_tol,
                 full_output=True)
 
-            ptth, peta = panel.pixel_angles
+            ptth, peta = panel.pixel_angles()
             ring_maps = []
             for i_r, tthr in enumerate(tth_ranges):
                 print("working on ring %d..." % i_r)
@@ -465,6 +467,7 @@ class HEDMInstrument(object):
                 )
                 etas = pow_angs[i_r][:, 1]
                 netas = len(etas)
+                """
                 eta_ranges = np.tile(etas, (2, 1)).T \
                     + np.tile(eta_tol_vec, (netas, 1))
                 ring_map = []
@@ -479,16 +482,23 @@ class HEDMInstrument(object):
                            rtth_idx[1][reta_idx])
                     ring_map.append(ijs)
                     pass
-
+                """
                 try:
                     omegas = imgser_dict[det_key].metadata['omega']
                 except(KeyError):
                     msg = "imageseries for '%s' has no omega info" % det_key
                     raise RuntimeError(msg)
+
+                # initialize maps and assing by row (omega/frame)
                 nrows_ome = len(omegas)
-                ncols_eta = len(full_etas)
+                ncols_eta = len(eta_edges - 1)
                 this_map = np.nan*np.ones((nrows_ome, ncols_eta))
                 for i_row, image in enumerate(imgser_dict[det_key]):
+                    intensity_weights = image[rtth_idx]
+                    ring_etas = peta[rtth_idx]
+                    this_map[i_row, eta_idx[i_r]], _ = np.histogram(
+                        ring_etas, bins=eta_edges, weights=intensity_weights)
+                    """
                     psum = np.zeros(len(ring_map))
                     for i_k, k in enumerate(ring_map):
                         pdata = image[k[0], k[1]]
@@ -499,10 +509,11 @@ class HEDMInstrument(object):
                     # this_map[i_row, eta_idx[i_r]] = [
                     #         np.sum(image[k[0], k[1]]) for k in ring_map
                     #     ]
+                    """
                 ring_maps.append(this_map)
                 pass
             ring_maps_panel[det_key] = ring_maps
-        return ring_maps_panel, full_etas
+        return ring_maps_panel, eta_edges
 
     def extract_line_positions(self, plane_data, imgser_dict,
                                tth_tol=None, eta_tol=1., npdiv=2,
@@ -1300,23 +1311,9 @@ class PlanarDetector(object):
             indexing='ij')
         return pix_i, pix_j
 
-    # ...memoize???
-    @property
-    def pixel_angles(self):
-        pix_i, pix_j = self.pixel_coords
-        xy = np.ascontiguousarray(
-            np.vstack([
-                pix_j.flatten(), pix_i.flatten()
-                ]).T
-            )
-        angs, g_vec = detectorXYToGvec(
-            xy, self.rmat, ct.identity_3x3,
-            self.tvec, ct.zeros_3, ct.zeros_3,
-            beamVec=self.bvec, etaVec=self.evec)
-        del(g_vec)
-        tth = angs[0].reshape(self.rows, self.cols)
-        eta = angs[1].reshape(self.rows, self.cols)
-        return tth, eta
+    """
+    ##################### METHODS
+    """
 
     def config_dict(self, chi, t_vec_s, sat_level=None):
         """
@@ -1356,9 +1353,23 @@ class PlanarDetector(object):
             d['detector']['distortion'] = dist_d
         return d
 
-    """
-    ##################### METHODS
-    """
+    def pixel_angles(self, origin=ct.zeros_3):
+        assert len(origin) == 3, "origin must have 3 elemnts"
+        pix_i, pix_j = self.pixel_coords
+        xy = np.ascontiguousarray(
+            np.vstack([
+                pix_j.flatten(), pix_i.flatten()
+                ]).T
+            )
+        angs, g_vec = detectorXYToGvec(
+            xy, self.rmat, ct.identity_3x3,
+            self.tvec, ct.zeros_3, origin,
+            beamVec=self.bvec, etaVec=self.evec)
+        del(g_vec)
+        tth = angs[0].reshape(self.rows, self.cols)
+        eta = angs[1].reshape(self.rows, self.cols)
+        return tth, eta
+
     def cartToPixel(self, xy_det, pixels=False):
         """
         Convert vstacked array or list of [x,y] points in the center-based
@@ -1622,19 +1633,35 @@ class PlanarDetector(object):
                   0.0, 0.0]
                  for i in tth_pm])
 
-        # for generating rings
+        # for generating rings, make eta vector in correct period
         if eta_period is None:
             eta_period = (-np.pi, np.pi)
-
         neta = int(360./float(delta_eta))
-        eta = mapAngle(
-            #np.radians(delta_eta*(np.linspace(0., neta - 1, num=neta) + 0.5)) + #dp change, don't like 0.5
-            np.radians(delta_eta*(np.linspace(0., neta - 1, num=neta))) +
-            eta_period[0], eta_period
+
+        # this is the vector of ETA EDGES
+        eta_edges = mapAngle(
+            np.radians(
+                delta_eta*np.linspace(0., neta, num=neta + 1)
+            ) + eta_period[0],
+            eta_period
         )
 
-        angs = [np.vstack([i*np.ones(neta), eta, np.zeros(neta)]) for i in tth]
+        # get eta bin centers from edges
+        """
+        # !!! this way is probably overkill, since we have delta eta
+        eta_centers = np.average(
+            np.vstack([eta[:-1], eta[1:]),
+            axis=0)
+        """
+        # !!! should be safe as eta_edges are monotonic
+        eta_centers = eta_edges[:-1] + del_eta
         
+        # make list of angle tuples
+        angs = [
+            np.vstack(
+                [i*np.ones(neta), eta_centers, np.zeros(neta)]
+            ) for i in tth
+        ]
 
         # need xy coords and pixel sizes
         valid_ang = []
@@ -1668,17 +1695,18 @@ class PlanarDetector(object):
             # all vertices must be on...
             patch_is_on = np.all(on_panel.reshape(neta, npp), axis=1)
             patch_xys = all_xy.reshape(neta, 5, 2)[patch_is_on]
-           
 
+            # the surving indices
             idx = np.where(patch_is_on)[0]
 
+            # form output arrays
             valid_ang.append(these_angs[patch_is_on, :2])
             valid_xy.append(patch_xys[:, -1, :].squeeze())
             map_indices.append(idx)
             pass
         # ??? is this option necessary?
         if full_output:
-            return valid_ang, valid_xy, map_indices, eta
+            return valid_ang, valid_xy, map_indices, eta_edges
         else:
             return valid_ang, valid_xy
 
