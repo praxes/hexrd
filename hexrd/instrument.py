@@ -439,8 +439,8 @@ class HEDMInstrument(object):
                 "active_hkls must be an iterable with __len__"
             tth_ranges = tth_ranges[active_hkls]
 
-        # need this for making eta ranges
-        eta_tol_vec = 0.5*np.radians([-eta_tol, eta_tol])
+        # # need this for making eta ranges
+        # eta_tol_vec = 0.5*np.radians([-eta_tol, eta_tol])
 
         ring_maps_panel = dict.fromkeys(self.detectors)
         for i_d, det_key in enumerate(self.detectors):
@@ -465,24 +465,8 @@ class HEDMInstrument(object):
                 rtth_idx = np.where(
                     np.logical_and(ptth >= tthr[0], ptth <= tthr[1])
                 )
-                etas = pow_angs[i_r][:, 1]
-                netas = len(etas)
-                """
-                eta_ranges = np.tile(etas, (2, 1)).T \
-                    + np.tile(eta_tol_vec, (netas, 1))
-                ring_map = []
-                for i_e, etar in enumerate(eta_ranges):
-                    # WARNING: assuming start/stop
-                    emin = np.r_[etar[0]]
-                    emax = np.r_[etar[1]]
-                    reta_idx = np.where(
-                        validateAngleRanges(peta[rtth_idx], emin, emax)
-                    )
-                    ijs = (rtth_idx[0][reta_idx],
-                           rtth_idx[1][reta_idx])
-                    ring_map.append(ijs)
-                    pass
-                """
+
+                # grab omegas from imageseries and squawk if missing
                 try:
                     omegas = imgser_dict[det_key].metadata['omega']
                 except(KeyError):
@@ -491,25 +475,20 @@ class HEDMInstrument(object):
 
                 # initialize maps and assing by row (omega/frame)
                 nrows_ome = len(omegas)
-                ncols_eta = len(eta_edges - 1)
+                ncols_eta = len(eta_edges) - 1
                 this_map = np.nan*np.ones((nrows_ome, ncols_eta))
+
+                # histogram intensities over eta ranges
                 for i_row, image in enumerate(imgser_dict[det_key]):
                     intensity_weights = image[rtth_idx]
                     ring_etas = peta[rtth_idx]
+                    eta_idx_r = np.hstack([eta_idx[i_r], eta_idx[i_r][-1] + 1])
                     this_map[i_row, eta_idx[i_r]], _ = np.histogram(
-                        ring_etas, bins=eta_edges, weights=intensity_weights)
-                    """
-                    psum = np.zeros(len(ring_map))
-                    for i_k, k in enumerate(ring_map):
-                        pdata = image[k[0], k[1]]
-                        if threshold:
-                            pdata[pdata <= threshold] = 0
-                        psum[i_k] = np.average(pdata)
-                    this_map[i_row, eta_idx[i_r]] = psum
-                    # this_map[i_row, eta_idx[i_r]] = [
-                    #         np.sum(image[k[0], k[1]]) for k in ring_map
-                    #     ]
-                    """
+                        ring_etas,
+                        bins=eta_edges[eta_idx_r],
+                        weights=intensity_weights
+                    )
+                    pass
                 ring_maps.append(this_map)
                 pass
             ring_maps_panel[det_key] = ring_maps
@@ -1655,7 +1634,7 @@ class PlanarDetector(object):
         """
         # !!! should be safe as eta_edges are monotonic
         eta_centers = eta_edges[:-1] + del_eta
-        
+
         # make list of angle tuples
         angs = [
             np.vstack(
