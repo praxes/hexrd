@@ -63,6 +63,8 @@ else: # not USE_NUMBA
 def load_frames(reader, cfg, show_progress=False):
     # TODO: this should be updated to read only the frames requested in cfg
     # either the images start, step, stop, or based on omega start, step, stop
+    if reader is None:
+        raise(IOError, "specified image files not found")
     start = time.time()
     if cfg.image_series.images.stop is not None:
         n_frames = cfg.image_series.images.stop
@@ -93,6 +95,7 @@ def load_frames(reader, cfg, show_progress=False):
 
 def cache_frames(reader, cfg, show_progress=False, overwrite=True):
     cache_file = os.path.join(cfg.analysis_dir, 'frame_cache.npz')
+    start = time.time()
     # load the data
     reader = load_frames(reader, cfg, show_progress)
     # save all the data to a .npz file
@@ -103,7 +106,6 @@ def cache_frames(reader, cfg, show_progress=False, overwrite=True):
         arrs['%d_data' % i] = coo.data
         arrs['%d_row' % i] = coo.row
         arrs['%d_col' % i] = coo.col
-    start = time.time()
     np.savez_compressed(cache_file, **arrs)
     elapsed = time.time()-start
     logger.info('wrote %d frames to cache in %g seconds', len(reader[0]), elapsed)

@@ -102,7 +102,7 @@ class ImageSeriesConfig(Config):
             raise IOError(
                 'Image files not found: %s' % (', '.join(missing))
                 )
-        return res
+        return sorted(res)
 
 
     @property
@@ -111,7 +111,7 @@ class ImageSeriesConfig(Config):
         if temp is None:
             return
         temp = temp.lower()
-        if temp not in ['h', 'v', 'hv', 'vh', 'cw90', 'ccw90']:
+        if temp not in ['h', 'v', 'hv', 'vh', 'cw90', 'ccw90', 't']:
             raise RuntimeError(
                 'image_series:flip setting "%s" is not valid' % temp
                 )

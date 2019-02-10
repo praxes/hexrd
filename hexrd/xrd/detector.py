@@ -1184,6 +1184,8 @@ class ReadGE(Framer2DRC):
                 thisframe = thisframe.T[:, ::-1]
             elif self.flipArg == 'ccw90':
                 thisframe = thisframe.T[::-1, :]
+            elif self.flipArg == 't':
+                thisframe = thisframe.T
             else:
                 raise RuntimeError, "unrecognized flip token."
         return thisframe
@@ -2050,7 +2052,7 @@ class MultiRingBinned:
                     if rhoPxEff < numRho * 0.5:
                         raise RuntimeError, 'rhoPx %d for %d peaks is less than half of target' % (rhoPx, nPeaks)
 
-            return numRho, npdiv, rhoPxRange
+            return numRho, int(npdiv), rhoPxRange
 
         polImgSingle = None
         if singleRebin:

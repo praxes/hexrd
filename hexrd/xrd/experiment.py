@@ -966,9 +966,9 @@ GE reader is supported.
         AGG_FUN_MIN : numpy.minimum
         }
     #
-    FLIP_MODES = (FLIP_NONE, FLIP_VERT, FLIP_HORIZ, FLIP_180, FLIP_M90, FLIP_P90) \
-                 = range(6)
-    FLIP_STRS  = ('',        'v',       'h',        'hv',     'cw90',   'ccw90')
+    FLIP_MODES = (FLIP_NONE, FLIP_VERT, FLIP_HORIZ, FLIP_180, FLIP_M90, FLIP_P90, FLIP_T) \
+                 = range(7)
+    FLIP_STRS  = ('',        'v',       'h',        'hv',     'cw90',   'ccw90',  't')
     FLIP_DICT  = dict(zip(FLIP_MODES, FLIP_STRS))
     #
     RC = detector.ReadGE        # HARD CODED DETECTOR CHOICE!!!
@@ -1126,11 +1126,15 @@ GE reader is supported.
             drkFile = os.path.join(self.darkDir, self.darkName)
         elif (self.darkMode == ReaderInput.DARK_MODE_ARRAY):
             drkFileName = os.path.join(self.darkDir, self.darkName)
-            drkFile     = ref_reader.frame(
-                buffer=numpy.fromfile(drkFileName,
-                                      dtype=ref_reader.dtypeRead
-                                      )
-                )
+            #drkFile = ref_reader.frame(
+            #    buffer=numpy.fromfile(
+            #        drkFileName,
+            #        dtype=ref_reader.dtypeRead
+            #    )
+            #)
+            drkFile = numpy.load(drkFileName)
+            assert drkFile.dtype == ref_reader.dtypeRead, \
+                "dark file array has incompatible dtype"
         else:
             drkFile = None
             pass

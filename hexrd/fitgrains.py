@@ -67,18 +67,18 @@ def get_job_queue(cfg, ids_to_refine=None):
     except (ValueError, IOError):
         # no estimate available, use orientations and defaults
         logger.info('fitting grains using default initial estimate')
-        
+
         # ...make this an attribute in cfg?
         analysis_id = '%s_%s' %(
             cfg.analysis_name.strip().replace(' ', '-'),
             cfg.material.active.strip().replace(' ', '-'),
             )
-        
+
         # load quaternion file
         quats = np.atleast_2d(
             np.loadtxt(
                 os.path.join(
-                    cfg.working_dir, 
+                    cfg.working_dir,
                     'accepted_orientations_%s.dat' %analysis_id
                     )
                 )
@@ -128,13 +128,14 @@ def get_data(cfg, show_progress=False, force=False, clean=False):
         'fit_only': cfg.fit_grains.fit_only,
         'ncols': instrument_cfg['detector']['pixels']['columns'],
         'npdiv': cfg.fit_grains.npdiv,
-        'nrows': instrument_cfg['detector']['pixels']['rows'],        
+        'nrows': instrument_cfg['detector']['pixels']['rows'],
         'omega_period': np.radians(cfg.find_orientations.omega.period),
         'omega_start': cfg.image_series.omega.start,
         'omega_step': cfg.image_series.omega.step,
         'omega_stop': omega_stop,
         'omega_tol': cfg.fit_grains.tolerance.omega,
         'overlap_table': os.path.join(cfg.analysis_dir, 'overlap_table.npz'),
+        'output_hdf5': cfg.fit_grains.output_hdf5,
         'panel_buffer': cfg.fit_grains.panel_buffer,
         'pixel_pitch': instrument_cfg['detector']['pixels']['size'],
         'plane_data': pd,
@@ -169,7 +170,7 @@ def fit_grains(cfg, force=False, clean=False, show_progress=False, ids_to_refine
               '%.2f pixels and ' %cfg.fit_grains.refit[0] + \
               '%.2f frames from expected values' %cfg.fit_grains.refit[1]
         logger.info(msg)
-    
+
     start = time.time()
     pbar = None
     if show_progress:
@@ -223,30 +224,32 @@ def write_grains_file(cfg, results, output_name=None):
     # while also keeping the width of the lines to a minimum, settled
     # on %19.12g representation.
     header_items = (
-        'grain ID', 'completeness', 'chi2',
+        '# grain ID', 'completeness', 'chi2',
         'xi[0]', 'xi[1]', 'xi[2]', 'tVec_c[0]', 'tVec_c[1]', 'tVec_c[2]',
         'vInv_s[0]', 'vInv_s[1]', 'vInv_s[2]', 'vInv_s[4]*sqrt(2)',
         'vInv_s[5]*sqrt(2)', 'vInv_s[6]*sqrt(2)', 'ln(V[0,0])',
         'ln(V[1,1])', 'ln(V[2,2])', 'ln(V[1,2])', 'ln(V[0,2])', 'ln(V[0,1])',
         )
     len_items = []
-    for i in header_items[1:]:
+    for i in header_items[3:]:
         temp = len(i)
-        len_items.append(temp if temp > 19 else 19) # for %19.12g
-    fmtstr = '#%13s  ' + '  '.join(['%%%ds' % i for i in len_items]) + '\n'
-    f.write(fmtstr % header_items)
+        len_items.append(temp if temp > 23 else 23) # for %23.16e, fits +/-
+    fmtstr = '{:12}  {:12}  {:12}  ' + \
+             '  '.join(['{:<%d}' % i for i in len_items]) + '\n'
+    f.write(fmtstr.format(*header_items))
     for (id, g_refined, compl, eMat, resd) in sorted(results):
         res_items = (
-            id, compl, resd, g_refined[0], g_refined[1], g_refined[2],
+            int(id), compl, resd, g_refined[0], g_refined[1], g_refined[2],
             g_refined[3], g_refined[4], g_refined[5], g_refined[6],
             g_refined[7], g_refined[8], g_refined[9], g_refined[10],
             g_refined[11], eMat[0, 0], eMat[1, 1], eMat[2, 2], eMat[1, 2],
             eMat[0, 2], eMat[0, 1],
             )
         fmtstr = (
-            '%14d  ' + '  '.join(['%%%d.12g' % i for i in len_items]) + '\n'
-            )
-        f.write(fmtstr % res_items)
+            '{:<12d}  {:<12f}  {:<12e}  ' + \
+            '  '.join(['{:<%d.16e}' % i for i in len_items]) + '\n'
+            )        
+        f.write(fmtstr.format(*res_items))
 
 
 
@@ -268,7 +271,7 @@ class FitGrainsWorker(object):
         self._pbar = kwargs.get('progressbar', None)
 
 
-    def pull_spots(self, grain_id, grain_params, iteration):
+    def pull_spots(self, grain_id, grain_params, iteration, output_hdf5=False):
         # need to calc panel dims on the fly
         xdim = self._p['pixel_pitch'][1] * self._p['ncols']
         ydim = self._p['pixel_pitch'][0] * self._p['nrows']
@@ -292,19 +295,20 @@ class FitGrainsWorker(object):
             threshold=self._p['threshold'],
             doClipping=False,
             filename=self._p['spots_stem'] % grain_id,
+            output_hdf5=output_hdf5
             )
 
 
     def fit_grains(self, grain_id, grain_params, refit_tol=None):
         """
         Executes lsq fits of grains based on spot files
-        
+
         REFLECTION TABLE
-        
+
         Cols as follows:
-            0-6:   ID    PID    H    K    L    sum(int)    max(int)    
-            6-9:   pred tth    pred eta    pred ome              
-            9-12:  meas tth    meas eta    meas ome              
+            0-6:   ID    PID    H    K    L    sum(int)    max(int)
+            6-9:   pred tth    pred eta    pred ome
+            9-12:  meas tth    meas eta    meas ome
             12-15: meas X      meas Y      meas ome
         """
         ome_start = self._p['omega_start']
@@ -315,7 +319,7 @@ class FitGrainsWorker(object):
         unsat_spots = refl_table[:, 6] < self._p['saturation_level']
         pred_ome = refl_table[:, 9]
         if angularDifference(ome_start, ome_stop, units='degrees') > 0:
-            # if here, incomplete have omega range and
+            # if here, have incomplete omega range and
             # clip the refelctions very close to the edges to avoid
             # problems with the least squares...
             if np.sign(ome_step) < 0:
@@ -351,7 +355,7 @@ class FitGrainsWorker(object):
         except IOError, IndexError:
             #print "no overlap table found"
             pass
-        
+
         # completeness from pullspots only; incl saturated and overlaps
         completeness = sum(valid_refl_ids)/float(len(valid_refl_ids))
 
@@ -362,7 +366,7 @@ class FitGrainsWorker(object):
         # set in parameter attribute
         self._p['hkls'] = hkls
         self._p['xyo_det'] = xyo_det
-        
+
         if sum(idx) <= 12: # not enough reflections to fit... exit
             completeness = 0.
         else:
@@ -379,7 +383,7 @@ class FitGrainsWorker(object):
                 xpix_tol = refit_tol[0]*self._p['pixel_pitch'][1]
                 ypix_tol = refit_tol[0]*self._p['pixel_pitch'][0]
                 fome_tol = refit_tol[1]*self._p['omega_step']
-                
+
                 xyo_det_fit = objFuncFitGrain(
                     grain_params[gFlag], grain_params, gFlag,
                     self._p['detector_params'],
@@ -396,7 +400,7 @@ class FitGrainsWorker(object):
                     angularDifference(xyo_det[:, 2], xyo_det_fit[:, 2])
                     )
 
-                # filter out reflections with centroids more than 
+                # filter out reflections with centroids more than
                 # a pixel and delta omega away from predicted value
                 idx_1 = np.logical_and(
                     x_diff <= xpix_tol,
@@ -432,7 +436,7 @@ class FitGrainsWorker(object):
                 pass # end refit loop
             pass # end on num of refls
         return grain_params, completeness
-        
+
 
     def get_e_mat(self, grain_params):
         """
@@ -466,10 +470,10 @@ class FitGrainsWorker(object):
             if compl == 0:
                 break
             pass
-        
+
         # final pull spots if enabled
         if not self._p['fit_only']:
-            self.pull_spots(id, grain_params, -1)
+            self.pull_spots(id, grain_params, -1, output_hdf5=self._p['output_hdf5'])
 
         eMat = self.get_e_mat(grain_params)
         resd = self.get_residuals(grain_params)

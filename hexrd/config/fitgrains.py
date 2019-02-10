@@ -132,3 +132,14 @@ class FitGrainsConfig(Config):
         raise RuntimeError(
             '"%s" must be > 0, true, or false, got "%s"' % (key, temp)
             )
+
+
+    @property
+    def output_hdf5(self):
+        key = 'fit_grains:output_hdf5'
+        temp = self._cfg.get(key, False)
+        if temp in (True, False):
+            return temp
+        raise RuntimeError(
+            '"%s" must be true or false, got "%s"' % (key, temp)
+            )

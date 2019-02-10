@@ -14,6 +14,7 @@ import scipy.cluster as cluster
 from scipy import ndimage
 
 from hexrd import matrixutil as mutil
+from hexrd.constants import sqrt_epsf
 from hexrd.xrd import experiment as expt
 from hexrd.xrd import indexer as idx
 from hexrd.xrd import rotations as rot
@@ -47,7 +48,6 @@ try:
     have_parallel_dbscan = True
 except ImportError:
     pass
-
 
 def generate_orientation_fibers(eta_ome, chi, threshold, seed_hkl_ids,
                                 fiber_ndiv, filt_stdev=1.0, ncpus=1):
@@ -546,6 +546,17 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
 
     # load the eta_ome orientation maps
     eta_ome = load_eta_ome_maps(cfg, pd, reader, detector, hkls=hkls, clean=clean)
+
+    # KLUDGE: need to enforce + delta omega in maps for optimized paintGrid
+    # <JVB 2017/08/16>
+    del_ome = np.degrees(eta_ome.omeEdges[1] - eta_ome.omeEdges[0])
+    if np.sign(del_ome) == -1:
+        assert abs(cfg.image_series.omega.step - del_ome) < sqrt_epsf, \
+          "inconsistency with omega spec"
+        eta_ome.dataStore = eta_ome.dataStore[:, ::-1, :]    # flip omega axis
+        eta_ome.omegas = eta_ome.omegas[::-1]
+        eta_ome.omeEdges = eta_ome.omeEdges[::-1]
+        pass
 
     ome_range = (np.min(eta_ome.omeEdges),
                  np.max(eta_ome.omeEdges)

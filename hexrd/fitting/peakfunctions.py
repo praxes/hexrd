@@ -298,11 +298,11 @@ def _split_pvoigt1d_no_bg(p,x):
             
     #+  
     r=np.where(xr)  
-    f[r]=A*_unit_pvoigt1d(p[[1,3,5]],x[r])   
+    f[xr]=A*_unit_pvoigt1d(p[[1,3,5]],x[xr])   
     
     #-
     l=np.where(xl)  
-    f[l]=A*_unit_pvoigt1d(p[[1,2,4]],x[l])     
+    f[xl]=A*_unit_pvoigt1d(p[[1,2,4]],x[xl])     
 
     return f
 
