@@ -1183,7 +1183,8 @@ class PlanarDetector(object):
 
         does NOT need to repeat start vertex for closure
         """
-        assert len(vertex_array) >= 3
+        if vertex_array is not None:
+            assert len(vertex_array) >= 3
         self._roi = vertex_array
 
     @property
@@ -1612,7 +1613,13 @@ class PlanarDetector(object):
                 )
         else:
             # Okay, we have a PlaneData object
-            pd = PlaneData.makeNew(pd)    # make a copy to munge
+            try:
+                pd = PlaneData.makeNew(pd)    # make a copy to munge
+            except(TypeError):
+                # !!! have some other object here, likely a dummy plane data
+                # object of some sort...
+                pass
+
             if delta_tth is not None:
                 pd.tThWidth = np.radians(delta_tth)
             else:
