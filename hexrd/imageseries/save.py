@@ -4,15 +4,18 @@ import abc
 import os
 import warnings
 
-from hexrd import USE_NUMBA
-
 import numpy as np
-import numba
-
 import h5py
 import yaml
 
+from hexrd.matrixutil import extract_ijv
+
 MAX_NZ_FRACTION = 0.1    # 10% sparsity trigger for frame-cache write
+
+
+# =============================================================================
+# METHODS
+# =============================================================================
 
 
 def write(ims, fname, fmt, **kwargs):
@@ -239,33 +242,3 @@ class WriteFrameCache(Writer):
         self._write_frames()
         if output_yaml:
             self._write_yml()
-
-
-# =============================================================================
-# Numba-fied frame cache writer
-# =============================================================================
-
-
-if USE_NUMBA:
-    @numba.njit
-    def extract_ijv(in_array, threshold, out_i, out_j, out_v):
-        n = 0
-        w, h = in_array.shape
-        for i in range(w):
-            for j in range(h):
-                v = in_array[i, j]
-                if v > threshold:
-                    out_i[n] = i
-                    out_j[n] = j
-                    out_v[n] = v
-                    n += 1
-        return n
-else:    # not USE_NUMBA
-    def extract_ijv(in_array, threshold, out_i, out_j, out_v):
-        mask = in_array > threshold
-        n = sum(mask)
-        tmp_i, tmp_j = mask.nonzero()
-        out_i[:n] = tmp_i
-        out_j[:n] = tmp_j
-        out_v[:n] = in_array[mask]
-        return n
