@@ -467,7 +467,7 @@ class HEDMInstrument(object):
                 merge_hkls=False, delta_eta=eta_tol,
                 full_output=True)
             delta_eta = eta_edges[1] - eta_edges[0]
-            
+
             # pixel angular coords for the detector panel
             ptth, peta = panel.pixel_angles()
 
@@ -509,7 +509,7 @@ class HEDMInstrument(object):
                     [reta_idx,
                      reta_idx[-1] + 1]
                 )
-                
+
                 # ring arc lenght on panel
                 arc_length = angularDifference(
                     eta_edges[reta_bin_idx[0]],
@@ -525,14 +525,15 @@ class HEDMInstrument(object):
                 # The logic below assumes that eta_edges span 2*pi to
                 # single precision
                 eta_bins = eta_edges[reta_bin_idx]
-                if arc_length < 2*np.pi - 1e-4:
-                    # ring is incomplete
-                    if arc_length < 1e-4:
-                        # have branch cut in here
-                        eta_stop_idx = np.where(
-                            reta_idx
-                            - np.arange(len(reta_idx))
-                        )[0][0]
+                if arc_length < 1e-4:
+                    # have branch cut in here
+                    ring_gap = np.where(
+                        reta_idx
+                        - np.arange(len(reta_idx))
+                    )[0]
+                    if len(ring_gap) > 0:
+                        # have incomplete ring
+                        eta_stop_idx = ring_gap[0]
                         eta_stop = eta_edges[eta_stop_idx]
                         new_period = np.cumsum([eta_stop, 2*np.pi])
                         # remap
@@ -560,7 +561,7 @@ class HEDMInstrument(object):
                             retas,
                             bins=eta_bins,
                             weights=image[rtth_idx]
-                        )                        
+                        )
                     pass    # end loop on rows
                 ring_maps.append(this_map)
                 pass    # end loop on rings
