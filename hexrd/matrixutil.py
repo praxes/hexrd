@@ -39,6 +39,11 @@ from scipy import \
 from scipy.linalg import svd
 import numpy as num
 
+from hexrd import USE_NUMBA
+if USE_NUMBA:
+    import numba
+
+
 # module variables
 sqr6i  = 1./sqrt(6.)
 sqr3i  = 1./sqrt(3.)
@@ -802,3 +807,34 @@ def symmToVecds(A):
     vecds[4] = sqr2 * A[2,1]
     vecds[5] = traceToVecdsS(trace3(A))
     return vecds
+
+
+
+# =============================================================================
+# Numba-fied frame cache writer
+# =============================================================================
+
+
+if USE_NUMBA:
+    @numba.njit
+    def extract_ijv(in_array, threshold, out_i, out_j, out_v):
+        n = 0
+        w, h = in_array.shape
+        for i in range(w):
+            for j in range(h):
+                v = in_array[i, j]
+                if v > threshold:
+                    out_i[n] = i
+                    out_j[n] = j
+                    out_v[n] = v
+                    n += 1
+        return n
+else:    # not USE_NUMBA
+    def extract_ijv(in_array, threshold, out_i, out_j, out_v):
+        mask = in_array > threshold
+        n = sum(mask)
+        tmp_i, tmp_j = mask.nonzero()
+        out_i[:n] = tmp_i
+        out_j[:n] = tmp_j
+        out_v[:n] = in_array[mask]
+        return n

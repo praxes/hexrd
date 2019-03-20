@@ -1,3 +1,4 @@
+
 # ============================================================
 # Copyright (c) 2012, Lawrence Livermore National Security, LLC.
 # Produced at the Lawrence Livermore National Laboratory.
@@ -10,9 +11,9 @@
 #
 # Please also see the file LICENSE.
 #
-# This program is free software; you can redistribute it and/or modify it under the
-# terms of the GNU Lesser General Public License (as published by the Free Software
-# Foundation) version 2.1 dated February 1999.
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License (as published by the
+# Free Software Foundation) version 2.1 dated February 1999.
 #
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
@@ -25,19 +26,59 @@
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # ============================================================
 
-
-
 import numpy as np
-import scipy.optimize as optimize
-import hexrd.fitting.peakfunctions as pkfuncs
-import scipy.ndimage as imgproc
-import scipy.integrate as integrate
-#import copy
+
+from scipy import integrate
+from scipy import ndimage as imgproc
+from scipy import optimize
+
+from hexrd import constants
+from hexrd.fitting import peakfunctions as pkfuncs
+
 import matplotlib.pyplot as plt
 
 
-#### 1-D Peak Fitting
-def estimate_pk_parms_1d(x,f,pktype='pvoigt'):
+# =============================================================================
+# Helper Functions and Module Vars
+# =============================================================================
+
+ftol = constants.sqrt_epsf
+xtol = constants.sqrt_epsf
+
+
+def snip1d(y, w=4, numiter=2):
+    """Return SNIP-estimated baseline-background for given spectrum y."""
+    z = np.log(np.log(np.sqrt(y + 1) + 1) + 1)
+    b = z
+    for i in range(numiter):
+        for p in range(w, 0, -1):
+            kernel = np.zeros(p*2 + 1)
+            kernel[0] = kernel[-1] = 1./2.
+            b = np.minimum(
+                b,
+                imgproc.convolve1d(z, kernel, mode='nearest')
+            )
+        z = b
+    # bfull = np.zeros_like(y)
+    # bfull[~zeros_idx] = b
+    bkg = (np.exp(np.exp(b) - 1) - 1)**2 - 1
+    return bkg
+
+
+def lin_fit_obj(x, m, b):
+    return m*np.asarray(x) + b
+
+
+def lin_fit_jac(x, m, b):
+    return np.vstack([x, np.ones_like(x)]).T
+
+
+# =============================================================================
+# 1-D Peak Fitting
+# =============================================================================
+
+
+def estimate_pk_parms_1d(x, f, pktype='pvoigt'):
     """
     Gives initial guess of parameters for analytic fit of one dimensional peak
     data.
@@ -45,127 +86,127 @@ def estimate_pk_parms_1d(x,f,pktype='pvoigt'):
     Required Arguments:
     x -- (n) ndarray of coordinate positions
     f -- (n) ndarray of intensity measurements at coordinate positions x
-    pktype -- string, type of analytic function that will be used to fit the data,
-    current options are "gaussian","lorentzian","pvoigt" (psuedo voigt), and
-    "split_pvoigt" (split psuedo voigt)
-
+    pktype -- string, type of analytic function that will be used to fit the
+    data, current options are "gaussian", "lorentzian",
+    "pvoigt" (psuedo voigt), and "split_pvoigt" (split psuedo voigt)
 
     Outputs:
-    p -- (m) ndarray containing initial guesses for parameters for the input peaktype
+    p -- (m) ndarray containing initial guesses for parameters for the input
+    peaktype
     (see peak function help for what each parameters corresponds to)
     """
+    npts = len(x)
+    assert len(f) == npts, "ordinate and data must be same length!"
+
+    bkg = snip1d(f, w=int(2*npts/3.))
+
+    bp, _ = optimize.curve_fit(lin_fit_obj, x, bkg, jac=lin_fit_jac)
+    bg0 = bp[-1]
+    bg1 = bp[0]
+
+    pint = f - lin_fit_obj(x, *bp)
+    cen_index = np.argmax(pint)
+    A = pint[cen_index]
+    x0 = x[cen_index]
+
+    # generically robust fwhm extimation for data with a peak + bkg
+    left_hm = np.argmin(abs(pint[:cen_index] - 0.5*A))
+    right_hm = np.argmin(abs(pint[cen_index:] - 0.5*A))
+    FWHM = x[cen_index + right_hm] - x[left_hm]
+    if FWHM <= 0 or FWHM > 0.75*npts:
+        # something is weird, so punt...
+        FWHM = 0.25*(x[-1] - x[0])
+
+    if pktype in ['gaussian', 'lorentzian']:
+        p = [A, x0, FWHM, bg0, bg1]
+    elif pktype == 'pvoigt':
+        p = [A, x0, FWHM, 0.5, bg0, bg1]
+    elif pktype == 'split_pvoigt':
+        p = [A, x0, FWHM, FWHM, 0.5, 0.5, bg0, bg1]
+
+    return np.r_[p]
 
 
-    data_max=np.max(f)
-#    lbg=np.mean(f[:2])
-#    rbg=np.mean(f[:2])
-    if((f[0]> (0.25*data_max)) and (f[-1]> (0.25*data_max))):#heuristic for wide peaks
-        bg0=0.
-    elif (f[0]> (0.25*data_max)): #peak cut off on the left
-        bg0=f[-1]
-    elif (f[-1]> (0.25*data_max)): #peak cut off on the right
-        bg0=f[0]
-    else:
-        bg0=(f[0]+f[-1])/2.
-    #bg1=(rbg-lbg)/(x[-1]-x[0])
-
-    cen_index=np.argmax(f)
-    x0=x[cen_index]
-    A=data_max-bg0#-(bg0+bg1*x0)
-
-    num_pts=len(f)
-
-    #checks for peaks that are cut off
-    if cen_index == (num_pts-1):
-        FWHM=x[cen_index]-x[np.argmin(np.abs(f[:cen_index]-A/2.))]#peak cut off on the left
-    elif cen_index == 0:
-        FWHM=x[cen_index+np.argmin(np.abs(f[cen_index+1:]-A/2.))]-x[0] #peak cut off on the right
-    else:
-        FWHM=x[cen_index+np.argmin(np.abs(f[cen_index+1:]-A/2.))]-x[np.argmin(np.abs(f[:cen_index]-A/2.))]
-
-    if FWHM <=0:##uh,oh something went bad
-        FWHM=(x[-1]-x[0])/4. #completely arbitrary, set peak width to 1/4 window size
-
-
-
-    if pktype=='gaussian' or pktype=='lorentzian':
-        p=[A,x0,FWHM,bg0,0.]
-    elif pktype=='pvoigt':
-        p=[A,x0,FWHM,0.5,bg0,0.]
-    elif pktype=='split_pvoigt':
-        p=[A,x0,FWHM,FWHM,0.5,0.5,bg0,0.]
-
-    p=np.array(p)
-    return p
-
-
-def fit_pk_parms_1d(p0,x,f,pktype='pvoigt'):
+def fit_pk_parms_1d(p0, x, f, pktype='pvoigt'):
     """
     Performs least squares fit to find parameters for 1d analytic functions fit
     to diffraction data
 
     Required Arguments:
-    p0 -- (m) ndarray containing initial guesses for parameters for the input peaktype
+    p0 -- (m) ndarray containing initial guesses for parameters
+              for the input peaktype
     x -- (n) ndarray of coordinate positions
     f -- (n) ndarray of intensity measurements at coordinate positions x
-    pktype -- string, type of analytic function that will be used to fit the data,
+    pktype -- string, type of analytic function that will be used to
+                      fit the data,
     current options are "gaussian","lorentzian","pvoigt" (psuedo voigt), and
     "split_pvoigt" (split psuedo voigt)
 
 
     Outputs:
-    p -- (m) ndarray containing fit parameters for the input peaktype (see peak function
-    help for what each parameters corresponds to)
+    p -- (m) ndarray containing fit parameters for the input peaktype
+    (see peak function help for what each parameters corresponds to)
 
 
     Notes:
-    1. Currently no checks are in place to make sure that the guess of parameters
-    has a consistent number of parameters with the requested peak type
+    1. Currently no checks are in place to make sure that the guess of
+    parameters has a consistent number of parameters with the requested
+    peak type
     """
 
-
-    fitArgs=(x,f,pktype)
-
-    ftol=1e-6
-    xtol=1e-6
-
-    weight=np.max(f)*10.#hard coded should be changed
-
+    weight = np.max(f)*10.  # hard coded should be changed
+    fitArgs = (x, f, pktype)
     if pktype == 'gaussian':
-        p, outflag = optimize.leastsq(fit_pk_obj_1d, p0, args=fitArgs,Dfun=eval_pk_deriv_1d,ftol=ftol,xtol=xtol)
+        p, outflag = optimize.leastsq(
+            fit_pk_obj_1d, p0,
+            args=fitArgs, Dfun=eval_pk_deriv_1d,
+            ftol=ftol, xtol=xtol
+        )
     elif pktype == 'lorentzian':
-        p, outflag = optimize.leastsq(fit_pk_obj_1d, p0, args=fitArgs,Dfun=eval_pk_deriv_1d,ftol=ftol,xtol=xtol)
+        p, outflag = optimize.leastsq(
+            fit_pk_obj_1d, p0,
+            args=fitArgs, Dfun=eval_pk_deriv_1d,
+            ftol=ftol, xtol=xtol
+        )
     elif pktype == 'pvoigt':
-        lb=[p0[0]*0.5,np.min(x),0.,      0., 0.,None]
-        ub=[p0[0]*2.0,np.max(x),4.*p0[2],1., 2.*p0[4],None]
+        lb = [p0[0]*0.5, np.min(x), 0., 0., 0., None]
+        ub = [p0[0]*2.0, np.max(x), 4.*p0[2], 1., 2.*p0[4], None]
 
-        fitArgs=(x,f,pktype,weight,lb,ub)
-        p, outflag = optimize.leastsq(fit_pk_obj_1d_bnded, p0, args=fitArgs,ftol=ftol,xtol=xtol)
+        fitArgs = (x, f, pktype, weight, lb, ub)
+        p, outflag = optimize.leastsq(
+            fit_pk_obj_1d_bnded, p0,
+            args=fitArgs,
+            ftol=ftol, xtol=xtol
+        )
     elif pktype == 'split_pvoigt':
-        lb=[p0[0]*0.5,np.min(x),0.,      0.,      0., 0., 0.,None]
-        ub=[p0[0]*2.0,np.max(x),4.*p0[2],4.*p0[2],1., 1., 2.*p0[4],None]
-        fitArgs=(x,f,pktype,weight,lb,ub)
-        p, outflag = optimize.leastsq(fit_pk_obj_1d_bnded, p0, args=fitArgs,ftol=ftol,xtol=xtol)
-
+        lb = [p0[0]*0.5, np.min(x), 0., 0., 0., 0., 0., None]
+        ub = [p0[0]*2.0, np.max(x), 4.*p0[2], 4.*p0[2], 1., 1., 2.*p0[4], None]
+        fitArgs = (x, f, pktype, weight, lb, ub)
+        p, outflag = optimize.leastsq(
+            fit_pk_obj_1d_bnded, p0,
+            args=fitArgs,
+            ftol=ftol, xtol=xtol
+        )
     elif pktype == 'tanh_stepdown':
-        p, outflag = optimize.leastsq(fit_pk_obj_1d, p0, args=fitArgs,ftol=ftol,xtol=xtol)
+        p, outflag = optimize.leastsq(
+            fit_pk_obj_1d, p0,
+            args=fitArgs,
+            ftol=ftol, xtol=xtol)
     else:
-        p=p0
+        p = p0
         print('non-valid option, returning guess')
 
-
     if np.any(np.isnan(p)):
-        p=p0
+        p = p0
         print('failed fitting, returning guess')
 
     return p
 
 
-
 def fit_mpk_parms_1d(p0,x,f0,pktype,num_pks,bgtype=None,bnds=None):
     """
     Performs least squares fit to find parameters for MULTIPLE 1d analytic functions fit
-    to diffraction data 
+    to diffraction data
 
 
     Required Arguments:
@@ -192,18 +233,18 @@ def fit_mpk_parms_1d(p0,x,f0,pktype,num_pks,bgtype=None,bnds=None):
 
     ftol=1e-6
     xtol=1e-6
-    
+
     if bnds != None:
         p = optimize.least_squares(fit_mpk_obj_1d, p0,bounds=bnds, args=fitArgs,ftol=ftol,xtol=xtol)
     else:
-        p = optimize.least_squares(fit_mpk_obj_1d, p0, args=fitArgs,ftol=ftol,xtol=xtol)    
-    
+        p = optimize.least_squares(fit_mpk_obj_1d, p0, args=fitArgs,ftol=ftol,xtol=xtol)
+
     return p.x
 
 
 def estimate_mpk_parms_1d(pk_pos_0,x,f,pktype='pvoigt',bgtype='linear',fwhm_guess=0.07,center_bnd=0.02):
 
-    
+
     num_pks=len(pk_pos_0)
     min_val=np.min(f)
 
@@ -213,95 +254,95 @@ def estimate_mpk_parms_1d(pk_pos_0,x,f,pktype='pvoigt',bgtype='linear',fwhm_gues
         p0tmp=np.zeros([num_pks,3])
         p0tmp_lb=np.zeros([num_pks,3])
         p0tmp_ub=np.zeros([num_pks,3])
-         
+
         #x is just 2theta values
         #make guess for the initital parameters
         for ii in np.arange(num_pks):
-            pt=np.argmin(np.abs(x-pk_pos_0[ii]))        
+            pt=np.argmin(np.abs(x-pk_pos_0[ii]))
             p0tmp[ii,:]=[(f[pt]-min_val),pk_pos_0[ii],fwhm_guess]
-            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-center_bnd,fwhm_guess*0.5] 
-            p0tmp_ub[ii,:]=[(f[pt]-min_val)*10.0,pk_pos_0[ii]+center_bnd,fwhm_guess*2.0]  
+            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-center_bnd,fwhm_guess*0.5]
+            p0tmp_ub[ii,:]=[(f[pt]-min_val)*10.0,pk_pos_0[ii]+center_bnd,fwhm_guess*2.0]
     elif pktype == 'pvoigt':
         p0tmp=np.zeros([num_pks,4])
         p0tmp_lb=np.zeros([num_pks,4])
         p0tmp_ub=np.zeros([num_pks,4])
-         
+
         #x is just 2theta values
         #make guess for the initital parameters
         for ii in np.arange(num_pks):
-            pt=np.argmin(np.abs(x-pk_pos_0[ii]))        
+            pt=np.argmin(np.abs(x-pk_pos_0[ii]))
             p0tmp[ii,:]=[(f[pt]-min_val),pk_pos_0[ii],fwhm_guess,0.5]
-            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-center_bnd,fwhm_guess*0.5,0.0] 
-            p0tmp_ub[ii,:]=[(f[pt]-min_val+1.)*10.0,pk_pos_0[ii]+center_bnd,fwhm_guess*2.0,1.0]  
+            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-center_bnd,fwhm_guess*0.5,0.0]
+            p0tmp_ub[ii,:]=[(f[pt]-min_val+1.)*10.0,pk_pos_0[ii]+center_bnd,fwhm_guess*2.0,1.0]
     elif pktype == 'split_pvoigt':
         p0tmp=np.zeros([num_pks,6])
         p0tmp_lb=np.zeros([num_pks,6])
         p0tmp_ub=np.zeros([num_pks,6])
-         
+
         #x is just 2theta values
         #make guess for the initital parameters
         for ii in np.arange(num_pks):
-            pt=np.argmin(np.abs(x-pk_pos_0[ii]))        
+            pt=np.argmin(np.abs(x-pk_pos_0[ii]))
             p0tmp[ii,:]=[(f[pt]-min_val),pk_pos_0[ii],fwhm_guess,fwhm_guess,0.5,0.5]
-            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-center_bnd,fwhm_guess*0.5,fwhm_guess*0.5,0.0,0.0] 
-            p0tmp_ub[ii,:]=[(f[pt]-min_val)*10.0,pk_pos_0[ii]+center_bnd,fwhm_guess*2.0,fwhm_guess*2.0,1.0,1.0]  
+            p0tmp_lb[ii,:]=[(f[pt]-min_val)*0.1,pk_pos_0[ii]-center_bnd,fwhm_guess*0.5,fwhm_guess*0.5,0.0,0.0]
+            p0tmp_ub[ii,:]=[(f[pt]-min_val)*10.0,pk_pos_0[ii]+center_bnd,fwhm_guess*2.0,fwhm_guess*2.0,1.0,1.0]
 
 
-    if bgtype=='linear':    
-        num_pk_parms=len(p0tmp.ravel())    
+    if bgtype=='linear':
+        num_pk_parms=len(p0tmp.ravel())
         p0=np.zeros(num_pk_parms+2)
         lb=np.zeros(num_pk_parms+2)
         ub=np.zeros(num_pk_parms+2)
         p0[:num_pk_parms]=p0tmp.ravel()
         lb[:num_pk_parms]=p0tmp_lb.ravel()
         ub[:num_pk_parms]=p0tmp_ub.ravel()
-        
-        
+
+
         p0[-2]=min_val
-          
+
         lb[-2]=-float('inf')
         lb[-1]=-float('inf')
-        
+
         ub[-2]=float('inf')
-        ub[-1]=float('inf')       
-        
+        ub[-1]=float('inf')
+
     elif bgtype=='constant':
-        num_pk_parms=len(p0tmp.ravel())    
+        num_pk_parms=len(p0tmp.ravel())
         p0=np.zeros(num_pk_parms+1)
         lb=np.zeros(num_pk_parms+1)
         ub=np.zeros(num_pk_parms+1)
         p0[:num_pk_parms]=p0tmp.ravel()
         lb[:num_pk_parms]=p0tmp_lb.ravel()
         ub[:num_pk_parms]=p0tmp_ub.ravel()
-        
-        
+
+
         p0[-1]=min_val
         lb[-1]=-float('inf')
-        ub[-1]=float('inf')   
-    
+        ub[-1]=float('inf')
+
     elif bgtype=='quadratic':
-        num_pk_parms=len(p0tmp.ravel())    
+        num_pk_parms=len(p0tmp.ravel())
         p0=np.zeros(num_pk_parms+3)
         lb=np.zeros(num_pk_parms+3)
         ub=np.zeros(num_pk_parms+3)
         p0[:num_pk_parms]=p0tmp.ravel()
         lb[:num_pk_parms]=p0tmp_lb.ravel()
         ub[:num_pk_parms]=p0tmp_ub.ravel()
-        
-        
-        p0[-3]=min_val     
+
+
+        p0[-3]=min_val
         lb[-3]=-float('inf')
         lb[-2]=-float('inf')
-        lb[-1]=-float('inf')        
+        lb[-1]=-float('inf')
         ub[-3]=float('inf')
-        ub[-2]=float('inf')     
-        ub[-1]=float('inf')                    
-        
+        ub[-2]=float('inf')
+        ub[-1]=float('inf')
+
     bnds=(lb,ub)
-    
- 
-    
-    
+
+
+
+
     return p0, bnds
 
 def eval_pk_deriv_1d(p,x,y0,pktype):
@@ -354,8 +395,8 @@ def fit_pk_obj_1d_bnded(p,x,f0,pktype,weight,lb,ub):
     return resd
 
 
-def fit_mpk_obj_1d(p,x,f0,pktype,num_pks,bgtype):  
-    
+def fit_mpk_obj_1d(p,x,f0,pktype,num_pks,bgtype):
+
     f=pkfuncs.mpeak_1d(p,x,pktype,num_pks,bgtype='linear')
     resd = f-f0
     return resd
@@ -531,33 +572,33 @@ def direct_pk_analysis(x,f,remove_bg=True,low_int=1.,edge_pts=3,pts_per_meas=100
 
 
 
-    
+
     plt.plot(x,f)
     #subtract background, assumed linear
-    if remove_bg:                        
+    if remove_bg:
         bg_data=np.hstack((f[:(edge_pts+1)],f[-edge_pts:]))
         bg_pts=np.hstack((x[:(edge_pts+1)],x[-edge_pts:]))
-        
+
         bg_parm=np.polyfit(bg_pts,bg_data,1)
-        
+
         f=f-(bg_parm[0]*x+bg_parm[1])#pull out high background
-        
+
         f=f-np.min(f)#set the minimum to 0
-    
+
 
     plt.plot(bg_pts,bg_data,'x')
     plt.plot(x,f,'r')
-    
+
     spacing=np.diff(x)[0]/pts_per_meas
     xfine=np.arange(np.min(x),np.max(x)+spacing,spacing)# make a fine grid of points
     ffine=np.interp(xfine,x,f)
-    
+
     data_max=np.max(f)#find max intensity values
 
     total_int=integrate.simps(ffine,xfine)#numerically integrate the peak using the simpson rule
-    
-    cen_index=np.argmax(ffine)   
-    A=data_max    
+
+    cen_index=np.argmax(ffine)
+    A=data_max
 
     if(total_int<low_int):#this value is arbitrary, maybe set higher
         com=float('NaN')
@@ -566,10 +607,10 @@ def direct_pk_analysis(x,f,remove_bg=True,low_int=1.,edge_pts=3,pts_per_meas=100
         print('Analysis Failed... Intensity too low')
     else:
         com=np.sum(xfine*ffine)/np.sum(ffine)#center of mass calculation
-        
+
         a=np.abs(ffine[cen_index+1:]-A/2.)
-        b=np.abs(ffine[:cen_index]-A/2.)        
-        
+        b=np.abs(ffine[:cen_index]-A/2.)
+
         if(a.size==0 or b.size==0): #this is a check to see if the peak is falling out of the bnds
             com=float('NaN')
             FWHM=float('NaN')
@@ -604,17 +645,17 @@ def calc_pk_integrated_intensities(p,x,pktype,num_pks):
     Outputs:
     ints -- (m) integrated intensities for m fit peaks
     """
-       
-    
-    ints=np.zeros(num_pks)    
-    
+
+
+    ints=np.zeros(num_pks)
+
     if pktype == 'gaussian' or pktype == 'lorentzian':
         p_fit=np.reshape(p[:3*num_pks],[num_pks,3])
     elif pktype == 'pvoigt':
         p_fit=np.reshape(p[:4*num_pks],[num_pks,4])
     elif pktype == 'split_pvoigt':
-        p_fit=np.reshape(p[:6*num_pks],[num_pks,6])   
-        
+        p_fit=np.reshape(p[:6*num_pks],[num_pks,6])
+
     for ii in np.arange(num_pks):
         if pktype == 'gaussian':
             ints[ii]=integrate.simps(pkfuncs._gaussian1d_no_bg(p_fit[ii],x),x)
@@ -624,6 +665,6 @@ def calc_pk_integrated_intensities(p,x,pktype,num_pks):
             ints[ii]=integrate.simps(pkfuncs._pvoigt1d_no_bg(p_fit[ii],x),x)
         elif pktype == 'split_pvoigt':
             ints[ii]=integrate.simps(pkfuncs._split_pvoigt1d_no_bg(p_fit[ii],x),x)
-            
-            
+
+
     return ints

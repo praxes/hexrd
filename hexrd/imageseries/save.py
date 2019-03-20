@@ -8,6 +8,15 @@ import numpy as np
 import h5py
 import yaml
 
+from hexrd.matrixutil import extract_ijv
+
+MAX_NZ_FRACTION = 0.1    # 10% sparsity trigger for frame-cache write
+
+
+# =============================================================================
+# METHODS
+# =============================================================================
+
 
 def write(ims, fname, fmt, **kwargs):
     """write imageseries to file with options
@@ -190,24 +199,35 @@ class WriteFrameCache(Writer):
 
     def _write_frames(self):
         """also save shape array as originally done (before yaml)"""
+        buff_size = self._ims.shape[0]*self._ims.shape[1]
+        rows = np.empty(buff_size, dtype=np.uint16)
+        cols = np.empty(buff_size, dtype=np.uint16)
+        vals = np.empty(buff_size, dtype=self._ims.dtype)
         arrd = dict()
         for i in range(len(self._ims)):
-            # RFE: make it so we can use emumerate on self._ims???
-            frame = self._ims[i]
-            mask = frame > self._thresh
-            # FIXME: formalize this a little better???
-            # -- maybe set a hard limit of total nonzeros for the imageseries
-            # -- could pass as a kwarg on open
-            fullness = np.sum(mask) / float(frame.shape[0]*frame.shape[1])
-            if  fullness > 0.05:
-                sparseness = 100.*(1 -fullness)
-                msg = "frame %d is %4.2f%% sparse (cutoff is 95%%)" % (i, sparseness)
-                warnings.warn(msg)
+            # ???: make it so we can use emumerate on self._ims?
+            # FIXME: in __init__() of ProcessedImageSeries:
+            # 'ProcessedImageSeries' object has no attribute '_adapter'
 
-            row, col = mask.nonzero()
-            arrd['%d_row' % i] = row
-            arrd['%d_col' % i] = col
-            arrd['%d_data' % i] = frame[mask]
+            # wrapper to find (sparse) pixels above threshold
+            count = extract_ijv(self._ims[i], self._thresh,
+                                rows, cols, vals)
+
+            # check the sparsity
+            #
+            # FIXME: formalize this a little better
+            # ???: maybe set a hard limit of total nonzeros for the imageseries
+            # ???: could pass as a kwarg on open
+            fullness = count / float(buff_size)
+            if fullness > MAX_NZ_FRACTION:
+                sparseness = 100.*(1 - fullness)
+                msg = "frame %d is %4.2f%% sparse (cutoff is 95%%)" \
+                    % (i, sparseness)
+                warnings.warn(msg)
+            arrd['%d_row' % i] = rows[:count].copy()
+            arrd['%d_col' % i] = cols[:count].copy()
+            arrd['%d_data' % i] = vals[:count].copy()
+            pass
         arrd['shape'] = self._ims.shape
         arrd['nframes'] = len(self._ims)
         arrd['dtype'] = str(self._ims.dtype)

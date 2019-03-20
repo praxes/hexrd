@@ -47,6 +47,7 @@ from hexrd.gridutil import cellIndices, make_tolerance_grid
 from hexrd import matrixutil as mutil
 from hexrd.valunits import valWUnit
 from hexrd.xrd.transforms_CAPI import anglesToGVec, \
+                                      angularDifference, \
                                       detectorXYToGvec, \
                                       gvecToDetectorXY, \
                                       makeOscillRotMat, \
@@ -65,6 +66,13 @@ from hexrd import constants as ct
 from hexrd.xrd.distortion import GE_41RT  # BAD, VERY BAD!!!
 
 from skimage.draw import polygon
+
+try:
+    from fast_histogram import histogram1d
+    fast_histogram = True
+except(ImportError):
+    from numpy import histogram as histogram1d
+    fast_histogram = False
 
 # =============================================================================
 # PARAMETERS
@@ -454,8 +462,8 @@ class HEDMInstrument(object):
                 "active_hkls must be an iterable with __len__"
             tth_ranges = tth_ranges[active_hkls]
 
-        # need this for making eta ranges
-        eta_tol_vec = 0.5*np.radians([-eta_tol, eta_tol])
+        # # need this for making eta ranges
+        # eta_tol_vec = 0.5*np.radians([-eta_tol, eta_tol])
 
         ring_maps_panel = dict.fromkeys(self.detectors)
         for i_d, det_key in enumerate(self.detectors):
@@ -466,58 +474,114 @@ class HEDMInstrument(object):
             # native_area = panel.pixel_area  # pixel ref area
 
             # make rings clipped to panel
-            pow_angs, pow_xys, eta_idx, full_etas = panel.make_powder_rings(
+            # !!! eta_idx has the same length as plane_data.exclusions
+            #       each entry are the integer indices into the bins
+            # !!! eta_edges is the list of eta bin EDGES
+            pow_angs, pow_xys, eta_idx, eta_edges = panel.make_powder_rings(
                 plane_data,
                 merge_hkls=False, delta_eta=eta_tol,
                 full_output=True)
+            delta_eta = eta_edges[1] - eta_edges[0]
 
-            ptth, peta = panel.pixel_angles
+            # pixel angular coords for the detector panel
+            ptth, peta = panel.pixel_angles()
+
+            # grab omegas from imageseries and squawk if missing
+            try:
+                omegas = imgser_dict[det_key].metadata['omega']
+            except(KeyError):
+                msg = "imageseries for '%s' has no omega info" % det_key
+                raise RuntimeError(msg)
+
+            # initialize maps and assing by row (omega/frame)
+            nrows_ome = len(omegas)
+            ncols_eta = len(eta_edges) - 1
+
             ring_maps = []
             for i_r, tthr in enumerate(tth_ranges):
                 print("working on ring %d..." % i_r)
+                # ???: faster to index with bool or use np.where,
+                # or recode in numba?
                 rtth_idx = np.where(
                     np.logical_and(ptth >= tthr[0], ptth <= tthr[1])
                 )
-                etas = pow_angs[i_r][:, 1]
-                netas = len(etas)
-                eta_ranges = np.tile(etas, (2, 1)).T \
-                    + np.tile(eta_tol_vec, (netas, 1))
-                ring_map = []
-                for i_e, etar in enumerate(eta_ranges):
-                    # WARNING: assuming start/stop
-                    emin = np.r_[etar[0]]
-                    emax = np.r_[etar[1]]
-                    reta_idx = np.where(
-                        validateAngleRanges(peta[rtth_idx], emin, emax)
-                    )
-                    ijs = (rtth_idx[0][reta_idx],
-                           rtth_idx[1][reta_idx])
-                    ring_map.append(ijs)
-                    pass
 
-                try:
-                    omegas = imgser_dict[det_key].metadata['omega']
-                except(KeyError):
-                    msg = "imageseries for '%s' has no omega info" % det_key
-                    raise RuntimeError(msg)
-                nrows_ome = len(omegas)
-                ncols_eta = len(full_etas)
+                # grab relevant eta coords using histogram
+                # !!!: This allows use to calculate arc length and
+                #      detect a branch cut.  The histogram idx var
+                #      is the left-hand edges...
+                retas = peta[rtth_idx]
+                if fast_histogram:
+                    reta_hist = histogram1d(
+                        retas,
+                        len(eta_edges) - 1,
+                        (eta_edges[0], eta_edges[-1])
+                    )
+                else:
+                    reta_hist, _ = histogram1d(retas, bins=eta_edges)
+                reta_idx = np.where(reta_hist)[0]
+                reta_bin_idx = np.hstack(
+                    [reta_idx,
+                     reta_idx[-1] + 1]
+                )
+
+                # ring arc lenght on panel
+                arc_length = angularDifference(
+                    eta_edges[reta_bin_idx[0]],
+                    eta_edges[reta_bin_idx[-1]]
+                )
+
+                # Munge eta bins
+                # !!! need to work with the subset to preserve
+                #     NaN values at panel extents!
+                #
+                # !!! MUST RE-MAP IF BRANCH CUT IS IN RANGE
+                #
+                # The logic below assumes that eta_edges span 2*pi to
+                # single precision
+                eta_bins = eta_edges[reta_bin_idx]
+                if arc_length < 1e-4:
+                    # have branch cut in here
+                    ring_gap = np.where(
+                        reta_idx
+                        - np.arange(len(reta_idx))
+                    )[0]
+                    if len(ring_gap) > 0:
+                        # have incomplete ring
+                        eta_stop_idx = ring_gap[0]
+                        eta_stop = eta_edges[eta_stop_idx]
+                        new_period = np.cumsum([eta_stop, 2*np.pi])
+                        # remap
+                        retas = mapAngle(retas, new_period)
+                        tmp_bins = mapAngle(eta_edges[reta_idx], new_period)
+                        reta_idx = np.argsort(tmp_bins)
+                        eta_bins = np.hstack(
+                            [tmp_bins[reta_idx],
+                             tmp_bins[reta_idx][-1] + delta_eta]
+                        )
+                        pass
+                    pass
+                # histogram intensities over eta ranges
                 this_map = np.nan*np.ones((nrows_ome, ncols_eta))
                 for i_row, image in enumerate(imgser_dict[det_key]):
-                    psum = np.zeros(len(ring_map))
-                    for i_k, k in enumerate(ring_map):
-                        pdata = image[k[0], k[1]]
-                        if threshold:
-                            pdata[pdata <= threshold] = 0
-                        psum[i_k] = np.average(pdata)
-                    this_map[i_row, eta_idx[i_r]] = psum
-                    # this_map[i_row, eta_idx[i_r]] = [
-                    #         np.sum(image[k[0], k[1]]) for k in ring_map
-                    #     ]
+                    if fast_histogram:
+                        this_map[i_row, reta_idx] = histogram1d(
+                            retas,
+                            len(eta_bins) - 1,
+                            (eta_bins[0], eta_bins[-1]),
+                            weights=image[rtth_idx]
+                        )
+                    else:
+                        this_map[i_row, reta_idx], _ = histogram1d(
+                            retas,
+                            bins=eta_bins,
+                            weights=image[rtth_idx]
+                        )
+                    pass    # end loop on rows
                 ring_maps.append(this_map)
-                pass
+                pass    # end loop on rings
             ring_maps_panel[det_key] = ring_maps
-        return ring_maps_panel, full_etas
+        return ring_maps_panel, eta_edges
 
     def extract_line_positions(self, plane_data, imgser_dict,
                                tth_tol=None, eta_tol=1., npdiv=2,
@@ -590,6 +654,15 @@ class HEDMInstrument(object):
                 for i_p, patch in enumerate(patches):
                     # strip relevant objects out of current patch
                     vtx_angs, vtx_xy, conn, areas, xy_eval, ijs = patch
+
+                    _, on_panel = panel.clip_to_panel(
+                        np.vstack(
+                            [xy_eval[0].flatten(), xy_eval[1].flatten()]
+                        ).T
+                    )
+                    if np.any(~on_panel):
+                        continue
+
                     if collapse_tth:
                         ang_data = (vtx_angs[0][0, [0, -1]],
                                     vtx_angs[1][[0, -1], 0])
@@ -1316,23 +1389,9 @@ class PlanarDetector(object):
             indexing='ij')
         return pix_i, pix_j
 
-    # ...memoize???
-    @property
-    def pixel_angles(self):
-        pix_i, pix_j = self.pixel_coords
-        xy = np.ascontiguousarray(
-            np.vstack([
-                pix_j.flatten(), pix_i.flatten()
-                ]).T
-            )
-        angs, g_vec = detectorXYToGvec(
-            xy, self.rmat, ct.identity_3x3,
-            self.tvec, ct.zeros_3, ct.zeros_3,
-            beamVec=self.bvec, etaVec=self.evec)
-        del(g_vec)
-        tth = angs[0].reshape(self.rows, self.cols)
-        eta = angs[1].reshape(self.rows, self.cols)
-        return tth, eta
+    """
+    ##################### METHODS
+    """
 
     def config_dict(self, chi, t_vec_s, sat_level=None):
         """
@@ -1372,9 +1431,23 @@ class PlanarDetector(object):
             d['detector']['distortion'] = dist_d
         return d
 
-    """
-    ##################### METHODS
-    """
+    def pixel_angles(self, origin=ct.zeros_3):
+        assert len(origin) == 3, "origin must have 3 elemnts"
+        pix_i, pix_j = self.pixel_coords
+        xy = np.ascontiguousarray(
+            np.vstack([
+                pix_j.flatten(), pix_i.flatten()
+                ]).T
+            )
+        angs, g_vec = detectorXYToGvec(
+            xy, self.rmat, ct.identity_3x3,
+            self.tvec, ct.zeros_3, origin,
+            beamVec=self.bvec, etaVec=self.evec)
+        del(g_vec)
+        tth = angs[0].reshape(self.rows, self.cols)
+        eta = angs[1].reshape(self.rows, self.cols)
+        return tth, eta
+
     def cartToPixel(self, xy_det, pixels=False):
         """
         Convert vstacked array or list of [x,y] points in the center-based
@@ -1644,19 +1717,35 @@ class PlanarDetector(object):
                   0.0, 0.0]
                  for i in tth_pm])
 
-        # for generating rings
+        # for generating rings, make eta vector in correct period
         if eta_period is None:
             eta_period = (-np.pi, np.pi)
-
         neta = int(360./float(delta_eta))
-        eta = mapAngle(
-            #np.radians(delta_eta*(np.linspace(0., neta - 1, num=neta) + 0.5)) + #dp change, don't like 0.5
-            np.radians(delta_eta*(np.linspace(0., neta - 1, num=neta))) +
-            eta_period[0], eta_period
+
+        # this is the vector of ETA EDGES
+        eta_edges = mapAngle(
+            np.radians(
+                delta_eta*np.linspace(0., neta, num=neta + 1)
+            ) + eta_period[0],
+            eta_period
         )
 
-        angs = [np.vstack([i*np.ones(neta), eta, np.zeros(neta)]) for i in tth]
+        # get eta bin centers from edges
+        """
+        # !!! this way is probably overkill, since we have delta eta
+        eta_centers = np.average(
+            np.vstack([eta[:-1], eta[1:]),
+            axis=0)
+        """
+        # !!! should be safe as eta_edges are monotonic
+        eta_centers = eta_edges[:-1] + del_eta
 
+        # make list of angle tuples
+        angs = [
+            np.vstack(
+                [i*np.ones(neta), eta_centers, np.zeros(neta)]
+            ) for i in tth
+        ]
 
         # need xy coords and pixel sizes
         valid_ang = []
@@ -1691,16 +1780,17 @@ class PlanarDetector(object):
             patch_is_on = np.all(on_panel.reshape(neta, npp), axis=1)
             patch_xys = all_xy.reshape(neta, 5, 2)[patch_is_on]
 
-
+            # the surving indices
             idx = np.where(patch_is_on)[0]
 
+            # form output arrays
             valid_ang.append(these_angs[patch_is_on, :2])
             valid_xy.append(patch_xys[:, -1, :].squeeze())
             map_indices.append(idx)
             pass
         # ??? is this option necessary?
         if full_output:
-            return valid_ang, valid_xy, map_indices, eta
+            return valid_ang, valid_xy, map_indices, eta_edges
         else:
             return valid_ang, valid_xy
 
