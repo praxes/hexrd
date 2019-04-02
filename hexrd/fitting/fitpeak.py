@@ -98,25 +98,42 @@ def estimate_pk_parms_1d(x, f, pktype='pvoigt'):
     npts = len(x)
     assert len(f) == npts, "ordinate and data must be same length!"
 
+    # handle background
+    # ??? make kernel width a kwarg?
     bkg = snip1d(f, w=int(2*npts/3.))
 
+    # fit linear bg and grab params
     bp, _ = optimize.curve_fit(lin_fit_obj, x, bkg, jac=lin_fit_jac)
     bg0 = bp[-1]
     bg1 = bp[0]
 
+    # set remaining params
     pint = f - lin_fit_obj(x, *bp)
     cen_index = np.argmax(pint)
     A = pint[cen_index]
     x0 = x[cen_index]
 
-    # generically robust fwhm extimation for data with a peak + bkg
-    left_hm = np.argmin(abs(pint[:cen_index] - 0.5*A))
-    right_hm = np.argmin(abs(pint[cen_index:] - 0.5*A))
-    FWHM = x[cen_index + right_hm] - x[left_hm]
+    # fix center index
+    if cen_index > 0 and cen_index < npts - 1:
+        left_hm = np.argmin(abs(pint[:cen_index] - 0.5*A))
+        right_hm = np.argmin(abs(pint[cen_index:] - 0.5*A))
+    elif cen_index == 0:
+        right_hm = np.argmin(abs(pint[cen_index:] - 0.5*A))
+        left_hm = right_hm
+    elif cen_index == npts - 1:
+        left_hm = np.argmin(abs(pint[:cen_index] - 0.5*A))
+        right_hm = left_hm
+
+    # FWHM estimation
+    try:
+        FWHM = x[cen_index + right_hm] - x[left_hm]
+    except(IndexError):
+        FWHM = 0
     if FWHM <= 0 or FWHM > 0.75*npts:
         # something is weird, so punt...
         FWHM = 0.25*(x[-1] - x[0])
 
+    # set params
     if pktype in ['gaussian', 'lorentzian']:
         p = [A, x0, FWHM, bg0, bg1]
     elif pktype == 'pvoigt':
