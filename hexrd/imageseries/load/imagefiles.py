@@ -52,8 +52,14 @@ class ImageFilesImageSeriesAdapter(ImageSeriesAdapter):
             (fnum, frame) = self._file_and_frame(key)
             fimg = self.infolist[fnum].fabioimage
             img = fimg.getframe(frame)
-
-        return img.data
+        if self._dtype is not None:
+            # !!! handled in self._process_files
+            iinfo = np.iinfo(self._dtype)
+            if np.max(img.data) > iinfo.max:
+                raise RuntimeError("specified dtype will truncate image")
+            return np.array(img.data, dtype=self._dtype)
+        else:
+            return img.data
 
     def __iter__(self):
         return ImageSeriesIterator(self)
@@ -74,7 +80,7 @@ number of files: %s
         EMPTY = 'empty-frames'
         MAXTOTF = 'max-total-frames'
         MAXFILF = 'max-file-frames'
-
+        DTYPE = 'dtype'
         with open(self._fname, "r") as f:
             d = yaml.load(f)
         imgsd = d['image-files']
@@ -88,6 +94,7 @@ number of files: %s
         self._empty = self.optsd[EMPTY] if EMPTY in self.optsd else 0
         self._maxframes_tot = self.optsd[MAXTOTF] if MAXTOTF in self.optsd else 0
         self._maxframes_file = self.optsd[MAXFILF] if MAXFILF in self.optsd else 0
+        self._dtype = np.dtype(self.optsd[DTYPE]) if DTYPE in self.optsd else None
 
         self._meta = yamlmeta(d['meta']) #, path=imgsd)
 
@@ -104,8 +111,13 @@ number of files: %s
             infolist.append(info)
             shp = self._checkvalue(shp, info.shape,
                                    "inconsistent image shapes")
-            dtp = self._checkvalue(dtp, info.dtype,
-                                   "inconsistent image dtypes")
+            if self._dtype is not None:
+                dtp = self._dtype
+                
+            else:
+                dtp = self._checkvalue(
+                    dtp, info.dtype,
+                    "inconsistent image dtypes")
             fcl = self._checkvalue(fcl, info.fabioclass,
                                    "inconsistent image types")
             nf += info.nframes
