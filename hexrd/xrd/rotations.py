@@ -10,9 +10,9 @@
 #
 # Please also see the file LICENSE.
 #
-# This program is free software; you can redistribute it and/or modify it under the
-# terms of the GNU Lesser General Public License (as published by the Free Software
-# Foundation) version 2.1 dated February 1999.
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License (as published by the Free
+# Software Foundation) version 2.1 dated February 1999.
 #
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
@@ -33,8 +33,8 @@ import time
 import numpy
 from numpy import \
      arange, arctan2, array, asarray, atleast_1d, average, \
-     ndarray, diag, zeros, \
-     cross, dot, pi, arccos, arcsin, cos, sin, sqrt, \
+     ndarray, diag, eye, zeros, \
+     cross, dot, outer, pi, arccos, arcsin, cos, sin, sqrt, \
      sort, tile, vstack, hstack, c_, ix_, \
      abs, mod, sign, \
      finfo, isscalar
@@ -643,18 +643,14 @@ def angleAxisOfRotMat(R):
 
 def make_rmat_euler(tilt_angles, axes_order, extrinsic=True):
     """
-    extrinsic or intrinsic by kw
+    extrinsic (PASSIVE) or intrinsic (ACTIVE) by kw
+    tilt_angles are in RADIANS
     """
     axes = numpy.eye(3)
 
     axes_dict = dict(x=0, y=1, z=2)
 
-    # orders = []
-    # for l in [''.join(i) for i in itertools.product(['x', 'y', 'z'], repeat=3)]:
-    # if numpy.sum(numpy.array([j for j in l]) == l[0]) < 3:
-    #    if l[1] != l[0] and l[2] != l[1]:
-    #         orders.append(l)
-
+    # axes orders, all permutations
     orders = [
         'xyz', 'zyx',
         'zxy', 'yxz',
@@ -709,6 +705,28 @@ def angles_from_rmat_xyz(rmat):
     return rx, ry, rz
 
 
+def angles_from_rmat_zxz(rmat):
+    """
+    calculate z-x-z euler angles from a rotation matrix in
+    the ACTIVE convention
+
+    alpha, beta, gamma
+    """
+    if abs(rmat[2, 2]) > 1. - sqrt(finfo('float').eps):
+        beta = 0.
+        alpha = arctan2(rmat[1, 0], rmat[0, 0])
+        gamma = 0.
+    else:
+        xnew = rmat[:, 0]
+        znew = rmat[:, 2]
+        alpha = arctan2(znew[0], -znew[1])
+        rma = rotMatOfExpMap(alpha*c_[0., 0., 1.].T)
+        znew1 = dot(rma.T, znew)
+        beta = arctan2(-znew1[1], znew1[2])
+        rmb = rotMatOfExpMap(beta*c_[cos(alpha), sin(alpha), 0.].T)
+        xnew2 = dot(rma.T, dot(rmb.T, xnew))
+        gamma = arctan2(xnew2[1], xnew2[0])
+    return alpha, beta, gamma
 #
 #  ==================== Fiber
 #

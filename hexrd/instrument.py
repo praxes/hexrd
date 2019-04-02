@@ -50,7 +50,6 @@ from hexrd.xrd.transforms_CAPI import anglesToGVec, \
                                       angularDifference, \
                                       detectorXYToGvec, \
                                       gvecToDetectorXY, \
-                                      makeDetectorRotMat, \
                                       makeOscillRotMat, \
                                       makeRotMatOfExpMap, \
                                       mapAngle, \
@@ -79,6 +78,8 @@ except(ImportError):
 # PARAMETERS
 # =============================================================================
 
+instrument_name_DFLT = 'GE'
+
 beam_energy_DFLT = 65.351
 beam_vec_DFLT = ct.beam_vec
 
@@ -89,7 +90,7 @@ nrows_DFLT = 2048
 ncols_DFLT = 2048
 pixel_size_DFLT = (0.2, 0.2)
 
-tilt_angles_DFLT = np.zeros(3)
+tilt_params_DFLT = np.zeros(3)
 t_vec_d_DFLT = np.r_[0., 0., -1000.]
 
 chi_DFLT = 0.
@@ -189,8 +190,8 @@ class HEDMInstrument(object):
     """
     def __init__(self, instrument_config=None,
                  image_series=None, eta_vector=None,
-                 instrument_name="instrument"):
-        self._id = instrument_name
+                 instrument_name=None):
+        self._id = instrument_name_DFLT
 
         if eta_vector is None:
             self._eta_vector = eta_vec_DFLT
@@ -198,6 +199,8 @@ class HEDMInstrument(object):
             self._eta_vector = eta_vector
 
         if instrument_config is None:
+            if instrument_name is not None:
+                self._id = instrument_name
             self._num_panels = 1
             self._beam_energy = beam_energy_DFLT
             self._beam_vector = beam_vec_DFLT
@@ -207,7 +210,7 @@ class HEDMInstrument(object):
                     rows=nrows_DFLT, cols=ncols_DFLT,
                     pixel_size=pixel_size_DFLT,
                     tvec=t_vec_d_DFLT,
-                    tilt=tilt_angles_DFLT,
+                    tilt=tilt_params_DFLT,
                     bvec=self._beam_vector,
                     evec=self._eta_vector,
                     distortion=None),
@@ -216,6 +219,11 @@ class HEDMInstrument(object):
             self._tvec = t_vec_s_DFLT
             self._chi = chi_DFLT
         else:
+            if instrument_name is None:
+                if 'id' in instrument_config:
+                    self._id = instrument_config['id']
+            else:
+                self._id = instrument_name
             self._num_panels = len(instrument_config['detectors'])
             self._beam_energy = instrument_config['beam']['energy']  # keV
             self._beam_vector = calc_beam_vec(
@@ -248,8 +256,8 @@ class HEDMInstrument(object):
                     PlanarDetector(
                         rows=pix['rows'], cols=pix['columns'],
                         pixel_size=pix['size'],
-                        tvec=xform['t_vec_d'],
-                        tilt=xform['tilt_angles'],
+                        tvec=xform['translation'],
+                        tilt=xform['tilt'],
                         bvec=self._beam_vector,
                         evec=ct.eta_vec,
                         distortion=dist_list)
@@ -258,7 +266,7 @@ class HEDMInstrument(object):
             self._detectors = dict(zip(detector_ids, det_list))
 
             self._tvec = np.r_[
-                instrument_config['oscillation_stage']['t_vec_s']
+                instrument_config['oscillation_stage']['translation']
             ]
             self._chi = instrument_config['oscillation_stage']['chi']
 
@@ -325,9 +333,14 @@ class HEDMInstrument(object):
     @beam_vector.setter
     def beam_vector(self, x):
         x = np.array(x).flatten()
-        assert len(x) == 3 and sum(x*x) > 1-ct.sqrt_epsf, \
-            'input must have length = 3 and have unit magnitude'
-        self._beam_vector = x
+        if len(x) == 3:
+            assert sum(x*x) > 1-ct.sqrt_epsf, \
+                'input must have length = 3 and have unit magnitude'
+            self._beam_vector = x
+        elif len(x) == 2:
+            self._beam_vector = calc_beam_vec(*x)
+        else:
+            raise RuntimeError("input must be a unit vector or angle pair")
         # ...maybe change dictionary item behavior for 3.x compatibility?
         for detector_id in self.detectors:
             panel = self.detectors[detector_id]
@@ -395,6 +408,8 @@ class HEDMInstrument(object):
 
         par_dict = {}
 
+        par_dict['id'] = self.id
+
         azim, pola = calc_angles_from_beam_vec(self.beam_vector)
         beam = dict(
             energy=self.beam_energy,
@@ -410,7 +425,7 @@ class HEDMInstrument(object):
 
         ostage = dict(
             chi=self.chi,
-            t_vec_s=self.tvec.tolist()
+            translation=self.tvec.tolist()
         )
         par_dict['oscillation_stage'] = ostage
 
@@ -1241,7 +1256,8 @@ class PlanarDetector(object):
 
         does NOT need to repeat start vertex for closure
         """
-        assert len(vertex_array) >= 3
+        if vertex_array is not None:
+            assert len(vertex_array) >= 3
         self._roi = vertex_array
 
     @property
@@ -1341,7 +1357,7 @@ class PlanarDetector(object):
 
     @property
     def rmat(self):
-        return makeDetectorRotMat(self.tilt)
+        return makeRotMatOfExpMap(self.tilt)
 
     @property
     def normal(self):
@@ -1388,8 +1404,8 @@ class PlanarDetector(object):
         d = dict(
             detector=dict(
                 transform=dict(
-                    tilt_angles=self.tilt.tolist(),
-                    t_vec_d=self.tvec.tolist(),
+                    tilt=self.tilt.tolist(),
+                    translation=self.tvec.tolist(),
                 ),
                 pixels=dict(
                     rows=self.rows,
@@ -1399,7 +1415,7 @@ class PlanarDetector(object):
             ),
             oscillation_stage=dict(
                 chi=chi,
-                t_vec_s=t_vec_s.tolist(),
+                translation=t_vec_s.tolist(),
             ),
         )
 
@@ -1670,7 +1686,13 @@ class PlanarDetector(object):
                 )
         else:
             # Okay, we have a PlaneData object
-            pd = PlaneData.makeNew(pd)    # make a copy to munge
+            try:
+                pd = PlaneData.makeNew(pd)    # make a copy to munge
+            except(TypeError):
+                # !!! have some other object here, likely a dummy plane data
+                # object of some sort...
+                pass
+
             if delta_tth is not None:
                 pd.tThWidth = np.radians(delta_tth)
             else:
