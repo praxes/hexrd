@@ -140,6 +140,8 @@ def estimate_pk_parms_1d(x, f, pktype='pvoigt'):
         p = [A, x0, FWHM, 0.5, bg0, bg1]
     elif pktype == 'split_pvoigt':
         p = [A, x0, FWHM, FWHM, 0.5, 0.5, bg0, bg1]
+    else:
+        raise RuntimeError("pktype '%s' not understood" % pktype)
 
     return np.r_[p]
 
