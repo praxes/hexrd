@@ -1669,6 +1669,8 @@ class PlanarDetector(object):
             rmat_s=ct.identity_3x3,  tvec_s=ct.zeros_3,
             tvec_c=ct.zeros_3, full_output=False):
         """
+        !!! it is assuming that rmat_s is built from (chi, ome)
+        !!! as it the case for HEDM
         """
         # in case you want to give it tth angles directly
         if hasattr(pd, '__len__'):
@@ -1740,10 +1742,14 @@ class PlanarDetector(object):
         # !!! should be safe as eta_edges are monotonic
         eta_centers = eta_edges[:-1] + del_eta
 
+        # !!! get chi and ome from rmat_s
+        chi = np.arctan2(rmat_s[2, 1], rmat_s[1, 1])
+        ome = np.arctan2(rmat_s[0, 2], rmat_s[0, 0])
+
         # make list of angle tuples
         angs = [
             np.vstack(
-                [i*np.ones(neta), eta_centers, np.zeros(neta)]
+                [i*np.ones(neta), eta_centers, ome*np.ones(neta)]
             ) for i in tth
         ]
 
