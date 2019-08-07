@@ -85,7 +85,7 @@ number of files: %s
         MAXFILF = 'max-file-frames'
         DTYPE = 'dtype'
         with open(self._fname, "r") as f:
-            d = yaml.load(f)
+            d = yaml.load(f, Loader=yaml.SafeLoader)
         imgsd = d['image-files']
         dname = imgsd['directory']
         fglob = imgsd['files']

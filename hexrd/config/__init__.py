@@ -16,7 +16,7 @@ def open(file_name=None):
 
     with file(file_name) as f:
         res = []
-        for cfg in yaml.load_all(f):
+        for cfg in yaml.load_all(f, Loader=yaml.SafeLoader):
             try:
                 # take the previous config section and update with values
                 # from the current one

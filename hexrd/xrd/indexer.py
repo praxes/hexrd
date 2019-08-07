@@ -807,7 +807,7 @@ def paintGrid(quats, etaOmeMaps,
     # symHKLs_ix provides the start/end index for each subarray
     # of symHKLs.
     symHKLs_ix = num.add.accumulate([0] + [s.shape[1] for s in symHKLs])
-    symHKLs = num.vstack(s.T for s in symHKLs)
+    symHKLs = num.vstack([s.T for s in symHKLs])
 
     # Pack together the common parameters for processing
     params = {
