@@ -130,8 +130,8 @@ def calc_angles_from_beam_vec(bvec):
     Return the azimuth and polar angle from a beam
     vector
     """
-    bvec = np.atleast_2d(bvec).reshape(3, 1)
-    nvec = mutil.unitVector(-bvec)
+    bvec = np.atleast_1d(bvec).flatten()
+    nvec = unitRowVector(-bvec)
     azim = float(
         np.degrees(np.arctan2(nvec[2], nvec[0]))
     )
