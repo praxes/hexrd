@@ -37,7 +37,7 @@ requirements:
     - qtconsole
     - scikit-learn
     - scipy
-    - wxpython >= 4
+    - wxpython >=4
 
 test:
   imports:
