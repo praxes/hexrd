@@ -21,7 +21,7 @@ app:
 requirements:
   build:
     - numba
-    - numpy
+    - numpy ==1.15
     - python
     - setuptools
   run:
@@ -29,7 +29,7 @@ requirements:
     - joblib
     - matplotlib
     - numba
-    - numpy
+    - numpy =1.15
     - progressbar >=2.3
     - python
     - python.app # [osx]
