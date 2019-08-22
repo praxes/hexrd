@@ -172,7 +172,7 @@ class PlaneDataPanel(wx.Panel):
         myToolTip = r"""
 FRAME FOR editing the list of calibrants
 """
-        self.titlebar.SetToolTipString(myToolTip)
+        self.titlebar.SetToolTip(myToolTip)
 
         return
 

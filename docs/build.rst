@@ -16,6 +16,11 @@ environments, you should be able to run::
 
     conda build conda.recipe/
 
+Due to the ever-shifting location of various packages and versions thereof,
+it is highly recommended to add the anaconda channel to your ``.condarc``::
+
+    conda config --add channels anaconda
+
 Building
 --------
 
@@ -55,11 +60,8 @@ be sure to use the proper path to ``lib/`` under the root anaconda directory.
 
 Next, run ``conda-build``::
 
-    conda build conda.recipe/ --no-test
-
-Note that the ``--no-test`` flag supresses running the internal tests
-until they are fixed (stay tuned...)
-
+    conda build conda.recipe/
+  
 Installation
 ------------
 
@@ -70,9 +72,16 @@ Findally, run ``conda install`` using the local package::
 Conda should echo the proper version number package in the package
 install list, which includes all dependencies.
 
+Alternatively, you can create a virtual environment for hexrd with the
+following packages and install using setuptools::
+
+    conda create --name hexrd_0.3 h5py joblib matplotlib numba numpy ==1.15 progressbar >=2.3 python==2.7 python.app pyyaml qtconsole scikit-learn scipy wxpython >=4
+    conda activate hexrd_0.3
+    python setup.py install
+
 At this point, a check in a fresh terminal (outside the root hexrd
 directory) and run::
 
     hexrd --verison
 
-It should currently read ``hexrd 0.3.25-5-g79aa320``
+It should currently read ``hexrd 0.3.33``

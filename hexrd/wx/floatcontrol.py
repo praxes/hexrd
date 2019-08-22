@@ -98,7 +98,7 @@ box or use the spinner to change the number.
 The spinner increment is shown in the gray
 box to the right of the spinner.
 """
-        self.SetToolTipString(myToolTip)
+        self.SetToolTip(myToolTip)
 
         self.SetAutoLayout(True)
         self.SetSizerAndFit(self.sizer)
