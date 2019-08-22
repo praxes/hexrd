@@ -119,12 +119,12 @@ PANEL FOR ...
             hklData = hkls[i]
             hkl = hklData['hkl']
             hklStr = '(%d, %d, %d)' % (hkl[0], hkl[1], hkl[2])
-            index = listctrl.InsertStringItem(sys.maxint, hklStr)
+            index = listctrl.InsertItem(sys.maxint, hklStr)
             dspace = '%.6g' % hklData['dSpacings']
             tth    = hklData['tTheta'] * (180/math.pi)
             tTheta = '%.6g' % tth
-            listctrl.SetStringItem(index, 1, dspace)
-            listctrl.SetStringItem(index, 2, tTheta)
+            listctrl.SetItem(index, 1, dspace)
+            listctrl.SetItem(index, 2, tTheta)
             #
             #  Show exclusions by background color
             #
