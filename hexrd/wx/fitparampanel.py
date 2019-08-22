@@ -97,12 +97,12 @@ class fitParamPanel(wx.Panel):
     def __makeTitleBar(self, t):
         """Add titlebar"""
         self.titlebar = wx.StaticText(self, -1, t,
-                                         style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
+                                      style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
         self.titlebar.SetBackgroundColour(WP.TITLEBAR_BG_COLOR)
         myToolTip = r"""
-PANEL FOR managing data for fit parameters
-"""
-        self.titlebar.SetToolTipString(myToolTip)
+        PANEL FOR managing data for fit parameters
+        """
+        self.titlebar.SetToolTip(myToolTip)
 
         return
 

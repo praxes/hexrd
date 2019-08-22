@@ -95,7 +95,7 @@ class ringPanel(wx.Panel):
         #  b.  Wavelength
         #
         self.dfwv_but  = wx.Button(self, wx.NewId(), 'Make Default')
-        self.dfwv_but.SetToolTipString(dfltToolTip)
+        self.dfwv_but.SetToolTip(dfltToolTip)
 
         self.wave_lab = wx.StaticText(self, wx.NewId(),
                                         'Wavelength:',
@@ -120,7 +120,7 @@ class ringPanel(wx.Panel):
         #  d.  Ring widths
         #
         self.dfwd_but  = wx.Button(self, wx.NewId(), 'Make Default')
-        self.dfwd_but.SetToolTipString(dfltToolTip)
+        self.dfwd_but.SetToolTip(dfltToolTip)
 
         self.width_lab = wx.StaticText(self, wx.NewId(),
                                         'Ring Width:',
