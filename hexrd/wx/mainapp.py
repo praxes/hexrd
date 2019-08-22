@@ -43,12 +43,12 @@ from hexrd.xrd.experiment import loadExp, ImageModes
 #
 # ---------------------------------------------------CLASS:  xrdApp
 #
-class xrdApp(wx.PySimpleApp):
+class xrdApp(wx.App):
     """xrdApp"""
     def __init__(self, *args):
         """Constructor for xrdApp"""
         #
-        wx.PySimpleApp.__init__(self)
+        wx.App.__init__(self)
         #
         # No command args for now, due to mac build issue (64bit, argv emulation)
         #

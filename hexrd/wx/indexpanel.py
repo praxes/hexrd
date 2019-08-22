@@ -204,7 +204,7 @@ class FiberSearchPanel(wx.Panel):
 
         self.friedel_cbox = wx.CheckBox(self, wx.NewId(), 'Friedel Only')
         self.friedel_cbox.SetValue(iopts.friedelOnly)
-        self.claims_cbox = wx.CheckBox(self, wx.NewId(), 'Preserve Claiims')
+        self.claims_cbox = wx.CheckBox(self, wx.NewId(), 'Preserve Claims')
         self.claims_cbox.SetValue(iopts.preserveClaims)
         self.refine_cbox  = wx.CheckBox(self, wx.NewId(), 'Do Refinement')
         self.refine_cbox.SetValue(iopts.doRefinement)
