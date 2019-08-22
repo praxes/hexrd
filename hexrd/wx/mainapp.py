@@ -133,12 +133,14 @@ def execute(*args):
     #
     # Splash screen.
     #
-    splashFile = 'hexrd.png'
-    splashDir = os.path.dirname(__file__)
-    splashImage = wx.Bitmap(os.path.join(splashDir, splashFile))
-    #
-    wx.SplashScreen(splashImage, wx.SPLASH_CENTRE_ON_PARENT|wx.SPLASH_TIMEOUT,
-                    1000, app.mframe)
+    # disabled # splashFile = 'hexrd.png'
+    # disabled # splashDir = os.path.dirname(__file__)
+    # disabled # splashImage = wx.Bitmap(os.path.join(splashDir, splashFile))
+    # disabled # #
+    # disabled # wx.adv.SplashScreen(
+    # disabled #     splashImage, wx.SPLASH_CENTRE_ON_PARENT|wx.SPLASH_TIMEOUT,
+    # disabled #     1000, app.mframe
+    # disabled # )
     #
     # Main frame
     #
