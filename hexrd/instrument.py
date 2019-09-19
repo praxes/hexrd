@@ -55,7 +55,7 @@ from hexrd.xrd.transforms_CAPI import anglesToGVec, \
                                       mapAngle, \
                                       oscillAnglesOfHKLs, \
                                       rowNorm, \
-                                      validateAngleRanges
+                                      unitRowVector
 from hexrd.xrd import xrdutil
 from hexrd.xrd.crystallography import PlaneData
 from hexrd import constants as ct
@@ -600,7 +600,7 @@ class HEDMInstrument(object):
             tth_ranges = np.degrees(plane_data.getMergedRanges()[1])
             tth_tols = np.vstack([i[1] - i[0] for i in tth_ranges])
         else:
-            tth_tols=np.ones(len(plane_data))*tth_tol
+            tth_tols = np.ones(len(plane_data))*tth_tol
 
         # =====================================================================
         # LOOP OVER DETECTORS
@@ -624,7 +624,8 @@ class HEDMInstrument(object):
 
             # make rings
             pow_angs, pow_xys = panel.make_powder_rings(
-                plane_data, merge_hkls=True, delta_tth=tth_tol, delta_eta=eta_tol)
+                plane_data, merge_hkls=True,
+                delta_tth=tth_tol, delta_eta=eta_tol)
 
             # =================================================================
             # LOOP OVER RING SETS
@@ -681,7 +682,7 @@ class HEDMInstrument(object):
                         ims_data = []
                     for j_p in np.arange(len(images)):
                         # catch interpolation type
-                        image=images[j_p]
+                        image = images[j_p]
                         if do_interpolation:
                             tmp = panel.interpolate_bilinear(
                                     xy_eval,
@@ -1552,13 +1553,13 @@ class PlanarDetector(object):
                     )
                     on_panel = np.logical_and(on_panel_x, on_panel_y)
             elif not buffer_edges:
-                    on_panel_x = np.logical_and(
-                        xy[:, 0] >= -xlim, xy[:, 0] <= xlim
-                    )
-                    on_panel_y = np.logical_and(
-                        xy[:, 1] >= -ylim, xy[:, 1] <= ylim
-                    )
-                    on_panel = np.logical_and(on_panel_x, on_panel_y)
+                on_panel_x = np.logical_and(
+                    xy[:, 0] >= -xlim, xy[:, 0] <= xlim
+                )
+                on_panel_y = np.logical_and(
+                    xy[:, 1] >= -ylim, xy[:, 1] <= ylim
+                )
+                on_panel = np.logical_and(on_panel_x, on_panel_y)
         return xy[on_panel, :], on_panel
 
     def cart_to_angles(self, xy_data):
@@ -1743,7 +1744,7 @@ class PlanarDetector(object):
         eta_centers = eta_edges[:-1] + del_eta
 
         # !!! get chi and ome from rmat_s
-        chi = np.arctan2(rmat_s[2, 1], rmat_s[1, 1])
+        # chi = np.arctan2(rmat_s[2, 1], rmat_s[1, 1])
         ome = np.arctan2(rmat_s[0, 2], rmat_s[0, 0])
 
         # make list of angle tuples
