@@ -111,7 +111,7 @@ def makeTitleBar(p, t, **kwargs):
     #  Keyword args
     #
     tt = 'tooltip'
-    if tt in kwargs:  titlebar.SetToolTipString(kwargs[tt])
+    if tt in kwargs:  titlebar.SetToolTip(kwargs[tt])
 
     cl = 'color'
     if cl in kwargs:
