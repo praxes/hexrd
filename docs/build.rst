@@ -48,11 +48,12 @@ For example, to buid an environment to run hexrd v0.6.x, do the following::
     conda activate hexrd_0.6
     
 
-Then install in develop mode using disutils::
+Then install using setuptools::
   
-    python setup.py develop
+    python setup.py install
     
-The procedure for building/installing with conda-build is as follows
+Note, you will have to install fabio in the same environment using ``setup.py`` as well.
+The procedure for building/installing with conda-build is as follows (*this is curently broken*)
 
 First, update conda and conda-build::
 
