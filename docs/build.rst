@@ -22,8 +22,6 @@ Building
 First, the dependencies for building an environment to run hexrd::
 
     - cython
-    - dask
-    - distributed
     - fabio <pip>
     - h5py
     - matplotlib
@@ -36,7 +34,7 @@ First, the dependencies for building an environment to run hexrd::
     - scikit-image
     - scikit-learn
     - scipy
-    - wxpython ==3
+    - wxpython
 
 If you will be running scripts of you own, I also strongly suggest adding spyder::
 
@@ -44,7 +42,11 @@ If you will be running scripts of you own, I also strongly suggest adding spyder
 
 For example, to buid an environment to run hexrd v0.6.x, do the following::
 
-    conda create --name hexrd_0.6 cython dask distributed h5py matplotlib numba numpy=1.15 progressbar=2.3 python=2.7 pyyaml setuptools scikit-image scikit-learn scipy spyder wxpython=3
+    conda create --name hexrd_0.6 cython h5py matplotlib numba numpy python=2.7 pyyaml setuptools scikit-image scikit-learn scipy spyder
+    conda install -c conda-forge --name hexrd_0.6 wxpython
+    conda install -c conda-forge --name hexrd_0.6 progressbar
+    conda activate hexrd_0.6
+    
 
 Then install in develop mode using disutils::
   
@@ -106,4 +108,4 @@ directory) and run::
 
     hexrd --verison
 
-It should currently read ``hexrd 0.6.0``
+It should currently read ``hexrd 0.6.5``
