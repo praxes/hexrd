@@ -97,7 +97,7 @@ def generate_orientation_fibers(
                 ndimage.center_of_mass(
                     this_map_f,
                     labels=labels_t,
-                    index=np.arange(1, np.amax(labels_t)+1)
+                    index=np.arange(1, np.amax(labels_t) + 1)
                     )
                 )
         elif method == "blob_log":
@@ -106,7 +106,7 @@ def generate_orientation_fibers(
             this_map[np.isnan(this_map)] = 0.
             this_map -= np.min(this_map)
             scl_map = 2*this_map/np.max(this_map) - 1.
-
+            import pdb; pbd.set_trace()
             # FIXME: need to expose the parameters to config options.
             blobs_log = np.atleast_2d(
                 blob_log(scl_map, min_sigma=0.5, max_sigma=5,
