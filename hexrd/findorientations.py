@@ -13,6 +13,7 @@ import numpy as np
 
 import scipy.cluster as cluster
 from scipy import ndimage
+from skimage.feature import blob_log
 
 from hexrd import matrixutil as mutil
 from hexrd.xrd import indexer as idx
@@ -28,7 +29,8 @@ from hexrd.fitgrains import get_instrument_parameters
 
 logger = logging.getLogger(__name__)
 
-save_as_ascii = False  # FIX LATER...
+save_as_ascii = False  # FIXME LATER...
+method = 'blob_log'  # FIXME LATER...
 
 # just require scikit-learn?
 have_sklearn = False
@@ -82,21 +84,36 @@ def generate_orientation_fibers(
     numSpots = []
     coms = []
     for i in seed_hkl_ids:
-        # First apply filter
-        this_map_f = -ndimage.filters.gaussian_laplace(
-            eta_ome.dataStore[i], filt_stdev)
+        if method == "label":
+            # First apply filter
+            this_map_f = -ndimage.filters.gaussian_laplace(
+                eta_ome.dataStore[i], filt_stdev)
 
-        labels_t, numSpots_t = ndimage.label(
-            this_map_f > threshold,
-            structureNDI_label
-            )
-        coms_t = np.atleast_2d(
-            ndimage.center_of_mass(
-                this_map_f,
-                labels=labels_t,
-                index=np.arange(1, np.amax(labels_t)+1)
+            labels_t, numSpots_t = ndimage.label(
+                this_map_f > threshold,
+                structureNDI_label
                 )
+            coms_t = np.atleast_2d(
+                ndimage.center_of_mass(
+                    this_map_f,
+                    labels=labels_t,
+                    index=np.arange(1, np.amax(labels_t)+1)
+                    )
+                )
+        elif method == "blob_log":
+            # must scale map
+            this_map = eta_ome.dataStore[i]
+            this_map[np.isnan(this_map)] = 0.
+            this_map -= np.min(this_map)
+            scl_map = 2*this_map/np.max(this_map) - 1.
+
+            # FIXME: need to expose the parameters to config options.
+            blobs_log = np.atleast_2d(
+                blob_log(scl_map, min_sigma=0.5, max_sigma=5,
+                         num_sigma=10, threshold=0.01, overlap=0.1)
             )
+            numSpots_t = len(blobs_log)
+            coms_t = blobs_log[:, 2]
         numSpots.append(numSpots_t)
         coms.append(coms_t)
         pass
@@ -151,7 +168,7 @@ def discretefiber_reduced(params_in):
     fiber_ndiv = paramMP['fiber_ndiv']
 
     hkl = params_in[:3].reshape(3, 1)
-    
+
     gVec_s = xfcapi.anglesToGVec(
         np.atleast_2d(params_in[3:]),
         chi=chi,
@@ -489,7 +506,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
                 )
             pass
         pass # close conditional on grid search
-    
+
     # generate the completion maps
     logger.info("Running paintgrid on %d trial orientations", quats.shape[1])
     if profile:

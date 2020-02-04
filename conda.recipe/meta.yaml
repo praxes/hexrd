@@ -3,8 +3,6 @@ package:
   version: {{ environ.get('GIT_DESCRIBE_TAG', '')[1:] }}
 
 source:
-  #git_url: https://github.com/joelvbernier/hexrd.git
-  #git_tag: v0.3.x
   git_url: ../
 
 build:
@@ -22,7 +20,7 @@ requirements:
   build:
     - numba
     - numpy
-    - python
+    - python <3
     - setuptools
   run:
     - h5py
@@ -30,7 +28,7 @@ requirements:
     - numba
     - numpy
     - progressbar
-    - python
+    - python <3
     - python.app # [osx]
     - pyyaml
     - scikit-image
