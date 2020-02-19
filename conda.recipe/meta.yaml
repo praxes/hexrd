@@ -22,21 +22,21 @@ requirements:
   build:
     - numba
     - numpy
-    - python
+    - python ==2
     - setuptools
   run:
     - h5py
     - matplotlib
     - numba
     - numpy
-    - progressbar >=2.3
-    - python
+    - progressbar
+    - python ==2
     - python.app # [osx]
     - pyyaml
     - scikit-image
     - scikit-learn
     - scipy
-    - wxpython ==3
+    - wxpython
 
 test:
   imports:
