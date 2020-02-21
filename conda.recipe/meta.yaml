@@ -29,14 +29,14 @@ requirements:
     - matplotlib
     - numba
     - numpy
-    - progressbar >=2.3
+    - progressbar
     - python
     - python.app # [osx]
     - pyyaml
     - scikit-image
     - scikit-learn
     - scipy
-    - wxpython ==3
+    - wxpython
 
 test:
   imports:
