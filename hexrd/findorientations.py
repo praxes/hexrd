@@ -27,10 +27,7 @@ from hexrd.xrd import distortion as dFuncs
 
 from hexrd.fitgrains import get_instrument_parameters
 
-logger = logging.getLogger(__name__)
-
-save_as_ascii = False  # FIXME LATER...
-method = 'blob_dog'  # FIXME LATER...
+from skimage.feature import blob_dog, blob_log
 
 # just require scikit-learn?
 have_sklearn = False
@@ -45,9 +42,20 @@ except ImportError:
     pass
 
 
+method = "blob_dog"  # !!! have to get this from the config
+save_as_ascii = False  # FIX LATER...
+
+logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
+
+
 def generate_orientation_fibers(
         eta_ome, chi, threshold, seed_hkl_ids, fiber_ndiv,
-        filt_stdev=0.8, ncpus=1):
+        method='blob_dog', filt_stdev=0.8, ncpus=1):
     """
     From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
@@ -84,11 +92,11 @@ def generate_orientation_fibers(
     numSpots = []
     coms = []
     for i in seed_hkl_ids:
-        if method == "label":
+        if method == 'label':
             # First apply filter
             this_map_f = -ndimage.filters.gaussian_laplace(
                 eta_ome.dataStore[i], filt_stdev)
-
+            
             labels_t, numSpots_t = ndimage.label(
                 this_map_f > threshold,
                 structureNDI_label
@@ -100,7 +108,7 @@ def generate_orientation_fibers(
                     index=np.arange(1, np.amax(labels_t) + 1)
                     )
                 )
-        elif method in ["blob_log", "blob_dog"]:
+        elif method in ['blob_log', 'blob_dog']:
             # must scale map
             this_map = eta_ome.dataStore[i]
             this_map[np.isnan(this_map)] = 0.
@@ -108,7 +116,7 @@ def generate_orientation_fibers(
             scl_map = 2*this_map/np.max(this_map) - 1.
 
             # FIXME: need to expose the parameters to config options.
-            if method == "blob_log":
+            if method == 'blob_log':
                 blobs = np.atleast_2d(
                     blob_log(scl_map, min_sigma=0.5, max_sigma=5,
                              num_sigma=10, threshold=0.01, overlap=0.1)

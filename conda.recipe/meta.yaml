@@ -3,6 +3,8 @@ package:
   version: {{ environ.get('GIT_DESCRIBE_TAG', '')[1:] }}
 
 source:
+  # git_url: https://github.com/joelvbernier/hexrd.git
+  # git_tag: v0.6.x
   git_url: ../
 
 build:
@@ -20,7 +22,7 @@ requirements:
   build:
     - numba
     - numpy
-    - python <3
+    - python
     - setuptools
   run:
     - h5py
@@ -28,7 +30,7 @@ requirements:
     - numba
     - numpy
     - progressbar
-    - python <3
+    - python
     - python.app # [osx]
     - pyyaml
     - scikit-image
@@ -39,17 +41,17 @@ requirements:
 test:
   imports:
     - hexrd
-   #commands:
-   #  - hexrd -V
-   #  - hexrd -h
-   #  - hexrd help
-   #  - hexrd find-orientations -h
-   #  - hexrd help find-orientations
-   #  - hexrd fit-grains -h
-   #  - hexrd help fit-grains
-   #  - hexrd gui -h
-   #  - hexrd help gui
-   #  - hexrd test
+   # commands:
+   #   - hexrd -V
+   #   - hexrd -h
+   #   - hexrd help
+   #   - hexrd find-orientations -h
+   #   - hexrd help find-orientations
+   #   - hexrd fit-grains -h
+   #   - hexrd help fit-grains
+   #   - hexrd gui -h
+   #   - hexrd help gui
+   #   - hexrd test
 
 about:
   license: LGPL
