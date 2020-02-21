@@ -101,7 +101,7 @@ class ListEditor(wx.Panel):
         myToolTip = r"""
 PANEL FOR ...
 """
-        self.titlebar.SetToolTipString(myToolTip)
+        self.titlebar.SetToolTip(myToolTip)
 
         return
 
