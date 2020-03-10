@@ -29,6 +29,7 @@ requirements:
     - matplotlib
     - numba
     - numpy
+    - psutil
     - progressbar
     - python
     - python.app # [osx]
