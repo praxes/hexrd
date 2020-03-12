@@ -96,9 +96,9 @@ t_vec_d_DFLT = np.r_[0., 0., -1000.]
 chi_DFLT = 0.
 t_vec_s_DFLT = np.zeros(3)
 
-# [wavelength, chi, tvec_s, expmap_c, tec_c], len is 11
+# [wavelength, beam azim, beam pola, chi, tvec_s], len is 7
 instr_param_flags_DFLT = np.array(
-    [0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1],
+    [0, 0, 0, 1, 0, 0, 0],
     dtype=bool)
 panel_param_flags_DFLT = np.array(
     [1, 1, 1, 1, 1, 1],
@@ -368,7 +368,7 @@ class HEDMInstrument(object):
     @param_flags.setter
     def param_flags(self, x):
         x = np.array(x, dtype=bool).flatten()
-        assert len(x) == 11 + 6*self.num_panels, \
+        assert len(x) == 7 + 6*self.num_panels, \
             "length of parameter list must be %d; you gave %d" \
             % (len(self._param_flags), len(x))
         self._param_flags = x
@@ -377,31 +377,94 @@ class HEDMInstrument(object):
     # METHODS
     # =========================================================================
 
-    def calibration_params(self, expmap_c, tvec_c):
-        plist = np.zeros(11 + 6*self.num_panels)
+    def calibration_params(self):
+        """
+        Yield the full list of adjustable parameters for
+        instument calibration.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        retval : array
+            concatenated list of calibration parameters.
+        """
+        azim, pola = calc_angles_from_beam_vec(self.beam_vector)
+
+        ni = 7
+        np = 6
+        ng = 12
+        
+        plist = np.zeros(ni + np*self.num_panels)
 
         plist[0] = self.beam_wavelength
-        plist[1] = self.chi
-        plist[2], plist[3], plist[4] = self.tvec
-        plist[5], plist[6], plist[7] = expmap_c
-        plist[8], plist[9], plist[10] = tvec_c
+        plist[1] = azim
+        plist[2] = pola
+        plist[3] = self.chi
+        plist[4], plist[5], plist[6] = self.tvec
 
-        ii = 11
+        ii = ni
         for panel in self.detectors.itervalues():
-            plist[ii:ii + 6] = np.hstack([
+            plist[ii:ii + np] = np.hstack([
                 panel.tilt.flatten(),
                 panel.tvec.flatten(),
             ])
-            ii += 6
+            ii += np
 
         # FIXME: FML!!!
         # this assumes old style distiortion = (func, params)
-        retval = plist
         for panel in self.detectors.itervalues():
             if panel.distortion is not None:
-                retval = np.hstack([retval, panel.distortion[1]])
-        return retval
+                plist = np.concatenate(
+                    [plist, panel.distortion[1]]
+                )
 
+        return plist
+
+
+    def update_from_calibration_params(plist):
+        """
+        """
+        ni = 7
+        np = 6
+        ng = 12
+
+        # check total length
+        len_plist = ni + np*self.num_panels
+        for panel in self.detectors.itervalues():
+            if panel.distortion is not None:
+                len_plist += len(panel.distortion[1])
+        if len(plist) > len_plist:
+            # ??? could have grains on here
+            raise RuntimeError("input plist is not the correct length")
+
+        # updates
+        self.beam_wavelength = plist[0]        
+        bvec = calc_beam_vec(plist[1], plist[2])
+        self.beam_vector = bvec
+        self.chi = plist[3]
+        self.tvec = plist[4:7]
+
+        ii = ni
+        for panel in self.detectors.itervalues():
+            tilt_n_trans = plist[ii:ii + np]
+            panel.tilt = tilt_n_trans[:3]
+            panel.tvec = tilt_n_trans[3:]
+            ii += np
+
+        # FIXME: FML!!!
+        # this assumes old style distiortion = (func, params)
+        for panel in self.detectors.itervalues():
+            if panel.distortion is not None:
+                ldp = len(panel.distortion[1])
+                panel.distortion[1] = plist[ii:ii + ldp]
+                ii += ldp
+        
+        return
+
+    
     def write_config(self, filename=None, calibration_dict={}):
         """ WRITE OUT YAML FILE """
         # initialize output dictionary
