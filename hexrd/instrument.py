@@ -104,6 +104,10 @@ panel_param_flags_DFLT = np.array(
     [1, 1, 1, 1, 1, 1],
     dtype=bool)
 
+NP_INS = 7
+NP_DET = 6
+NP_GRN = 12
+
 # =============================================================================
 # UTILITY METHODS
 # =============================================================================
@@ -368,7 +372,7 @@ class HEDMInstrument(object):
     @param_flags.setter
     def param_flags(self, x):
         x = np.array(x, dtype=bool).flatten()
-        assert len(x) == 7 + 6*self.num_panels, \
+        assert len(x) == NP_INS + NP_DET*self.num_panels, \
             "length of parameter list must be %d; you gave %d" \
             % (len(self._param_flags), len(x))
         self._param_flags = x
@@ -393,25 +397,21 @@ class HEDMInstrument(object):
         """
         azim, pola = calc_angles_from_beam_vec(self.beam_vector)
 
-        ni = 7
-        np = 6
-        ng = 12
-        
-        plist = np.zeros(ni + np*self.num_panels)
+        plist = np.zeros(NP_INS + NP_DET*self.num_panels)
 
-        plist[0] = self.beam_wavelength
+        plist[0] = self.beam_energy
         plist[1] = azim
         plist[2] = pola
         plist[3] = self.chi
         plist[4], plist[5], plist[6] = self.tvec
 
-        ii = ni
+        ii = NP_INS
         for panel in self.detectors.itervalues():
-            plist[ii:ii + np] = np.hstack([
+            plist[ii:ii + NP_DET] = np.hstack([
                 panel.tilt.flatten(),
                 panel.tvec.flatten(),
             ])
-            ii += np
+            ii += NP_DET
 
         # FIXME: FML!!!
         # this assumes old style distiortion = (func, params)
@@ -423,36 +423,31 @@ class HEDMInstrument(object):
 
         return plist
 
-
-    def update_from_calibration_params(plist):
+    def update_from_calibration_params(self, plist):
         """
         """
-        ni = 7
-        np = 6
-        ng = 12
-
         # check total length
-        len_plist = ni + np*self.num_panels
+        min_len_plist = NP_INS + NP_DET*self.num_panels
         for panel in self.detectors.itervalues():
             if panel.distortion is not None:
-                len_plist += len(panel.distortion[1])
-        if len(plist) > len_plist:
+                min_len_plist += len(panel.distortion[1])
+        if len(plist) < min_len_plist:
             # ??? could have grains on here
             raise RuntimeError("input plist is not the correct length")
 
         # updates
-        self.beam_wavelength = plist[0]        
+        self.beam_energy = plist[0]
         bvec = calc_beam_vec(plist[1], plist[2])
         self.beam_vector = bvec
         self.chi = plist[3]
         self.tvec = plist[4:7]
 
-        ii = ni
+        ii = NP_INS
         for panel in self.detectors.itervalues():
-            tilt_n_trans = plist[ii:ii + np]
+            tilt_n_trans = plist[ii:ii + NP_DET]
             panel.tilt = tilt_n_trans[:3]
             panel.tvec = tilt_n_trans[3:]
-            ii += np
+            ii += NP_DET
 
         # FIXME: FML!!!
         # this assumes old style distiortion = (func, params)
@@ -461,10 +456,9 @@ class HEDMInstrument(object):
                 ldp = len(panel.distortion[1])
                 panel.distortion[1] = plist[ii:ii + ldp]
                 ii += ldp
-        
+
         return
 
-    
     def write_config(self, filename=None, calibration_dict={}):
         """ WRITE OUT YAML FILE """
         # initialize output dictionary
