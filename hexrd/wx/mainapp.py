@@ -32,6 +32,7 @@ import os
 import sys
 
 import wx
+from wx.adv import SplashScreen
 
 from hexrd.wx.mainframe import MainFrame
 from hexrd.xrd.experiment import loadExp, ImageModes
@@ -130,11 +131,13 @@ def execute(*args):
     #
     splashFile = 'hexrd.png'
     splashDir = os.path.dirname(__file__)
-    splashImage = wx.Bitmap(os.path.join(splashDir, splashFile))
+    splashImage = wx.Bitmap(os.path.join(splashDir, splashFile),
+                            wx.BITMAP_TYPE_PNG)
     #
-    wx.SplashScreen(splashImage,
-                    wx.SPLASH_CENTRE_ON_PARENT | wx.SPLASH_TIMEOUT,
-                    1000, app.mframe)
+    splash = SplashScreen(
+        splashImage,
+        wx.adv.SPLASH_CENTRE_ON_PARENT | wx.adv.SPLASH_TIMEOUT,
+        1000, app.mframe)
     #
     # Main frame
     #
