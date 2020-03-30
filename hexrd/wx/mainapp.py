@@ -114,7 +114,7 @@ def execute(*args):
     #  Run program stand-alone.
     #
     app = xrdApp(*args)
-    app.mframe = MainFrame(None, wx.NewId())
+    app.mframe = MainFrame(None, wx.NewIdRef())
     app.SetTopWindow(app.mframe)
 
     # if len(sys.argv) == 1:

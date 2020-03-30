@@ -85,78 +85,78 @@ class spotsPanel(wx.Panel):
 
         # Booleans
 
-        self.disc_box  = wx.CheckBox(self, wx.NewId(), 'Discard at bounds')
-        self.bbox_box  = wx.CheckBox(self, wx.NewId(), 'Keep in bounding box')
-        self.pado_box  = wx.CheckBox(self, wx.NewId(), 'Pad Omega')
-        self.pads_box  = wx.CheckBox(self, wx.NewId(), 'Pad Spots')
+        self.disc_box  = wx.CheckBox(self, wx.NewIdRef(), 'Discard at bounds')
+        self.bbox_box  = wx.CheckBox(self, wx.NewIdRef(), 'Keep in bounding box')
+        self.pado_box  = wx.CheckBox(self, wx.NewIdRef(), 'Pad Omega')
+        self.pads_box  = wx.CheckBox(self, wx.NewIdRef(), 'Pad Spots')
 
         # Threshold
 
         self.thresh_lab = wx.StaticText(
-            self, wx.NewId(),
+            self, wx.NewIdRef(),
             'Threshold', style=wx.ALIGN_CENTER)
         self.thresh_txt = wx.TextCtrl(
-            self, wx.NewId(), value='500',
+            self, wx.NewIdRef(), value='500',
             style=wx.RAISED_BORDER)
 
         # Min PX
 
         self.minpx_lab = wx.StaticText(
-            self, wx.NewId(),
+            self, wx.NewIdRef(),
             'Min PX', style=wx.ALIGN_CENTER)
         self.minpx_txt = wx.TextCtrl(
-            self, wx.NewId(), value='4',
+            self, wx.NewIdRef(), value='4',
             style=wx.RAISED_BORDER)
 
         # Spots info
 
         self.aread_lab = wx.StaticText(
-            self, wx.NewId(),
+            self, wx.NewIdRef(),
             'Active Reader', style=wx.ALIGN_RIGHT)
-        self.aread_cho = wx.Choice(self, wx.NewId(), choices=['reader list'])
+        self.aread_cho = wx.Choice(self, wx.NewIdRef(), choices=['reader list'])
 
         self.rdr_lab = wx.StaticText(
-            self, wx.NewId(),
+            self, wx.NewIdRef(),
             'Used Readers', style=wx.ALIGN_RIGHT)
-        self.rdr_lbx =  wx.ListBox(self, wx.NewId(), choices = ['r1', 'r2'])
+        self.rdr_lbx =  wx.ListBox(self, wx.NewIdRef(), choices = ['r1', 'r2'])
 
         self.nspot_lab = wx.StaticText(
-            self, wx.NewId(),
+            self, wx.NewIdRef(),
             'Number of Spots', style=wx.ALIGN_RIGHT)
         self.nspot_txt = wx.TextCtrl(
-            self, wx.NewId(), value='0',
+            self, wx.NewIdRef(), value='0',
             style=wx.RAISED_BORDER)
 
 
         # Run button
 
-        self.run  = wx.Button(self, wx.NewId(), 'Add Spots')
-        self.clear_but  = wx.Button(self, wx.NewId(), 'Clear Spots')
+        self.run  = wx.Button(self, wx.NewIdRef(), 'Add Spots')
+        self.clear_but  = wx.Button(self, wx.NewIdRef(), 'Clear Spots')
 
         # Spots for Indexing info
 
         self.amat_lab = wx.StaticText(
-            self, wx.NewId(),
+            self, wx.NewIdRef(),
             'Active Material', style=wx.ALIGN_RIGHT)
-        self.amat_cho = wx.Choice(self, wx.NewId(), choices=['mat list'])
+        self.amat_cho = wx.Choice(self, wx.NewIdRef(), choices=['mat list'])
         self.Bind(wx.EVT_CHOICE, self.OnMatChoice, self.aread_cho)
 
 
         self.hkls_lab = wx.StaticText(
-            self, wx.NewId(),
+            self, wx.NewIdRef(),
             '', style=wx.ALIGN_RIGHT)
-        self.hkls_but = wx.Button(self, wx.NewId(), 'HKLs')
+        self.hkls_but = wx.Button(self, wx.NewIdRef(), 'HKLs')
 
         self.nspotind_lab = wx.StaticText(
-            self, wx.NewId(),
+            self, wx.NewIdRef(),
             'Number of Spots', style=wx.ALIGN_RIGHT)
         self.nspotind_txt = wx.TextCtrl(
-            self, wx.NewId(), value='0',
+            self, wx.NewIdRef(), value='0',
             style=wx.RAISED_BORDER)
 
         # Run button for indexing spots
 
-        self.run_ind  = wx.Button(self, wx.NewId(), 'Process Spots\nfor Indexing')
+        self.run_ind  = wx.Button(self, wx.NewIdRef(), 'Process Spots\nfor Indexing')
 
         return
 
@@ -340,7 +340,7 @@ class spotsPanel(wx.Panel):
             'args'  : (),
             'kwargs': dict()
             }
-        logwin = logWindow(self, wx.NewId(), action, 'Finding Spots')
+        logwin = logWindow(self, wx.NewIdRef(), action, 'Finding Spots')
         logwin.ShowModal()
 
         self.updateFromExp()
@@ -357,7 +357,7 @@ class spotsPanel(wx.Panel):
     def OnRunHKLs(self, evt):
         """Select HKLs to use for indexing"""
         exp = wx.GetApp().ws
-        hkls_dlg = HklsDlg(self, wx.NewId(), exp.activeMaterial)
+        hkls_dlg = HklsDlg(self, wx.NewIdRef(), exp.activeMaterial)
 
         if hkls_dlg.ShowModal() == wx.ID_OK:
             exp.activeMaterial.planeData.exclusions = hkls_dlg.getExclusions()

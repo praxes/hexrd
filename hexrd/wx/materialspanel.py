@@ -83,55 +83,55 @@ class matPanel(wx.Panel):
         #
         #  Material List
         #
-        self.curr_lab = wx.StaticText(self, wx.NewId(),
+        self.curr_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Active Material', style=wx.ALIGN_CENTER)
-        self.mats_cho = wx.Choice(self, wx.NewId(),
+        self.mats_cho = wx.Choice(self, wx.NewIdRef(),
                                   choices=[m.name for m in exp.matList])
-        self.new_but  = wx.Button(self, wx.NewId(), 'New Material')
+        self.new_but  = wx.Button(self, wx.NewIdRef(), 'New Material')
         #
         #  Material Name
         #
-        self.name_lab = wx.StaticText(self, wx.NewId(),
+        self.name_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'MATERIAL NAME', style=wx.ALIGN_CENTER)
-        self.name_txt = wx.TextCtrl(self, wx.NewId(), value=Material.DFLT_NAME,
+        self.name_txt = wx.TextCtrl(self, wx.NewIdRef(), value=Material.DFLT_NAME,
                                       style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
         #
         #  Rings panel
         #
-        self.ring_pan = ringPanel(self, wx.NewId())
+        self.ring_pan = ringPanel(self, wx.NewIdRef())
         #
         #  Categories
         #
         #  ========== Lattice Params
         #
-        self.lp_a_lab = wx.StaticText(self, wx.NewId(), 'a', style=wx.ALIGN_CENTER)
-        self.lp_a_txt = wx.TextCtrl(self, wx.NewId(), value='0',
+        self.lp_a_lab = wx.StaticText(self, wx.NewIdRef(), 'a', style=wx.ALIGN_CENTER)
+        self.lp_a_txt = wx.TextCtrl(self, wx.NewIdRef(), value='0',
                                     style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
 
-        self.lp_b_lab = wx.StaticText(self, wx.NewId(), 'b', style=wx.ALIGN_CENTER)
-        self.lp_b_txt = wx.TextCtrl(self, wx.NewId(), value='0',
+        self.lp_b_lab = wx.StaticText(self, wx.NewIdRef(), 'b', style=wx.ALIGN_CENTER)
+        self.lp_b_txt = wx.TextCtrl(self, wx.NewIdRef(), value='0',
                                     style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
 
-        self.lp_c_lab = wx.StaticText(self, wx.NewId(), 'c', style=wx.ALIGN_CENTER)
-        self.lp_c_txt = wx.TextCtrl(self, wx.NewId(), value='0',
+        self.lp_c_lab = wx.StaticText(self, wx.NewIdRef(), 'c', style=wx.ALIGN_CENTER)
+        self.lp_c_txt = wx.TextCtrl(self, wx.NewIdRef(), value='0',
                                     style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
 
-        self.alpha_lab = wx.StaticText(self, wx.NewId(), 'alpha', style=wx.ALIGN_CENTER)
-        self.alpha_txt = wx.TextCtrl(self, wx.NewId(), value='90',
+        self.alpha_lab = wx.StaticText(self, wx.NewIdRef(), 'alpha', style=wx.ALIGN_CENTER)
+        self.alpha_txt = wx.TextCtrl(self, wx.NewIdRef(), value='90',
                                      style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
 
-        self.beta_lab = wx.StaticText(self, wx.NewId(), 'beta', style=wx.ALIGN_CENTER)
-        self.beta_txt = wx.TextCtrl(self, wx.NewId(), value='90',
+        self.beta_lab = wx.StaticText(self, wx.NewIdRef(), 'beta', style=wx.ALIGN_CENTER)
+        self.beta_txt = wx.TextCtrl(self, wx.NewIdRef(), value='90',
                                     style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
 
-        self.gamma_lab = wx.StaticText(self, wx.NewId(), 'gamma', style=wx.ALIGN_CENTER)
-        self.gamma_txt = wx.TextCtrl(self, wx.NewId(), value='90',
+        self.gamma_lab = wx.StaticText(self, wx.NewIdRef(), 'gamma', style=wx.ALIGN_CENTER)
+        self.gamma_txt = wx.TextCtrl(self, wx.NewIdRef(), value='90',
                                      style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
 
-        self.units_lab  = wx.StaticText(self, wx.NewId(), 'UNITS', style=wx.ALIGN_CENTER)
-        self.dunits_cho = wx.Choice(self, wx.NewId(), choices=['angstroms'])
+        self.units_lab  = wx.StaticText(self, wx.NewIdRef(), 'UNITS', style=wx.ALIGN_CENTER)
+        self.dunits_cho = wx.Choice(self, wx.NewIdRef(), choices=['angstroms'])
         self.dunits_cho.SetSelection(0)
-        self.aunits_cho = wx.Choice(self, wx.NewId(), choices=['degrees'])
+        self.aunits_cho = wx.Choice(self, wx.NewIdRef(), choices=['degrees'])
         self.aunits_cho.SetSelection(0)
         #
         #  Save list of lattice parameter windows.
@@ -150,33 +150,33 @@ class matPanel(wx.Panel):
         #
         #  ========== Space group info
         #
-        self.sg_lab = wx.StaticText(self, wx.NewId(), 'Space Group',
+        self.sg_lab = wx.StaticText(self, wx.NewIdRef(), 'Space Group',
                                     style=wx.ALIGN_CENTER)
-        self.sg_spn = wx.SpinCtrl(self, wx.NewId(), min=1, max=230, initial=mat.spaceGroup.sgnum)
+        self.sg_spn = wx.SpinCtrl(self, wx.NewIdRef(), min=1, max=230, initial=mat.spaceGroup.sgnum)
 
-        self.hall_lab = wx.StaticText(self, wx.NewId(), 'Hall Symbol',
+        self.hall_lab = wx.StaticText(self, wx.NewIdRef(), 'Hall Symbol',
                                       style=wx.ALIGN_CENTER)
-        self.hall_txt = wx.TextCtrl(self, wx.NewId(), value='',
+        self.hall_txt = wx.TextCtrl(self, wx.NewIdRef(), value='',
                                     style=wx.RAISED_BORDER|wx.TE_READONLY)
 
-        self.herm_lab = wx.StaticText(self, wx.NewId(), 'Hermann-Mauguin',
+        self.herm_lab = wx.StaticText(self, wx.NewIdRef(), 'Hermann-Mauguin',
                                       style=wx.ALIGN_CENTER)
-        self.herm_txt = wx.TextCtrl(self, wx.NewId(), value='',
+        self.herm_txt = wx.TextCtrl(self, wx.NewIdRef(), value='',
                                     style=wx.RAISED_BORDER|wx.TE_READONLY)
 
-        self.laue_lab = wx.StaticText(self, wx.NewId(), 'Laue Group',
+        self.laue_lab = wx.StaticText(self, wx.NewIdRef(), 'Laue Group',
                                       style=wx.ALIGN_CENTER)
-        self.laue_txt = wx.TextCtrl(self, wx.NewId(), value='',
+        self.laue_txt = wx.TextCtrl(self, wx.NewIdRef(), value='',
                                     style=wx.RAISED_BORDER|wx.TE_READONLY)
 
-        self.ltype_lab = wx.StaticText(self, wx.NewId(), 'Lattice Type',
+        self.ltype_lab = wx.StaticText(self, wx.NewIdRef(), 'Lattice Type',
                                        style=wx.ALIGN_CENTER)
-        self.ltype_txt = wx.TextCtrl(self, wx.NewId(), value='',
+        self.ltype_txt = wx.TextCtrl(self, wx.NewIdRef(), value='',
                                      style=wx.RAISED_BORDER|wx.TE_READONLY)
 
-        self.hkls_lab = wx.StaticText(self, wx.NewId(), 'HKLs Max (sum of squares)',
+        self.hkls_lab = wx.StaticText(self, wx.NewIdRef(), 'HKLs Max (sum of squares)',
                                       style=wx.ALIGN_CENTER)
-        self.hkls_txt = wx.TextCtrl(self, wx.NewId(), value='10',
+        self.hkls_txt = wx.TextCtrl(self, wx.NewIdRef(), value='10',
                                     style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
 
         return

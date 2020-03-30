@@ -109,14 +109,14 @@ class detectorPanel(wx.Panel):
         #
         #  Material Selection
         #
-        self.mats_lab = wx.StaticText(self, wx.NewId(),
+        self.mats_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Active Material', style=wx.ALIGN_CENTER)
-        self.mats_cho = wx.Choice(self, wx.NewId(),
+        self.mats_cho = wx.Choice(self, wx.NewIdRef(),
                                   choices=[m.name for m in exp.matList])
         #
         #  Rings panel
         #
-        self.ring_pan = ringPanel(self, wx.NewId())
+        self.ring_pan = ringPanel(self, wx.NewIdRef())
         #
         #  II.  Geometry
         #
@@ -128,47 +128,47 @@ class detectorPanel(wx.Panel):
         app = wx.GetApp()
         det = app.ws.detector
 
-        self.nrows_txt = wx.TextCtrl(self, wx.NewId(), value=str(det.nrows), style=wx.RAISED_BORDER)
-        self.ncols_txt = wx.TextCtrl(self, wx.NewId(), value=str(det.ncols), style=wx.RAISED_BORDER)
-        self.pixel_txt = wx.TextCtrl(self, wx.NewId(), value=str(det.pixelPitch), style=wx.RAISED_BORDER)
-        self.pixel_txt_s = wx.TextCtrl(self, wx.NewId(), value=str(det.pixelPitch), style=wx.RAISED_BORDER|wx.TE_READONLY)
+        self.nrows_txt = wx.TextCtrl(self, wx.NewIdRef(), value=str(det.nrows), style=wx.RAISED_BORDER)
+        self.ncols_txt = wx.TextCtrl(self, wx.NewIdRef(), value=str(det.ncols), style=wx.RAISED_BORDER)
+        self.pixel_txt = wx.TextCtrl(self, wx.NewIdRef(), value=str(det.pixelPitch), style=wx.RAISED_BORDER)
+        self.pixel_txt_s = wx.TextCtrl(self, wx.NewIdRef(), value=str(det.pixelPitch), style=wx.RAISED_BORDER|wx.TE_READONLY)
         
         name = 'x Center'
-        self.cbox_xc  = wx.CheckBox(self, wx.NewId(), name)
-        self.float_xc = FloatControl(self, wx.NewId())
+        self.cbox_xc  = wx.CheckBox(self, wx.NewIdRef(), name)
+        self.float_xc = FloatControl(self, wx.NewIdRef())
         self.float_xc.SetValue(det.xc)
         self.float_xc.SetDelta(0.5*det.pixelPitch)
 
         name = 'y Center'
-        self.cbox_yc  = wx.CheckBox(self, wx.NewId(), name)
-        self.float_yc = FloatControl(self, wx.NewId())
+        self.cbox_yc  = wx.CheckBox(self, wx.NewIdRef(), name)
+        self.float_yc = FloatControl(self, wx.NewIdRef())
         self.float_yc.SetValue(det.yc)
         self.float_yc.SetDelta(0.5*det.pixelPitch)
 
         name = 'Distance'
-        self.cbox_D  = wx.CheckBox(self, wx.NewId(), name)
-        self.float_D = FloatControl(self, wx.NewId())
+        self.cbox_D  = wx.CheckBox(self, wx.NewIdRef(), name)
+        self.float_D = FloatControl(self, wx.NewIdRef())
         self.float_D.SetValue(det.workDist)
         self.float_D.SetDelta(10*det.pixelPitch)
 
         name = 'x Tilt'
-        self.cbox_xt  = wx.CheckBox(self, wx.NewId(), name)
-        self.float_xt = FloatControl(self, wx.NewId())
+        self.cbox_xt  = wx.CheckBox(self, wx.NewIdRef(), name)
+        self.float_xt = FloatControl(self, wx.NewIdRef())
         self.float_xt.SetValue(det.xTilt)
 
         name = 'y Tilt'
-        self.cbox_yt  = wx.CheckBox(self, wx.NewId(), name)
-        self.float_yt = FloatControl(self, wx.NewId())
+        self.cbox_yt  = wx.CheckBox(self, wx.NewIdRef(), name)
+        self.float_yt = FloatControl(self, wx.NewIdRef())
         self.float_yt.SetValue(det.yTilt)
 
         name = 'z Tilt'
-        self.cbox_zt  = wx.CheckBox(self, wx.NewId(), name)
-        self.float_zt = FloatControl(self, wx.NewId())
+        self.cbox_zt  = wx.CheckBox(self, wx.NewIdRef(), name)
+        self.float_zt = FloatControl(self, wx.NewIdRef())
         self.float_zt.SetValue(det.zTilt)
 
         name = 'chi Tilt'
-        self.cbox_ct  = wx.CheckBox(self, wx.NewId(), name)
-        self.float_ct = FloatControl(self, wx.NewId())
+        self.cbox_ct  = wx.CheckBox(self, wx.NewIdRef(), name)
+        self.float_ct = FloatControl(self, wx.NewIdRef())
         self.float_ct.SetValue(det.chiTilt)
 
         #
@@ -179,57 +179,57 @@ class detectorPanel(wx.Panel):
         #     number (if any at all) will change for each
         #     detector type.
         name = 'p0'
-        self.cbox_d1  = wx.CheckBox(self, wx.NewId(), name)
-        self.float_d1 = FloatControl(self, wx.NewId())
+        self.cbox_d1  = wx.CheckBox(self, wx.NewIdRef(), name)
+        self.float_d1 = FloatControl(self, wx.NewIdRef())
         self.float_d1.SetValue(det.dparms[0])
 
         name = 'p1'
-        self.cbox_d2  = wx.CheckBox(self, wx.NewId(), name)
-        self.float_d2 = FloatControl(self, wx.NewId())
+        self.cbox_d2  = wx.CheckBox(self, wx.NewIdRef(), name)
+        self.float_d2 = FloatControl(self, wx.NewIdRef())
         self.float_d2.SetValue(det.dparms[1])
 
         name = 'p2'
-        self.cbox_d3  = wx.CheckBox(self, wx.NewId(), name)
-        self.float_d3 = FloatControl(self, wx.NewId())
+        self.cbox_d3  = wx.CheckBox(self, wx.NewIdRef(), name)
+        self.float_d3 = FloatControl(self, wx.NewIdRef())
         self.float_d3.SetValue(det.dparms[2])
 
         name = 'n0'
-        self.cbox_d4  = wx.CheckBox(self, wx.NewId(), name)
-        self.float_d4 = FloatControl(self, wx.NewId())
+        self.cbox_d4  = wx.CheckBox(self, wx.NewIdRef(), name)
+        self.float_d4 = FloatControl(self, wx.NewIdRef())
         self.float_d4.SetValue(det.dparms[3])
 
         name = 'n1'
-        self.cbox_d5  = wx.CheckBox(self, wx.NewId(), name)
-        self.float_d5 = FloatControl(self, wx.NewId())
+        self.cbox_d5  = wx.CheckBox(self, wx.NewIdRef(), name)
+        self.float_d5 = FloatControl(self, wx.NewIdRef())
         self.float_d5.SetValue(det.dparms[4])
 
         name = 'n2'
-        self.cbox_d6  = wx.CheckBox(self, wx.NewId(), name)
-        self.float_d6 = FloatControl(self, wx.NewId())
+        self.cbox_d6  = wx.CheckBox(self, wx.NewIdRef(), name)
+        self.float_d6 = FloatControl(self, wx.NewIdRef())
         self.float_d6.SetValue(det.dparms[5])
         #
         #  Fitting method
         #
         self.fitLabelSizer = makeTitleBar(self, 'Fitting Method',
                                           color=WP.TITLEBAR_BG_COLOR_PANEL1)
-        self.fitDir_rb = wx.RadioButton(self, wx.NewId(), 'Direct Fit',
+        self.fitDir_rb = wx.RadioButton(self, wx.NewIdRef(), 'Direct Fit',
                                        style=wx.RB_GROUP)
-        self.fitBin_rb = wx.RadioButton(self, wx.NewId(), 'Binned Fit')
+        self.fitBin_rb = wx.RadioButton(self, wx.NewIdRef(), 'Binned Fit')
         #
         #  III. Caking
         #
-        self.numEta_lab = wx.StaticText(self, wx.NewId(),
+        self.numEta_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Azimuthal bins',
                                          style=wx.ALIGN_RIGHT)
-        self.numRho_lab = wx.StaticText(self, wx.NewId(),
+        self.numRho_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Radial bins per ring',
                                          style=wx.ALIGN_RIGHT)
-        self.numEta_spn = wx.SpinCtrl(self, wx.NewId(), min=12, initial=36)
-        self.numRho_spn = wx.SpinCtrl(self, wx.NewId(), min=10, initial=20)
+        self.numEta_spn = wx.SpinCtrl(self, wx.NewIdRef(), min=12, initial=36)
+        self.numRho_spn = wx.SpinCtrl(self, wx.NewIdRef(), min=10, initial=20)
         #
         #  Fit button with options (at some point)
         #
-        self.runFit_but  = wx.Button(self, wx.NewId(), 'Run Fit')
+        self.runFit_but  = wx.Button(self, wx.NewIdRef(), 'Run Fit')
 
         return
 
@@ -498,7 +498,7 @@ class detectorPanel(wx.Panel):
         #         'args': (),
         #         'kwargs': dict()
         #         }
-        #     logwin = logWindow(self, wx.NewId(), action, 'Fitting Log')
+        #     logwin = logWindow(self, wx.NewIdRef(), action, 'Fitting Log')
         #     logwin.ShowModal()
         #
         # except Exception as e:

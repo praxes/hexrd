@@ -105,7 +105,7 @@ def makeTitleBar(p, t, **kwargs):
     We use a workaround by creating a sizer with colored boxes
     on either side.
 """
-    titlebar = wx.StaticText(p, wx.NewId(), t,
+    titlebar = wx.StaticText(p, wx.NewIdRef(), t,
                              style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
     #
     #  Keyword args
@@ -142,7 +142,7 @@ def makeTitleBar(p, t, **kwargs):
 
 def callJoel(p):
     """Return message to display on empty pages"""
-    hpage = wx.html.HtmlWindow(p, wx.NewId())
+    hpage = wx.html.HtmlWindow(p, wx.NewIdRef())
 
     msg = r"""<html>
 <body>

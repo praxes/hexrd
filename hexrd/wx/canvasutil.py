@@ -95,7 +95,7 @@ class cmapPanel(wx.Panel):
         #
         #  * choose colormap and vmin and vmax
         #
-        self.cmap_lab = wx.StaticText(self, wx.NewId(),
+        self.cmap_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Colormap:  ',
                                         style=wx.ALIGN_RIGHT)
 
@@ -103,39 +103,39 @@ class cmapPanel(wx.Panel):
                               'flag', 'gray', 'gray_r', 'hot', 'hot_r',
                               'hsv', 'jet', 'pink', 'prism', 'spring',
                               'summer', 'winter', 'spectral']
-        self.cmap_cho = wx.Choice(self, wx.NewId(),
+        self.cmap_cho = wx.Choice(self, wx.NewIdRef(),
                                   choices=self.cmap_nameList)
 
         self.cmap_name = 'bone'
         self.cmap_cho.SetStringSelection(self.cmap_name)
 
         self.cmin_val = 0
-        self.cmin_lab = wx.StaticText(self, wx.NewId(),
+        self.cmin_lab = wx.StaticText(self, wx.NewIdRef(),
                                       'Minimum:  ',
                                       style=wx.ALIGN_RIGHT)
-        self.cmin_txt = wx.TextCtrl(self, wx.NewId(),
+        self.cmin_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                     value=str(self.cmin_val),
                                     style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
-        self.cmUnder_box = wx.CheckBox(self, wx.NewId(), 'show under')
+        self.cmUnder_box = wx.CheckBox(self, wx.NewIdRef(), 'show under')
 
         self.cmax_val = 2000
-        self.cmax_lab = wx.StaticText(self, wx.NewId(),
+        self.cmax_lab = wx.StaticText(self, wx.NewIdRef(),
                                       'Maximum:  ',
                                       style=wx.ALIGN_RIGHT)
-        self.cmax_txt = wx.TextCtrl(self, wx.NewId(),
+        self.cmax_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                     value=str(self.cmax_val),
                                     style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
-        self.cmOver_box = wx.CheckBox(self, wx.NewId(), 'show over')
+        self.cmOver_box = wx.CheckBox(self, wx.NewIdRef(), 'show over')
 
         self.apply_filter = False
         self.filter_val = 0.8
-        self.applyFilter_txt = wx.TextCtrl(self, wx.NewId(),
+        self.applyFilter_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                            value=str(self.filter_val),
                                            style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
-        self.applyFilter_lab =  wx.StaticText(self, wx.NewId(),
+        self.applyFilter_lab =  wx.StaticText(self, wx.NewIdRef(),
                                               'Apply filter:  ',
                                               style=wx.ALIGN_RIGHT)
-        self.applyFilter_box = wx.CheckBox(self, wx.NewId(), 'apply filter')
+        self.applyFilter_box = wx.CheckBox(self, wx.NewIdRef(), 'apply filter')
 
         return
 

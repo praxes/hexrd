@@ -70,30 +70,30 @@ class xrdNoteBook(wx.Notebook):
         self.pageDict = dict()
         #
         title = 'Materials'
-        panel = matPanel(self, wx.NewId())
+        panel = matPanel(self, wx.NewIdRef())
         self.materialsPanel = panel
         self.AddPage(panel, title)
         self.pageDict[title] = panel
         #
         title = 'Reader'
-        self.readerPanel = readerPanel(self, wx.NewId())
+        self.readerPanel = readerPanel(self, wx.NewIdRef())
         self.AddPage(self.readerPanel, title)
         self.pageDict[title] = self.readerPanel
         #
         title = 'Detector'
-        self.detectorPanel = detectorPanel(self, wx.NewId())
+        self.detectorPanel = detectorPanel(self, wx.NewIdRef())
         self.AddPage(self.detectorPanel, title)
         self.pageDict[title] = self.detectorPanel
         #
         title = 'Spots'
-        self.spotsPanel = spotsPanel(self, wx.NewId())
+        self.spotsPanel = spotsPanel(self, wx.NewIdRef())
         self.AddPage(self.spotsPanel, title)
         self.pageDict[title] = self.spotsPanel
         #
         #
-        self.AddPage(indexPanel(self, wx.NewId()),
+        self.AddPage(indexPanel(self, wx.NewIdRef()),
                      'Indexing')
-        self.AddPage(grainPanel(self, wx.NewId()),
+        self.AddPage(grainPanel(self, wx.NewIdRef()),
                      'Grains')
         #
         #  Make sure page is updated on page change.

@@ -40,36 +40,36 @@ class ReaderInfoPanel(wx.Panel):
         """Add interactors"""
 
         self.tbarSizer = makeTitleBar(self, 'Reader Info')
-        self.file_but = wx.Button(self, wx.NewId(),
+        self.file_but = wx.Button(self, wx.NewIdRef(),
                                   'File'
                                   )
-        self.file_txt = wx.TextCtrl(self, wx.NewId(),
+        self.file_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                     value="<none selected>",
                                     style=wx.RAISED_BORDER|wx.TE_READONLY
                                     )
-        self.format_lab = wx.StaticText(self, wx.NewId(),
+        self.format_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Format', style=wx.ALIGN_RIGHT
                                         )
-        self.format_cho = wx.Choice(self, wx.NewId(),
+        self.format_cho = wx.Choice(self, wx.NewIdRef(),
                                     choices=['hdf5', 'frame-cache']
                                     )
-        self.pixel_lab = wx.StaticText(self, wx.NewId(),
+        self.pixel_lab = wx.StaticText(self, wx.NewIdRef(),
                                        'Pixel Pitch', style=wx.ALIGN_RIGHT
                                        )
-        self.pixel_txt = wx.TextCtrl(self, wx.NewId(),
+        self.pixel_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                      value='0.2',
                                      style=wx.RAISED_BORDER
                                      )
-        self.option_lab = wx.StaticText(self, wx.NewId(),
+        self.option_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Option', style=wx.ALIGN_RIGHT
                                         )
-        self.value_lab = wx.StaticText(self, wx.NewId(),
+        self.value_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Value', style=wx.ALIGN_LEFT
                                         )
-        self.option_cho = wx.Choice(self, wx.NewId(),
+        self.option_cho = wx.Choice(self, wx.NewIdRef(),
                                     choices=['path', 'pixel pitch']
                                     )
-        self.value_txt = wx.TextCtrl(self, wx.NewId(),
+        self.value_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                      value="/imageseries",
                                      style=wx.RAISED_BORDER
                                      )

@@ -96,7 +96,7 @@ PANEL FOR ...
         #
         LStyle = wx.LC_REPORT
         #
-        listctrl = wx.ListView(self, wx.NewId(), style=LStyle)
+        listctrl = wx.ListView(self, wx.NewIdRef(), style=LStyle)
         listctrl.InsertColumn(0, 'HKL')
         listctrl.InsertColumn(1, 'd-spacing')
         listctrl.InsertColumn(2, '2-theta (deg)')
@@ -211,7 +211,7 @@ class selectHKLsDialog(wx.Dialog):
         #
         self.titlebar = wx.StaticText(self, -1, 'selectHKLsDialog',
                                       style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
-        self.dataPanel = selectHKLsPanel(self, wx.NewId(), mat)
+        self.dataPanel = selectHKLsPanel(self, wx.NewIdRef(), mat)
         self.dataPanel.SetMinSize((400,400))
         #
         #  Bindings.

@@ -83,13 +83,13 @@ class ListEditor(wx.Panel):
         """Add interactors"""
 
         #self.__makeTitleBar('List Editor')
-        self.main_lbx =  wx.ListBox(self, wx.NewId(),
+        self.main_lbx =  wx.ListBox(self, wx.NewIdRef(),
                                     style = wx.LB_SINGLE,
                                     choices = [item.name for item in self.mylist])
-        self.up_but   = wx.Button(self, wx.NewId(), 'up')
-        self.down_but = wx.Button(self, wx.NewId(), 'down')
-        self.del_but  = wx.Button(self, wx.NewId(), 'del')
-        self.copy_but = wx.Button(self, wx.NewId(), 'copy')
+        self.up_but   = wx.Button(self, wx.NewIdRef(), 'up')
+        self.down_but = wx.Button(self, wx.NewIdRef(), 'down')
+        self.del_but  = wx.Button(self, wx.NewIdRef(), 'del')
+        self.copy_but = wx.Button(self, wx.NewIdRef(), 'copy')
 
         return
 
@@ -237,7 +237,7 @@ class ListEditDlg(wx.Dialog):
         self.titlebar = wx.StaticText(self, -1, 'List Editor',
                                       style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
         #
-        self.list_ed = ListEditor(self, wx.NewId(), mylist)
+        self.list_ed = ListEditor(self, wx.NewIdRef(), mylist)
         #
         #  Bindings.
         #

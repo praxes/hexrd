@@ -36,6 +36,21 @@ from setuptools import Command, Extension, find_packages, setup
 
 import versioneer
 
+install_reqs = [
+    'fabio@git+https://github.com/joelvbernier/fabio.git@master',
+    'h5py',
+    'matplotlib',
+    'numba',
+    'numpy',
+    'psutil',
+    'progressbar',
+    'python',
+    'pyyaml',
+    'scikit-image',
+    'scikit-learn',
+    'scipy',
+    'wxpython'
+]
 
 cmdclass = versioneer.get_cmdclass()
 
@@ -141,4 +156,5 @@ setup(
     data_files = data_files,
     package_data = package_data,
     cmdclass = cmdclass,
+    install_requires=install_reqs    
     )

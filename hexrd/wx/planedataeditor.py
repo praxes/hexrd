@@ -96,70 +96,70 @@ class PlaneDataPanel(wx.Panel):
         #
         #  Text control for name
         #
-        self.name_lab = wx.StaticText(self, wx.NewId(), 'Name', style=wx.ALIGN_CENTER)
-        self.name_txt = wx.TextCtrl(self, wx.NewId(), value='',
+        self.name_lab = wx.StaticText(self, wx.NewIdRef(), 'Name', style=wx.ALIGN_CENTER)
+        self.name_txt = wx.TextCtrl(self, wx.NewIdRef(), value='',
                                     style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
         self.name_txt.ChangeValue(self.mat.name)
         #
         #  Two-Theta and wavelength selectors, with units.
         #
-        self.tthmin_lab = wx.StaticText(self, wx.NewId(), 'Two Theta Min',
+        self.tthmin_lab = wx.StaticText(self, wx.NewIdRef(), 'Two Theta Min',
                                             style=wx.ALIGN_CENTER)
-        self.tthmin_txt = wx.TextCtrl(self, wx.NewId(), value='0.0',
+        self.tthmin_txt = wx.TextCtrl(self, wx.NewIdRef(), value='0.0',
                                           style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
-        self.tthmin_uni = wx.Choice(self, wx.NewId(), choices=AngleUnits)
+        self.tthmin_uni = wx.Choice(self, wx.NewIdRef(), choices=AngleUnits)
         #self.Bind(wx.EVT_CHOICE, self.OnChoice, self.choice)
 
 
-        self.tthmax_lab = wx.StaticText(self, wx.NewId(), 'Two Theta Max',
+        self.tthmax_lab = wx.StaticText(self, wx.NewIdRef(), 'Two Theta Max',
                                         style=wx.ALIGN_CENTER)
-        self.tthmax_txt = wx.TextCtrl(self, wx.NewId(), value='20.0',
+        self.tthmax_txt = wx.TextCtrl(self, wx.NewIdRef(), value='20.0',
                                       style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
-        self.tthmax_uni = wx.Choice(self, wx.NewId(), choices=AngleUnits)
+        self.tthmax_uni = wx.Choice(self, wx.NewIdRef(), choices=AngleUnits)
 
-        self.wave_lab = wx.StaticText(self, wx.NewId(), 'Wavelength',
+        self.wave_lab = wx.StaticText(self, wx.NewIdRef(), 'Wavelength',
                                       style=wx.ALIGN_CENTER)
-        self.wave_txt = wx.TextCtrl(self, wx.NewId(), value='',
+        self.wave_txt = wx.TextCtrl(self, wx.NewIdRef(), value='',
                                     style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
         self.wave_txt.ChangeValue(str(self.pData.wavelength))
-        self.wave_uni = wx.Choice(self, wx.NewId(), choices=AngleUnits)
+        self.wave_uni = wx.Choice(self, wx.NewIdRef(), choices=AngleUnits)
         #
         #  Group selectors
         #
-        self.laue_lab = wx.StaticText(self, wx.NewId(),
+        self.laue_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Select the Laue group',
                                         style=wx.ALIGN_RIGHT)
-        self.laue_cho = wx.Choice(self, wx.NewId(), choices=['Laue Groups'])
+        self.laue_cho = wx.Choice(self, wx.NewIdRef(), choices=['Laue Groups'])
 
-        self.space_lab = wx.StaticText(self, wx.NewId(),
+        self.space_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Select the Space group',
                                         style=wx.ALIGN_RIGHT)
-        self.space_cho = wx.Choice(self, wx.NewId(), choices=['Space Groups'])
+        self.space_cho = wx.Choice(self, wx.NewIdRef(), choices=['Space Groups'])
         #
         #  Add HKL list
         #
-        self.hkls_clb =  wx.CheckListBox(self, wx.NewId(), choices = self.__getHKLs())
+        self.hkls_clb =  wx.CheckListBox(self, wx.NewIdRef(), choices = self.__getHKLs())
         [self.hkls_clb.Check(i, not self.exclude[i]) for i in range(len(self.exclude))]
         #
         #  Lattice Parameters
         #
-        self.lp_a_lab = wx.StaticText(self, wx.NewId(), 'a', style=wx.ALIGN_CENTER)
-        self.lp_a_txt = wx.TextCtrl(self, wx.NewId(), value='',
+        self.lp_a_lab = wx.StaticText(self, wx.NewIdRef(), 'a', style=wx.ALIGN_CENTER)
+        self.lp_a_txt = wx.TextCtrl(self, wx.NewIdRef(), value='',
                                         style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
-        self.lp_b_lab = wx.StaticText(self, wx.NewId(), 'b', style=wx.ALIGN_CENTER)
-        self.lp_b_txt = wx.TextCtrl(self, wx.NewId(), value='',
+        self.lp_b_lab = wx.StaticText(self, wx.NewIdRef(), 'b', style=wx.ALIGN_CENTER)
+        self.lp_b_txt = wx.TextCtrl(self, wx.NewIdRef(), value='',
                                         style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
-        self.lp_c_lab = wx.StaticText(self, wx.NewId(), 'c', style=wx.ALIGN_CENTER)
-        self.lp_c_txt = wx.TextCtrl(self, wx.NewId(), value='',
+        self.lp_c_lab = wx.StaticText(self, wx.NewIdRef(), 'c', style=wx.ALIGN_CENTER)
+        self.lp_c_txt = wx.TextCtrl(self, wx.NewIdRef(), value='',
                                         style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
-        self.lp_alpha_lab = wx.StaticText(self, wx.NewId(), 'alpha', style=wx.ALIGN_CENTER)
-        self.lp_alpha_txt = wx.TextCtrl(self, wx.NewId(), value='',
+        self.lp_alpha_lab = wx.StaticText(self, wx.NewIdRef(), 'alpha', style=wx.ALIGN_CENTER)
+        self.lp_alpha_txt = wx.TextCtrl(self, wx.NewIdRef(), value='',
                                         style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
-        self.lp_beta_lab = wx.StaticText(self, wx.NewId(), 'beta', style=wx.ALIGN_CENTER)
-        self.lp_beta_txt = wx.TextCtrl(self, wx.NewId(), value='',
+        self.lp_beta_lab = wx.StaticText(self, wx.NewIdRef(), 'beta', style=wx.ALIGN_CENTER)
+        self.lp_beta_txt = wx.TextCtrl(self, wx.NewIdRef(), value='',
                                         style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
-        self.lp_gamma_lab = wx.StaticText(self, wx.NewId(), 'gamma', style=wx.ALIGN_CENTER)
-        self.lp_gamma_txt = wx.TextCtrl(self, wx.NewId(), value='',
+        self.lp_gamma_lab = wx.StaticText(self, wx.NewIdRef(), 'gamma', style=wx.ALIGN_CENTER)
+        self.lp_gamma_txt = wx.TextCtrl(self, wx.NewIdRef(), value='',
                                         style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
 
         return
@@ -290,8 +290,8 @@ class PlaneDataDialog(wx.Dialog):
         #
         self.titlebar = wx.StaticText(self, -1, 'PlaneDataDialog',
                                       style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
-        self.pdPanel = PlaneDataPanel(self, wx.NewId(), self.mat)
-        self.quitBut  = wx.Button(self, wx.NewId(), 'QUIT')
+        self.pdPanel = PlaneDataPanel(self, wx.NewIdRef(), self.mat)
+        self.quitBut  = wx.Button(self, wx.NewIdRef(), 'QUIT')
         #
         #  Bindings.
         #

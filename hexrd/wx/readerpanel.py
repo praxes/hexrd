@@ -82,9 +82,9 @@ class readerPanel(wx.Panel):
         #
         #  Add detector choice
         #
-        self.det_cho = wx.Choice(self, wx.NewId(),
+        self.det_cho = wx.Choice(self, wx.NewIdRef(),
                                  choices=DET_CHOICES)
-        self.rdr_pan = geReaderPanel(self, wx.NewId())
+        self.rdr_pan = geReaderPanel(self, wx.NewIdRef())
 
         return
 

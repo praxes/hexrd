@@ -87,8 +87,8 @@ class fitParamPanel(wx.Panel):
         for p in self.fParams:
             name  = p.getProp('name')
             valu  = p.getProp('value')
-            cbox  = wx.CheckBox(self, wx.NewId(), name)
-            spin  = wx.SpinCtrl(self, wx.NewId(), str(valu), initial=50, name=name)
+            cbox  = wx.CheckBox(self, wx.NewIdRef(), name)
+            spin  = wx.SpinCtrl(self, wx.NewIdRef(), str(valu), initial=50, name=name)
             self.rowDict[name] = [cbox, spin]
             pass
 

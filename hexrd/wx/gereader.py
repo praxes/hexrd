@@ -151,58 +151,58 @@ class geReaderPanel(wx.Panel):
         #
         #  Reader List
         #
-        self.curr_lab = wx.StaticText(self, wx.NewId(),
+        self.curr_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Current Reader', style=wx.ALIGN_CENTER)
-        self.rdrs_cho = wx.Choice(self, wx.NewId(),
+        self.rdrs_cho = wx.Choice(self, wx.NewIdRef(),
                                   choices=[r.name for r in exp.savedReaders])
-        self.new_but  = wx.Button(self, wx.NewId(), 'New Reader')
+        self.new_but  = wx.Button(self, wx.NewIdRef(), 'New Reader')
         #
         #  Reader Name
         #
-        self.name_lab = wx.StaticText(self, wx.NewId(),
+        self.name_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'READER NAME', style=wx.ALIGN_CENTER)
-        self.name_txt = wx.TextCtrl(self, wx.NewId(), value=ReaderInput.DFLT_NAME,
+        self.name_txt = wx.TextCtrl(self, wx.NewIdRef(), value=ReaderInput.DFLT_NAME,
                                       style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
         #
         #  Mode interactors
         #
-        self.mode_lab = wx.StaticText(self, wx.NewId(), 'Image Mode',
+        self.mode_lab = wx.StaticText(self, wx.NewIdRef(), 'Image Mode',
                                       style=wx.ALIGN_RIGHT)
-        self.mode_cho = wx.Choice(self, wx.NewId(), choices=MODE_CHOICES)
+        self.mode_cho = wx.Choice(self, wx.NewIdRef(), choices=MODE_CHOICES)
         #
         #  Aggregation
         #
-        self.agg_lab = wx.StaticText(self, wx.NewId(), 'Frame Aggregation',
+        self.agg_lab = wx.StaticText(self, wx.NewIdRef(), 'Frame Aggregation',
                                       style=wx.ALIGN_RIGHT)
-        self.agg_cho = wx.Choice(self, wx.NewId(), choices=AGG_CHOICES)
+        self.agg_cho = wx.Choice(self, wx.NewIdRef(), choices=AGG_CHOICES)
         #
         #
         #  Image and dark file names
         #
-        self.img_but    = wx.Button(self, wx.NewId(), 'Select Imageseries File')
-        self.dir_but    = wx.Button(self, wx.NewId(), 'Change Image Folder')
+        self.img_but    = wx.Button(self, wx.NewIdRef(), 'Select Imageseries File')
+        self.dir_but    = wx.Button(self, wx.NewIdRef(), 'Change Image Folder')
 
         #
         #  Action buttons
         #
-        self.files_lab = wx.StaticText(self, wx.NewId(), 'Image Files',
+        self.files_lab = wx.StaticText(self, wx.NewIdRef(), 'Image Files',
                                       style=wx.ALIGN_RIGHT)
-        self.read_lab = wx.StaticText(self, wx.NewId(), 'Read',
+        self.read_lab = wx.StaticText(self, wx.NewIdRef(), 'Read',
                                       style=wx.ALIGN_RIGHT)
 
-        self.read_but   = wx.Button(self, wx.NewId(), 'Load')
-        self.browse_lab = wx.StaticText(self, wx.NewId(), 'Browse Frames',
+        self.read_but   = wx.Button(self, wx.NewIdRef(), 'Load')
+        self.browse_lab = wx.StaticText(self, wx.NewIdRef(), 'Browse Frames',
                                       style=wx.ALIGN_RIGHT)
-        self.browse_spn = wx.SpinCtrl(self, wx.NewId(), min=0, initial=0)
-        self.browse_inf = wx.TextCtrl(self, wx.NewId(), value='',
+        self.browse_spn = wx.SpinCtrl(self, wx.NewIdRef(), min=0, initial=0)
+        self.browse_inf = wx.TextCtrl(self, wx.NewIdRef(), value='',
                                       style=wx.RAISED_BORDER|wx.TE_READONLY)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         #
         #  Subpanels
         #
-        self.sp_single = SF_Subpanel(self, wx.NewId())
-        self.sp_multi  = MF_Subpanel(self, wx.NewId())
-        self.sp_info   = infoPanel(self, wx.NewId())
+        self.sp_single = SF_Subpanel(self, wx.NewIdRef())
+        self.sp_multi  = MF_Subpanel(self, wx.NewIdRef())
+        self.sp_info   = infoPanel(self, wx.NewIdRef())
 
         return
 
@@ -562,7 +562,7 @@ class MF_Subpanel(wx.Panel):
         #
         LStyle = wx.LC_REPORT|wx.LC_SINGLE_SEL
         #
-        listctrl = myListCtrl(self, wx.NewId(), style=LStyle)
+        listctrl = myListCtrl(self, wx.NewIdRef(), style=LStyle)
         listctrl.InsertColumn(0, 'Image File')
         listctrl.InsertColumn(1, 'Empty Frames')
         listctrl.InsertColumn(2, 'Total Frames')
@@ -674,7 +674,7 @@ class SF_Subpanel(wx.Panel):
         #
         LStyle = wx.LC_REPORT|wx.LC_SINGLE_SEL
         #
-        listctrl = wx.ListCtrl(self, wx.NewId(), style=LStyle)
+        listctrl = wx.ListCtrl(self, wx.NewIdRef(), style=LStyle)
         listctrl.InsertColumn(0, 'Image File')
         listctrl.InsertColumn(1, 'Omega')
         listctrl.SetColumnWidth(1, wx.LIST_AUTOSIZE_USEHEADER)
@@ -750,9 +750,9 @@ class infoPanel(wx.Panel):
         #  File lists for display.
         #
 
-        self.img_txt_lab = wx.StaticText(self, wx.NewId(), 'Image Directory',
+        self.img_txt_lab = wx.StaticText(self, wx.NewIdRef(), 'Image Directory',
                                          style=wx.ALIGN_CENTER)
-        self.img_txt = wx.TextCtrl(self, wx.NewId(), value='<no images loaded>',
+        self.img_txt = wx.TextCtrl(self, wx.NewIdRef(), value='<no images loaded>',
                                    style=wx.RAISED_BORDER)
 
         return

@@ -86,13 +86,13 @@ class indexPanel(wx.Panel):
         ind_opts = exp.index_opts
 
         self.sz_titlebar = makeTitleBar(self, 'Indexing')
-        self.method_cho = wx.Choice(self, wx.NewId(),
+        self.method_cho = wx.Choice(self, wx.NewIdRef(),
                                     choices=ind_opts.INDEX_CHOICES)
         self.method_cho.SetSelection(ind_opts.IND_FIBER)
-        self.run_but  = wx.Button(self, wx.NewId(), 'Run Indexer')
+        self.run_but  = wx.Button(self, wx.NewIdRef(), 'Run Indexer')
 
-        self.fiber_pan = FiberSearchPanel(self, wx.NewId())
-        self.gspot_pan = GrainSpotterPanel(self, wx.NewId())
+        self.fiber_pan = FiberSearchPanel(self, wx.NewIdRef())
+        self.gspot_pan = GrainSpotterPanel(self, wx.NewIdRef())
 
         return
 
@@ -202,59 +202,59 @@ class FiberSearchPanel(wx.Panel):
 
         # checkboxes
 
-        self.friedel_cbox = wx.CheckBox(self, wx.NewId(), 'Friedel Only')
+        self.friedel_cbox = wx.CheckBox(self, wx.NewIdRef(), 'Friedel Only')
         self.friedel_cbox.SetValue(iopts.friedelOnly)
-        self.claims_cbox = wx.CheckBox(self, wx.NewId(), 'Preserve Claims')
+        self.claims_cbox = wx.CheckBox(self, wx.NewIdRef(), 'Preserve Claims')
         self.claims_cbox.SetValue(iopts.preserveClaims)
-        self.refine_cbox  = wx.CheckBox(self, wx.NewId(), 'Do Refinement')
+        self.refine_cbox  = wx.CheckBox(self, wx.NewIdRef(), 'Do Refinement')
         self.refine_cbox.SetValue(iopts.doRefinement)
-        self.multi_cbox  = wx.CheckBox(self, wx.NewId(), 'Use Multiprocessing')
+        self.multi_cbox  = wx.CheckBox(self, wx.NewIdRef(), 'Use Multiprocessing')
         self.multi_cbox.SetValue(iopts.doMultiProc)
 
         # value boxes
 
-        self.etol_lab = wx.StaticText(self, wx.NewId(), 'Eta Tolerance',
+        self.etol_lab = wx.StaticText(self, wx.NewIdRef(), 'Eta Tolerance',
                                       style=wx.ALIGN_RIGHT)
-        self.etol_txt = wx.TextCtrl(self, wx.NewId(), value=str(iopts.etaTol),
+        self.etol_txt = wx.TextCtrl(self, wx.NewIdRef(), value=str(iopts.etaTol),
                                     style=wx.RAISED_BORDER)
 
-        self.otol_lab = wx.StaticText(self, wx.NewId(), 'Omega Tolerance',
+        self.otol_lab = wx.StaticText(self, wx.NewIdRef(), 'Omega Tolerance',
                                       style=wx.ALIGN_RIGHT)
-        self.otol_txt = wx.TextCtrl(self, wx.NewId(), value=str(iopts.omeTol),
+        self.otol_txt = wx.TextCtrl(self, wx.NewIdRef(), value=str(iopts.omeTol),
                                     style=wx.RAISED_BORDER)
 
-        self.steps_lab = wx.StaticText(self, wx.NewId(), 'Number of Steps',
+        self.steps_lab = wx.StaticText(self, wx.NewIdRef(), 'Number of Steps',
                                       style=wx.ALIGN_RIGHT)
-        self.steps_spn = wx.SpinCtrl(self, wx.NewId(),
+        self.steps_spn = wx.SpinCtrl(self, wx.NewIdRef(),
                                      min=36, max=36000, initial=iopts.nsteps)
 
         label = 'Minimum Completeness'
-        self.comp_lab = wx.StaticText(self, wx.NewId(), label,
+        self.comp_lab = wx.StaticText(self, wx.NewIdRef(), label,
                                       style=wx.ALIGN_RIGHT)
-        self.comp_txt = wx.TextCtrl(self, wx.NewId(),
+        self.comp_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                     value=str(iopts.minCompleteness),
                                     style=wx.RAISED_BORDER)
 
         label = 'Minimum Fraction Claimed'
-        self.claim_lab = wx.StaticText(self, wx.NewId(), label,
+        self.claim_lab = wx.StaticText(self, wx.NewIdRef(), label,
                                       style=wx.ALIGN_RIGHT)
-        self.claim_txt = wx.TextCtrl(self, wx.NewId(),
+        self.claim_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                      value=str(iopts.minPctClaimed),
                                      style=wx.RAISED_BORDER)
 
         label = 'Number of CPUs'
-        self.ncpus_lab = wx.StaticText(self, wx.NewId(), label,
+        self.ncpus_lab = wx.StaticText(self, wx.NewIdRef(), label,
                                       style=wx.ALIGN_RIGHT)
-        self.ncpus_spn = wx.SpinCtrl(self, wx.NewId(),
+        self.ncpus_spn = wx.SpinCtrl(self, wx.NewIdRef(),
                                      min=1, max=ncpus_DFLT, initial=ncpus_DFLT)
 
         label = 'Quit After This Many'
-        self.qafter_lab = wx.StaticText(self, wx.NewId(), label,
+        self.qafter_lab = wx.StaticText(self, wx.NewIdRef(), label,
                                       style=wx.ALIGN_RIGHT)
-        self.qafter_spn = wx.SpinCtrl(self, wx.NewId(),
+        self.qafter_spn = wx.SpinCtrl(self, wx.NewIdRef(),
                                      min=0, max=100000, initial=0)
 
-        self.hkls_but = wx.Button(self, wx.NewId(), 'HKLs')
+        self.hkls_but = wx.Button(self, wx.NewIdRef(), 'HKLs')
 
         return
 
@@ -344,7 +344,7 @@ class FiberSearchPanel(wx.Panel):
         iopts = exp.index_opts
         pd = exp.activeMaterial.planeData
 
-        hkls_dlg = HklsDlg(self, wx.NewId(), exp.activeMaterial)
+        hkls_dlg = HklsDlg(self, wx.NewIdRef(), exp.activeMaterial)
 
         if hkls_dlg.ShowModal() == wx.ID_OK:
             # pd.exclusions = hkls_dlg.getExclusions()
@@ -394,29 +394,29 @@ class GrainSpotterPanel(wx.Panel):
         self.tbarSizer = makeTitleBar(self, 'Grain Spotter Options',
                                       color=WP.BG_COLOR_PANEL1_TITLEBAR)
 
-        self.pfit_cbox = wx.CheckBox(self, wx.NewId(), 'Position Fit')
+        self.pfit_cbox = wx.CheckBox(self, wx.NewIdRef(), 'Position Fit')
 
         label = 'Minimum Completeness'
-        self.comp_lab = wx.StaticText(self, wx.NewId(), label,
+        self.comp_lab = wx.StaticText(self, wx.NewIdRef(), label,
                                       style=wx.ALIGN_CENTER)
-        self.comp_txt = wx.TextCtrl(self, wx.NewId(), value='0.5',
+        self.comp_txt = wx.TextCtrl(self, wx.NewIdRef(), value='0.5',
                                     style=wx.RAISED_BORDER)
 
         label = 'Minimum Fraction of G-Vectors'
-        self.fracG_lab = wx.StaticText(self, wx.NewId(), label,
+        self.fracG_lab = wx.StaticText(self, wx.NewIdRef(), label,
                                       style=wx.ALIGN_CENTER)
-        self.fracG_txt = wx.TextCtrl(self, wx.NewId(), value='0.5',
+        self.fracG_txt = wx.TextCtrl(self, wx.NewIdRef(), value='0.5',
                                     style=wx.RAISED_BORDER)
 
         label = 'Sigmas'
-        self.sigmas_lab = wx.StaticText(self, wx.NewId(), label,
+        self.sigmas_lab = wx.StaticText(self, wx.NewIdRef(), label,
                                       style=wx.ALIGN_CENTER)
-        self.sigmas_txt = wx.TextCtrl(self, wx.NewId(), value='2.0',
+        self.sigmas_txt = wx.TextCtrl(self, wx.NewIdRef(), value='2.0',
                                     style=wx.RAISED_BORDER)
 
-        self.trials_lab = wx.StaticText(self, wx.NewId(), 'Number of Trials',
+        self.trials_lab = wx.StaticText(self, wx.NewIdRef(), 'Number of Trials',
                                       style=wx.ALIGN_CENTER)
-        self.trials_spn = wx.SpinCtrl(self, wx.NewId(),
+        self.trials_spn = wx.SpinCtrl(self, wx.NewIdRef(),
                                      min=1000, max=1000000, initial=100000)
 
 

@@ -89,18 +89,18 @@ class cakingPanel(wx.Panel):
 
         self.tbarSizer = makeTitleBar(self, 'Polar Rebinning')
         #
-        self.std_pan = standardOptsPanel(self, wx.NewId())
-        self.mrb_pan = multiringOptsPanel(self, wx.NewId())
-        self.sph_pan = sphericalOptsPanel(self, wx.NewId())
+        self.std_pan = standardOptsPanel(self, wx.NewIdRef())
+        self.mrb_pan = multiringOptsPanel(self, wx.NewIdRef())
+        self.sph_pan = sphericalOptsPanel(self, wx.NewIdRef())
         #
         #  Method
         #
-        self.method_cho = wx.Choice(self, wx.NewId(), choices=prOpts.cakeMethods)
+        self.method_cho = wx.Choice(self, wx.NewIdRef(), choices=prOpts.cakeMethods)
         self.method_cho.SetSelection(2)
         #
         #  Run
         #
-        self.run_but   = wx.Button(self, wx.NewId(), 'Run Polar Rebin')
+        self.run_but   = wx.Button(self, wx.NewIdRef(), 'Run Polar Rebin')
         #
         #  Canvas for figures moved to separate window:  see cakingCanvas.py
         #
@@ -168,7 +168,7 @@ class cakingPanel(wx.Panel):
             'args'  : (),
             'kwargs': dict()
             }
-        logwin = logWindow(self, wx.NewId(), action, 'Standard Polar Rebinning')
+        logwin = logWindow(self, wx.NewIdRef(), action, 'Standard Polar Rebinning')
         logwin.ShowModal()
         #
         #  ==============================
@@ -177,7 +177,7 @@ class cakingPanel(wx.Panel):
         #
         #  Now draw
         #
-        cCan = cakeDisplay(self, wx.NewId(), prOpts.CAKE_IMG, self.img_info)
+        cCan = cakeDisplay(self, wx.NewIdRef(), prOpts.CAKE_IMG, self.img_info)
         #
         pass
 
@@ -191,12 +191,12 @@ class cakingPanel(wx.Panel):
         #     'args'  : (),
         #     'kwargs': dict()
         #     }
-        # logwin = logWindow(self, wx.NewId(), action, 'Multiring Binning')
+        # logwin = logWindow(self, wx.NewIdRef(), action, 'Multiring Binning')
         # logwin.ShowModal()
 
         # ====================
 
-        cCan = cakeDisplay(self, wx.NewId(), prOpts.CAKE_RNG, self.mrb)
+        cCan = cakeDisplay(self, wx.NewIdRef(), prOpts.CAKE_RNG, self.mrb)
 
         return
 
@@ -276,7 +276,7 @@ class cakingPanel(wx.Panel):
 
         self.omeEta = CollapseOmeEta(reader, pdata, hklIDs, det, **kwargs)
 
-        cCan = cakeDisplay(self, wx.NewId(), prOpts.CAKE_SPH, self.omeEta)
+        cCan = cakeDisplay(self, wx.NewIdRef(), prOpts.CAKE_SPH, self.omeEta)
 
         return
     #
@@ -355,7 +355,7 @@ class cakingDialog(wx.Dialog):
         #
         self.titlebar = wx.StaticText(self, -1, 'cakingDialog',
                                       style=wx.ALIGN_CENTER|wx.SIMPLE_BORDER)
-        self.dataPanel = cakingPanel(self, wx.NewId())
+        self.dataPanel = cakingPanel(self, wx.NewIdRef())
         #
         #  Bindings.
         #
@@ -445,33 +445,33 @@ class standardOptsPanel(wx.Panel):
         #
         #  Labels
         #
-        self.min_lab = wx.StaticText(self, wx.NewId(), 'min', style=wx.ALIGN_CENTER)
-        self.max_lab = wx.StaticText(self, wx.NewId(), 'max', style=wx.ALIGN_CENTER)
-        self.num_lab = wx.StaticText(self, wx.NewId(), 'num', style=wx.ALIGN_CENTER)
-        self.rho_lab = wx.StaticText(self, wx.NewId(), 'rho', style=wx.ALIGN_CENTER)
-        self.eta_lab = wx.StaticText(self, wx.NewId(), 'eta', style=wx.ALIGN_CENTER)
+        self.min_lab = wx.StaticText(self, wx.NewIdRef(), 'min', style=wx.ALIGN_CENTER)
+        self.max_lab = wx.StaticText(self, wx.NewIdRef(), 'max', style=wx.ALIGN_CENTER)
+        self.num_lab = wx.StaticText(self, wx.NewIdRef(), 'num', style=wx.ALIGN_CENTER)
+        self.rho_lab = wx.StaticText(self, wx.NewIdRef(), 'rho', style=wx.ALIGN_CENTER)
+        self.eta_lab = wx.StaticText(self, wx.NewIdRef(), 'eta', style=wx.ALIGN_CENTER)
         #
         #  Rho
         #
-        self.rmin_spn  = wx.SpinCtrl(self, wx.NewId(), min=1, max=10000, value=str(100))
-        self.rmax_spn  = wx.SpinCtrl(self, wx.NewId(), min=1, max=10000, value=str(1000))
-        self.rnum_spn  = wx.SpinCtrl(self, wx.NewId(), min=1, max=10000, value=str(500))
+        self.rmin_spn  = wx.SpinCtrl(self, wx.NewIdRef(), min=1, max=10000, value=str(100))
+        self.rmax_spn  = wx.SpinCtrl(self, wx.NewIdRef(), min=1, max=10000, value=str(1000))
+        self.rnum_spn  = wx.SpinCtrl(self, wx.NewIdRef(), min=1, max=10000, value=str(500))
         #
         #  Eta
         #
-        self.emin_spn  = wx.SpinCtrl(self, wx.NewId(), min=-360, max=360, value=str(0))
-        self.emax_spn  = wx.SpinCtrl(self, wx.NewId(), min=-360, max=360, value=str(360))
-        self.enum_spn  = wx.SpinCtrl(self, wx.NewId(), min=1,    max=360, value=str(36))
+        self.emin_spn  = wx.SpinCtrl(self, wx.NewIdRef(), min=-360, max=360, value=str(0))
+        self.emax_spn  = wx.SpinCtrl(self, wx.NewIdRef(), min=-360, max=360, value=str(360))
+        self.enum_spn  = wx.SpinCtrl(self, wx.NewIdRef(), min=1,    max=360, value=str(36))
         #
         #  Other options
         #
-        self.corr_cbox = wx.CheckBox(self, wx.NewId(), 'corrected')
-        self.npdv_lab  = wx.StaticText(self, wx.NewId(), 'pixel divisions',
+        self.corr_cbox = wx.CheckBox(self, wx.NewIdRef(), 'corrected')
+        self.npdv_lab  = wx.StaticText(self, wx.NewIdRef(), 'pixel divisions',
                                       style=wx.ALIGN_CENTER)
-        self.npdv_spn  = wx.SpinCtrl(self, wx.NewId(), min=1, max=10, initial=1)
-        self.frame_lab = wx.StaticText(self, wx.NewId(), 'frame',
+        self.npdv_spn  = wx.SpinCtrl(self, wx.NewIdRef(), min=1, max=10, initial=1)
+        self.frame_lab = wx.StaticText(self, wx.NewIdRef(), 'frame',
                                        style=wx.ALIGN_CENTER)
-        self.frame_cho = wx.Choice(self, wx.NewId(), choices=['frame 1'])
+        self.frame_cho = wx.Choice(self, wx.NewIdRef(), choices=['frame 1'])
 
         return
 
@@ -629,28 +629,28 @@ class multiringOptsPanel(wx.Panel):
 
         self.tbarSizer = makeTitleBar(self, 'Options for Multiring Rebin')
 
-        self.ring_pan = ringPanel(self, wx.NewId())
+        self.ring_pan = ringPanel(self, wx.NewIdRef())
 
-        self.emin_lab = wx.StaticText(self, wx.NewId(),
+        self.emin_lab = wx.StaticText(self, wx.NewIdRef(),
                                       'Eta min',
                                       style=wx.ALIGN_RIGHT)
-        self.emax_lab = wx.StaticText(self, wx.NewId(),
+        self.emax_lab = wx.StaticText(self, wx.NewIdRef(),
                                       'Eta max',
                                       style=wx.ALIGN_RIGHT)
-        self.emin_txt = wx.TextCtrl(self, wx.NewId(),
+        self.emin_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                     value='0',
                                     style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
-        self.emax_txt = wx.TextCtrl(self, wx.NewId(),
+        self.emax_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                     value='360',
                                     style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
-        self.numEta_lab = wx.StaticText(self, wx.NewId(),
+        self.numEta_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Number of Eta Bins',
                                          style=wx.ALIGN_RIGHT)
-        self.numRho_lab = wx.StaticText(self, wx.NewId(),
+        self.numRho_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Rho Bins Per Ring',
                                          style=wx.ALIGN_RIGHT)
-        self.numEta_spn = wx.SpinCtrl(self, wx.NewId(), min=1, value=str(36) )
-        self.numRho_spn = wx.SpinCtrl(self, wx.NewId(), min=1, value=str(20) )
+        self.numEta_spn = wx.SpinCtrl(self, wx.NewIdRef(), min=1, value=str(36) )
+        self.numRho_spn = wx.SpinCtrl(self, wx.NewIdRef(), min=1, value=str(20) )
 
         return
 
@@ -783,45 +783,45 @@ class sphericalOptsPanel(wx.Panel):
         #
         #  Integer inputs
         #
-        self.lump_lab = wx.StaticText(self, wx.NewId(), '# lumped frames (omega)', style=wx.ALIGN_CENTER)
-        self.lump_spn  = wx.SpinCtrl(self, wx.NewId(), min=1, max=1000, initial=1)
+        self.lump_lab = wx.StaticText(self, wx.NewIdRef(), '# lumped frames (omega)', style=wx.ALIGN_CENTER)
+        self.lump_spn  = wx.SpinCtrl(self, wx.NewIdRef(), min=1, max=1000, initial=1)
 
-        self.bins_lab = wx.StaticText(self, wx.NewId(), 'azimuthal bins (eta)', style=wx.ALIGN_CENTER)
-        self.bins_spn  = wx.SpinCtrl(self, wx.NewId(), min=1, max=10000, initial=600)
+        self.bins_lab = wx.StaticText(self, wx.NewIdRef(), 'azimuthal bins (eta)', style=wx.ALIGN_CENTER)
+        self.bins_spn  = wx.SpinCtrl(self, wx.NewIdRef(), min=1, max=10000, initial=600)
 
-        self.thresh_lab = wx.StaticText(self, wx.NewId(), 'threshold',
+        self.thresh_lab = wx.StaticText(self, wx.NewIdRef(), 'threshold',
                                         style=wx.ALIGN_CENTER)
-        self.thresh_spn  = wx.SpinCtrl(self, wx.NewId(), min=0, max=10000, initial=20)
+        self.thresh_spn  = wx.SpinCtrl(self, wx.NewIdRef(), min=0, max=10000, initial=20)
         #
         #  Material and HKLs selector
         #
         exp = wx.GetApp().ws
-        self.matl_cho = wx.Choice(self, wx.NewId(), choices=exp.matNames)
+        self.matl_cho = wx.Choice(self, wx.NewIdRef(), choices=exp.matNames)
         self.matl_cho.SetSelection(0)
-        self.read_cho = wx.Choice(self, wx.NewId(), choices=exp.readerNames)
+        self.read_cho = wx.Choice(self, wx.NewIdRef(), choices=exp.readerNames)
         self.read_cho.SetSelection(0)
-        self.hkls_but = wx.Button(self, wx.NewId(), 'Select HKL')
+        self.hkls_but = wx.Button(self, wx.NewIdRef(), 'Select HKL')
         #
         #  Angle/axis
         #
         name = 'angle'
-        self.angle_lab = wx.StaticText(self, wx.NewId(), name, style=wx.ALIGN_CENTER)
-        self.angle_flt = FloatControl(self, wx.NewId())
+        self.angle_lab = wx.StaticText(self, wx.NewIdRef(), name, style=wx.ALIGN_CENTER)
+        self.angle_flt = FloatControl(self, wx.NewIdRef())
         self.angle_flt.SetValue(1.0)
 
         name = 'axis x'
-        self.axis1_lab = wx.StaticText(self, wx.NewId(), name, style=wx.ALIGN_CENTER)
-        self.axis1_flt = FloatControl(self, wx.NewId())
+        self.axis1_lab = wx.StaticText(self, wx.NewIdRef(), name, style=wx.ALIGN_CENTER)
+        self.axis1_flt = FloatControl(self, wx.NewIdRef())
         self.axis1_flt.SetValue(1.0)
 
         name = 'axis y'
-        self.axis2_lab = wx.StaticText(self, wx.NewId(), name, style=wx.ALIGN_CENTER)
-        self.axis2_flt = FloatControl(self, wx.NewId())
+        self.axis2_lab = wx.StaticText(self, wx.NewIdRef(), name, style=wx.ALIGN_CENTER)
+        self.axis2_flt = FloatControl(self, wx.NewIdRef())
         self.axis2_flt.SetValue(1.0)
 
         name = 'axis z'
-        self.axis3_lab = wx.StaticText(self, wx.NewId(), name, style=wx.ALIGN_CENTER)
-        self.axis3_flt = FloatControl(self, wx.NewId())
+        self.axis3_lab = wx.StaticText(self, wx.NewIdRef(), name, style=wx.ALIGN_CENTER)
+        self.axis3_flt = FloatControl(self, wx.NewIdRef())
         self.axis3_flt.SetValue(1.0)
 
 
@@ -904,7 +904,7 @@ class sphericalOptsPanel(wx.Panel):
         exp = app.ws
         mat = exp.activeMaterial
 
-        dlg = hklsDlg(self, wx.NewId(), mat)
+        dlg = hklsDlg(self, wx.NewIdRef(), mat)
 
         if dlg.ShowModal() == wx.ID_OK:
             mat.planeData.exclusions = dlg.getExclusions()

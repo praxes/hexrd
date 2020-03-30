@@ -106,16 +106,16 @@ class cakeCanvas(wx.Panel):
         self.tbarSizer = makeTitleBar(self, 'cakeCanvas')
         #
         if   self.cakeType == prOpts.CAKE_IMG:
-            self.opt_pan = imgOpts(self, wx.NewId())
+            self.opt_pan = imgOpts(self, wx.NewIdRef())
             # full image caking panel
             pass
         elif self.cakeType == prOpts.CAKE_RNG:
             # multiring panel
-            self.opt_pan = rngOpts(self, wx.NewId())
+            self.opt_pan = rngOpts(self, wx.NewIdRef())
             pass
         elif self.cakeType == prOpts.CAKE_SPH:
             # omega-eta panel
-            self.opt_pan = sphOpts(self, wx.NewId())
+            self.opt_pan = sphOpts(self, wx.NewIdRef())
             pass
 
         self._makeFigureCanvas()
@@ -126,7 +126,7 @@ class cakeCanvas(wx.Panel):
     def _makeFigureCanvas(self):
         """Build figure canvas"""
         self.figure = Figure()
-        self.canvas = FigureCanvas(self, wx.NewId(), self.figure)
+        self.canvas = FigureCanvas(self, wx.NewIdRef(), self.figure)
 
         self.axes = self.figure.gca()
         self.axes.set_aspect('equal')
@@ -217,7 +217,7 @@ class cakeDisplay(wx.Frame):
         #
         #  Add canvas panel
         #
-        self.cpan = cakeCanvas(self, wx.NewId(),  self.cakeType, self.data)
+        self.cpan = cakeCanvas(self, wx.NewIdRef(),  self.cakeType, self.data)
         #
         # A Statusbar in the bottom of the window
         #
@@ -298,8 +298,8 @@ class rngOpts(wx.Panel):
 
         self.tbarSizer = makeTitleBar(self, 'Multiring Rebinning Results')
         #
-        self.unit_cho = wx.Choice(self, wx.NewId(), choices=rngOpts.unitList)
-        self.exp_but  = wx.Button(self, wx.NewId(), 'Export')
+        self.unit_cho = wx.Choice(self, wx.NewIdRef(), choices=rngOpts.unitList)
+        self.exp_but  = wx.Button(self, wx.NewIdRef(), 'Export')
         #self.Bind(wx.EVT_CHOICE, self.OnChoice, self.choice)
 
         return
@@ -408,8 +408,8 @@ class imgOpts(wx.Panel):
     def __makeObjects(self):
         """Add interactors"""
         self.tbarSizer = makeTitleBar(self, 'Full Image Rebinning Results')
-        self.cmPanel = cmapPanel(self, wx.NewId())
-        self.exp_but  = wx.Button(self, wx.NewId(), 'Export')
+        self.cmPanel = cmapPanel(self, wx.NewIdRef())
+        self.exp_but  = wx.Button(self, wx.NewIdRef(), 'Export')
         #
         return
 
@@ -574,24 +574,24 @@ class sphOpts(wx.Panel):
     def __makeObjects(self):
         """Add interactors"""
         exp = wx.GetApp().ws
-        self.cmPanel = cmapPanel(self, wx.NewId())
+        self.cmPanel = cmapPanel(self, wx.NewIdRef())
         self.tbarSizer = makeTitleBar(self, 'Omega-Eta Plots',
                                       color=WP.BG_COLOR_TITLEBAR_PANEL1)
 
         # choice interactor for HKL
         hkls = exp.activeMaterial.planeData.getHKLs(asStr=True)
-        self.hkl_cho = wx.Choice(self, wx.NewId(), choices=hkls)
+        self.hkl_cho = wx.Choice(self, wx.NewIdRef(), choices=hkls)
         self.hkl_cho.SetSelection(0)
 
-        self.disp_cho = wx.Choice(self, wx.NewId(), choices=self.DISP_METHODS)
+        self.disp_cho = wx.Choice(self, wx.NewIdRef(), choices=self.DISP_METHODS)
         self.disp_cho.SetSelection(0)
 
         self.idata = 0
         self.dispm = self.DISP_RAW
         self.coms  = None                 # centers of mass from optional labeling
 
-        self.exp_but  = wx.Button(self, wx.NewId(), 'Export')
-        self.lab_but  = wx.Button(self, wx.NewId(), 'Label Spots')
+        self.exp_but  = wx.Button(self, wx.NewIdRef(), 'Export')
+        self.lab_but  = wx.Button(self, wx.NewIdRef(), 'Label Spots')
         return
 
     def __makeBindings(self):

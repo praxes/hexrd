@@ -95,7 +95,7 @@ class CanvasPanel(wx.Panel):
         #
         #  * show image
         #
-        self.showImage_box = wx.CheckBox(self, wx.NewId(),
+        self.showImage_box = wx.CheckBox(self, wx.NewIdRef(),
                                          'Show Image')
         self.showImage_box.SetValue(True)
         self.optSizer.Add(self.showImage_box, 0, wx.LEFT | wx.EXPAND)
@@ -103,7 +103,7 @@ class CanvasPanel(wx.Panel):
         #
         #  * show rings
         #
-        self.showCalRings_box = wx.CheckBox(self, wx.NewId(),
+        self.showCalRings_box = wx.CheckBox(self, wx.NewIdRef(),
                                             'Show Rings')
         self.showCalRings_box.SetValue(False) # default
         self.optSizer.Add(self.showCalRings_box, 0, wx.LEFT | wx.EXPAND)
@@ -111,7 +111,7 @@ class CanvasPanel(wx.Panel):
         #
         #  * show ranges
         #
-        self.showCalRanges_box = wx.CheckBox(self, wx.NewId(),
+        self.showCalRanges_box = wx.CheckBox(self, wx.NewIdRef(),
                                             'Show Ranges')
         self.showCalRanges_box.SetValue(False) # default
         self.optSizer.Add(self.showCalRanges_box, 0, wx.LEFT | wx.EXPAND)
@@ -119,23 +119,23 @@ class CanvasPanel(wx.Panel):
         #
         #  Add image list management
         #
-        self.ail_lab = wx.StaticText(self, wx.NewId(), 'Load Image', style=wx.ALIGN_CENTER)
-        self.ail_cho = wx.Choice(self, wx.NewId(), choices=[])
-        self.nam_lab = wx.StaticText(self, wx.NewId(), 'Name Image', style=wx.ALIGN_CENTER)
-        self.nam_txt = wx.TextCtrl(self, wx.NewId(), value='<none>',
+        self.ail_lab = wx.StaticText(self, wx.NewIdRef(), 'Load Image', style=wx.ALIGN_CENTER)
+        self.ail_cho = wx.Choice(self, wx.NewIdRef(), choices=[])
+        self.nam_lab = wx.StaticText(self, wx.NewIdRef(), 'Name Image', style=wx.ALIGN_CENTER)
+        self.nam_txt = wx.TextCtrl(self, wx.NewIdRef(), value='<none>',
                                     style=wx.RAISED_BORDER|wx.TE_PROCESS_ENTER)
-        self.eil_but  = wx.Button(self, wx.NewId(), 'Edit List')
+        self.eil_but  = wx.Button(self, wx.NewIdRef(), 'Edit List')
         #
         #  Add colormap panel
         #
-        self.cmPanel = cmapPanel(self, wx.NewId())
+        self.cmPanel = cmapPanel(self, wx.NewIdRef())
         #
         #  ===== FIGURE CANVAS
         #
         self.figure = Figure()
         self.axes   = self.figure.gca()
         self.axes.set_aspect('equal')
-        self.canvas = FigureCanvas(self, wx.NewId(), self.figure)
+        self.canvas = FigureCanvas(self, wx.NewIdRef(), self.figure)
         self.__add_toolbar()  # comment this out for no toolbar
 
 
@@ -426,7 +426,7 @@ class CanvasPanel(wx.Panel):
 
         ssel = self.ail_cho.GetStringSelection()
 
-        dlg = ListEditDlg(self, wx.NewId(), nilist)
+        dlg = ListEditDlg(self, wx.NewIdRef(), nilist)
         dlg.ShowModal()
         dlg.Destroy()
 

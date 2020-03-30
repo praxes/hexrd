@@ -109,14 +109,14 @@ box to the right of the spinner.
     #
     def __makeObjects(self):
         """Add interactors"""
-        self.value_txt = wx.TextCtrl(self, wx.NewId(),
+        self.value_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                      value=str(self.value),
                                      style=wx.RAISED_BORDER| wx.TE_PROCESS_ENTER)
-        self.delta_txt = wx.TextCtrl(self, wx.NewId(),
+        self.delta_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                      value=str(self.delta),
                                      style=wx.RAISED_BORDER| wx.TE_PROCESS_ENTER)
         self.delta_txt.SetBackgroundColour( (230, 230, 230) )
-        self.spin_but = wx.SpinButton(self, wx.NewId())
+        self.spin_but = wx.SpinButton(self, wx.NewIdRef())
         self.spin_but.SetRange(-1,1)
 
         return

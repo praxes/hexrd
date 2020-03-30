@@ -94,40 +94,40 @@ class ringPanel(wx.Panel):
         #
         #  b.  Wavelength
         #
-        self.dfwv_but  = wx.Button(self, wx.NewId(), 'Make Default')
+        self.dfwv_but  = wx.Button(self, wx.NewIdRef(), 'Make Default')
         self.dfwv_but.SetToolTip(dfltToolTip)
 
-        self.wave_lab = wx.StaticText(self, wx.NewId(),
+        self.wave_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Wavelength:',
                                         style=wx.ALIGN_RIGHT)
-        self.waveAng_txt = wx.TextCtrl(self, wx.NewId(),
+        self.waveAng_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                        value='0',
                                        style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
-        self.waveAng_lab = wx.StaticText(self, wx.NewId(),
+        self.waveAng_lab = wx.StaticText(self, wx.NewIdRef(),
                                          WAVELENGTH_UNIT,
                                          style=wx.ALIGN_RIGHT)
-        self.waveKEV_txt = wx.TextCtrl(self, wx.NewId(),
+        self.waveKEV_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                        value='0',
                                        style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
-        self.waveKEV_lab = wx.StaticText(self, wx.NewId(),
+        self.waveKEV_lab = wx.StaticText(self, wx.NewIdRef(),
                                          'keV',
                                          style=wx.ALIGN_RIGHT)
         #
         #  c.  Edit HKLs
         #
-        self.hkl_but  = wx.Button(self, wx.NewId(), 'Edit HKLs')
+        self.hkl_but  = wx.Button(self, wx.NewIdRef(), 'Edit HKLs')
         #
         #  d.  Ring widths
         #
-        self.dfwd_but  = wx.Button(self, wx.NewId(), 'Make Default')
+        self.dfwd_but  = wx.Button(self, wx.NewIdRef(), 'Make Default')
         self.dfwd_but.SetToolTip(dfltToolTip)
 
-        self.width_lab = wx.StaticText(self, wx.NewId(),
+        self.width_lab = wx.StaticText(self, wx.NewIdRef(),
                                         'Ring Width:',
                                         style=wx.ALIGN_RIGHT)
-        self.width_cho = wx.Choice(self, wx.NewId(), choices=widChoices)
+        self.width_cho = wx.Choice(self, wx.NewIdRef(), choices=widChoices)
 
-        self.width_txt = wx.TextCtrl(self, wx.NewId(),
+        self.width_txt = wx.TextCtrl(self, wx.NewIdRef(),
                                      value='1.0e-3',
                                      style=wx.RAISED_BORDER | wx.TE_PROCESS_ENTER)
         #
@@ -242,7 +242,7 @@ class ringPanel(wx.Panel):
         exp = app.ws
         mat = exp.activeMaterial
 
-        dlg = hklsDlg(self, wx.NewId(), mat)
+        dlg = hklsDlg(self, wx.NewIdRef(), mat)
 
         if dlg.ShowModal() == wx.ID_OK:
             mat.planeData.exclusions = dlg.getExclusions()

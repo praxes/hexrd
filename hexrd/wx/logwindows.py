@@ -84,7 +84,7 @@ class logWindow(wx.Dialog):
 
         self.tbarSizer = makeTitleBar(self, 'Log')
         #
-        self.log_pan = logPanel(self, wx.NewId())
+        self.log_pan = logPanel(self, wx.NewIdRef())
         #
         return
 
@@ -166,7 +166,7 @@ class logPanel(wx.Panel):
     def __makeObjects(self):
         """Add interactors"""
 
-        self.log_txt = wx.TextCtrl(self, wx.NewId(), value='', size=(500,700),
+        self.log_txt = wx.TextCtrl(self, wx.NewIdRef(), value='', size=(500,700),
                                    style=wx.RAISED_BORDER|wx.TE_MULTILINE|wx.TE_READONLY)
         #
         return
