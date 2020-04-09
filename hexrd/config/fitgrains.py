@@ -62,14 +62,6 @@ class FitGrainsConfig(Config):
 
 
     @property
-    def panel_buffer(self):
-        temp = self._cfg.get('fit_grains:panel_buffer')
-        if isinstance(temp, (int, float)):
-            temp = [temp, temp]
-        return temp
-
-
-    @property
     def threshold(self):
         return self._cfg.get('fit_grains:threshold')
 

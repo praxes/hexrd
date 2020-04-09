@@ -245,6 +245,8 @@ class HEDMInstrument(object):
                 pixel_info = det_info['pixels']
                 saturation_level = det_info['saturation_level']
                 affine_info = det_info['transform']
+
+                shape = (pixel_info['rows'], pixel_info['columns'])
                 
                 panel_buffer = None
                 if buffer_key in det_info:
@@ -252,8 +254,16 @@ class HEDMInstrument(object):
                     if det_buffer is not None:
                         if isinstance(det_buffer, str):
                             panel_buffer = np.load(det_buffer)
+                            assert panel_buffer.shape == shape, \
+                                "buffer shape must match detector"
                         elif isinstance(det_buffer, list):
-                            panel_buffer = det_buffer                        
+                            panel_buffer = np.asarray(det_buffer)
+                        elif np.isscalar(det_buffer):
+                            panel_buffer = det_buffer*np.ones(2)
+                        else:
+                            raise RuntimeError(
+                                "panel buffer spec invalid for %s" % det_id
+                            )
                 
                 # FIXME: must promote this to a class w/ registry
                 distortion = None
@@ -1630,6 +1640,7 @@ class PlanarDetector(object):
             xlim = 0.5*self.col_dim
             ylim = 0.5*self.row_dim
             if buffer_edges and self.panel_buffer is not None:
+                # ok, panel_buffer should be array-like
                 if self.panel_buffer.ndim == 2:
                     pix = self.cartToPixel(xy, pixels=True)
 
