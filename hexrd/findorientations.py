@@ -53,12 +53,14 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-def generate_orientation_fibers(cfg, eta_ome, chi, ncpus=1):
+def generate_orientation_fibers(cfg, eta_ome):
     """
     From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
     """
     # grab the relevant parameters from the root config
+    ncpus = cfg.multiprocessing
+    chi = cfg.instrument.hedm.chi
     seed_hkl_ids = cfg.find_orientations.seed_search.hkl_seeds
     fiber_ndiv = cfg.find_orientations.seed_search.fiber_ndiv
     method_dict = cfg.find_orientations.seed_search.method
