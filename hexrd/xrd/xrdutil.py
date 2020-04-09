@@ -1936,7 +1936,7 @@ class EtaOmeMaps(object):
 
     def __init__(self, ome_eta_archive):
 
-        ome_eta = num.load(ome_eta_archive)
+        ome_eta = num.load(ome_eta_archive, allow_pickle=True)
 
         planeData_args = ome_eta['planeData_args']
         planeData_hkls = ome_eta['planeData_hkls']
