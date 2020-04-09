@@ -1663,7 +1663,7 @@ class PlanarDetector(object):
                         xy[:, 1] >= -ylim, xy[:, 1] <= ylim
                     )
                     on_panel = np.logical_and(on_panel_x, on_panel_y)
-            elif not buffer_edges:
+            elif not buffer_edges or self.panel_buffer is None:
                 on_panel_x = np.logical_and(
                     xy[:, 0] >= -xlim, xy[:, 0] <= xlim
                 )

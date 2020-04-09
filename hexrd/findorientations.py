@@ -42,8 +42,8 @@ except ImportError:
     pass
 
 
-method = "blob_dog"  # !!! have to get this from the config
 save_as_ascii = False  # FIX LATER...
+fwhm_to_stdev = 1./np.sqrt(8*np.log(2))
 
 logger = logging.getLogger(__name__)
 
@@ -53,13 +53,23 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-def generate_orientation_fibers(
-        eta_ome, chi, threshold, seed_hkl_ids, fiber_ndiv,
-        method='blob_dog', filt_stdev=0.8, ncpus=1):
+def generate_orientation_fibers(cfg, eta_ome, chi, ncpus=1):
     """
     From ome-eta maps and hklid spec, generate list of
     quaternions from fibers
     """
+    # grab the relevant parameters from the root config
+    seed_hkl_ids = cfg.find_orientations.seed_search.hkl_seeds
+    fiber_ndiv = cfg.find_orientations.seed_search.fiber_ndiv
+    method_dict = cfg.find_orientations.seed_search.method
+    
+    # strip out method name and kwargs
+    # !!! note that the config enforces that method is a dict with length 1
+    # TODO: put a consistency check on required kwargs, or otherwise specify
+    #       default values for each case?  They must be specified as of now.
+    method = next(method_dict.iterkeys())
+    method_kwargs = method_dict[method]
+    
     # seed_hkl_ids must be consistent with this...
     pd_hkl_ids = eta_ome.iHKLList[seed_hkl_ids]
 
@@ -94,11 +104,12 @@ def generate_orientation_fibers(
     for i in seed_hkl_ids:
         if method == 'label':
             # First apply filter
+            filt_stdev = fwhm_to_stdev * method_kwargs['filter_radius']
             this_map_f = -ndimage.filters.gaussian_laplace(
                 eta_ome.dataStore[i], filt_stdev)
             
             labels_t, numSpots_t = ndimage.label(
-                this_map_f > threshold,
+                this_map_f > method_kwargs['threshold'],
                 structureNDI_label
                 )
             coms_t = np.atleast_2d(
@@ -110,21 +121,25 @@ def generate_orientation_fibers(
                 )
         elif method in ['blob_log', 'blob_dog']:
             # must scale map
+            # TODO: we should so a parameter study here
             this_map = eta_ome.dataStore[i]
             this_map[np.isnan(this_map)] = 0.
             this_map -= np.min(this_map)
             scl_map = 2*this_map/np.max(this_map) - 1.
 
-            # FIXME: need to expose the parameters to config options.
+            # TODO: Currently the method kwargs must be explicitly specified 
+            #       in the config, and there are no checks
+            # for 'blob_log': min_sigma=0.5, max_sigma=5,
+            #                 num_sigma=10, threshold=0.01, overlap=0.1
+            # for 'blob_dog': min_sigma=0.5, max_sigma=5,
+            #                 sigma_ratio=1.6, threshold=0.01, overlap=0.1
             if method == 'blob_log':
                 blobs = np.atleast_2d(
-                    blob_log(scl_map, min_sigma=0.5, max_sigma=5,
-                             num_sigma=10, threshold=0.01, overlap=0.1)
+                    blob_log(scl_map, **method_kwargs)
                 )
-            else:
+            else:  # blob_dog
                 blobs = np.atleast_2d(
-                    blob_dog(scl_map, min_sigma=0.5, max_sigma=5,
-                             sigma_ratio=1.6, threshold=0.01, overlap=0.1)
+                    blob_dog(scl_map, **method_kwargs)
                 )
             numSpots_t = len(blobs)
             coms_t = blobs[:, :2]
@@ -152,9 +167,9 @@ def generate_orientation_fibers(
     qfib = None
     if ncpus > 1:
         # multiple process version
-        # QUESTION: Need a chunksize?
+        # ???: Need a chunksize in map?
         pool = mp.Pool(ncpus, discretefiber_init, (params, ))
-        qfib = pool.map(discretefiber_reduced, input_p)  # chunksize=chunksize)
+        qfib = pool.map(discretefiber_reduced, input_p)
         pool.close()
     else:
         # single process version.

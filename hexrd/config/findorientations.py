@@ -5,6 +5,15 @@ import numpy as np
 
 from .config import Config
 
+seed_search_methods = {
+    'label':dict(filter_radius=1, threshold=1),
+    'blob_log':dict(min_sigma=0.5, max_sigma=5,
+                    num_sigma=10, threshold=0.01,
+                    overlap=0.1),
+    'blob_dog':dict(min_sigma=0.5, max_sigma=5,
+                    sigma_ratio=1.6,
+                    threshold=0.01, overlap=0.1)
+}
 
 class FindOrientationsConfig(Config):
 
@@ -16,6 +25,7 @@ class FindOrientationsConfig(Config):
     @property
     def seed_search(self):
         return SeedSearchConfig(self._cfg)
+    
     @property
     def clustering(self):
         return ClusteringConfig(self._cfg)
@@ -161,6 +171,27 @@ class SeedSearchConfig(Config):
         return self._cfg.get(
             'find_orientations:seed_search:fiber_step',
             self._cfg.find_orientations.omega.tolerance
+            )
+
+    @property
+    def method(self):
+        key = 'find_orientations:seed_search:method'
+        try:
+            temp = self._cfg.get(key)
+            assert len(temp) == 1., \
+                "method must have exactly one key"
+            if isinstance(temp, dict):
+                method_spec = next(temp.iterkeys())
+                if method_spec.lower() not in seed_search_methods:
+                    raise RuntimeError(
+                        'invalid seed search method "%s"'
+                        % method_spec
+                    )
+                else:
+                    return temp
+        except:
+            raise RuntimeError(
+                '"%s" must be defined for seeded search' % key
             )
 
     @property
