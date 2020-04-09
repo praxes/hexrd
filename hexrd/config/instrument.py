@@ -1,74 +1,31 @@
 import os
 
+import numpy as np
+
+from hexrd import constants
+from hexrd import instrument
+from hexrd.xrd.distortion import GE_41RT as dfunc  # !!! UGH, FIXME !!!
+
 from .config import Config
 
 
+class Instrument(Config):
 
-class PixelsConfig(Config):
+    def __init__(self, icfg):
+        self._hedm = instrument.HEDMInstrument(icfg)
 
+    # Note: instrument is instantiated with a yaml dictionary; use self
+    #       to instantiate classes based on this one
+    @property
+    def hedm(self):
+        return self._hedm
+    @hedm.setter
+    def hedm(self, yml):
+        with open(yml, 'r') as f:
+            icfg = yaml.safe_load(f)
+        self._hedm = instrument.HEDMInstrument(icfg)
 
     @property
-    def columns(self):
-        return self._cfg.get('instrument:detector:pixels:columns')
-
-
-    @property
-    def size(self):
-        temp = self._cfg.get('instrument:detector:pixels:size')
-        if isinstance(temp, (int, float)):
-            temp = [temp, temp]
-        return temp
-
-
-    @property
-    def rows(self):
-        return self._cfg.get('instrument:detector:pixels:rows')
-
-
-
-class DetectorConfig(Config):
-
-
-    @property
-    def parameters_old(self):
-        key = 'instrument:detector:parameters_old'
-        temp = self._cfg.get(key, default=None)
-        if temp is None:
-            return temp
-        if not os.path.isabs(temp):
-            temp = os.path.join(self._cfg.working_dir, temp)
-        if os.path.exists(temp):
-            return temp
-        raise IOError(
-            '"%s": "%s" does not exist' % (key, temp)
-            )
-
-
-    @property
-    def pixels(self):
-        return PixelsConfig(self._cfg)
-
-
-
-class InstrumentConfig(Config):
-
-
-    @property
-    def detector(self):
-        return DetectorConfig(self._cfg)
-
-
-    @property
-    def parameters(self):
-        key = 'instrument:parameters'
-        temp = self._cfg.get(key)
-        if not os.path.isabs(temp):
-            temp = os.path.join(self._cfg.working_dir, temp)
-        if os.path.exists(temp):
-            return temp
-        if self.detector.parameters_old is not None:
-            # converting old parameter file
-            return temp
-        raise IOError(
-            '"%s": "%s" does not exist' % (key, temp)
-            )
+    def detector_dict(self):
+        """returns dictionary of detectors"""
+        return self.hedm.detectors

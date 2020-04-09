@@ -1,3 +1,4 @@
+import logging
 import os
 
 import numpy as np
@@ -7,6 +8,14 @@ from .config import Config
 
 class FindOrientationsConfig(Config):
 
+    # Subsections
+    @property
+    def orientation_maps(self):
+        return OrientationMapsConfig(self._cfg)
+
+    @property
+    def seed_search(self):
+        return SeedSearchConfig(self._cfg)
     @property
     def clustering(self):
         return ClusteringConfig(self._cfg)
@@ -16,24 +25,11 @@ class FindOrientationsConfig(Config):
         return EtaConfig(self._cfg)
 
     @property
-    def extract_measured_g_vectors(self):
-        return self._cfg.get(
-            'find_orientations:extract_measured_g_vectors',
-            False
-            )
-
-    @property
     def omega(self):
         return OmegaConfig(self._cfg)
 
-    @property
-    def orientation_maps(self):
-        return OrientationMapsConfig(self._cfg)
 
-    @property
-    def seed_search(self):
-        return SeedSearchConfig(self._cfg)
-
+    # Simple Values
     @property
     def threshold(self):
         return self._cfg.get('find_orientations:threshold', 1)
@@ -50,6 +46,13 @@ class FindOrientationsConfig(Config):
             return temp
         raise IOError(
             '"%s": "%s" does not exist' % (key, temp)
+            )
+
+    @property
+    def extract_measured_g_vectors(self):
+        return self._cfg.get(
+            'find_orientations:extract_measured_g_vectors',
+            False
             )
 
 
@@ -90,22 +93,14 @@ class ClusteringConfig(Config):
 
 class OmegaConfig(Config):
 
+    tolerance_dflt = 0.5
+
     @property
     def period(self):
+        # ??? maybe should get from image_series like before in v0.3.x
         key = 'find_orientations:omega:period'
-        ome_start = self._cfg.image_series.omega.start
-        range = 360 if self._cfg.image_series.omega.step > 0 else -360
-        try:
-            temp = self._cfg.get(key, [ome_start, ome_start + range])
-        except(TypeError):
-            temp = self._cfg.get(key, None)
-
-        try:
-            range = np.abs(temp[1] - temp[0])
-        except(TypeError):
-            raise RuntimeError(
-                "without imageseries spec, must specify period"
-            )
+        temp = self._cfg.get(key, [-180., 180])
+        range = np.abs(temp[1]-temp[0])
         if range != 360:
             raise RuntimeError(
                 '"%s": range must be 360 degrees, range of %s is %g'
@@ -117,17 +112,19 @@ class OmegaConfig(Config):
     def tolerance(self):
         return self._cfg.get(
             'find_orientations:omega:tolerance',
-            2 * self._cfg.image_series.omega.step
+            self.tolerance_dflt
             )
 
 
 class EtaConfig(Config):
 
+    tolerance_dflt = 0.5
+
     @property
     def tolerance(self):
         return self._cfg.get(
             'find_orientations:eta:tolerance',
-            2 * self._cfg.image_series.omega.step
+            self.tolerance_dflt
             )
 
     @property
@@ -140,7 +137,7 @@ class EtaConfig(Config):
         if mask is None:
             return mask
         return [[-90 + mask, 90 - mask],
-                [90 + mask, 270 - mask]]
+                [ 90 + mask, 270 - mask]]
 
 
 class SeedSearchConfig(Config):
@@ -151,7 +148,7 @@ class SeedSearchConfig(Config):
         try:
             temp = self._cfg.get(key)
             if isinstance(temp, int):
-                temp = [temp, ]
+                temp = [temp,]
             return temp
         except:
             if self._cfg.find_orientations.use_quaternion_grid is None:
@@ -178,7 +175,11 @@ class OrientationMapsConfig(Config):
         temp = self._cfg.get(
             'find_orientations:orientation_maps:active_hkls', default='all'
             )
-        return [temp] if isinstance(temp, int) else temp
+        if isinstance(temp, int):
+            temp = [temp]
+        if temp == 'all':
+            temp = None
+        return temp
 
     @property
     def bin_frames(self):
@@ -188,9 +189,11 @@ class OrientationMapsConfig(Config):
 
     @property
     def file(self):
-        temp = self._cfg.get('find_orientations:orientation_maps:file')
-        if not os.path.isabs(temp):
-            temp = os.path.join(self._cfg.working_dir, temp)
+        temp = self._cfg.get('find_orientations:orientation_maps:file',
+                             default=None)
+        if temp is not None:
+            if not os.path.isabs(temp):
+                temp = os.path.join(self._cfg.working_dir, temp)
         return temp
 
     @property

@@ -108,6 +108,9 @@ NP_INS = 7
 NP_DET = 6
 NP_GRN = 12
 
+buffer_key = 'buffer'
+distortion_key = 'distortion'
+
 # =============================================================================
 # UTILITY METHODS
 # =============================================================================
@@ -234,40 +237,45 @@ class HEDMInstrument(object):
                 instrument_config['beam']['vector']['azimuth'],
                 instrument_config['beam']['vector']['polar_angle'],
                 )
-            ct.eta_vec
-            # now build detector dict
-            detector_ids = instrument_config['detectors'].keys()
-            pixel_info = [instrument_config['detectors'][i]['pixels']
-                          for i in detector_ids]
-            affine_info = [instrument_config['detectors'][i]['transform']
-                           for i in detector_ids]
-            distortion = []
-            for i in detector_ids:
-                try:
-                    distortion.append(
-                        instrument_config['detectors'][i]['distortion']
-                        )
-                except KeyError:
-                    distortion.append(None)
-            det_list = []
-            for pix, xform, dist in zip(pixel_info, affine_info, distortion):
-                # HARD CODED GE DISTORTION !!! FIX
-                dist_list = None
-                if dist is not None:
-                    dist_list = [GE_41RT, dist['parameters']]
 
-                det_list.append(
-                    PlanarDetector(
-                        rows=pix['rows'], cols=pix['columns'],
-                        pixel_size=pix['size'],
-                        tvec=xform['translation'],
-                        tilt=xform['tilt'],
+            # now build detector dict
+            detectors_config = instrument_config['detectors']
+            det_dict = dict.fromkeys(detectors_config)
+            for det_id, det_info in detectors_config.iteritems():
+                pixel_info = det_info['pixels']
+                saturation_level = det_info['saturation_level']
+                affine_info = det_info['transform']
+                
+                panel_buffer = None
+                if buffer_key in det_info:
+                    det_buffer = det_info[buffer_key]
+                    if det_buffer is not None:
+                        if isinstance(det_buffer, str):
+                            panel_buffer = np.load(det_buffer)
+                        elif isinstance(det_buffer, list):
+                            panel_buffer = det_buffer                        
+                
+                # FIXME: must promote this to a class w/ registry
+                distortion = None
+                if distortion_key in det_info:
+                    distortion = det_info[distortion_key]
+                    if det_info[distortion_key] is not None:
+                        # !!! hard-coded GE distortion
+                        distortion = [GE_41RT, distortion['parameters']]
+                    
+                det_dict[det_id] = PlanarDetector(
+                        rows=pixel_info['rows'],
+                        cols=pixel_info['columns'],
+                        pixel_size=pixel_info['size'],
+                        panel_buffer=panel_buffer,
+                        saturation_level=saturation_level,
+                        tvec=affine_info['translation'],
+                        tilt=affine_info['tilt'],
                         bvec=self._beam_vector,
-                        evec=ct.eta_vec,
-                        distortion=dist_list)
-                    )
-                pass
-            self._detectors = dict(zip(detector_ids, det_list))
+                        evec=self._eta_vector,
+                        distortion=distortion)
+    
+            self._detectors = det_dict
 
             self._tvec = np.r_[
                 instrument_config['oscillation_stage']['translation']
@@ -1201,9 +1209,45 @@ class PlanarDetector(object):
                  roi=None,
                  distortion=None):
         """
-        panel buffer is in pixels...
+        Instantiate PlanarDetector object.
+
+        Parameters
+        ----------
+        rows : TYPE, optional
+            DESCRIPTION. The default is 2048.
+        cols : TYPE, optional
+            DESCRIPTION. The default is 2048.
+        pixel_size : TYPE, optional
+            DESCRIPTION. The default is (0.2, 0.2).
+        tvec : TYPE, optional
+            DESCRIPTION. The default is np.r_[0., 0., -1000.].
+        tilt : TYPE, optional
+            DESCRIPTION. The default is ct.zeros_3.
+        name : TYPE, optional
+            DESCRIPTION. The default is 'default'.
+        bvec : TYPE, optional
+            DESCRIPTION. The default is ct.beam_vec.
+        evec : TYPE, optional
+            DESCRIPTION. The default is ct.eta_vec.
+        saturation_level : TYPE, optional
+            DESCRIPTION. The default is None.
+        panel_buffer : array_like, optional
+            If panel_buffer has size 2, it is interpreted as a buffer in mm
+            in the row and column dimensions, respectively.  If it is a 2-d 
+            array with shape (rows, cols), then it is interpreted as a boolean
+            mask where valid pixels are marked with True.  Refer to
+            self.clip_to_panel for usage.  The default is None.
+        roi : TYPE, optional
+            DESCRIPTION. The default is None.
+        distortion : TYPE, optional
+            DESCRIPTION. The default is None.
+
+        Returns
+        -------
+        None.
 
         """
+
         self._name = name
 
         self._rows = rows
@@ -1214,9 +1258,7 @@ class PlanarDetector(object):
 
         self._saturation_level = saturation_level
 
-        if panel_buffer is None:
-            self._panel_buffer = 20*np.r_[self._pixel_size_col,
-                                          self._pixel_size_row]
+        self._panel_buffer = panel_buffer
 
         self._roi = roi
 

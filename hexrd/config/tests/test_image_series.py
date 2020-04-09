@@ -3,26 +3,19 @@ import tempfile
 
 from .common import TestConfig, test_data
 
-
 reference_data = \
 """
-analysis_name: analysis
-working_dir: %(tempdir)s
----
 image_series:
-  filename: %(nonexistent_file)s
-  format: hdf5
-  args:
-     path: %(nonexistent_path)s
----
-image_series:
-  filename: %(nonexistent_file)s
-  format: frame-cache
-  args:
+  format: array
+  data:
+    - filename: f1
+      args: a1
+    - filename: f2
+      args: a2
 """ % test_data
 
 
-class TestImageSeriesConfig(TestConfig):
+class TestImageSeries(TestConfig):
 
 
     @classmethod
@@ -30,31 +23,24 @@ class TestImageSeriesConfig(TestConfig):
         return reference_data
 
 
-    def test_filename(self):
-
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[0].image_series, 'filename'
-            )
-
-        self.assertRaises(
-            RuntimeError,
-            getattr, self.cfgs[0].image_series, 'format'
-            )
+    def test_format(self):
 
         self.assertEqual(
-            self.cfgs[1].image_series.filename,
-            os.path.join(test_data['tempdir'], test_data['nonexistent_file'])
+            'array',
+            self.cfgs[0].get('image_series:format')
             )
 
-        self.assertEqual(
-            self.cfgs[1].image_series.format, 'hdf5'
-            )
+    def test_data(self):
 
-        a = self.cfgs[1].image_series.args
-        self.assertEqual(
-            a['path'], test_data['nonexistent_path']
-            )
+        d = self.cfgs[0].get('image_series:data')
+        self.assertEqual(len(d), 2)
 
-        a = self.cfgs[2].image_series.args
-        self.assertEqual(a, None)
+    def test_data_filename(self):
+
+        d = self.cfgs[0].get('image_series:data')
+        self.assertEqual(d[0]['filename'], 'f1')
+
+    def test_data_args(self):
+
+        d = self.cfgs[0].get('image_series:data')
+        self.assertEqual(d[1]['args'], 'a2')
