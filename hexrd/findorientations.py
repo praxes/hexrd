@@ -71,6 +71,8 @@ def generate_orientation_fibers(cfg, eta_ome):
     #       default values for each case?  They must be specified as of now.
     method = next(method_dict.iterkeys())
     method_kwargs = method_dict[method]
+    logger.info('using "%s" method for fiber generation'
+                % method)
     
     # seed_hkl_ids must be consistent with this...
     pd_hkl_ids = eta_ome.iHKLList[seed_hkl_ids]
