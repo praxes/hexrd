@@ -247,7 +247,7 @@ class HEDMInstrument(object):
                 affine_info = det_info['transform']
 
                 shape = (pixel_info['rows'], pixel_info['columns'])
-                
+
                 panel_buffer = None
                 if buffer_key in det_info:
                     det_buffer = det_info[buffer_key]
@@ -264,7 +264,7 @@ class HEDMInstrument(object):
                             raise RuntimeError(
                                 "panel buffer spec invalid for %s" % det_id
                             )
-                
+
                 # FIXME: must promote this to a class w/ registry
                 distortion = None
                 if distortion_key in det_info:
@@ -272,7 +272,7 @@ class HEDMInstrument(object):
                     if det_info[distortion_key] is not None:
                         # !!! hard-coded GE distortion
                         distortion = [GE_41RT, distortion['parameters']]
-                    
+
                 det_dict[det_id] = PlanarDetector(
                         rows=pixel_info['rows'],
                         cols=pixel_info['columns'],
@@ -284,7 +284,7 @@ class HEDMInstrument(object):
                         bvec=self._beam_vector,
                         evec=self._eta_vector,
                         distortion=distortion)
-    
+
             self._detectors = det_dict
 
             self._tvec = np.r_[
@@ -1243,7 +1243,7 @@ class PlanarDetector(object):
             DESCRIPTION. The default is None.
         panel_buffer : array_like, optional
             If panel_buffer has size 2, it is interpreted as a buffer in mm
-            in the row and column dimensions, respectively.  If it is a 2-d 
+            in the row and column dimensions, respectively.  If it is a 2-d
             array with shape (rows, cols), then it is interpreted as a boolean
             mask where valid pixels are marked with True.  Refer to
             self.clip_to_panel for usage.  The default is None.
@@ -1504,11 +1504,17 @@ class PlanarDetector(object):
     ##################### METHODS
     """
 
-    def config_dict(self, chi, t_vec_s, sat_level=None):
+    def config_dict(self, chi, t_vec_s, panel_buffer=None, sat_level=None):
         """
         """
         if sat_level is None:
             sat_level = self.saturation_level
+
+        if panel_buffer is None:
+            # FIXME: won't work right if it is an array
+            panel_buffer = self.panel_buffer
+        if isinstance(panel_buffer, np.ndarray):
+            panel_buffer = panel_buffer.flatten().tolist()
 
         t_vec_s = np.atleast_1d(t_vec_s)
 
@@ -1530,8 +1536,8 @@ class PlanarDetector(object):
             ),
         )
 
-        if sat_level is not None:
-            d['detector']['saturation_level'] = sat_level
+        d['detector']['saturation_level'] = sat_level
+        d['detector']['buffer'] = panel_buffer
 
         if self.distortion is not None:
             """...HARD CODED DISTORTION! FIX THIS!!!"""
