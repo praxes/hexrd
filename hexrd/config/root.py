@@ -1,11 +1,8 @@
 import os
 import logging
 import multiprocessing as mp
-import sys
 
-import yaml
-
-from hexrd.utils.decorators import memoized
+# from hexrd.utils.decorators import memoized
 from hexrd import imageseries
 
 from .config import Config
@@ -22,6 +19,7 @@ class RootConfig(Config):
     @property
     def analysis_name(self):
         return str(self.get('analysis_name', default='analysis'))
+
     @analysis_name.setter
     def analysis_name(self, val):
         self.set('analysis_name', val)
@@ -41,9 +39,7 @@ class RootConfig(Config):
     @property
     def instrument(self):
         instr_file = self.get('instrument')
-        with open(instr_file, 'r') as f:
-            icfg = yaml.safe_load(f)
-        return Instrument(icfg)
+        return Instrument(instr_file)
 
     @property
     def material(self):
@@ -140,7 +136,7 @@ class RootConfig(Config):
                 ims = imageseries.open(fname, fmt, **args)
                 oms = imageseries.omega.OmegaImageSeries(ims)
                 try:
-                    panel=ispec['panel']
+                    panel = ispec['panel']
                 except(KeyError):
                     panel = oms.metadata['panel']
                 self._image_dict[panel] = oms

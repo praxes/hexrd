@@ -1,24 +1,28 @@
-import os
-
-import numpy as np
-
-from hexrd import constants
 from hexrd import instrument
-from hexrd.xrd.distortion import GE_41RT as dfunc  # !!! UGH, FIXME !!!
 
 from .config import Config
+
+import yaml
 
 
 class Instrument(Config):
 
-    def __init__(self, icfg):
+    def __init__(self, instr_file):
+        self._configuration = instr_file
+        with open(instr_file, 'r') as f:
+            icfg = yaml.safe_load(f)
         self._hedm = instrument.HEDMInstrument(icfg)
 
     # Note: instrument is instantiated with a yaml dictionary; use self
     #       to instantiate classes based on this one
     @property
+    def configuration(self):
+        return self._configuration
+
+    @property
     def hedm(self):
         return self._hedm
+
     @hedm.setter
     def hedm(self, yml):
         with open(yml, 'r') as f:
