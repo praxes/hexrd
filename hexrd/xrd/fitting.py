@@ -36,7 +36,6 @@ from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 from hexrd.xrd import distortion as dFuncs
 
-from hexrd.xrd.xrdutil import extract_detector_transformation
 
 return_value_flag = None
 epsf = np.finfo(float).eps  # ~2.2e-16
@@ -440,9 +439,12 @@ def objFuncFitGrain(gFit, gFull, gFlag,
     for det_key, panel in instrument.detectors.iteritems():
         det_keys_ordered.append(det_key)
 
-        rMat_d, tVec_d, chi, tVec_s = extract_detector_transformation(
-            instrument.detector_parameters[det_key])
-
+        # extract transformation quantities
+        rMat_d = instrument.detectors[det_key].rmat
+        tVec_d = instrument.detectors[det_key].tvec
+        chi = instrument.chi
+        tVec_s = instrument.tvec
+        
         results = reflections_dict[det_key]
         if len(results) == 0:
             continue

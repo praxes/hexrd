@@ -35,6 +35,8 @@ import shelve
 import h5py
 
 import numpy as num
+from numpy.ctypeslib import ctypes
+
 from scipy import sparse
 from scipy.linalg import svd
 from scipy import ndimage
@@ -74,7 +76,7 @@ from hexrd.xrd import spotfinder
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 
-from hexrd.xrd import distortion
+from hexrd.xrd import distortion as distortion_module
 
 #from hexrd.cacheframes import get_frames
 #from hexrd.coreutil import get_instrument_parameters
@@ -95,7 +97,7 @@ quadr1dDflt = 8
 
 debugDflt = False
 
-dFunc_ref   = distortion.dummy
+dFunc_ref   = distortion_module.dummy
 dParams_ref = []
 
 d2r = piby180 = num.pi/180.
@@ -107,6 +109,10 @@ sqrt_epsf = num.sqrt(epsf)       # ~1.5e-8
 
 bHat_l_DFLT = constants.beam_vec.flatten()
 eHat_l_DFLT = constants.eta_vec.flatten()
+
+nans_2 = num.nan*num.ones(2)
+nans_3 = num.nan*num.ones(3)
+nans_6 = num.nan*num.ones(6)
 
 
 class FormatEtaOme:
@@ -4015,14 +4021,12 @@ else: # not USE_NUMBA
         return window
 
 
-def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
-                            omega=None,
+def make_reflection_patches(instr_cfg,
+                            tth_eta, ang_pixel_size, omega=None,
                             tth_tol=0.2, eta_tol=1.0,
-                            rMat_c=num.eye(3), tVec_c=num.zeros((3, 1)),
-                            distortion=None,
+                            rmat_c=num.eye(3), tvec_c=num.zeros((3, 1)),
                             npdiv=1, quiet=False,
-                            compute_areas_func=gutil.compute_areas,
-                            beamVec=None):
+                            compute_areas_func=gutil.compute_areas):
     """
     prototype function for making angular patches on a detector
 
@@ -4055,11 +4059,11 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
     """
     npts = len(tth_eta)
 
-    # detector frame
-    rMat_d = xfcapi.makeRotMatOfExpMap(
+    # detector quantities
+    rmat_d = xfcapi.makeRotMatOfExpMap(
         num.r_[instr_cfg['detector']['transform']['tilt']]
         )
-    tVec_d = num.r_[instr_cfg['detector']['transform']['translation']]
+    tvec_d = num.r_[instr_cfg['detector']['transform']['translation']]
     pixel_size = instr_cfg['detector']['pixels']['size']
 
     frame_nrows = instr_cfg['detector']['pixels']['rows']
@@ -4074,13 +4078,28 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
     col_edges = num.arange(frame_ncols + 1)*pixel_size[0] \
         + panel_dims[0][0]
 
+    # grab distortion
+    # FIXME: distortion function is still hard-coded here
+    try:
+        dfunc_name = instr_cfg['detector']['distortion']['function_name']
+    except(KeyError):
+        dfunc_name = None
+
+    if dfunc_name is None:
+        distortion = None
+    else:
+        # !!!: warning -- hard-coded distortion
+        distortion = (
+            distortion_module.GE_41RT,
+            num.r_[instr_cfg['detector']['distortion']['parameters']]
+        )
+
     # sample frame
     chi = instr_cfg['oscillation_stage']['chi']
-    tVec_s = num.r_[instr_cfg['oscillation_stage']['translation']]
+    tvec_s = num.r_[instr_cfg['oscillation_stage']['translation']]
 
     # beam vector
-    if beamVec is None:
-        beamVec = xfcapi.bVec_ref
+    bvec = num.r_[instr_cfg['beam']['vector']]
 
     # data to loop
     # ...WOULD IT BE CHEAPER TO CARRY ZEROS OR USE CONDITIONAL?
@@ -4091,17 +4110,22 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
 
     patches = []
     for angs, pix in zip(full_angs, ang_pixel_size):
-        ndiv_tth = npdiv*num.ceil(tth_tol/num.degrees(pix[0]))
-        ndiv_eta = npdiv*num.ceil(eta_tol/num.degrees(pix[1]))
-
-        tth_del = num.arange(0, ndiv_tth + 1)*tth_tol/float(ndiv_tth) \
-                  - 0.5*tth_tol
-        eta_del = num.arange(0, ndiv_eta + 1)*eta_tol/float(ndiv_eta) \
-                  - 0.5*eta_tol
-
+        # calculate bin edges for patch based on local angular pixel size
+        # tth
+        tth_binw = num.ceil(tth_tol/num.degrees(pix[0]))        
+        tth_edges = gutil.make_tolerance_grid(
+            bin_width=tth_binw, window_width=tth_tol, num_subdivisions=npdiv
+        )
+        
+        # eta
+        eta_binw = num.ceil(eta_tol/num.degrees(pix[1]))
+        eta_edges = gutil.make_tolerance_grid(
+            bin_width=eta_binw, window_width=eta_tol, num_subdivisions=npdiv
+        )
+        
         # store dimensions for convenience
         #   * etas and tths are bin vertices, ome is already centers
-        sdims = [len(eta_del) - 1, len(tth_del) - 1]
+        sdims = [len(eta_edges) - 1, len(tth_edges) - 1]
 
         # FOR ANGULAR MESH
         conn = gutil.cellConnectivity(
@@ -4111,7 +4135,7 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
         )
 
         # meshgrid args are (cols, rows), a.k.a (fast, slow)
-        m_tth, m_eta = num.meshgrid(tth_del, eta_del)
+        m_tth, m_eta = num.meshgrid(tth_edges, eta_edges)
         npts_patch = m_tth.size
 
         # calculate the patch XY coords from the (tth, eta) angles
@@ -4127,11 +4151,11 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
 
         xy_eval_vtx, _ = _project_on_detector_plane(
                 gVec_angs_vtx,
-                rMat_d, rMat_c,
+                rmat_d, rmat_c,
                 chi,
-                tVec_d, tVec_c, tVec_s,
+                tvec_d, tvec_c, tvec_s,
                 distortion,
-                beamVec=beamVec)
+                beamVec=bvec)
 
         areas = compute_areas_func(xy_eval_vtx, conn)
 
@@ -4147,11 +4171,11 @@ def make_reflection_patches(instr_cfg, tth_eta, ang_pixel_size,
 
         xy_eval, _ = _project_on_detector_plane(
                 gVec_angs,
-                rMat_d, rMat_c,
+                rmat_d, rmat_c,
                 chi,
-                tVec_d, tVec_c, tVec_s,
+                tvec_d, tvec_c, tvec_s,
                 distortion,
-                beamVec=beamVec)
+                beamVec=bvec)
 
         row_indices = gutil.cellIndices(row_edges, xy_eval[:, 1])
         col_indices = gutil.cellIndices(col_edges, xy_eval[:, 0])
@@ -4315,7 +4339,7 @@ def pullSpots(pd, detector_params, grain_params, reader,
 
         # store dimensions for convenience
         #   * etas and tths are bin vertices, ome is already centers
-        sdims = [ len(ome_del), len(eta_del)-1, len(tth_del)-1 ]
+        sdims = [ len(ome_del), len(eta_edges)-1, len(tth_del)-1 ]
 
         # meshgrid args are (cols, rows), a.k.a (fast, slow)
         m_tth, m_eta = num.meshgrid(tth_del, eta_del)
@@ -4699,7 +4723,7 @@ class GrainDataWriter_h5(object):
     TODO: add material spec
     """
     def __init__(self, filename, detector_params, grain_params):
-        use_attr = True
+        #use_attr = True
         if isinstance(filename, h5py.File):
             self.fid = filename
         else:

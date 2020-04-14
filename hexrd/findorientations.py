@@ -4,9 +4,7 @@ import cPickle
 import logging
 import multiprocessing as mp
 import os
-import time
-
-import yaml
+import timeit
 
 import numpy as np
 # np.seterr(over='ignore', invalid='ignore')
@@ -16,18 +14,15 @@ from scipy import ndimage
 from skimage.feature import blob_dog, blob_log
 
 from hexrd import matrixutil as mutil
-from hexrd.xrd import indexer as idx
+from hexrd.xrd import indexer
+from hexrd import instrument
 from hexrd.xrd import rotations as rot
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
 
-from hexrd.xrd.xrdutil import GenerateEtaOmeMaps, EtaOmeMaps, simulateGVecs
-
 from hexrd.xrd import distortion as dFuncs
 
 from hexrd.fitgrains import get_instrument_parameters
-
-from skimage.feature import blob_dog, blob_log
 
 # just require scikit-learn?
 have_sklearn = False
@@ -167,7 +162,7 @@ def generate_orientation_fibers(cfg, eta_ome):
         pass
 
     # do the mapping
-    start = time.time()
+    start = timeit.default_timer()
     qfib = None
     if ncpus > 1:
         # multiple process version
@@ -181,7 +176,7 @@ def generate_orientation_fibers(cfg, eta_ome):
         discretefiber_init(params)  # sets paramMP
         qfib = map(discretefiber_reduced, input_p)
         paramMP = None  # clear paramMP
-    elapsed = (time.time() - start)
+    elapsed = (timeit.default_timer() - start)
     logger.info("fiber generation took %.3f seconds", elapsed)
     return np.hstack(qfib)
 
@@ -236,7 +231,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
     if radius is not None:
         cl_radius = radius
 
-    start = time.clock() # time this
+    start = timeit.default_timer() # timeit this
 
     num_above = sum(np.array(compl) > min_compl)
     if num_above == 0:
@@ -370,7 +365,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             pass
         pass
 
-    logger.info("clustering took %f seconds", time.clock() - start)
+    logger.info("clustering took %f seconds", timeit.default_timer() - start)
     logger.info(
         "Found %d orientation clusters with >=%.1f%% completeness"
         " and %2f misorientation",
@@ -388,7 +383,7 @@ def load_eta_ome_maps(cfg, pd, image_series, hkls=None, clean=False):
         cfg.find_orientations.orientation_maps.file
         )
 
-    # ...necessary?
+    # ???: necessary?
     if fn.split('.')[-1] != 'npz':
         fn = fn + '.npz'
 
@@ -408,42 +403,49 @@ def load_eta_ome_maps(cfg, pd, image_series, hkls=None, clean=False):
         logger.info('clean option specified; recomputing eta/ome orientation maps')
         return generate_eta_ome_maps(cfg, pd, image_series, hkls)
 
-def generate_eta_ome_maps(cfg, pd, image_series, hkls=None):
 
-    available_hkls = pd.hkls.T
-    # default to all hkls defined for material
-    active_hkls = range(available_hkls.shape[0])
-    # override with hkls from config, if specified
+def generate_eta_ome_maps(cfg, hkls=None):
+    # extract PlaneData from config and set active hkls
+    plane_data = cfg.material.plane_data
+
+    # handle logicl for active hkl spec
+    # !!!: default to all hkls defined for material,
+    #      override with
+    #        1) hkls from config, if specified; or
+    #        2) hkls from kwarg, if specified
+    available_hkls = plane_data.hkls.T
+    active_hkls = range(len(available_hkls))
     temp = cfg.find_orientations.orientation_maps.active_hkls
     active_hkls = active_hkls if temp == 'all' else temp
-    # override with hkls from command line, if specified
     active_hkls = hkls if hkls is not None else active_hkls
 
+    # logging output
+    hklseedstr = ', '.join(
+        [str(available_hkls[i]) for i in active_hkls]
+        )
     logger.info(
-        "using hkls to generate orientation maps: %s",
-        ', '.join([str(i) for i in available_hkls[active_hkls]])
+        "building eta_ome maps using hkls: %s",
+        hklseedstr
         )
 
-    bin_frames = cfg.find_orientations.orientation_maps.bin_frames
-    ome_step = cfg.image_series.omega.step*bin_frames
-    instrument_params = yaml.load(open(cfg.instrument.parameters, 'r'))
+    # make eta_ome maps
+    eta_ome = instrument.GenerateEtaOmeMaps(
+        cfg.image_series, cfg.instrument.hedm, plane_data,
+        active_hkls=active_hkls,
+        threshold=cfg.find_orientations.orientation_maps.threshold,
+        ome_period=cfg.find_orientations.omega.period)
 
-    # generate maps
-    eta_ome = GenerateEtaOmeMaps(
-        image_series, instrument_params, pd, active_hkls,
-        ome_step=ome_step,
-        threshold=cfg.find_orientations.orientation_maps.threshold
-        )
-
+    map_fname = cfg.find_orientations.orientation_maps.file \
+        or '_'.join(cfg.analysis_id, 'maps.npz')
     fn = os.path.join(
         cfg.working_dir,
-        cfg.find_orientations.orientation_maps.file
-        )
+        map_fname
+    )
     fd = os.path.split(fn)[0]
     if not os.path.isdir(fd):
         os.makedirs(fd)
     eta_ome.save(fn)
-    logger.info("saved eta/ome orientation maps to %s", fn)
+    logger.info('saved eta/ome orientation maps to "%s"', fn)
     return eta_ome
 
 
@@ -550,7 +552,7 @@ def find_orientations(cfg, hkls=None, clean=False, profile=False):
         logger.info(
             "%d of %d available processors requested", ncpus, mp.cpu_count()
             )
-    compl = idx.paintGrid(
+    compl = indexer.paintGrid(
         quats,
         eta_ome,
         etaRange=np.radians(cfg.find_orientations.eta.range),

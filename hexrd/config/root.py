@@ -46,6 +46,13 @@ class RootConfig(Config):
         return MaterialConfig(self)
 
     @property
+    def analysis_id(self):
+        return '_'.join(
+            self.analysis_name.strip().replace(' ', '-'),
+            self.material.active.strip().replace(' ', '-'),
+        )
+    
+    @property
     def multiprocessing(self):
         # determine number of processes to run in parallel
         multiproc = self.get('multiprocessing', default=-1)

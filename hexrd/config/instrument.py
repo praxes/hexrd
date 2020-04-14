@@ -1,8 +1,8 @@
-from hexrd import instrument
+import yaml
 
 from .config import Config
 
-import yaml
+from hexrd import instrument
 
 
 class Instrument(Config):

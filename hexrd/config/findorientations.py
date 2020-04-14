@@ -1,10 +1,10 @@
-import logging
 import os
 
 import numpy as np
 
 from .config import Config
 
+# TODO: set these as defaults
 seed_search_methods = {
     'label':dict(filter_radius=1, threshold=1),
     'blob_log':dict(min_sigma=0.5, max_sigma=5,
