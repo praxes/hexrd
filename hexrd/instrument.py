@@ -566,11 +566,23 @@ class HEDMInstrument(object):
             ring_maps = []
             for i_r, tthr in enumerate(tth_ranges):
                 print("working on ring %d..." % i_r)
+
+                # init map with NaNs
+                this_map = np.nan*np.ones((nrows_ome, ncols_eta))
+
+                # mark pixels in the spec'd tth range
+                pixels_in_tthr = np.logical_and(
+                    ptth >= tthr[0], ptth <= tthr[1]
+                )
+
+                # catch case where ring isn't on detector
+                if not np.any(pixels_in_tthr):
+                    ring_maps.append(this_map)
+                    continue
+
                 # ???: faster to index with bool or use np.where,
                 # or recode in numba?
-                rtth_idx = np.where(
-                    np.logical_and(ptth >= tthr[0], ptth <= tthr[1])
-                )
+                rtth_idx = np.where(pixels_in_tthr)
 
                 # grab relevant eta coords using histogram
                 # !!!: This allows use to calculate arc length and
@@ -629,7 +641,6 @@ class HEDMInstrument(object):
                         pass
                     pass
                 # histogram intensities over eta ranges
-                this_map = np.nan*np.ones((nrows_ome, ncols_eta))
                 for i_row, image in enumerate(imgser_dict[det_key]):
                     if fast_histogram:
                         this_map[i_row, reta_idx] = histogram1d(
