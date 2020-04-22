@@ -4102,7 +4102,7 @@ def make_reflection_patches(instr_cfg,
     bvec = num.r_[instr_cfg['beam']['vector']]
 
     # data to loop
-    # ...WOULD IT BE CHEAPER TO CARRY ZEROS OR USE CONDITIONAL?
+    # ??? WOULD IT BE CHEAPER TO CARRY ZEROS OR USE CONDITIONAL?
     if omega is None:
         full_angs = num.hstack([tth_eta, num.zeros((npts, 1))])
     else:
@@ -4111,26 +4111,24 @@ def make_reflection_patches(instr_cfg,
     patches = []
     for angs, pix in zip(full_angs, ang_pixel_size):
         # calculate bin edges for patch based on local angular pixel size
-        # tth
-        tth_binw = num.ceil(tth_tol/num.degrees(pix[0]))        
-        tth_edges = gutil.make_tolerance_grid(
-            bin_width=tth_binw, window_width=tth_tol, num_subdivisions=npdiv
+        # tth      
+        ntths, tth_edges = gutil.make_tolerance_grid(
+            bin_width=num.degrees(pix[0]),
+            window_width=tth_tol,
+            num_subdivisions=npdiv
         )
         
         # eta
-        eta_binw = num.ceil(eta_tol/num.degrees(pix[1]))
-        eta_edges = gutil.make_tolerance_grid(
-            bin_width=eta_binw, window_width=eta_tol, num_subdivisions=npdiv
+        netas, eta_edges = gutil.make_tolerance_grid(
+            bin_width=num.degrees(pix[1]),
+            window_width=eta_tol,
+            num_subdivisions=npdiv
         )
         
-        # store dimensions for convenience
-        #   * etas and tths are bin vertices, ome is already centers
-        sdims = [len(eta_edges) - 1, len(tth_edges) - 1]
-
         # FOR ANGULAR MESH
         conn = gutil.cellConnectivity(
-            sdims[0],
-            sdims[1],
+            netas,
+            ntths,
             origin='ll'
         )
 
@@ -4139,8 +4137,8 @@ def make_reflection_patches(instr_cfg,
         npts_patch = m_tth.size
 
         # calculate the patch XY coords from the (tth, eta) angles
-        # * will CHEAT and ignore the small perturbation the different
-        #   omega angle values causes and simply use the central value
+        # !!! will CHEAT and ignore the small perturbation the different
+        #     omega angle values causes and simply use the central value
         gVec_angs_vtx = num.tile(angs, (npts_patch, 1)) \
             + num.radians(
                 num.vstack([m_tth.flatten(),
@@ -4160,14 +4158,16 @@ def make_reflection_patches(instr_cfg,
         areas = compute_areas_func(xy_eval_vtx, conn)
 
         # EVALUATION POINTS
-        #   * for lack of a better option will use centroids
+        # !!! for lack of a better option will use centroids
         tth_eta_cen = gutil.cellCentroids(
             num.atleast_2d(gVec_angs_vtx[:, :2]),
             conn
         )
 
-        gVec_angs = num.hstack([tth_eta_cen,
-                                num.tile(angs[2], (len(tth_eta_cen), 1))])
+        gVec_angs = num.hstack(
+            [tth_eta_cen,
+             num.tile(angs[2], (len(tth_eta_cen), 1))]
+        )
 
         xy_eval, _ = _project_on_detector_plane(
                 gVec_angs,
@@ -4187,11 +4187,11 @@ def make_reflection_patches(instr_cfg,
              (xy_eval_vtx[:, 0].reshape(m_tth.shape),
               xy_eval_vtx[:, 1].reshape(m_tth.shape)),
              conn,
-             areas.reshape(sdims[0], sdims[1]),
-             (xy_eval[:, 0].reshape(sdims[0], sdims[1]),
-              xy_eval[:, 1].reshape(sdims[0], sdims[1])),
-             (row_indices.reshape(sdims[0], sdims[1]),
-              col_indices.reshape(sdims[0], sdims[1])))
+             areas.reshape(netas, ntths),
+             (xy_eval[:, 0].reshape(netas, ntths),
+              xy_eval[:, 1].reshape(netas, ntths)),
+             (row_indices.reshape(netas, ntths),
+              col_indices.reshape(netas, ntths)))
         )
         pass    # close loop over angles
     return patches
