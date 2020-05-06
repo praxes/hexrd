@@ -36,15 +36,38 @@ def gen_bright_field(tbf_data_folder,tbf_img_start,tbf_num_imgs,nrows,ncols,stem
     tbf=np.median(tbf_stack,axis=0)
     
     return tbf
+
+
+
+def gen_median_image(data_folder,img_start,num_imgs,nrows,ncols,stem='nf_',num_digits=5,ext='.tif'):
+
+
+    img_nums=np.arange(img_start,img_start+num_imgs,1)
     
     
-def gen_attenuation_rads(tomo_data_folder,tbf,tomo_img_start,tomo_num_imgs,nrows,ncols,stem='nf_',num_digits=5,ext='.tif'):
+    stack=np.zeros([num_imgs,nrows,ncols])
+    
+    print('Loading data for median image...')
+    for ii in np.arange(num_imgs):
+        print('Image #: ' + str(ii))
+        stack[ii,:,:]=imgio.imread(data_folder+'%s'%(stem)+str(img_nums[ii]).zfill(num_digits)+ext)
+        #image_stack[ii,:,:]=np.flipud(tmp_img>threshold)
+    print('making median...')
+    
+    med=np.median(stack,axis=0)
+    
+    return med    
+    
+def gen_attenuation_rads(tomo_data_folder,tbf,tomo_img_start,tomo_num_imgs,nrows,ncols,stem='nf_',num_digits=5,ext='.tif',tdf=None):
     
     
     
     #Reconstructs a single tompgrahy layer to find the extent of the sample
     tomo_img_nums=np.arange(tomo_img_start,tomo_img_start+tomo_num_imgs,1)
     
+    #if tdf==None:
+    if len(tdf) == None:  
+        tdf=np.zeros([nrows,ncols])
     
     rad_stack=np.zeros([tomo_num_imgs,nrows,ncols])
     
@@ -53,7 +76,7 @@ def gen_attenuation_rads(tomo_data_folder,tbf,tomo_img_start,tomo_num_imgs,nrows
         print('Image #: ' + str(ii))
         tmp_img=imgio.imread(tomo_data_folder+'%s'%(stem)+str(tomo_img_nums[ii]).zfill(num_digits)+ext)
         
-        rad_stack[ii,:,:]=-np.log(tmp_img.astype(float)/tbf.astype(float))
+        rad_stack[ii,:,:]=-np.log((tmp_img.astype(float)-tdf)/(tbf.astype(float)-tdf))
         
     return rad_stack
         
@@ -66,7 +89,7 @@ def tomo_reconstruct_layer(rad_stack,cross_sectional_dim,layer_row=1024,start_to
     
     theta = np.linspace(start_tomo_ang, end_tomo_ang, tomo_num_imgs, endpoint=False)
     
-    max_rad=int(cross_sectional_dim/pixel_size/2.*np.sqrt(2.))
+    max_rad=int(cross_sectional_dim/pixel_size/2.*1.1) #10% slack to avoid edge effects
     
     if rotation_axis_pos>=0:
         sinogram_cut=sinogram[:,2*rotation_axis_pos:]
@@ -119,7 +142,7 @@ def threshold_and_clean_tomo_layer(reconstruction_fbp,recon_thresh, noise_obj_si
         
     return binary_recon
     
-def crop_and_rebin_tomo_layer(binary_recon,recon_thresh,voxel_spacing,pixel_size,cross_sectional_dim):
+def crop_and_rebin_tomo_layer(binary_recon,recon_thresh,voxel_spacing,pixel_size,cross_sectional_dim,circular_mask_rad=None):
     scaling=voxel_spacing/pixel_size
 
     rows=binary_recon.shape[0]
@@ -138,6 +161,15 @@ def crop_and_rebin_tomo_layer(binary_recon,recon_thresh,voxel_spacing,pixel_size
     cut_edge=int(np.round((binary_recon_bin.shape[0]*voxel_spacing-cross_sectional_dim)/2./voxel_spacing))
     
     binary_recon_bin=binary_recon_bin[cut_edge:-cut_edge,cut_edge:-cut_edge]
+    
+    if circular_mask_rad is not None: 
+        center = binary_recon_bin.shape[0]/2
+        radius = np.round(circular_mask_rad/voxel_spacing)
+        nx,ny = binary_recon_bin.shape
+        y,x = np.ogrid[-center:nx-center,-center:ny-center]
+        mask = x*x + y*y > radius*radius
+        
+        binary_recon_bin[mask]=0
 
     return binary_recon_bin
     
