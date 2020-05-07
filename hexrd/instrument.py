@@ -78,14 +78,14 @@ except(ImportError):
 # PARAMETERS
 # =============================================================================
 
-instrument_name_DFLT = 'GE'
+instrument_name_DFLT = 'instrument'
 
 beam_energy_DFLT = 65.351
 beam_vec_DFLT = ct.beam_vec
 
 eta_vec_DFLT = ct.eta_vec
 
-panel_id_DFLT = "generic"
+panel_id_DFLT = 'generic'
 nrows_DFLT = 2048
 ncols_DFLT = 2048
 pixel_size_DFLT = (0.2, 0.2)
@@ -2357,8 +2357,7 @@ class GrainDataWriter_h5(object):
             self.fid = filename
         else:
             self.fid = h5py.File(filename + ".hdf5", "w")
-        icfg = {}
-        icfg.update(instr_cfg)
+        icfg = dict(instr_cfg)
 
         # add instrument groups and attributes
         self.instr_grp = self.fid.create_group('instrument')
@@ -2559,10 +2558,8 @@ class GenerateEtaOmeMaps(object):
         # handle etas
         # WARNING: unlinke the omegas in imageseries metadata,
         # these are in RADIANS and represent bin centers
-        self._etas = etas
-        self._etaEdges = np.r_[
-            etas - 0.5*np.radians(eta_step),
-            etas[-1] + 0.5*np.radians(eta_step)]
+        self._etaEdges = etas
+        self._etas = self._etaEdges[:-1] + 0.5*np.radians(eta_step)
 
     @property
     def dataStore(self):
