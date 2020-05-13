@@ -790,6 +790,8 @@ def gen_trial_exp_data(grain_out_file,det_file,mat_file, x_ray_energy, mat_name,
     mis_amt=misorientation_bnd*np.pi/180.
     spacing=misorientation_spacing*np.pi/180.
     
+    mis_steps = int(misorientation_bnd/misorientation_spacing)
+    
     ori_pts = np.arange(-mis_amt, (mis_amt+(spacing*0.999)),spacing)
     num_ori_grid_pts=ori_pts.shape[0]**3
     num_oris=exp_maps.shape[0]
@@ -933,7 +935,7 @@ def gen_trial_exp_data(grain_out_file,det_file,mat_file, x_ray_energy, mat_name,
     experiment.clip_vals = clip_vals
     experiment.bsw = beam_stop_width  
     
-    nf_to_ff_id_map=cut
+    nf_to_ff_id_map=np.tile(cut,27*mis_steps)
     
     return experiment, nf_to_ff_id_map
 
