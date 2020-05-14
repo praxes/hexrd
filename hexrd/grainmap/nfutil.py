@@ -15,7 +15,7 @@ import argparse
 import contextlib
 import multiprocessing
 import tempfile
-import shutil 
+import shutil
 
 from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
@@ -225,7 +225,7 @@ def checking_result_handler(filename):
 
     return CheckingResultHandler(filename)
 
-    
+
 # ==============================================================================
 # %% OPTIMIZED BITS
 # ==============================================================================
@@ -406,11 +406,11 @@ def _quant_and_clip_confidence(coords, angles, image, base, inv_deltas, clip_val
 
         if not np.abs(yf)>bshw:
             continue
-        
+
         yf = np.floor((yf - base[1]) * inv_deltas[1])
 
-        
-        
+
+
         if not yf >= 0.0:
             continue
         if not yf < clip_vals[1]:
@@ -452,7 +452,7 @@ def test_orientations(image_stack, experiment, test_crds, controller,multiproces
     n_grains = experiment.n_grains
     chunk_size = controller.get_chunk_size()
     ncpus = controller.get_process_count()
-    
+
 
     # generate angles =========================================================
     # all_angles will be a list containing arrays for the different angles to
@@ -538,11 +538,11 @@ def test_orientations(image_stack, experiment, test_crds, controller,multiproces
 
     controller.finish(subprocess)
     controller.handle_result("confidence", confidence)
-    
+
     del _multiprocessing_start_method
-    
+
     pool.close()
-    
+
     return confidence
 
 
@@ -735,7 +735,7 @@ def grand_loop_pool(ncpus, state):
             # dumb dumping doesn't seem to work very well.. do something ad-hoc
             logging.info('Using "%s" as temporary directory.', tmp_dir)
 
-            id_exp = joblib.dump(state[-1], 
+            id_exp = joblib.dump(state[-1],
                                  os.path.join(tmp_dir,
                                               'grand-loop-experiment.gz'),
                                  compress=True)
@@ -751,126 +751,126 @@ def grand_loop_pool(ncpus, state):
 
 
 
-            
+
 #%% Loading Utilities
-            
-            
+
+
 def gen_trial_exp_data(grain_out_file,det_file,mat_file, x_ray_energy, mat_name, max_tth, comp_thresh, chi2_thresh, misorientation_bnd, \
                        misorientation_spacing,ome_range_deg, nframes, beam_stop_width):
 
     print('Loading Grain Data.....')
     #gen_grain_data
     ff_data=np.loadtxt(grain_out_file)
-    
+
     #ff_data=np.atleast_2d(ff_data[2,:])
-    
+
     exp_maps=ff_data[:,3:6]
     t_vec_ds=ff_data[:,6:9]
-    
-    
-    # 
+
+
+    #
     completeness=ff_data[:,1]
-    
+
     chi2=ff_data[:,2]
-    
+
     n_grains=exp_maps.shape[0]
-    
+
     rMat_c = rot.rotMatOfExpMap(exp_maps.T)
-    
-    
-    
-    
+
+
+
+
     cut=np.where(np.logical_and(completeness>comp_thresh,chi2<chi2_thresh))[0]
     exp_maps=exp_maps[cut,:]
     t_vec_ds=t_vec_ds[cut,:]
     chi2=chi2[cut]
-  
-    
+
+
     # Add Misorientation
     mis_amt=misorientation_bnd*np.pi/180.
     spacing=misorientation_spacing*np.pi/180.
-    
+
     mis_steps = int(misorientation_bnd/misorientation_spacing)
-    
+
     ori_pts = np.arange(-mis_amt, (mis_amt+(spacing*0.999)),spacing)
     num_ori_grid_pts=ori_pts.shape[0]**3
     num_oris=exp_maps.shape[0]
-    
-    
+
+
     XsO, YsO, ZsO = np.meshgrid(ori_pts, ori_pts, ori_pts)
-    
+
     grid0 = np.vstack([XsO.flatten(), YsO.flatten(), ZsO.flatten()]).T
-    
-    
+
+
     exp_maps_expanded=np.zeros([num_ori_grid_pts*num_oris,3])
     t_vec_ds_expanded=np.zeros([num_ori_grid_pts*num_oris,3])
-    
-    
+
+
     for ii in np.arange(num_oris):
-        pts_to_use=np.arange(num_ori_grid_pts)+ii*num_ori_grid_pts  
+        pts_to_use=np.arange(num_ori_grid_pts)+ii*num_ori_grid_pts
         exp_maps_expanded[pts_to_use,:]=grid0+np.r_[exp_maps[ii,:] ]
-        t_vec_ds_expanded[pts_to_use,:]=np.r_[t_vec_ds[ii,:] ]      
-    
-    
+        t_vec_ds_expanded[pts_to_use,:]=np.r_[t_vec_ds[ii,:] ]
+
+
     exp_maps=exp_maps_expanded
     t_vec_ds=t_vec_ds_expanded
-    
+
     n_grains=exp_maps.shape[0]
-    
+
     rMat_c = rot.rotMatOfExpMap(exp_maps.T)
-    
+
 
     print('Loading Instrument Data.....')
     instr_cfg = yaml.load(open(det_file, 'r'))
-    
+
     tiltAngles = instr_cfg['detector']['transform']['tilt_angles']
     tVec_d = np.array(instr_cfg['detector']['transform']['t_vec_d']).reshape(3, 1)
     #tVec_d[0] = -0.05
     chi = instr_cfg['oscillation_stage']['chi']
     tVec_s = np.array(instr_cfg['oscillation_stage']['t_vec_s']).reshape(3, 1)
-    
+
     rMat_d = makeDetectorRotMat(tiltAngles)
     rMat_s = makeOscillRotMat([chi, 0.])
-    
+
     pixel_size = instr_cfg['detector']['pixels']['size']
-    
+
     nrows = instr_cfg['detector']['pixels']['rows']
     ncols = instr_cfg['detector']['pixels']['columns']
-    
-#    row_dim = pixel_size[0]*nrows # in mm 
-#    col_dim = pixel_size[1]*ncols # in mm 
-    
+
+#    row_dim = pixel_size[0]*nrows # in mm
+#    col_dim = pixel_size[1]*ncols # in mm
+
     x_col_edges = pixel_size[1]*(np.arange(ncols+1) - 0.5*ncols)
     y_row_edges = pixel_size[0]*(np.arange(nrows+1) - 0.5*nrows)[::-1]
-    
+
     panel_dims = [(-0.5*ncols*pixel_size[1],
                    -0.5*nrows*pixel_size[0]),
                   ( 0.5*ncols*pixel_size[1],
                     0.5*nrows*pixel_size[0])]
-    
+
     # a bit overkill, but grab max two-theta from all pixel transforms
     rx, ry = np.meshgrid(x_col_edges, y_row_edges)
     gcrds = detectorXYToGvec(np.vstack([rx.flatten(), ry.flatten()]).T,
                              rMat_d, rMat_s,
                              tVec_d, tVec_s, np.zeros(3))
     pixel_tth = gcrds[0][0]
-    
+
     detector_params = np.hstack([tiltAngles, tVec_d.flatten(), chi, tVec_s.flatten()])
 
-    
-    ome_period_deg=(ome_range_deg[0][0], (ome_range_deg[0][0]+360.)) #degrees 
-    ome_step_deg=(ome_range_deg[0][1]-ome_range_deg[0][0])/nframes #degrees 
-    
-    
+
+    ome_period_deg=(ome_range_deg[0][0], (ome_range_deg[0][0]+360.)) #degrees
+    ome_step_deg=(ome_range_deg[0][1]-ome_range_deg[0][0])/nframes #degrees
+
+
     ome_period = (ome_period_deg[0]*np.pi/180.,ome_period_deg[1]*np.pi/180.)
     ome_range = [(ome_range_deg[0][0]*np.pi/180.,ome_range_deg[0][1]*np.pi/180.)]
     ome_step = ome_step_deg*np.pi/180.
 
 
-    
+
     ome_edges = np.arange(nframes+1)*ome_step+ome_range[0][0]#fixed 2/26/17
-    
-    
+
+
     base = np.array([x_col_edges[0],
                      y_row_edges[0],
                      ome_edges[0]])
@@ -889,29 +889,29 @@ def gen_trial_exp_data(grain_out_file,det_file,mat_file, x_ray_energy, mat_name,
     for ii in np.arange(len(materials)):
         #print materials[ii].name
         check[ii]=materials[ii].name==mat_name
-    
+
     mat_used=materials[np.where(check)[0][0]]
-    
+
     #niti_mart.beamEnergy = valunits.valWUnit("wavelength","ENERGY",61.332,"keV")
-    mat_used.beamEnergy = valunits.valWUnit("wavelength","ENERGY",x_ray_energy,"keV")            
+    mat_used.beamEnergy = valunits.valWUnit("wavelength","ENERGY",x_ray_energy,"keV")
     mat_used.planeData.exclusions = np.zeros(len(mat_used.planeData.exclusions), dtype=bool)
-    
-    
+
+
     if max_tth>0.:
-         mat_used.planeData.tThMax = np.amax(np.radians(max_tth))   
+         mat_used.planeData.tThMax = np.amax(np.radians(max_tth))
     else:
-        mat_used.planeData.tThMax = np.amax(pixel_tth)        
-    
+        mat_used.planeData.tThMax = np.amax(pixel_tth)
+
     pd=mat_used.planeData
-    
-    
+
+
     print('Final Assembly.....')
     experiment = argparse.Namespace()
     # grains related information
     experiment.n_grains = n_grains # this can be derived from other values...
     experiment.rMat_c = rMat_c # n_grains rotation matrices (one per grain)
     experiment.exp_maps = exp_maps # n_grains exp_maps -angle * rotation axis- (one per grain)
-    
+
     experiment.plane_data = pd
     experiment.detector_params = detector_params
     experiment.pixel_size = pixel_size
@@ -933,19 +933,22 @@ def gen_trial_exp_data(grain_out_file,det_file,mat_file, x_ray_energy, mat_name,
     experiment.base = base
     experiment.inv_deltas = inv_deltas
     experiment.clip_vals = clip_vals
-    experiment.bsw = beam_stop_width  
-    
-    nf_to_ff_id_map=np.tile(cut,27*mis_steps)
-    
+    experiment.bsw = beam_stop_width
+
+    if mis_steps ==0:
+        nf_to_ff_id_map = cut
+    else:
+        nf_to_ff_id_map=np.tile(cut,27*mis_steps)
+
     return experiment, nf_to_ff_id_map
 
 #%%
 
-    
+
 def gen_nf_test_grid_tomo(x_dim_pnts, z_dim_pnts, v_bnds, voxel_spacing):
-    
+
     if v_bnds[0]==v_bnds[1]:
-        Xs,Ys,Zs=np.meshgrid(np.arange(x_dim_pnts),v_bnds[0],np.arange(z_dim_pnts))        
+        Xs,Ys,Zs=np.meshgrid(np.arange(x_dim_pnts),v_bnds[0],np.arange(z_dim_pnts))
     else:
         Xs,Ys,Zs=np.meshgrid(np.arange(x_dim_pnts),np.arange(v_bnds[0]+voxel_spacing/2.,v_bnds[1],voxel_spacing),np.arange(z_dim_pnts))
         #note numpy shaping of arrays is goofy, returns(length(y),length(x),length(z))
@@ -957,14 +960,14 @@ def gen_nf_test_grid_tomo(x_dim_pnts, z_dim_pnts, v_bnds, voxel_spacing):
 
     test_crds = np.vstack([Xs.flatten(), Ys.flatten(), Zs.flatten()]).T
     n_crds = len(test_crds)
-    
+
     return test_crds, n_crds, Xs, Ys, Zs
-    
+
 
 #%%
-    
+
 def gen_nf_dark(data_folder,img_nums,num_for_dark,nrows,ncols,dark_type='median',stem='nf_',num_digits=5,ext='.tif'):
-    
+
     dark_stack=np.zeros([num_for_dark,nrows,ncols])
 
     print('Loading data for dark generation...')
@@ -972,21 +975,21 @@ def gen_nf_dark(data_folder,img_nums,num_for_dark,nrows,ncols,dark_type='median'
         print('Image #: ' + str(ii))
         dark_stack[ii,:,:]=imgio.imread(data_folder+'%s'%(stem)+str(img_nums[ii]).zfill(num_digits)+ext)
         #image_stack[ii,:,:]=np.flipud(tmp_img>threshold)
-    
-    if dark_type=='median':   
+
+    if dark_type=='median':
         print('making median...')
         dark=np.median(dark_stack,axis=0)
     elif dark_type=='min':
         print('making min...')
         dark=np.min(dark_stack,axis=0)
-        
+
     return dark
 
 
-#%%    
+#%%
 def gen_nf_image_stack(data_folder,img_nums,dark,num_erosions,num_dilations,ome_dilation_iter,threshold,nrows,ncols,stem='nf_',num_digits=5,ext='.tif'):
-    
-    
+
+
     image_stack=np.zeros([img_nums.shape[0],nrows,ncols],dtype=bool)
 
     print('Loading and Cleaning Images...')
@@ -996,99 +999,99 @@ def gen_nf_image_stack(data_folder,img_nums,dark,num_erosions,num_dilations,ome_
         #image procesing
         image_stack[ii,:,:]=img.morphology.binary_erosion(tmp_img>threshold,iterations=num_erosions)
         image_stack[ii,:,:]=img.morphology.binary_dilation(image_stack[ii,:,:],iterations=num_dilations)
-        
+
     #%A final dilation that includes omega
     print('Final Dilation Including Omega....')
     image_stack=img.morphology.binary_dilation(image_stack,iterations=ome_dilation_iter)
-    
+
     return image_stack
 
 
-#%%    
+#%%
 def scan_detector_parm(image_stack, experiment,test_crds,controller,parm_to_opt,parm_vector,slice_shape):
     #0-distance
     #1-x center
     #2-xtilt
     #3-ytilt
     #4-ztilt
-    
+
     multiprocessing_start_method = 'fork' if hasattr(os, 'fork') else 'spawn'
-    
+
     #current detector parameters, note the value for the actively optimized parameters will be ignored
     distance=experiment.detector_params[5]#mm
     x_cen=experiment.detector_params[3]#mm
     xtilt=experiment.detector_params[0]
     ytilt=experiment.detector_params[1]
-    ztilt=experiment.detector_params[2]  
-    
+    ztilt=experiment.detector_params[2]
+
     num_parm_pts=len(parm_vector)
-    
+
     trial_data=np.zeros([num_parm_pts,slice_shape[0],slice_shape[1]])
-    
+
     tmp_td=copy.copy(experiment.tVec_d)
     for jj in np.arange(num_parm_pts):
         print('cycle %d of %d'%(jj+1,num_parm_pts))
 
-        
+
         if parm_to_opt==0:
-            tmp_td[2]=parm_vector[jj]        
+            tmp_td[2]=parm_vector[jj]
         else:
-            tmp_td[2]=distance   
-        
+            tmp_td[2]=distance
+
         if parm_to_opt==1:
-            tmp_td[0]=parm_vector[jj]        
+            tmp_td[0]=parm_vector[jj]
         else:
             tmp_td[0]=x_cen
-        
+
         if  parm_to_opt==2:
-            rMat_d_tmp=makeDetectorRotMat([parm_vector[jj],ytilt,ztilt]) 
+            rMat_d_tmp=makeDetectorRotMat([parm_vector[jj],ytilt,ztilt])
         elif parm_to_opt==3:
             rMat_d_tmp=makeDetectorRotMat([xtilt,parm_vector[jj],ztilt])
         elif parm_to_opt==4:
-            rMat_d_tmp=makeDetectorRotMat([xtilt,ytilt,parm_vector[jj]])  
+            rMat_d_tmp=makeDetectorRotMat([xtilt,ytilt,parm_vector[jj]])
         else:
             rMat_d_tmp=makeDetectorRotMat([xtilt,ytilt,ztilt])
-        
+
         experiment.rMat_d = rMat_d_tmp
         experiment.tVec_d = tmp_td
 
-        
-        
+
+
         conf=test_orientations(image_stack, experiment, test_crds,
                       controller,multiprocessing_start_method)
-        
-        
+
+
         trial_data[jj]=np.max(conf,axis=0).reshape(slice_shape)
-        
+
     return trial_data
-    
+
 #%%
 
 def extract_max_grain_map(confidence,grid_shape,binary_recon_bin=None):
     if binary_recon_bin == None:
         binary_recon_bin=np.ones([grid_shape[1],grid_shape[2]])
-        
-        
+
+
     conf_squeeze=np.max(confidence,axis=0).reshape(grid_shape)
     grains=np.argmax(confidence,axis=0).reshape(grid_shape)
-    out_bounds=np.where(binary_recon_bin==0)  
-    conf_squeeze[:,out_bounds[0],out_bounds[1]] =-0.001   
+    out_bounds=np.where(binary_recon_bin==0)
+    conf_squeeze[:,out_bounds[0],out_bounds[1]] =-0.001
 
     return conf_squeeze,grains
 #%%
-    
+
 def process_raw_confidence(raw_confidence,vol_shape,tomo_mask=None,id_remap=None):
-    
+
     print('Compiling Confidence Map...')
     confidence_map=np.max(raw_confidence,axis=0).reshape(vol_shape)
     grain_map=np.argmax(raw_confidence,axis=0).reshape(vol_shape)
-    
-    
+
+
     if tomo_mask is not None:
         print('Applying tomography mask...')
-        out_bounds=np.where(tomo_mask==0)  
-        confidence_map[:,out_bounds[0],out_bounds[1]] =-0.001   
-        grain_map[:,out_bounds[0],out_bounds[1]] =-1 
+        out_bounds=np.where(tomo_mask==0)
+        confidence_map[:,out_bounds[0],out_bounds[1]] =-0.001
+        grain_map[:,out_bounds[0],out_bounds[1]] =-1
 
 
     if id_remap is not None:
@@ -1101,53 +1104,51 @@ def process_raw_confidence(raw_confidence,vol_shape,tomo_mask=None,id_remap=None
         grain_map=grain_map_copy
 
     return grain_map, confidence_map
-    
+
 #%%
 
 def save_raw_confidence(save_dir,save_stem,raw_confidence,id_remap=None):
-    print('Saving raw confidence, might take a while...') 
+    print('Saving raw confidence, might take a while...')
     if id_remap is not None:
-        np.savez(save_dir+save_stem+'_raw_confidence.npz',raw_confidence=raw_confidence,id_remap=id_remap)    
+        np.savez(save_dir+save_stem+'_raw_confidence.npz',raw_confidence=raw_confidence,id_remap=id_remap)
     else:
-        np.savez(save_dir+save_stem+'_raw_confidence.npz',raw_confidence=raw_confidence)   
-#%%    
-    
+        np.savez(save_dir+save_stem+'_raw_confidence.npz',raw_confidence=raw_confidence)
+#%%
+
 def save_nf_data(save_dir,save_stem,grain_map,confidence_map,Xs,Ys,Zs,ori_list,id_remap=None):
     print('Saving grain map data...')
     if id_remap is not None:
-        np.savez(save_dir+save_stem+'_grain_map_data.npz',grain_map=grain_map,confidence_map=confidence_map,Xs=Xs,Ys=Ys,Zs=Zs,ori_list=ori_list,id_remap=id_remap)    
+        np.savez(save_dir+save_stem+'_grain_map_data.npz',grain_map=grain_map,confidence_map=confidence_map,Xs=Xs,Ys=Ys,Zs=Zs,ori_list=ori_list,id_remap=id_remap)
     else:
         np.savez(save_dir+save_stem+'_grain_map_data.npz',grain_map=grain_map,confidence_map=confidence_map,Xs=Xs,Ys=Ys,Zs=Zs,ori_list=ori_list)
 
 #%%
 
 def plot_ori_map(grain_map, confidence_map, exp_maps, layer_no,id_remap=None):
-    
+
     grains_plot=np.squeeze(grain_map[layer_no,:,:])
     conf_plot=np.squeeze(confidence_map[layer_no,:,:])
     n_grains=len(exp_maps)
-    
+
     rgb_image=np.zeros([grains_plot.shape[0],grains_plot.shape[1],4], dtype='float32')
     rgb_image[:,:,3]=1.
-    
+
     for ii in np.arange(n_grains):
         if id_remap is not None:
-            this_grain=np.where(np.squeeze(grains_plot)==id_remap[ii])    
+            this_grain=np.where(np.squeeze(grains_plot)==id_remap[ii])
         else:
             this_grain=np.where(np.squeeze(grains_plot)==ii)
         if np.sum(this_grain[0])>0:
 
             ori=exp_maps[ii,:]
-            
+
             #cubic mapping
             rgb_image[this_grain[0],this_grain[1],0]=(ori[0]+(np.pi/4.))/(np.pi/2.)
             rgb_image[this_grain[0],this_grain[1],1]=(ori[1]+(np.pi/4.))/(np.pi/2.)
             rgb_image[this_grain[0],this_grain[1],2]=(ori[2]+(np.pi/4.))/(np.pi/2.)
-    
-    
-    
+
+
+
     plt.imshow(rgb_image,interpolation='none')
     plt.hold(True)
-    plt.imshow(conf_plot,vmin=0.0,vmax=1.,interpolation='none',cmap=plt.cm.gray,alpha=0.5)    
-    
-    
+    plt.imshow(conf_plot,vmin=0.0,vmax=1.,interpolation='none',cmap=plt.cm.gray,alpha=0.5)
