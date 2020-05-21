@@ -1516,7 +1516,7 @@ class PlanarDetector(object):
                     sat_level=None, panel_buffer=None):
         """
         Return a dictionary of detector parameters, with optional instrument
-        level parameters.  This is a convenience function to work with the 
+        level parameters.  This is a convenience function to work with the
         APIs in several functions in xrdutil.
 
         Parameters
@@ -1541,7 +1541,7 @@ class PlanarDetector(object):
 
         """
         config_dict = {}
-        
+
         # =====================================================================
         # DETECTOR PARAMETERS
         # =====================================================================
@@ -1568,7 +1568,7 @@ class PlanarDetector(object):
 
         # saturation level
         det_dict['saturation_level'] = sat_level
-        
+
         # panel buffer
         # FIXME if it is an array, the write will be a mess
         det_dict['panel_buffer'] = panel_buffer
@@ -1580,7 +1580,7 @@ class PlanarDetector(object):
                 parameters=np.r_[self.distortion[1]].tolist()
             )
             det_dict['distortion'] = dist_d
-        
+
         # =====================================================================
         # SAMPLE STAGE PARAMETERS
         # =====================================================================
@@ -1588,7 +1588,7 @@ class PlanarDetector(object):
             chi=chi,
             translation=tvec.tolist()
         )
-        
+
         # =====================================================================
         # BEAM PARAMETERS
         # =====================================================================
@@ -1596,11 +1596,11 @@ class PlanarDetector(object):
             energy=beam_energy,
             vector=beam_vector
         )
-        
+
         config_dict['detector'] = det_dict
         config_dict['oscillation_stage'] = stage_dict
         config_dict['beam'] = beam_dict
-        
+
         return config_dict
 
     def pixel_angles(self, origin=ct.zeros_3):
