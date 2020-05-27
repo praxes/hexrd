@@ -78,14 +78,14 @@ except(ImportError):
 # PARAMETERS
 # =============================================================================
 
-instrument_name_DFLT = 'GE'
+instrument_name_DFLT = 'instrument'
 
 beam_energy_DFLT = 65.351
 beam_vec_DFLT = ct.beam_vec
 
 eta_vec_DFLT = ct.eta_vec
 
-panel_id_DFLT = "generic"
+panel_id_DFLT = 'generic'
 nrows_DFLT = 2048
 ncols_DFLT = 2048
 pixel_size_DFLT = (0.2, 0.2)
@@ -1516,7 +1516,7 @@ class PlanarDetector(object):
                     sat_level=None, panel_buffer=None):
         """
         Return a dictionary of detector parameters, with optional instrument
-        level parameters.  This is a convenience function to work with the 
+        level parameters.  This is a convenience function to work with the
         APIs in several functions in xrdutil.
 
         Parameters
@@ -1541,7 +1541,7 @@ class PlanarDetector(object):
 
         """
         config_dict = {}
-        
+
         # =====================================================================
         # DETECTOR PARAMETERS
         # =====================================================================
@@ -1568,7 +1568,7 @@ class PlanarDetector(object):
 
         # saturation level
         det_dict['saturation_level'] = sat_level
-        
+
         # panel buffer
         # FIXME if it is an array, the write will be a mess
         det_dict['panel_buffer'] = panel_buffer
@@ -1580,7 +1580,7 @@ class PlanarDetector(object):
                 parameters=np.r_[self.distortion[1]].tolist()
             )
             det_dict['distortion'] = dist_d
-        
+
         # =====================================================================
         # SAMPLE STAGE PARAMETERS
         # =====================================================================
@@ -1588,7 +1588,7 @@ class PlanarDetector(object):
             chi=chi,
             translation=tvec.tolist()
         )
-        
+
         # =====================================================================
         # BEAM PARAMETERS
         # =====================================================================
@@ -1596,11 +1596,11 @@ class PlanarDetector(object):
             energy=beam_energy,
             vector=beam_vector
         )
-        
+
         config_dict['detector'] = det_dict
         config_dict['oscillation_stage'] = stage_dict
         config_dict['beam'] = beam_dict
-        
+
         return config_dict
 
     def pixel_angles(self, origin=ct.zeros_3):
@@ -2357,8 +2357,7 @@ class GrainDataWriter_h5(object):
             self.fid = filename
         else:
             self.fid = h5py.File(filename + ".hdf5", "w")
-        icfg = {}
-        icfg.update(instr_cfg)
+        icfg = dict(instr_cfg)
 
         # add instrument groups and attributes
         self.instr_grp = self.fid.create_group('instrument')
@@ -2559,10 +2558,8 @@ class GenerateEtaOmeMaps(object):
         # handle etas
         # WARNING: unlinke the omegas in imageseries metadata,
         # these are in RADIANS and represent bin centers
-        self._etas = etas
-        self._etaEdges = np.r_[
-            etas - 0.5*np.radians(eta_step),
-            etas[-1] + 0.5*np.radians(eta_step)]
+        self._etaEdges = etas
+        self._etas = self._etaEdges[:-1] + 0.5*np.radians(eta_step)
 
     @property
     def dataStore(self):
