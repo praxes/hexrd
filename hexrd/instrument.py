@@ -1913,7 +1913,7 @@ class PlanarDetector(object):
             axis=0)
         """
         # !!! should be safe as eta_edges are monotonic
-        eta_centers = eta_edges[:-1] + del_eta
+        eta_centers = eta_edges[:-1] + 0.5*del_eta
 
         # !!! get chi and ome from rmat_s
         # chi = np.arctan2(rmat_s[2, 1], rmat_s[1, 1])
