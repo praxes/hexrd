@@ -523,6 +523,9 @@ def test_orientations(image_stack, experiment, test_crds, controller,multiproces
                 confidence[:, rslice] = rvalues
                 finished += count
                 controller.update(finished)
+        del _multiprocessing_start_method
+
+        pool.close()
     else:
         logging.info('Running in a single process')
         for chunk_start in chunks:
@@ -538,10 +541,9 @@ def test_orientations(image_stack, experiment, test_crds, controller,multiproces
 
     controller.finish(subprocess)
     controller.handle_result("confidence", confidence)
+    #del _multiprocessing_start_method
 
-    del _multiprocessing_start_method
-
-    pool.close()
+    #pool.close()
 
     return confidence
 
