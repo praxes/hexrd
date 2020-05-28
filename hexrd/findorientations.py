@@ -432,14 +432,17 @@ def load_eta_ome_maps(cfg, pd, image_series, hkls=None, clean=False):
                         + "and clean option specified; "
                         + "recomputing eta/ome orientation maps",
                         fn)
-            return generate_eta_ome_maps(cfg, pd, image_series, hkls)
+            return generate_eta_ome_maps(cfg, hkls=hkls)
     else:
         logger.info('clean option specified; '
                     + 'recomputing eta/ome orientation maps')
-        return generate_eta_ome_maps(cfg, pd, image_series, hkls)
+        return generate_eta_ome_maps(cfg, hkls=hkls)
 
 
 def generate_eta_ome_maps(cfg, hkls=None):
+    """
+    Generates the eta-omega maps specified in the input config.
+    """
     # extract PlaneData from config and set active hkls
     plane_data = cfg.material.plane_data
 
@@ -748,7 +751,7 @@ def find_orientations(cfg,
 
     logger.info("\t\t...took %f seconds", (timeit.default_timer() - start))
     logger.info("\tfound %d grains; saved to file: '%s'",
-                (qbar.shape[1], qbar_filename))
+                qbar.shape[1], qbar_filename)
 
     np.savetxt(qbar_filename, qbar.T,
                fmt='%.18e', delimiter='\t')
