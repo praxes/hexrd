@@ -11,9 +11,9 @@
 #
 # Please also see the file LICENSE.
 #
-# This program is free software; you can redistribute it and/or modify it under the
-# terms of the GNU Lesser General Public License (as published by the Free Software
-# Foundation) version 2.1 dated February 1999.
+# This program is free software; you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License (as published by the Free
+# Software Foundation) version 2.1 dated February 1999.
 #
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF MERCHANTABILITY
@@ -40,11 +40,10 @@ from numpy.ctypeslib import ctypes
 from scipy import sparse
 from scipy.linalg import svd
 from scipy import ndimage
-import scipy.optimize as opt
 
 import matplotlib
-from matplotlib.widgets import Slider, Button, RadioButtons
-from matplotlib import cm, colors
+from matplotlib.widgets import Slider
+from matplotlib import cm
 from matplotlib import collections
 
 from hexrd import constants
@@ -53,14 +52,12 @@ from hexrd import tens
 from hexrd import matrixutil as mutil
 from hexrd import pfigutil
 from hexrd import gridutil as gutil
-from hexrd.valunits import toFloat, valWUnit
+from hexrd.valunits import valWUnit
 from hexrd import USE_NUMBA
 import hexrd.orientations as ors
 
 from hexrd.xrd import crystallography
 from hexrd.xrd.crystallography import latticeParameters, latticeVectors, processWavelength
-
-from hexrd.constants import keVToAngstrom
 
 from hexrd.xrd import detector
 from hexrd.xrd.detector import Framer2DRC, getCMap
@@ -1109,7 +1106,7 @@ class OmeEtaPfig(object):
                     'for colorbar, make a mappable so that the range shown is correct'
                     mappable = cm.ScalarMappable(cmap=self.cmap, norm=norm)
                     mappable.set_array(vals)
-                    forColorBar = mappable
+                    #forColorBar = mappable
 
                 else:
                     pfigR = pfigutil.renderEAProj(nVecsN, vals[northern], nP)
@@ -1126,7 +1123,7 @@ class OmeEtaPfig(object):
                 # if opacity is not None:
                 #     raise RuntimeError, 'not coded: opacity for non-rendered pole figure, specify integer-valued nP'
                 conn = makeMNConn(len(omeEdges), len(etaEdges), tri=False)
-                nQuads = conn.shape[1]
+                #nQuads = conn.shape[1]
                 #nVecsPatches = num.empty([nQuads, 4, 3])
                 #verts = num.empty([nQuads, 4, 2])
                 #vals = num.minimum(num.maximum(data[:,:].flatten(), vmin), vmax)# handled with set_clim
@@ -3632,7 +3629,7 @@ def _project_on_detector_plane(allAngs,
         det_xy = distortion[0](det_xy,
                                distortion[1],
                                invert=True)
-    return det_xy, rMat_ss
+    return det_xy, rMat_ss, valid_mask
 
 
 def simulateGVecs(pd, detector_params, grain_params,
@@ -3705,7 +3702,7 @@ def simulateGVecs(pd, detector_params, grain_params,
         ang_ps = []
     else:
         #...preallocate for speed...?
-        det_xy, rMat_s = _project_on_detector_plane(
+        det_xy, rMat_s, on_plane = _project_on_detector_plane(
             allAngs,
             rMat_d, rMat_c, chi,
             tVec_d, tVec_c, tVec_s,
@@ -4147,7 +4144,7 @@ def make_reflection_patches(instr_cfg,
                 ]).T
             )
 
-        xy_eval_vtx, _ = _project_on_detector_plane(
+        xy_eval_vtx, rmats_s, on_plane = _project_on_detector_plane(
                 gVec_angs_vtx,
                 rmat_d, rmat_c,
                 chi,
@@ -4169,7 +4166,7 @@ def make_reflection_patches(instr_cfg,
              num.tile(angs[2], (len(tth_eta_cen), 1))]
         )
 
-        xy_eval, _ = _project_on_detector_plane(
+        xy_eval, rmats_s, on_plane = _project_on_detector_plane(
                 gVec_angs,
                 rmat_d, rmat_c,
                 chi,

@@ -185,6 +185,28 @@ def centers_of_edge_vec(edges):
     return np.average(np.vstack([edges[:-1], edges[1:]]), axis=0)
 
 
+def max_tth(instr):
+    """
+    Return the maximum Bragg angle (in randians) subtended by the input
+    instrument
+
+    Parameters
+    ----------
+    instr : hexrd.instrument.HEDMInstrument instance
+        the instrument class to evalutate.
+
+    Returns
+    -------
+    tth_max : float
+        The maximum observable Bragg angle by the instrument.
+    """
+    tth_max = 0.
+    for det in instr.detectors.values():
+        ptth, peta = det.pixel_angles()
+        tth_max = max(np.max(ptth), tth_max)
+    return tth_max
+
+
 # =============================================================================
 # CLASSES
 # =============================================================================
@@ -241,7 +263,7 @@ class HEDMInstrument(object):
             # now build detector dict
             detectors_config = instrument_config['detectors']
             det_dict = dict.fromkeys(detectors_config)
-            for det_id, det_info in detectors_config.iteritems():
+            for det_id, det_info in detectors_config.items():
                 pixel_info = det_info['pixels']
                 saturation_level = det_info['saturation_level']
                 affine_info = det_info['transform']
@@ -418,7 +440,7 @@ class HEDMInstrument(object):
         plist[4], plist[5], plist[6] = self.tvec
 
         ii = NP_INS
-        for panel in self.detectors.itervalues():
+        for panel in self.detectors.values():
             plist[ii:ii + NP_DET] = np.hstack([
                 panel.tilt.flatten(),
                 panel.tvec.flatten(),
@@ -427,7 +449,7 @@ class HEDMInstrument(object):
 
         # FIXME: FML!!!
         # this assumes old style distiortion = (func, params)
-        for panel in self.detectors.itervalues():
+        for panel in self.detectors.values():
             if panel.distortion is not None:
                 plist = np.concatenate(
                     [plist, panel.distortion[1]]
@@ -440,7 +462,7 @@ class HEDMInstrument(object):
         """
         # check total length
         min_len_plist = NP_INS + NP_DET*self.num_panels
-        for panel in self.detectors.itervalues():
+        for panel in self.detectors.values():
             if panel.distortion is not None:
                 min_len_plist += len(panel.distortion[1])
         if len(plist) < min_len_plist:
@@ -455,7 +477,7 @@ class HEDMInstrument(object):
         self.tvec = plist[4:7]
 
         ii = NP_INS
-        for panel in self.detectors.itervalues():
+        for panel in self.detectors.values():
             tilt_n_trans = plist[ii:ii + NP_DET]
             panel.tilt = tilt_n_trans[:3]
             panel.tvec = tilt_n_trans[3:]
@@ -463,7 +485,7 @@ class HEDMInstrument(object):
 
         # FIXME: FML!!!
         # this assumes old style distiortion = (func, params)
-        for panel in self.detectors.itervalues():
+        for panel in self.detectors.values():
             if panel.distortion is not None:
                 ldp = len(panel.distortion[1])
                 panel.distortion[1] = plist[ii:ii + ldp]
@@ -499,7 +521,7 @@ class HEDMInstrument(object):
         par_dict['oscillation_stage'] = ostage
 
         det_dict = dict.fromkeys(self.detectors)
-        for det_name, panel in self.detectors.iteritems():
+        for det_name, panel in self.detectors.items():
             det_dict[det_name] = panel.config_dict()['detector']
         par_dict['detectors'] = det_dict
         if filename is not None:
@@ -798,7 +820,7 @@ class HEDMInstrument(object):
         TODO: revisit output; dict, or concatenated list?
         """
         results = dict.fromkeys(self.detectors)
-        for det_key, panel in self.detectors.iteritems():
+        for det_key, panel in self.detectors.items():
             results[det_key] = panel.simulate_laue_pattern(
                 crystal_data,
                 minEnergy=minEnergy, maxEnergy=maxEnergy,
@@ -816,7 +838,7 @@ class HEDMInstrument(object):
         TODO: revisit output; dict, or concatenated list?
         """
         results = dict.fromkeys(self.detectors)
-        for det_key, panel in self.detectors.iteritems():
+        for det_key, panel in self.detectors.items():
             results[det_key] = panel.simulate_rotation_series(
                 plane_data, grain_param_list,
                 eta_ranges=eta_ranges,
@@ -942,7 +964,7 @@ class HEDMInstrument(object):
             ).T.reshape(len(patch_vertices), 1)
 
             # find vertices that all fall on the panel
-            det_xy, _ = xrdutil._project_on_detector_plane(
+            det_xy, rmats_s, on_plane = xrdutil._project_on_detector_plane(
                 np.hstack([patch_vertices, ome_dupl]),
                 panel.rmat, rMat_c, self.chi,
                 panel.tvec, tVec_c, self.tvec,
@@ -2062,7 +2084,7 @@ class PlanarDetector(object):
             allAngs[:, 2] = mapAngle(allAngs[:, 2], ome_period)
 
             # find points that fall on the panel
-            det_xy, rMat_s = xrdutil._project_on_detector_plane(
+            det_xy, rMat_s, on_plane = xrdutil._project_on_detector_plane(
                 allAngs,
                 self.rmat, rMat_c, chi,
                 self.tvec, tVec_c, tVec_s,
@@ -2070,12 +2092,20 @@ class PlanarDetector(object):
             xys_p, on_panel = self.clip_to_panel(det_xy)
             valid_xys.append(xys_p)
 
+            # filter angs and hkls that are on the detector plane
+            # !!! check this -- seems unnecessary but the results of 
+            #     _project_on_detector_plane() can have len < the input.
+            #     the output of _project_on_detector_plane has been modified to
+            #     hand back the index array to remedy this JVB 2020-05-27
+            filtered_angs = np.atleast_2d(allAngs[on_plane, :])
+            filtered_hkls = np.atleast_2d(allHKLs[on_plane, :])
+            
             # grab hkls and gvec ids for this panel
-            valid_hkls.append(allHKLs[on_panel, 1:])
-            valid_ids.append(allHKLs[on_panel, 0])
+            valid_hkls.append(filtered_hkls[on_panel, 1:])
+            valid_ids.append(filtered_hkls[on_panel, 0])
 
             # reflection angles (voxel centers) and pixel size in (tth, eta)
-            valid_angs.append(allAngs[on_panel, :])
+            valid_angs.append(filtered_angs[on_panel, :])
             ang_pixel_size.append(self.angularPixelSize(xys_p))
         return valid_ids, valid_hkls, valid_angs, valid_xys, ang_pixel_size
 
@@ -2527,7 +2557,7 @@ class GenerateEtaOmeMaps(object):
                 (len(eta_mapping), full_map.shape[0], full_map.shape[1])
             )
             i_p = 0
-            for det_key, eta_map in eta_mapping.iteritems():
+            for det_key, eta_map in eta_mapping.items():
                 nan_mask = ~np.isnan(eta_map[i_ring])
                 nan_mask_full[i_p] = nan_mask
                 full_map[nan_mask] += eta_map[i_ring][nan_mask]

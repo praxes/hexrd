@@ -1,6 +1,5 @@
 from __future__ import print_function
 
-import cPickle
 import logging
 import multiprocessing as mp
 import os
@@ -13,16 +12,13 @@ import scipy.cluster as cluster
 from scipy import ndimage
 from skimage.feature import blob_dog, blob_log
 
+from hexrd import constants as const
 from hexrd import matrixutil as mutil
 from hexrd.xrd import indexer
 from hexrd import instrument
 from hexrd.xrd import rotations as rot
-from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
-
-from hexrd.xrd import distortion as dFuncs
-
-from hexrd.fitgrains import get_instrument_parameters
+from hexrd.xrd.xrdutil import EtaOmeMaps
 
 # just require scikit-learn?
 have_sklearn = False
@@ -59,7 +55,7 @@ def generate_orientation_fibers(cfg, eta_ome):
     seed_hkl_ids = cfg.find_orientations.seed_search.hkl_seeds
     fiber_ndiv = cfg.find_orientations.seed_search.fiber_ndiv
     method_dict = cfg.find_orientations.seed_search.method
-    
+
     # strip out method name and kwargs
     # !!! note that the config enforces that method is a dict with length 1
     # TODO: put a consistency check on required kwargs, or otherwise specify
@@ -68,7 +64,7 @@ def generate_orientation_fibers(cfg, eta_ome):
     method_kwargs = method_dict[method]
     logger.info('using "%s" method for fiber generation'
                 % method)
-    
+
     # seed_hkl_ids must be consistent with this...
     pd_hkl_ids = eta_ome.iHKLList[seed_hkl_ids]
 
@@ -106,7 +102,7 @@ def generate_orientation_fibers(cfg, eta_ome):
             filt_stdev = fwhm_to_stdev * method_kwargs['filter_radius']
             this_map_f = -ndimage.filters.gaussian_laplace(
                 eta_ome.dataStore[i], filt_stdev)
-            
+
             labels_t, numSpots_t = ndimage.label(
                 this_map_f > method_kwargs['threshold'],
                 structureNDI_label
@@ -126,7 +122,7 @@ def generate_orientation_fibers(cfg, eta_ome):
             this_map -= np.min(this_map)
             scl_map = 2*this_map/np.max(this_map) - 1.
 
-            # TODO: Currently the method kwargs must be explicitly specified 
+            # TODO: Currently the method kwargs must be explicitly specified
             #       in the config, and there are no checks
             # for 'blob_log': min_sigma=0.5, max_sigma=5,
             #                 num_sigma=10, threshold=0.01, overlap=0.1
@@ -190,9 +186,9 @@ def discretefiber_reduced(params_in):
     """
     input parameters are [hkl_id, com_ome, com_eta]
     """
-    bMat       = paramMP['bMat']
-    chi        = paramMP['chi']
-    csym       = paramMP['csym']
+    bMat = paramMP['bMat']
+    chi = paramMP['chi']
+    csym = paramMP['csym']
     fiber_ndiv = paramMP['fiber_ndiv']
 
     hkl = params_in[:3].reshape(3, 1)
@@ -215,7 +211,8 @@ def discretefiber_reduced(params_in):
     return tmp
 
 
-def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, radius=None):
+def run_cluster(compl, qfib, qsym, cfg,
+                min_samples=None, compl_thresh=None, radius=None):
     """
     """
     algorithm = cfg.find_orientations.clustering.algorithm
@@ -231,7 +228,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
     if radius is not None:
         cl_radius = radius
 
-    start = timeit.default_timer() # timeit this
+    start = timeit.default_timer()  # timeit this
 
     num_above = sum(np.array(compl) > min_compl)
     if num_above == 0:
@@ -244,9 +241,13 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
     else:
         # use compiled module for distance
         # just to be safe, must order qsym as C-contiguous
-        qsym  = np.array(qsym.T, order='C').T
+        qsym = np.array(qsym.T, order='C').T
+
         def quat_distance(x, y):
-            return xfcapi.quat_distance(np.array(x, order='C'), np.array(y, order='C'), qsym)
+            return xfcapi.quat_distance(
+                np.array(x, order='C'), np.array(y, order='C'),
+                qsym
+            )
 
         qfib_r = qfib[:, np.array(compl) > min_compl]
 
@@ -256,8 +257,10 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             if algorithm == 'sph-dbscan' or algorithm == 'fclusterdata':
                 logger.info("falling back to euclidean DBSCAN")
                 algorithm = 'ort-dbscan'
-            #raise RuntimeError, \
-            #    "Requested clustering of %d orientations, which would be too slow!" %qfib_r.shape[1]
+            # raise RuntimeError(
+            #     "Requested clustering of %d orientations, "
+            #     + "which would be too slow!" % qfib_r.shape[1]
+            # )
 
         logger.info(
             "Feeding %d orientations above %.1f%% to clustering",
@@ -270,9 +273,10 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
                 "sklearn >= 0.14 required for dbscan; using fclusterdata"
                 )
 
-        if algorithm == 'dbscan' or algorithm == 'ort-dbscan' or algorithm == 'sph-dbscan':
+        if algorithm in ['dbscan', 'ort-dbscan', 'sph-dbscan']:
             # munge min_samples according to options
-            if min_samples is None or cfg.find_orientations.use_quaternion_grid is not None:
+            if min_samples is None \
+                    or cfg.find_orientations.use_quaternion_grid is not None:
                 min_samples = 1
 
             if algorithm == 'sph-dbscan':
@@ -308,10 +312,10 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
                     )
 
             # extract cluster labels
-            cl = np.array(labels, dtype=int) # convert to array
-            noise_points = cl == -1 # index for marking noise
-            cl += 1 # move index to 1-based instead of 0
-            cl[noise_points] = -1 # re-mark noise as -1
+            cl = np.array(labels, dtype=int)  # convert to array
+            noise_points = cl == -1  # index for marking noise
+            cl += 1  # move index to 1-based instead of 0
+            cl[noise_points] = -1  # re-mark noise as -1
             logger.info("dbscan found %d noise points", sum(noise_points))
         elif algorithm == 'fclusterdata':
             logger.info("using spherical fclusetrdata")
@@ -342,8 +346,7 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             pass
         pass
 
-    if (algorithm == 'dbscan' or algorithm == 'ort-dbscan') \
-      and qbar.size/4 > 1:
+    if algorithm in ('dbscan', 'ort-dbscan') and qbar.size/4 > 1:
         logger.info("\tchecking for duplicate orientations...")
         cl = cluster.hierarchy.fclusterdata(
             qbar.T,
@@ -352,8 +355,10 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
             metric=quat_distance)
         nblobs_new = len(np.unique(cl))
         if nblobs_new < nblobs:
-            logger.info("\tfound %d duplicates within %f degrees" \
-                        %(nblobs-nblobs_new, cl_radius))
+            logger.info(
+                "\tfound %d duplicates within %f degrees",
+                nblobs - nblobs_new, cl_radius
+            )
             tmp = np.zeros((4, nblobs_new))
             for i in range(nblobs_new):
                 npts = sum(cl == i + 1)
@@ -378,10 +383,33 @@ def run_cluster(compl, qfib, qsym, cfg, min_samples=None, compl_thresh=None, rad
 
 
 def load_eta_ome_maps(cfg, pd, image_series, hkls=None, clean=False):
-    fn = os.path.join(
-        cfg.working_dir,
-        cfg.find_orientations.orientation_maps.file
-        )
+    """
+    Load the eta-ome maps specified by the config and CLI flags.
+
+    Parameters
+    ----------
+    cfg : TYPE
+        DESCRIPTION.
+    pd : TYPE
+        DESCRIPTION.
+    image_series : TYPE
+        DESCRIPTION.
+    hkls : TYPE, optional
+        DESCRIPTION. The default is None.
+    clean : TYPE, optional
+        DESCRIPTION. The default is False.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
+    # check maps filename
+    if cfg.find_orientations.orientation_maps.file is None:
+        maps_fname = '_'.join([cfg.analysis_id, "eta-ome_maps.npz"])
+
+    fn = os.path.join(cfg.working_dir, maps_fname)
 
     # ???: necessary?
     if fn.split('.')[-1] != 'npz':
@@ -395,12 +423,19 @@ def load_eta_ome_maps(cfg, pd, image_series, hkls=None, clean=False):
             logger.info('loaded eta/ome orientation maps from %s', fn)
             hkls = [str(i) for i in available_hkls[res.iHKLList]]
             logger.info(
-                'hkls used to generate orientation maps: %s', hkls)
+                'hkls used to generate orientation maps: %s',
+                hkls
+            )
             return res
         except (AttributeError, IOError):
+            logger.info("specified maps file '%s' not found "
+                        + "and clean option specified; "
+                        + "recomputing eta/ome orientation maps",
+                        fn)
             return generate_eta_ome_maps(cfg, pd, image_series, hkls)
     else:
-        logger.info('clean option specified; recomputing eta/ome orientation maps')
+        logger.info('clean option specified; '
+                    + 'recomputing eta/ome orientation maps')
         return generate_eta_ome_maps(cfg, pd, image_series, hkls)
 
 
@@ -408,7 +443,7 @@ def generate_eta_ome_maps(cfg, hkls=None):
     # extract PlaneData from config and set active hkls
     plane_data = cfg.material.plane_data
 
-    # handle logicl for active hkl spec
+    # handle logic for active hkl spec
     # !!!: default to all hkls defined for material,
     #      override with
     #        1) hkls from config, if specified; or
@@ -422,219 +457,312 @@ def generate_eta_ome_maps(cfg, hkls=None):
     # logging output
     hklseedstr = ', '.join(
         [str(available_hkls[i]) for i in active_hkls]
-        )
+    )
+
     logger.info(
         "building eta_ome maps using hkls: %s",
         hklseedstr
-        )
+    )
+
+    # grad imageseries dict from cfg
+    imsd = cfg.image_series
+
+    # handle omega period
+    # !!! we assume all detector ims have the same ome ranges, so any will do!
+    oims = next(imsd.itervalues())
+    ome_period = oims.omega[0, 0] + np.r_[0., 360.]
+
+    start = timeit.default_timer()
 
     # make eta_ome maps
     eta_ome = instrument.GenerateEtaOmeMaps(
-        cfg.image_series, cfg.instrument.hedm, plane_data,
+        imsd, cfg.instrument.hedm, plane_data,
         active_hkls=active_hkls,
         threshold=cfg.find_orientations.orientation_maps.threshold,
-        ome_period=cfg.find_orientations.omega.period)
+        ome_period=ome_period)
 
+    logger.info("\t\t...took %f seconds", timeit.default_timer() - start)
+
+    # save maps
+    # ???: should perhaps set default maps name at module level
     map_fname = cfg.find_orientations.orientation_maps.file \
-        or '_'.join(cfg.analysis_id, 'maps.npz')
+        or '_'.join([cfg.analysis_id, "eta-ome_maps.npz"])
+
+    if not os.path.exists(cfg.working_dir):
+        os.mkdir(cfg.working_dir)
+
     fn = os.path.join(
         cfg.working_dir,
         map_fname
     )
-    fd = os.path.split(fn)[0]
-    if not os.path.isdir(fd):
-        os.makedirs(fd)
+
     eta_ome.save(fn)
+
     logger.info('saved eta/ome orientation maps to "%s"', fn)
+
     return eta_ome
 
 
-def find_orientations(cfg, hkls=None, clean=False, profile=False):
-    """
-    Takes a config dict as input, generally a yml document
-
-    NOTE: single cfg instance, not iterator!
+def find_orientations(cfg,
+                      hkls=None, clean=False, profile=False,
+                      use_direct_testing=False):
     """
 
-    # ...make this an attribute in cfg?
-    analysis_id = '%s_%s' %(
-        cfg.analysis_name.strip().replace(' ', '-'),
-        cfg.material.active.strip().replace(' ', '-'),
-        )
 
-    # grab planeData object
-    matl = cPickle.load(open('materials.cpl', 'r'))
-    md = dict(zip([matl[i].name for i in range(len(matl))], matl))
-    pd = md[cfg.material.active].planeData
+    Parameters
+    ----------
+    cfg : TYPE
+        DESCRIPTION.
+    hkls : TYPE, optional
+        DESCRIPTION. The default is None.
+    clean : TYPE, optional
+        DESCRIPTION. The default is False.
+    profile : TYPE, optional
+        DESCRIPTION. The default is False.
+    use_direct_search : TYPE, optional
+        DESCRIPTION. The default is False.
 
-    # make image_series
-    image_series = cfg.image_series.omegaseries
+    Returns
+    -------
+    None.
 
-    # need instrument cfg later on down...
-    instr_cfg = get_instrument_parameters(cfg)
-    detector_params = np.hstack([
-        instr_cfg['detector']['transform']['tilt_angles'],
-        instr_cfg['detector']['transform']['t_vec_d'],
-        instr_cfg['oscillation_stage']['chi'],
-        instr_cfg['oscillation_stage']['t_vec_s'],
-        ])
-    rdim = cfg.instrument.detector.pixels.size[0]*cfg.instrument.detector.pixels.rows
-    cdim = cfg.instrument.detector.pixels.size[1]*cfg.instrument.detector.pixels.columns
-    panel_dims = ((-0.5*cdim, -0.5*rdim),
-                  ( 0.5*cdim,  0.5*rdim),
-                  )
-    # UGH! hard-coded distortion...
-    if instr_cfg['detector']['distortion']['function_name'] == 'GE_41RT':
-        distortion = (dFuncs.GE_41RT,
-                      instr_cfg['detector']['distortion']['parameters'],
-                      )
-    else:
-        distortion = None
+    """
+    # grab objects from config
+    plane_data = cfg.material.plane_data
+    imsd = cfg.image_series
+    instr = cfg.instrument.hedm
+    eta_ranges = cfg.find_orientations.eta.range
 
-    min_compl = cfg.find_orientations.clustering.completeness
+    # tolerances
+    tth_tol = plane_data.tThWidth
+    eta_tol = np.radians(cfg.find_orientations.eta.tolerance)
+    ome_tol = np.radians(cfg.find_orientations.omega.tolerance)
 
-    # start logger
-    logger.info("beginning analysis '%s'", cfg.analysis_name)
-
-    # load the eta_ome orientation maps
-    eta_ome = load_eta_ome_maps(cfg, pd, image_series, hkls=hkls, clean=clean)
-
-    ome_range = (
-        np.min(eta_ome.omeEdges),
-        np.max(eta_ome.omeEdges)
-        )
-    try:
-        # are we searching the full grid of orientation space?
-        qgrid_f = cfg.find_orientations.use_quaternion_grid
-        quats = np.load(qgrid_f)
-        logger.info("Using %s for full quaternion search", qgrid_f)
-        hkl_ids = None
-    except (IOError, ValueError, AttributeError):
-        # or doing a seeded search?
-        logger.info("Defaulting to seeded search")
-        hkl_seeds = cfg.find_orientations.seed_search.hkl_seeds
-        hkl_ids = [
-            eta_ome.planeData.hklDataList[i]['hklID'] for i in hkl_seeds
+    # handle omega period
+    # !!! We assume all detector ims have the same ome ranges;
+    #     therefore any will do for this purpose.
+    oims = next(imsd.itervalues())
+    ome_period = oims.omega[0, 0] + np.r_[0., 360.]
+    ome_ranges = [
+            ([i['ostart'], i['ostop']])
+            for i in oims.omegawedges.wedges
         ]
-        hklseedstr = ', '.join(
-            [str(i) for i in eta_ome.planeData.hkls.T[hkl_seeds]]
+
+    # for multiprocessing
+    ncpus = cfg.multiprocessing
+
+    # thresholds
+    image_threshold = cfg.find_orientations.orientation_maps.threshold
+    on_map_threshold = cfg.find_orientations.threshold
+    compl_thresh = cfg.find_orientations.clustering.completeness
+
+    # clustering
+    cl_algorithm = cfg.find_orientations.clustering.algorithm
+    cl_radius = cfg.find_orientations.clustering.radius
+
+    # =========================================================================
+    # ORIENTATION SCORING
+    # =========================================================================
+    do_grid_search = cfg.find_orientations.use_quaternion_grid is not None
+
+    if use_direct_testing:
+        npdiv_DFLT = 2
+        params = dict(
+                plane_data=plane_data,
+                instrument=instr,
+                imgser_dict=imsd,
+                tth_tol=tth_tol,
+                eta_tol=eta_tol,
+                ome_tol=ome_tol,
+                eta_ranges=np.radians(eta_ranges),
+                ome_period=np.radians(ome_period),
+                npdiv=npdiv_DFLT,
+                threshold=image_threshold)
+
+        logger.info("\tusing direct search on %d processes", ncpus)
+
+        # handle search space
+        if cfg.find_orientations.use_quaternion_grid is None:
+            # doing seeded search
+            logger.info(
+                "\tgenerating search quaternion list using %d processes",
+                ncpus
             )
-        logger.info(
-            "Seeding search using hkls from %s: %s",
-            cfg.find_orientations.orientation_maps.file,
-            hklseedstr
-            )
-        quats = generate_orientation_fibers(
-            eta_ome,
-            detector_params[6],
-            cfg.find_orientations.threshold,
-            cfg.find_orientations.seed_search.hkl_seeds,
-            cfg.find_orientations.seed_search.fiber_ndiv,
-            ncpus=cfg.multiprocessing,
-            )
-        if save_as_ascii:
-            np.savetxt(
-                os.path.join(cfg.working_dir, 'trial_orientations.dat'),
-                quats.T,
-                fmt="%.18e",
-                delimiter="\t"
+            start = timeit.default_timer()
+
+            # need maps
+            eta_ome = load_eta_ome_maps(cfg, plane_data, imsd,
+                                        hkls=hkls, clean=clean)
+
+            # generate trial orientations
+            qfib = generate_orientation_fibers(cfg, eta_ome)
+
+            logger.info("\t\t...took %f seconds",
+                        timeit.default_timer() - start)
+        else:
+            # doing grid search
+            try:
+                qfib = np.load(cfg.find_orientations.use_quaternion_grid)
+            except(IOError):
+                raise RuntimeError(
+                    "specified quaternion grid file '%s' not found!"
+                    % cfg.find_orientations.use_quaternion_grid
                 )
-            pass
-        pass # close conditional on grid search
 
-    # generate the completion maps
-    logger.info("Running paintgrid on %d trial orientations", quats.shape[1])
-    if profile:
-        logger.info("Profiling mode active, forcing ncpus to 1")
-        ncpus = 1
-    else:
-        ncpus = cfg.multiprocessing
-        logger.info(
-            "%d of %d available processors requested", ncpus, mp.cpu_count()
-            )
-    compl = indexer.paintGrid(
-        quats,
-        eta_ome,
-        etaRange=np.radians(cfg.find_orientations.eta.range),
-        omeTol=np.radians(cfg.find_orientations.omega.tolerance),
-        etaTol=np.radians(cfg.find_orientations.eta.tolerance),
-        omePeriod=np.radians(cfg.find_orientations.omega.period),
-        threshold=cfg.find_orientations.threshold,
-        doMultiProc=ncpus > 1,
-        nCPUs=ncpus
+        # execute direct search
+        pool = mp.Pool(
+            ncpus,
+            indexer.test_orientation_FF_init,
+            (params, )
         )
-
-    if save_as_ascii:
-        np.savetxt(os.path.join(cfg.working_dir, 'completeness.dat'), compl)
+        completeness = pool.map(indexer.test_orientation_FF_reduced, qfib.T)
+        pool.close()
     else:
-        np.save(
-            os.path.join(
-                cfg.working_dir,
-                'scored_orientations_%s.npy' %analysis_id
-                ),
-            np.vstack([quats, compl])
-            )
+        logger.info("\tusing map search with paintGrid on %d processes", ncpus)
 
-    ##########################################################
-    ##   Simulate N random grains to get neighborhood size  ##
-    ##########################################################
-    if hkl_ids is not None:
+        start = timeit.default_timer()
+
+        # handle eta-ome maps
+        eta_ome = load_eta_ome_maps(cfg, plane_data, imsd,
+                                    hkls=hkls, clean=clean)
+
+        # handle search space
+        if cfg.find_orientations.use_quaternion_grid is None:
+            # doing seeded search
+            logger.info(
+                "\tgenerating search quaternion list using %d processes",
+                ncpus
+            )
+            start = timeit.default_timer()
+
+            qfib = generate_orientation_fibers(cfg, eta_ome)
+            logger.info("\t\t...took %f seconds",
+                        timeit.default_timer() - start)
+        else:
+            # doing grid search
+            try:
+                qfib = np.load(cfg.find_orientations.use_quaternion_grid)
+            except(IOError):
+                raise RuntimeError(
+                    "specified quaternion grid file '%s' not found!"
+                    % cfg.find_orientations.use_quaternion_grid
+                )
+        # do map-based indexing
+        start = timeit.default_timer()
+
+        logger.info(" will test %d quaternions using %d processes",
+                    qfib.shape[1], ncpus)
+
+        completeness = indexer.paintGrid(
+            qfib,
+            eta_ome,
+            etaRange=np.radians(cfg.find_orientations.eta.range),
+            omeTol=np.radians(cfg.find_orientations.omega.tolerance),
+            etaTol=np.radians(cfg.find_orientations.eta.tolerance),
+            omePeriod=np.radians(cfg.find_orientations.omega.period),
+            threshold=on_map_threshold,
+            doMultiProc=ncpus > 1,
+            nCPUs=ncpus
+            )
+        logger.info("\t\t...took %f seconds",
+                    timeit.default_timer() - start)
+    completeness = np.array(completeness)
+
+    logger.info("\tSaving %d scored orientations with max completeness %f%%",
+                qfib.shape[1], 100*np.max(completeness))
+
+    np.savez_compressed(
+        '_'.join(['scored_orientations', cfg.analysis_id]),
+        test_quaternions=qfib, score=completeness
+    )
+
+    # =========================================================================
+    # CLUSTERING AND GRAINS OUTPUT
+    # =========================================================================
+
+    if not os.path.exists(cfg.analysis_dir):
+        os.makedirs(cfg.analysis_dir)
+    qbar_filename = 'accepted_orientations_' + cfg.analysis_id + '.dat'
+
+    logger.info("\trunning clustering using '%s'", cl_algorithm)
+
+    start = timeit.default_timer()
+
+    if do_grid_search:
+        min_samples = 1
+        mean_rpg = 1
+    else:
+        active_hkls = cfg.find_orientations.orientation_maps.active_hkls \
+            or eta_ome.iHKLList
+
+        fiber_seeds = cfg.find_orientations.seed_search.hkl_seeds
+
+        # Simulate N random grains to get neighborhood size
+        seed_hkl_ids = [
+            plane_data.hklDataList[active_hkls[i]]['hklID']
+            for i in fiber_seeds
+        ]
+
+        # !!! default to use 100 grains
         ngrains = 100
         rand_q = mutil.unitVector(np.random.randn(4, ngrains))
         rand_e = np.tile(2.*np.arccos(rand_q[0, :]), (3, 1)) \
-          * mutil.unitVector(rand_q[1:, :])
-        refl_per_grain = np.zeros(ngrains)
-        num_seed_refls = np.zeros(ngrains)
-        print('fo: hklids = ', hkl_ids)
-        for i in range(ngrains):
-            grain_params = np.hstack([rand_e[:, i],
-                                      xf.zeroVec.flatten(),
-                                      xf.vInv_ref.flatten()
-                                      ])
-            sim_results = simulateGVecs(pd,
-                                        detector_params,
-                                        grain_params,
-                                        ome_range=(ome_range,),
-                                        ome_period=(ome_range[0], ome_range[0]+2*np.pi),
-                                        eta_range=np.radians(cfg.find_orientations.eta.range),
-                                        panel_dims=panel_dims,
-                                        pixel_pitch=cfg.instrument.detector.pixels.size,
-                                        distortion=distortion,
-                                        )
-            refl_per_grain[i] = len(sim_results[0])
-            # lines below fix bug when sim_results[0] is empty
-            if refl_per_grain[i] > 0:
-                num_seed_refls[i] = np.sum([sum(sim_results[0] == hkl_id) for hkl_id in hkl_ids])
-            else:
-                num_seed_refls[i] = 0
-        #min_samples = 2
-        min_samples = max(
-            int(np.floor(0.5*min_compl*min(num_seed_refls))),
-            2
-            )
-        mean_rpg = int(np.round(np.average(refl_per_grain)))
-    else:
-        min_samples = 1
-        mean_rpg = 1
-
-    logger.info("mean number of reflections per grain is %d", mean_rpg)
-    logger.info("neighborhood size estimate is %d points", min_samples)
-
-    # cluster analysis to identify orientation blobs, the final output:
-    qbar, cl = run_cluster(compl, quats, pd.getQSym(), cfg, min_samples=min_samples)
-
-    analysis_id = '%s_%s' %(
-        cfg.analysis_name.strip().replace(' ', '-'),
-        cfg.material.active.strip().replace(' ', '-'),
+            * mutil.unitVector(rand_q[1:, :])
+        grain_param_list = np.vstack(
+                [rand_e,
+                 np.zeros((3, ngrains)),
+                 np.tile(const.identity_6x1, (ngrains, 1)).T]
+            ).T
+        sim_results = instr.simulate_rotation_series(
+                plane_data, grain_param_list,
+                eta_ranges=np.radians(eta_ranges),
+                ome_ranges=np.radians(ome_ranges),
+                ome_period=np.radians(ome_period)
         )
 
-    np.savetxt(
-        os.path.join(
-            cfg.working_dir,
-            'accepted_orientations_%s.dat' %analysis_id
-            ),
-        qbar.T,
-        fmt="%.18e",
-        delimiter="\t")
+        refl_per_grain = np.zeros(ngrains)
+        seed_refl_per_grain = np.zeros(ngrains)
+        for sim_result in sim_results.itervalues():
+            for i, refl_ids in enumerate(sim_result[0]):
+                refl_per_grain[i] += len(refl_ids)
+                seed_refl_per_grain[i] += np.sum(
+                        [sum(refl_ids == hkl_id) for hkl_id in seed_hkl_ids]
+                    )
+
+        min_samples = max(
+            int(np.floor(0.5*compl_thresh*min(seed_refl_per_grain))),
+            2
+        )
+        mean_rpg = int(np.round(np.average(refl_per_grain)))
+
+    logger.info("\tmean reflections per grain: %d", mean_rpg)
+    logger.info("\tneighborhood size: %d", min_samples)
+    logger.info("\tFeeding %d orientations above %.1f%% to clustering",
+                sum(completeness > compl_thresh), compl_thresh)
+
+    qbar, cl = run_cluster(
+        completeness, qfib, plane_data.getQSym(), cfg,
+        min_samples=min_samples,
+        compl_thresh=compl_thresh,
+        radius=cl_radius)
+
+    logger.info("\t\t...took %f seconds", (timeit.default_timer() - start))
+    logger.info("\tfound %d grains; saved to file: '%s'",
+                (qbar.shape[1], qbar_filename))
+
+    np.savetxt(qbar_filename, qbar.T,
+               fmt='%.18e', delimiter='\t')
+
+    gw = instrument.GrainDataWriter(
+        os.path.join(cfg.analysis_dir, 'grains.out')
+    )
+    grain_params_list = []
+    for gid, q in enumerate(qbar.T):
+        phi = 2*np.arccos(q[0])
+        n = xfcapi.unitRowVector(q[1:])
+        grain_params = np.hstack([phi*n, const.zeros_3, const.identity_6x1])
+        gw.dump_grain(gid, 1., 0., grain_params)
+        grain_params_list.append(grain_params)
+    gw.close()
 
     return

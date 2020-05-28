@@ -25,43 +25,43 @@
 # the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
 # Boston, MA 02111-1307 USA or visit <http://www.gnu.org/licenses/>.
 # =============================================================================
+from __future__ import print_function
+
 import sys
 import os
 import copy
 import ctypes
-import tempfile
-import glob
 import logging
 import time
-import pdb
 
 import numpy as num
-#num.seterr(invalid='ignore')
+# num.seterr(invalid='ignore')
 
 import hexrd.matrixutil as mUtil
-
-from hexrd.xrd.grain     import Grain, makeMeasuredScatteringVectors
+from hexrd import constants as const
+from hexrd import USE_NUMBA
+from hexrd.xrd.grain import Grain, makeMeasuredScatteringVectors
 from hexrd.xrd.rotations import \
      discreteFiber, mapAngle, \
      quatOfRotMat, quatProductMatrix, \
      rotMatOfExpMap, rotMatOfQuat
-from hexrd.xrd.symmetry  import toFundamentalRegion
-from hexrd.xrd           import xrdbase
-
-from hexrd.xrd import transforms      as xf
+from hexrd.xrd.symmetry import toFundamentalRegion
+from hexrd.xrd import transforms as xf
 from hexrd.xrd import transforms_CAPI as xfcapi
-from hexrd import USE_NUMBA
+from hexrd.xrd import xrdbase
 
 # FIXME: numba implementation of paintGridThis is broken
 if USE_NUMBA:
     import numba
 
 if xrdbase.haveMultiProc:
-    multiprocessing = xrdbase.multiprocessing # formerly import
+    multiprocessing = xrdbase.multiprocessing  # formerly import
 
+# =============================================================================
+# MODULE PARAMETERS
+# =============================================================================
 
 logger = logging.getLogger(__name__)
-
 
 # module vars
 piby2 = num.pi * 0.5
@@ -74,17 +74,25 @@ Zl = num.c_[0, 0, 1].T
 
 fableSampCOB = num.dot(rotMatOfExpMap(piby2*Zl), rotMatOfExpMap(piby2*Yl))
 
+
+# =============================================================================
+# CLASSES
+# =============================================================================
+
+
 class GrainSpotter:
     """
     Interface to grain spotter, which must be in the user's path
     """
     __execName = 'grainspotter'
+
     def __init__(self):
         self.__tempFNameList = []
 
         if (os.system('which '+self.__execName) != 0):
-            print >> sys.stderr, "need %s to be in the path" % (self.__execName)
-            raise RuntimeError, "unrecoverable error"
+            print("need %s to be in the path" % (self.__execName),
+                  file=sys.stderr)
+            raise RuntimeError("unrecoverable error")
 
         return
 
@@ -98,7 +106,7 @@ class GrainSpotter:
         location = self.__class__.__name__
         tic = time.time()
 
-        phaseID   = None
+        phaseID = None
         gVecFName = 'tmp'
 
         kwarglen = len(kwargs)
@@ -111,13 +119,13 @@ class GrainSpotter:
                     gVecFName = kwargs[argkeys[i]]
 
         planeData = spotsArray.getPlaneData(phaseID=phaseID)
-        U0        = planeData.latVecOps['U0']
-        symTag    = planeData.getLaueGroup()
+        U0 = planeData.latVecOps['U0']
+        symTag = planeData.getLaueGroup()
 
         writeGVE(spotsArray, gVecFName, **kwargs)
 
         toc = time.time()
-        print 'in %s, setup took %g' % (location, toc-tic)
+        print('in %s, setup took %g' % (location, toc - tic))
         tic = time.time()
 
         # tempFNameStdout = tempfile.mktemp()
@@ -129,7 +137,7 @@ class GrainSpotter:
         grainSpotterCmd = '%s %s' % (self.__execName, gVecFName+'.ini')
         os.system(grainSpotterCmd)
         toc = time.time()
-        print 'in %s, execution took %g' % (location, toc-tic)
+        print('in %s, execution took %g' % (location, toc - tic))
         tic = time.time()
 
         # add output files to cleanup list
@@ -146,7 +154,7 @@ class GrainSpotter:
         retval = convertUToRotMat(gffData_U, U0, symTag=symTag)
 
         toc = time.time()
-        print 'in %s, post-processing took %g' % (location, toc-tic)
+        print('in %s, post-processing took %g' % (location, toc - tic))
         tic = time.time()
 
         return retval
@@ -195,10 +203,10 @@ def convertUToRotMat(Urows, U0, symTag='Oh', display=False):
     else:
         qout = toFundamentalRegion(qout, crysSym=symTag, sampSym=None)
     if display:
-        print "quaternions in (Fable convention):"
-        print qin.T
-        print "quaternions out (hexrd convention, symmetrically reduced)"
-        print qout.T
+        print("quaternions in (Fable convention):")
+        print(qin.T)
+        print("quaternions out (hexrd convention, symmetrically reduced)")
+        print(qout.T)
     Uout = rotMatOfQuat(qout)
     return Uout
 
@@ -229,31 +237,37 @@ def convertRotMatToFableU(rMats, U0=num.eye(3), symTag='Oh', display=False):
     else:
         qout = toFundamentalRegion(qout, crysSym=symTag, sampSym=None)
     if display:
-        print "quaternions in (hexrd convention):"
-        print qin.T
-        print "quaternions out (Fable convention, symmetrically reduced)"
-        print qout.T
+        print("quaternions in (hexrd convention):")
+        print(qin.T)
+        print("quaternions out (Fable convention, symmetrically reduced)")
+        print(qout.T)
     Uout = rotMatOfQuat(qout)
     return Uout
 
-######################################################################
 
-"""
-things for doing fiberSearch with multiprocessing;
-multiprocessing has a hard time pickling a function defined in the local scope
-of another function, so stuck putting the function out here;
-"""
+# =============================================================================
+# FIBERSEARCH
+#
+# things for doing fiberSearch with multiprocessing;
+# multiprocessing has a hard time pickling a function defined in the local
+# scope of another function, so stuck putting the function out here.
+#
+# !!!: deprecated
+# =============================================================================
+
 debugMultiproc = 0
 if xrdbase.haveMultiProc:
     foundFlagShared = multiprocessing.Value(ctypes.c_bool)
     foundFlagShared.value = False
-multiProcMode_MP   = None
-spotsArray_MP      = None
-candidate_MP       = None
-dspTol_MP          = None
+multiProcMode_MP = None
+spotsArray_MP = None
+candidate_MP = None
+dspTol_MP = None
 minCompleteness_MP = None
-doRefinement_MP    = None
-nStdDev_MP         = None
+doRefinement_MP = None
+nStdDev_MP = None
+
+
 def testThisQ(thisQ):
     """
     NOTES:
@@ -272,19 +286,17 @@ def testThisQ(thisQ):
     global doRefinement_MP
     global nStdDev_MP
     # assign locals
-    multiProcMode   = multiProcMode_MP
-    spotsArray      = spotsArray_MP
-    candidate       = candidate_MP
-    dspTol          = dspTol_MP
+    multiProcMode = multiProcMode_MP
+    candidate = candidate_MP
+    dspTol = dspTol_MP
     minCompleteness = minCompleteness_MP
-    doRefinement    = doRefinement_MP
-    nStdDev         = nStdDev_MP
-    nSigmas = 2                         # ... make this a settable option?
+    doRefinement = doRefinement_MP
+    nStdDev = nStdDev_MP
     if multiProcMode:
         global foundFlagShared
 
     foundGrainData = None
-    #print "testing %d of %d"% (iR+1, numTrials)
+    # print("testing %d of %d"% (iR + 1, numTrials))
     thisRMat = rotMatOfQuat(thisQ)
 
     ppfx = ''
@@ -297,34 +309,36 @@ def testThisQ(thisQ):
             but skip evaluations after an acceptable grain has been found
             """
             if debugMultiproc > 1:
-                print ppfx+'skipping on '+str(thisQ)
+                print(ppfx + 'skipping on ' + str(thisQ))
             return foundGrainData
         else:
             if debugMultiproc > 1:
-                print ppfx+'working on  '+str(thisQ)
+                print(ppfx + 'working on  ' + str(thisQ))
     candidate.findMatches(rMat=thisRMat,
                           strainMag=dspTol,
                           claimingSpots=False,
                           testClaims=True,
                           updateSelf=True)
     if debugMultiproc > 1:
-        print ppfx+' for '+str(thisQ)+' got completeness : '\
-              +str(candidate.completeness)
+        print(ppfx + ' for ' + str(thisQ) + ' got completeness : '
+              + str(candidate.completeness))
     if candidate.completeness >= minCompleteness:
-        ## attempt to filter out 'junk' spots here by performing full
-        ## refinement before claiming
+        '''
+        Attempt to filter out 'junk' spots here by performing full
+        refinement before claiming
+        '''
         fineEtaTol = candidate.etaTol
         fineOmeTol = candidate.omeTol
         if doRefinement:
             if multiProcMode and foundFlagShared.value:
                 'some other process beat this one to it'
                 return foundGrainData
-            print ppfx+"testing candidate q = [%1.2e, %1.2e, %1.2e, %1.2e]"\
-                  %tuple(thisQ)
+            print(ppfx + "testing candidate q = [%1.2e, %1.2e, %1.2e, %1.2e]"
+                  % tuple(thisQ))
             # not needed # candidate.fitPrecession(display=False)
-            ## first fit
+            # first fit
             candidate.fit(display=False)
-            ## auto-tolerace based on statistics of current matches
+            # auto-tolerace based on statistics of current matches
             validRefls = candidate.grainSpots['iRefl'] > 0
             fineEtaTol = nStdDev * num.std(
                 candidate.grainSpots['diffAngles'][validRefls, 1]
@@ -332,7 +346,7 @@ def testThisQ(thisQ):
             fineOmeTol = nStdDev * num.std(
                 candidate.grainSpots['diffAngles'][validRefls, 2]
                 )
-            ## next fits with finer tolerances
+            # next fits with finer tolerances
             for iLoop in range(3):
                 candidate.findMatches(etaTol=fineEtaTol,
                                       omeTol=fineOmeTol,
@@ -342,7 +356,7 @@ def testThisQ(thisQ):
                 # not needed # candidate.fitPrecession(display=False)
                 candidate.fit(display=False)
             if candidate.completeness < minCompleteness:
-                print ppfx+"candidate failed"
+                print(ppfx + "candidate failed")
                 return foundGrainData
             if multiProcMode and foundFlagShared.value:
                 'some other process beat this one to it'
@@ -355,7 +369,7 @@ def testThisQ(thisQ):
             # not needed? #                       testClaims=True,
             # not needed? #                       updateSelf=True)
         else:
-            ## at least do precession correction
+            # at least do precession correction
             candidate.fitPrecession(display=False)
             candidate.findMatches(rMat=thisRMat,
                                   strainMag=dspTol,
@@ -365,7 +379,7 @@ def testThisQ(thisQ):
             fineEtaTol = candidate.etaTol
             fineOmeTol = candidate.omeTol
             if candidate.completeness < minCompleteness:
-                print ppfx+"candidate failed"
+                print(ppfx + "candidate failed")
                 return foundGrainData
             if multiProcMode and foundFlagShared.value:
                 'some other process beat this one to it'
@@ -382,8 +396,11 @@ def testThisQ(thisQ):
         #     foundGrain.strip()
         cInfo = quatOfRotMat(candidate.rMat).flatten().tolist()
         cInfo.append(candidate.completeness)
-        print ppfx+"Grain found at q = [%1.2e, %1.2e, %1.2e, %1.2e] "\
-              "with completeness %g" % tuple(cInfo)
+        print(
+            ppfx
+            + "Grain found at q = [%1.2e, %1.2e, %1.2e, %1.2e] "
+            + "with completeness %g" % tuple(cInfo)
+        )
         foundGrainData = candidate.getGrainData()
         'tolerances not actually set in candidate, so set them manually'
         foundGrainData['omeTol'] = fineOmeTol
@@ -453,13 +470,13 @@ def fiberSearch(spotsArray, hklList,
     global minCompleteness_MP
     global doRefinement_MP
     global nStdDev_MP
-    multiProcMode_MP   = multiProcMode
-    spotsArray_MP      = spotsArray
-    candidate_MP       = candidate
-    dspTol_MP          = dspTol
+    multiProcMode_MP = multiProcMode
+    spotsArray_MP = spotsArray
+    candidate_MP = candidate
+    dspTol_MP = dspTol
     minCompleteness_MP = minCompleteness
-    doRefinement_MP    = doRefinement
-    nStdDev_MP         = nStdDev
+    doRefinement_MP = doRefinement
+    nStdDev_MP = nStdDev
     """
     set up for shared memory multiprocessing
     """
@@ -487,13 +504,13 @@ def fiberSearch(spotsArray, hklList,
     tic = time.time()
 
     for iHKL in range(n_hkls_to_search):
-        print "\n#####################\nProcessing hkl %d of %d\n" \
-              % (iHKL+1, nHKLs)
+        print("\n#####################\nProcessing hkl %d of %d\n"
+              % (iHKL+1, nHKLs))
         thisHKLID = planeData.getHKLID(hklList[iHKL])
-        thisRingSpots0   = spotsArray.getHKLSpots(thisHKLID)
-        thisRingSpots0W  = num.where(thisRingSpots0)[0]
+        thisRingSpots0 = spotsArray.getHKLSpots(thisHKLID)
+        thisRingSpots0W = num.where(thisRingSpots0)[0]
         unclaimedOfThese = -spotsArray.checkClaims(indices=thisRingSpots0W)
-        thisRingSpots    = copy.deepcopy(thisRingSpots0)
+        thisRingSpots = copy.deepcopy(thisRingSpots0)
         thisRingSpots[thisRingSpots0W] = unclaimedOfThese
         if friedelOnly:
             # first, find Friedel Pairs
@@ -505,9 +522,9 @@ def fiberSearch(spotsArray, hklList,
                 )
             # make some stuff for counters
             maxSpots = 0.5*(
-                sum(thisRingSpots) \
+                sum(thisRingSpots)
                 - sum(spotsArray.friedelPair[thisRingSpots] == -1)
-                )
+            )
         else:
             spotsIteratorI = spotsArray.getIterHKL(
                 hklList[iHKL], unclaimedOnly=True, friedelOnly=False
@@ -521,28 +538,28 @@ def fiberSearch(spotsArray, hklList,
         """
         for iRefl, stuff in enumerate(spotsIteratorI):
             unclaimedOfThese = -spotsArray.checkClaims(indices=thisRingSpots0W)
-            thisRingSpots    = copy.deepcopy(thisRingSpots0)
+            thisRingSpots = copy.deepcopy(thisRingSpots0)
             thisRingSpots[thisRingSpots0W] = unclaimedOfThese
             if friedelOnly:
                 iSpot, jSpot, angs_I, angs_J = stuff
 
-                Gplus  = makeMeasuredScatteringVectors(*angs_I)
+                Gplus = makeMeasuredScatteringVectors(*angs_I)
                 Gminus = makeMeasuredScatteringVectors(*angs_J)
 
                 Gvec = 0.5*(Gplus - Gminus)
                 maxSpots = 0.5*(
-                    sum(thisRingSpots) \
+                    sum(thisRingSpots)
                     - sum(spotsArray.friedelPair[thisRingSpots] == -1)
-                    )
+                )
             else:
                 iSpot, angs_I = stuff
-                Gvec  = makeMeasuredScatteringVectors(*angs_I)
+                Gvec = makeMeasuredScatteringVectors(*angs_I)
                 maxSpots = sum(thisRingSpots)
-            print "\nProcessing reflection %d (spot %d), %d remain "\
-                  "unclaimed\n" % (iRefl+1, iSpot, maxSpots)
+            print("\nProcessing reflection %d (spot %d), %d remain "
+                  + "unclaimed\n" % (iRefl + 1, iSpot, maxSpots))
             if multiProcMode and debugMultiproc > 1:
                 marks = spotsArray._Spots__marks[:]
-                print 'marks : '+str(marks)
+                print('marks : ' + str(marks))
             # make the fiber;
             qfib = discreteFiber(hklList[iHKL], Gvec,
                                  B=bMat,
@@ -568,10 +585,12 @@ def fiberSearch(spotsArray, hklList,
             if multiProcMode:
                 foundFlagShared.value = False
                 qfibList = map(num.array, qfib.T.tolist())
-                #if debugMultiproc:
-                #    print 'qfibList : '+str(qfibList)
+                # if debugMultiproc:
+                #     print('qfibList : ' + str(qfibList))
                 results = num.array(pool.map(testThisQ, qfibList, chunksize=1))
-                trialGrains = results[num.where(num.array(results, dtype=bool))]
+                trialGrains = results[
+                    num.where(num.array(results, dtype=bool))
+                ]
                 # for trialGrain in trialGrains:
                 #     trialGrain.restore(candidate)
             else:
@@ -584,7 +603,7 @@ def fiberSearch(spotsArray, hklList,
             'end of if multiProcMode'
 
             if len(trialGrains) == 0:
-                print "No grain found containing spot %d\n" % (iSpot)
+                print("No grain found containing spot %d\n" % (iSpot))
                 # import pdb;pdb.set_trace()
             else:
                 asMaster = multiProcMode
@@ -600,28 +619,29 @@ def fiberSearch(spotsArray, hklList,
                         grainData=foundGrainData,
                         claimingSpots=False
                         )
-                    #check completeness before accepting
-                    #especially important for multiproc
-                    foundGrain.checkClaims() # updates completeness
+                    # !!! check completeness before accepting
+                    #     especially important for multiproc
+                    foundGrain.checkClaims()  # updates completeness
                     if debugMultiproc:
-                        print 'final completeness of candidate is %g' \
-                              % (foundGrain.completeness)
+                        print('final completeness of candidate is %g'
+                              % (foundGrain.completeness))
                     if foundGrain.completeness >= minCompleteness:
                         conflicts = foundGrain.claimSpots(asMaster=asMaster)
                         numConfl = num.sum(conflicts)
                         if numConfl > 0:
-                            print 'tried to claim %d spots that are already '\
-                                  'claimed' % (numConfl)
+                            print('tried to claim %d spots that are already '
+                                  + 'claimed' % (numConfl))
                         grainList.append(foundGrain)
                         nGrains += 1
                 numUnClaimed = num.sum(-spotsArray.checkClaims())
                 numClaimed = numTotal - numUnClaimed
                 pctClaimed = num.float(numClaimed) / numTotal
-                print "Found %d grains so far, %f%% claimed" \
-                      % (nGrains,100*pctClaimed)
+                print("Found %d grains so far, %f%% claimed"
+                      % (nGrains, 100*pctClaimed))
 
-                time_to_quit = (pctClaimed > minPctClaimed) or\
-                  ((quit_after_ngrains > 0) and (nGrains >= quit_after_ngrains))
+                time_to_quit = (pctClaimed > minPctClaimed) or \
+                    ((quit_after_ngrains > 0)
+                     and (nGrains >= quit_after_ngrains))
                 if time_to_quit:
                     break
         'end of iRefl loop'
@@ -642,7 +662,7 @@ def fiberSearch(spotsArray, hklList,
     if not preserveClaims:
         spotsArray.resetClaims()
     toc = time.time()
-    print 'fiberSearch execution took %g seconds' % (toc-tic)
+    print('fiberSearch execution took %g seconds' % (toc - tic))
 
     if multiProcMode:
         pool.close()
@@ -664,16 +684,39 @@ def fiberSearch(spotsArray, hklList,
 
     return retval
 
+
 def pgRefine(x, etaOmeMaps, omegaRange, threshold):
+    """
+    Objective function for refining orientations found with paintGrid.
+
+    !!!: This function is flagged for removal.
+
+    Parameters
+    ----------
+    x : TYPE
+        DESCRIPTION.
+    etaOmeMaps : TYPE
+        DESCRIPTION.
+    omegaRange : TYPE
+        DESCRIPTION.
+    threshold : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    f : TYPE
+        DESCRIPTION.
+
+    """
     phi = sum(x*x)
     if phi < 1e-7:
-        q = [num.r_[1.,0.,0.,0.],]
+        q = [num.r_[1., 0., 0., 0.], ]
     else:
         phi = num.sqrt(phi)
         n = (1. / phi) * x.flatten()
         cphi2 = num.cos(0.5*phi)
         sphi2 = num.sin(0.5*phi)
-        q = [num.r_[cphi2, sphi2*n[0], sphi2*n[1], sphi2*n[2]],]
+        q = [num.r_[cphi2, sphi2*n[0], sphi2*n[1], sphi2*n[2]], ]
     c = paintGrid(
         q, etaOmeMaps, threshold=threshold, bMat=None, omegaRange=omegaRange,
         etaRange=None, debug=False
@@ -681,7 +724,109 @@ def pgRefine(x, etaOmeMaps, omegaRange, threshold):
     f = abs(1. - c)
     return f
 
-paramMP = None
+
+# =============================================================================
+# DIRECT SEARCH FUNCTIONS
+# =============================================================================
+
+
+def test_orientation_FF_init(params):
+    """
+    Broadcast the indexing parameters as globals for multiprocessing
+
+    Parameters
+    ----------
+    params : dict
+        The dictionary of indexing parameters.
+
+    Returns
+    -------
+    None.
+
+    Notes
+    -----
+    See test_orientation_FF_reduced for specification.
+    """
+    global paramMP
+    paramMP = params
+
+
+def test_orientation_FF_reduced(quat):
+    """
+    Return the completeness score for input quaternion.
+
+    Parameters
+    ----------
+    quat : array_like (4,)
+        The unit quaternion representation for the orientation to be tested.
+
+    Returns
+    -------
+    float
+        The completeness, i.e., the ratio between the predicted and observed
+        Bragg reflections subject to the specified tolerances.
+
+
+    Notes
+    -----
+    input parameters are
+    [plane_data, instrument, imgser_dict,
+    tth_tol, eta_tol, ome_tol, eta_ranges, ome_period,
+    npdiv, threshold]
+    """
+    plane_data = paramMP['plane_data']
+    instrument = paramMP['instrument']
+    imgser_dict = paramMP['imgser_dict']
+    tth_tol = paramMP['tth_tol']
+    eta_tol = paramMP['eta_tol']
+    ome_tol = paramMP['ome_tol']
+    eta_ranges = paramMP['eta_ranges']
+    ome_period = paramMP['ome_period']
+    npdiv = paramMP['npdiv']
+    threshold = paramMP['threshold']
+
+    phi = 2*num.arccos(quat[0])
+    n = xfcapi.unitRowVector(quat[1:])
+    grain_params = num.hstack([
+        phi*n, const.zeros_3, const.identity_6x1,
+    ])
+
+    compl, scrap = instrument.pull_spots(
+        plane_data, grain_params, imgser_dict,
+        tth_tol=tth_tol, eta_tol=eta_tol, ome_tol=ome_tol,
+        npdiv=npdiv, threshold=threshold,
+        eta_ranges=eta_ranges,
+        ome_period=ome_period,
+        check_only=True)
+
+    return sum(compl)/float(len(compl))
+
+
+# =============================================================================
+# PAINTGRID
+# =============================================================================
+
+
+def paintgrid_init(params):
+    global paramMP
+    paramMP = params
+
+    # create valid_eta_spans, valid_ome_spans from etaMin/Max and omeMin/Max
+    # this allows using faster checks in the code.
+    # TODO: build valid_eta_spans and valid_ome_spans directly in paintGrid
+    #       instead of building etaMin/etaMax and omeMin/omeMax. It may also
+    #       be worth handling range overlap and maybe "optimize" ranges if
+    #       there happens to be contiguous spans.
+    paramMP['valid_eta_spans'] = _normalize_ranges(paramMP['etaMin'],
+                                                   paramMP['etaMax'],
+                                                   -num.pi)
+
+    paramMP['valid_ome_spans'] = _normalize_ranges(paramMP['omeMin'],
+                                                   paramMP['omeMax'],
+                                                   min(paramMP['omePeriod']))
+    return
+
+
 def paintGrid(quats, etaOmeMaps,
               threshold=None, bMat=None,
               omegaRange=None, etaRange=None,
@@ -714,12 +859,12 @@ def paintGrid(quats, etaOmeMaps,
 
     planeData = etaOmeMaps.planeData
 
-    hklIDs    = num.r_[etaOmeMaps.iHKLList]
-    hklList   = num.atleast_2d(planeData.hkls[:, hklIDs].T).tolist()
-    nHKLS     = len(hklIDs)
+    hklIDs = num.r_[etaOmeMaps.iHKLList]
+    hklList = num.atleast_2d(planeData.hkls[:, hklIDs].T).tolist()
+    nHKLS = len(hklIDs)
 
-    numEtas   = len(etaOmeMaps.etaEdges) - 1
-    numOmes   = len(etaOmeMaps.omeEdges) - 1
+    numEtas = len(etaOmeMaps.etaEdges) - 1
+    numOmes = len(etaOmeMaps.omeEdges) - 1
 
     if threshold is None:
         threshold = num.zeros(nHKLS)
@@ -734,9 +879,9 @@ def paintGrid(quats, etaOmeMaps,
         threshold = threshold * num.ones(nHKLS)
     elif hasattr(threshold, '__len__'):
         if len(threshold) != nHKLS:
-            raise RuntimeError, "threshold list is wrong length!"
+            raise RuntimeError("threshold list is wrong length!")
         else:
-            print "INFO: using list of threshold values"
+            print("INFO: using list of threshold values")
     else:
         raise RuntimeError(
             "unknown threshold option. should be a list of numbers or None"
@@ -763,15 +908,15 @@ def paintGrid(quats, etaOmeMaps,
 
     omeMin = None
     omeMax = None
-    if omegaRange is None:              # this NEEDS TO BE FIXED!
-        omeMin = [num.min(etaOmeMaps.omeEdges),]
-        omeMax = [num.max(etaOmeMaps.omeEdges),]
+    if omegaRange is None:  # this NEEDS TO BE FIXED!
+        omeMin = [num.min(etaOmeMaps.omeEdges), ]
+        omeMax = [num.max(etaOmeMaps.omeEdges), ]
     else:
         omeMin = [omegaRange[i][0] for i in range(len(omegaRange))]
         omeMax = [omegaRange[i][1] for i in range(len(omegaRange))]
     if omeMin is None:
         omeMin = [-num.pi, ]
-        omeMax = [ num.pi, ]
+        omeMax = [num.pi, ]
     omeMin = num.asarray(omeMin)
     omeMax = num.asarray(omeMax)
 
@@ -782,7 +927,7 @@ def paintGrid(quats, etaOmeMaps,
         etaMax = [etaRange[i][1] for i in range(len(etaRange))]
     if etaMin is None:
         etaMin = [-num.pi, ]
-        etaMax = [ num.pi, ]
+        etaMax = [num.pi, ]
     etaMin = num.asarray(etaMin)
     etaMax = num.asarray(etaMax)
 
@@ -841,10 +986,8 @@ def paintGrid(quats, etaOmeMaps,
         pool.close()
     else:
         # single process version.
-        global paramMP
         paintgrid_init(params)    # sets paramMP
         retval = map(paintGridThis, quats.T)
-        paramMP = None    # clear paramMP
     elapsed = (time.time() - start)
     logger.info("paintGrid took %.3f seconds", elapsed)
 
@@ -866,7 +1009,6 @@ def _meshgrid2d(x, y):
     return (r1, r2)
 
 
-
 def _normalize_ranges(starts, stops, offset, ccw=False):
     """normalize in the range [offset, 2*pi+offset[ the ranges defined
     by starts and stops.
@@ -883,7 +1025,6 @@ def _normalize_ranges(starts, stops, offset, ccw=False):
     if not num.all(starts < stops):
         raise ValueError('Invalid angle ranges')
 
-
     # If there is a range that spans more than 2*pi,
     # return the full range
     two_pi = 2 * num.pi
@@ -894,8 +1035,10 @@ def _normalize_ranges(starts, stops, offset, ccw=False):
     stops = num.mod(stops - offset, two_pi) + offset
 
     order = num.argsort(starts)
-    result = num.hstack((starts[order, num.newaxis],
-                        stops[order, num.newaxis])).ravel()
+    result = num.hstack(
+        (starts[order, num.newaxis],
+         stops[order, num.newaxis])
+    ).ravel()
     # at this point, result is in its final form unless there
     # is wrap-around in the last segment. Handle this case:
     if result[-1] < result[-2]:
@@ -912,26 +1055,6 @@ def _normalize_ranges(starts, stops, offset, ccw=False):
     return result
 
 
-def paintgrid_init(params):
-    global paramMP
-    paramMP = params
-
-    # create valid_eta_spans, valid_ome_spans from etaMin/Max and omeMin/Max
-    # this allows using faster checks in the code.
-    # TODO: build valid_eta_spans and valid_ome_spans directly in paintGrid
-    #       instead of building etaMin/etaMax and omeMin/omeMax. It may also
-    #       be worth handling range overlap and maybe "optimize" ranges if
-    #       there happens to be contiguous spans.
-    paramMP['valid_eta_spans'] = _normalize_ranges(paramMP['etaMin'],
-                                                   paramMP['etaMax'],
-                                                   -num.pi)
-
-    paramMP['valid_ome_spans'] = _normalize_ranges(paramMP['omeMin'],
-                                                   paramMP['omeMax'],
-                                                   min(paramMP['omePeriod']))
-    return
-
-
 ###############################################################################
 #
 # paintGridThis contains the bulk of the process to perform for paintGrid for a
@@ -941,6 +1064,7 @@ def paintgrid_init(params):
 #
 # There is a version of PaintGridThis using numba, and another version used
 # when numba is not available. The numba version should be noticeably faster.
+
 
 def _check_dilated(eta, ome, dpix_eta, dpix_ome, etaOmeMap, threshold):
     """This is part of paintGridThis:
@@ -976,14 +1100,19 @@ def _check_dilated(eta, ome, dpix_eta, dpix_ome, etaOmeMap, threshold):
     return 0
 
 
+# =============================================================================
+# HELPER FUNCTIONS WITH SPLIT DEFS BASED ON USE_NUMBA
+# =============================================================================
+
+
 if USE_NUMBA:
     def paintGridThis(quat):
-        # Note that this version does not use omeMin/omeMax to specify the valid
-        # angles. It uses "valid_eta_spans" and "valid_ome_spans". These are
-        # precomputed and make for a faster check of ranges than
+        # Note that this version does not use omeMin/omeMax to specify the
+        # valid angles. It uses "valid_eta_spans" and "valid_ome_spans".
+        # These are precomputed and make for a faster check of ranges than
         # "validateAngleRanges"
-        symHKLs = paramMP['symHKLs'] # the HKLs
-        symHKLs_ix = paramMP['symHKLs_ix'] # index partitioning of symHKLs
+        symHKLs = paramMP['symHKLs']  # the HKLs
+        symHKLs_ix = paramMP['symHKLs_ix']  # index partitioning of symHKLs
         bMat = paramMP['bMat']
         wavelength = paramMP['wavelength']
         omeEdges = paramMP['omeEdges']
@@ -1008,7 +1137,7 @@ if USE_NUMBA:
 
         debug = False
         if debug:
-            print( "using ome, eta dilitations of (%d, %d) pixels" \
+            print("using ome, eta dilitations of (%d, %d) pixels"
                   % (dpix_ome, dpix_eta))
 
         # get the equivalent rotation of the quaternion in matrix form (as
@@ -1026,15 +1155,15 @@ if USE_NUMBA:
                                       etaOmeMaps, etaIndices, omeIndices,
                                       dpix_eta, dpix_ome, threshold)
 
-
     @numba.jit
     def _find_in_range(value, spans):
-        """find the index in spans where value >= spans[i] and value < spans[i].
+        """
+        Find the index in spans where value >= spans[i] and value < spans[i].
 
         spans is an ordered array where spans[i] <= spans[i+1] (most often <
         will hold).
 
-        If value is not in the range [spans[0], spans[-1][, then -2 is returned.
+        If value is not in the range [spans[0], spans[-1]] then -2 is returned.
 
         This is equivalent to "bisect_right" in the bisect package, in which
         code it is based, and it is somewhat similar to NumPy's searchsorted,
@@ -1172,18 +1301,18 @@ if USE_NUMBA:
 
     @numba.njit
     def _map_angle(angle, offset):
-        """Equivalent to xf.mapAngle in this context, and 'numba friendly'
-
         """
-        return num.mod(angle-offset, 2*num.pi)+offset
+        Equivalent to xf.mapAngle in this context, and 'numba friendly'
+        """
+        return num.mod(angle - offset, 2*num.pi) + offset
 
     # use a jitted version of _check_dilated
     _check_dilated = numba.njit(_check_dilated)
 else:
     def paintGridThis(quat):
         # unmarshall parameters into local variables
-        symHKLs = paramMP['symHKLs'] # the HKLs
-        symHKLs_ix = paramMP['symHKLs_ix'] # index partitioning of symHKLs
+        symHKLs = paramMP['symHKLs']  # the HKLs
+        symHKLs_ix = paramMP['symHKLs_ix']  # index partitioning of symHKLs
         bMat = paramMP['bMat']
         wavelength = paramMP['wavelength']
         omeEdges = paramMP['omeEdges']
@@ -1208,7 +1337,7 @@ else:
 
         debug = False
         if debug:
-            print( "using ome, eta dilitations of (%d, %d) pixels" \
+            print("using ome, eta dilitations of (%d, %d) pixels"
                   % (dpix_ome, dpix_eta))
 
         # get the equivalent rotation of the quaternion in matrix form (as
@@ -1225,12 +1354,15 @@ else:
                                                  valid_ome_spans, omePeriod)
 
         if len(hkl_idx > 0):
-            hits, predicted = _count_hits(eta_idx, ome_idx, hkl_idx, etaOmeMaps,
-                               etaIndices, omeIndices, dpix_eta, dpix_ome,
-                               threshold)
+            hits, predicted = _count_hits(
+                eta_idx, ome_idx, hkl_idx, etaOmeMaps,
+                etaIndices, omeIndices, dpix_eta, dpix_ome,
+                threshold
+            )
             retval = float(hits) / float(predicted)
             if retval > 1:
-                import pdb; pdb.set_trace()
+                import pdb
+                pdb.set_trace()
         return retval
 
     def _normalize_angs_hkls(angs_0, angs_1, omePeriod, symHKLs_ix):
@@ -1248,14 +1380,13 @@ else:
         symHKLs_ix = symHKLs_ix*2
         hkl_idx = num.empty((symHKLs_ix[-1],), dtype=int)
         start = symHKLs_ix[0]
-        idx=0
+        idx = 0
         for end in symHKLs_ix[1:]:
             hkl_idx[start:end] = idx
             start = end
-            idx+=1
+            idx += 1
 
         return oangs, hkl_idx
-
 
     def _filter_angs(angs_0, angs_1, symHKLs_ix, etaEdges, valid_eta_spans,
                      omeEdges, valid_ome_spans, omePeriod):
@@ -1270,9 +1401,9 @@ else:
         """
         oangs, hkl_idx = _normalize_angs_hkls(angs_0, angs_1, omePeriod,
                                               symHKLs_ix)
-        # using "right" side to make sure we always get an index *past* the value
-        # if it happens to be equal. That is... we search the index of the first
-        # value that is "greater than" rather than "greater or equal"
+        # using "right" side to make sure we always get an index *past* the
+        # value if it happens to be equal. That is... we search the index of
+        # the first value that is "greater than" rather than "greater or equal"
         culled_eta_indices = num.searchsorted(etaEdges, oangs[:, 1],
                                               side='right')
         culled_ome_indices = num.searchsorted(omeEdges, oangs[:, 2],
@@ -1282,19 +1413,23 @@ else:
         # The spans contains an ordered sucession of start and end angles which
         # form the valid angle spans. So knowing if an angle is valid is
         # equivalent to finding the insertion point in the spans array and
-        # checking if the resulting insertion index is odd or even. An odd value
-        # means that it falls between a start and a end point of the "valid
-        # span", meaning it is a hit. An even value will result in either being
-        # out of the range (0 or the last index, as length is even by
-        # construction) or that it falls between a "end" point from one span and
-        # the "start" point of the next one.
-        valid_eta = num.searchsorted(valid_eta_spans, oangs[:, 1], side='right')
-        valid_ome = num.searchsorted(valid_ome_spans, oangs[:, 2], side='right')
+        # checking if the resulting insertion index is odd or even.
+        # An odd value means that it falls between a start and a end point of
+        # the "valid span", meaning it is a hit. An even value will result in
+        # either being out of the range (0 or the last index, as length is even
+        # by construction) or that it falls between a "end" point from one span
+        # and the "start" point of the next one.
+        valid_eta = num.searchsorted(
+            valid_eta_spans, oangs[:, 1], side='right'
+        )
+        valid_ome = num.searchsorted(
+            valid_ome_spans, oangs[:, 2], side='right'
+        )
         # fast odd/even check
         valid_eta = valid_eta & 1
         valid_ome = valid_ome & 1
         # Create a mask of the good ones
-        valid = ~num.isnan(oangs[:, 0]) # tth not NaN
+        valid = ~num.isnan(oangs[:, 0])  # tth not NaN
         valid = num.logical_and(valid, valid_eta)
         valid = num.logical_and(valid, valid_ome)
         valid = num.logical_and(valid, culled_eta_indices > 0)
@@ -1307,7 +1442,6 @@ else:
         ome_idx = culled_ome_indices[valid] - 1
 
         return hkl_idx, eta_idx, ome_idx
-
 
     def _count_hits(eta_idx, ome_idx, hkl_idx, etaOmeMaps,
                     etaIndices, omeIndices, dpix_eta, dpix_ome, threshold):
@@ -1388,19 +1522,18 @@ def writeGVE(spotsArray, fileroot, **kwargs):
     assert isinstance(fileroot, str)
 
     # keyword argument processing
-    phaseID     = None
-    sgNum       = 225
-    cellString  = 'P'
-    omeRange    = num.r_[-60, 60]   # in DEGREES
-    deltaOme    = 0.25              # in DEGREES
-    minMeas     = 24
-    minCompl    = 0.7
-    minUniqn    = 0.5
-    uncertainty = [0.10, 0.25, .50] # in DEGREES
-    eulStep     = 2                 # in DEGREES
-    nSigmas     = 2
-    minFracG    = 0.90
-    numTrials   = 100000
+    phaseID = None
+    sgNum = 225
+    cellString = 'P'
+    deltaOme = 0.25  # in DEGREES
+    minMeas = 24
+    minCompl = 0.7
+    minUniqn = 0.5
+    uncertainty = [0.10, 0.25, .50]  # in DEGREES
+    eulStep = 2  # in DEGREES
+    nSigmas = 2
+    minFracG = 0.90
+    numTrials = 100000
     positionFit = True
 
     kwarglen = len(kwargs)
@@ -1414,8 +1547,6 @@ def writeGVE(spotsArray, fileroot, **kwargs):
                 phaseID = kwargs[argkeys[i]]
             elif argkeys[i] == 'cellString':
                 cellString = kwargs[argkeys[i]]
-            elif argkeys[i] == 'omeRange':
-                omeRange = kwargs[argkeys[i]]
             elif argkeys[i] == 'deltaOme':
                 deltaOme = kwargs[argkeys[i]]
             elif argkeys[i] == 'minMeas':
@@ -1453,19 +1584,17 @@ def writeGVE(spotsArray, fileroot, **kwargs):
     yc_p = ncols_p - col_p
     zc_p = nrows_p - row_p
 
-    wd_mu = spotsArray.detectorGeom.workDist * 1e3 # in microns (Soeren)
+    wd_mu = spotsArray.detectorGeom.workDist * 1e3  # in microns (Soeren)
 
     osc_axis = num.dot(fableSampCOB.T, Yl).flatten()
 
     # start grabbing stuff from planeData
     planeData = spotsArray.getPlaneData(phaseID=phaseID)
-    cellp   = planeData.latVecOps['dparms']
-    U0      = planeData.latVecOps['U0']
-    wlen    = planeData.wavelength
-    dsp     = planeData.getPlaneSpacings()
-    fHKLs   = planeData.getSymHKLs()
-    tThRng  = planeData.getTThRanges()
-    symTag  = planeData.getLaueGroup()
+    cellp = planeData.latVecOps['dparms']
+    wlen = planeData.wavelength
+    dsp = planeData.getPlaneSpacings()
+    fHKLs = planeData.getSymHKLs()
+    tThRng = planeData.getTThRanges()
 
     # single range should be ok since entering hkls
     tThMin, tThMax = (r2d*tThRng.min(), r2d*tThRng.max())
@@ -1502,13 +1631,13 @@ def writeGVE(spotsArray, fileroot, **kwargs):
     gvecString = ''
     spotsIter = spotsArray.getIterPhase(phaseID, returnBothCoordTypes=True)
     for iSpot, angCOM, xyoCOM in spotsIter:
-        sR, sC, sOme     = xyoCOM # detector coords
-        sTTh, sEta, sOme = angCOM # angular coords (radians)
-        sDsp = wlen / 2. / num.sin(0.5*sTTh) # dspacing
+        sR, sC, sOme = xyoCOM  # detector coords
+        sTTh, sEta, sOme = angCOM  # angular coords (radians)
+        sDsp = wlen / 2. / num.sin(0.5*sTTh)  # dspacing
 
-        # get raw y, z (Fable frame)
-        yraw = ncols_p - sC
-        zraw = nrows_p - sR
+        # # get raw y, z (Fable frame)
+        # yraw = ncols_p - sC
+        # zraw = nrows_p - sR
 
         # convert eta to fable frame
         rEta = mapAngle(90. - r2d*sEta, [0, 360], units='degrees')
@@ -1535,40 +1664,42 @@ def writeGVE(spotsArray, fileroot, **kwargs):
 
     # write gve file for grainspotter
     fid = open(fileroot+'.gve', 'w')
-    print >> fid, '%1.8f %1.8f %1.8f %1.8f %1.8f %1.8f ' % tuple(cellp) \
-          +  cellString + '\n' \
-          + '# wavelength = %1.8f\n' % (wlen) \
-          + '# wedge = 0.000000\n' \
-          + '# axis = %d %d %d\n' % tuple(osc_axis) \
-          + '# cell__a %1.4f\n' %(cellp[0]) \
-          + '# cell__b %1.4f\n' %(cellp[1]) \
-          + '# cell__c %1.4f\n' %(cellp[2]) \
-          + '# cell_alpha %1.4f\n' %(cellp[3]) \
-          + '# cell_beta  %1.4f\n' %(cellp[4]) \
-          + '# cell_gamma %1.4f\n' %(cellp[5]) \
-          + '# cell_lattice_[P,A,B,C,I,F,R] %s\n' %(cellString) \
-          + '# chi 0.0\n' \
-          + '# distance %.4f\n' %(wd_mu) \
-          + '# fit_tolerance 0.5\n' \
-          + '# o11  1\n' \
-          + '# o12  0\n' \
-          + '# o21  0\n' \
-          + '# o22 -1\n' \
-          + '# omegasign %1.1f\n' %(num.sign(deltaOme)) \
-          + '# t_x 0\n' \
-          + '# t_y 0\n' \
-          + '# t_z 0\n' \
-          + '# tilt_x 0.000000\n' \
-          + '# tilt_y 0.000000\n' \
-          + '# tilt_z 0.000000\n' \
-          + '# y_center %.6f\n' %(yc_p) \
-          + '# y_size %.6f\n' %(mmPerPixel*1.e3) \
-          + '# z_center %.6f\n' %(zc_p) \
-          + '# z_size %.6f\n' %(mmPerPixel*1.e3) \
-          + '# ds h k l\n' \
-          + gvecHKLString \
-          + '# xr yr zr xc yc ds eta omega\n' \
-          + gvecString
+    print(
+        '%1.8f %1.8f %1.8f %1.8f %1.8f %1.8f ' % tuple(cellp)
+        + cellString + '\n'
+        + '# wavelength = %1.8f\n' % (wlen)
+        + '# wedge = 0.000000\n'
+        + '# axis = %d %d %d\n' % tuple(osc_axis)
+        + '# cell__a %1.4f\n' % cellp[0]
+        + '# cell__b %1.4f\n' % cellp[1]
+        + '# cell__c %1.4f\n' % cellp[2]
+        + '# cell_alpha %1.4f\n' % cellp[3]
+        + '# cell_beta  %1.4f\n' % cellp[4]
+        + '# cell_gamma %1.4f\n' % cellp[5]
+        + '# cell_lattice_[P,A,B,C,I,F,R] %s\n' % cellString
+        + '# chi 0.0\n'
+        + '# distance %.4f\n' % wd_mu
+        + '# fit_tolerance 0.5\n'
+        + '# o11  1\n'
+        + '# o12  0\n'
+        + '# o21  0\n'
+        + '# o22 -1\n'
+        + '# omegasign %1.1f\n' % num.sign(deltaOme)
+        + '# t_x 0\n'
+        + '# t_y 0\n'
+        + '# t_z 0\n'
+        + '# tilt_x 0.000000\n'
+        + '# tilt_y 0.000000\n'
+        + '# tilt_z 0.000000\n'
+        + '# y_center %.6f\n' % yc_p
+        + '# y_size %.6f\n' % mmPerPixel*1.e3
+        + '# z_center %.6f\n' % zc_p
+        + '# z_size %.6f\n' % mmPerPixel*1.e3
+        + '# ds h k l\n'
+        + gvecHKLString
+        + '# xr yr zr xc yc ds eta omega\n'
+        + gvecString, file=fid
+    )
     fid.close()
 
     ###############################################################
@@ -1587,19 +1718,23 @@ def writeGVE(spotsArray, fileroot, **kwargs):
 
     fid = open(fileroot+'_grainSpotter.ini', 'w')
     # self.__tempFNameList.append(fileroot)
-    print >> fid, 'spacegroup %d\n' % (sgNum) \
-          + 'tthrange %g %g\n' % (tThMin, tThMax) \
-          + 'etarange %g %g\n' % (etaMin, etaMax) \
-          + 'domega %g\n' % (deltaOme) \
-          + omeRangeString + \
-          + 'filespecs %s.gve %s_grainSpotter.log\n' % (fileroot, fileroot) \
-          + 'cuts %d %g %g\n' % (minMeas, minCompl, minUniqn) \
-          + 'eulerstep %g\n' % (eulStep) \
-          + 'uncertainties %g %g %g\n' \
-               % (uncertainty[0], uncertainty[1], uncertainty[2]) \
-          + 'nsigmas %d\n' % (nSigmas) \
-          + 'minfracg %g\n' % (minFracG) \
-          + randomString \
-          + positionString + '\n'
+    print(
+        'spacegroup %d\n' % (sgNum)
+        + 'tthrange %g %g\n' % (tThMin, tThMax)
+        + 'etarange %g %g\n' % (etaMin, etaMax)
+        + 'domega %g\n' % (deltaOme)
+        + omeRangeString
+        + 'filespecs %s.gve %s_grainSpotter.log\n' % (fileroot, fileroot)
+        + 'cuts %d %g %g\n' % (minMeas, minCompl, minUniqn)
+        + 'eulerstep %g\n' % (eulStep)
+        + 'uncertainties %g %g %g\n' % (uncertainty[0],
+                                        uncertainty[1],
+                                        uncertainty[2])
+        + 'nsigmas %d\n' % (nSigmas)
+        + 'minfracg %g\n' % (minFracG)
+        + randomString
+        + positionString
+        + '\n', file=fid
+    )
     fid.close()
     return
