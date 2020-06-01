@@ -116,7 +116,7 @@ class FitGrainsConfig(Config):
     def tth_max(self):
         key = 'fit_grains:tth_max'
         temp = self._cfg.get(key, True)
-        if temp in (True, False):
+        if isinstance(temp, bool):
             return temp
         if isinstance(temp, (int, float)):
             if temp > 0:

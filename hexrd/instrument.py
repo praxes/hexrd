@@ -198,7 +198,7 @@ def max_tth(instr):
     Returns
     -------
     tth_max : float
-        The maximum observable Bragg angle by the instrument.
+        The maximum observable Bragg angle by the instrument in radians.
     """
     tth_max = 0.
     for det in instr.detectors.values():

@@ -8,6 +8,8 @@ import timeit
 import numpy as np
 # np.seterr(over='ignore', invalid='ignore')
 
+import tqdm
+
 import scipy.cluster as cluster
 from scipy import ndimage
 from skimage.feature import blob_dog, blob_log
@@ -62,7 +64,7 @@ def generate_orientation_fibers(cfg, eta_ome):
     #       default values for each case?  They must be specified as of now.
     method = next(method_dict.iterkeys())
     method_kwargs = method_dict[method]
-    logger.info('using "%s" method for fiber generation'
+    logger.info('\tusing "%s" method for fiber generation'
                 % method)
 
     # seed_hkl_ids must be consistent with this...
@@ -163,17 +165,32 @@ def generate_orientation_fibers(cfg, eta_ome):
     if ncpus > 1:
         # multiple process version
         # ???: Need a chunksize in map?
+        chunksize = max(1, len(input_p)//(10*ncpus))
         pool = mp.Pool(ncpus, discretefiber_init, (params, ))
-        qfib = pool.map(discretefiber_reduced, input_p)
+        qfib = pool.map(
+            discretefiber_reduced, input_p,
+            chunksize=chunksize
+        )
+        '''
+        # This is an experiment...
+        ntotal= 10*ncpus + np.remainder(len(input_p), 10*ncpus) > 0
+        for _ in tqdm.tqdm(
+                pool.imap_unordered(
+                    discretefiber_reduced, input_p, chunksize=chunksize
+                ), total=ntotal
+            ):
+            pass
+        print(_.shape)
+        '''
         pool.close()
+        pool.join()
     else:
         # single process version.
-        global paramMP
         discretefiber_init(params)  # sets paramMP
         qfib = map(discretefiber_reduced, input_p)
-        paramMP = None  # clear paramMP
+        discretefiber_cleanup()
     elapsed = (timeit.default_timer() - start)
-    logger.info("fiber generation took %.3f seconds", elapsed)
+    logger.info("\tfiber generation took %.3f seconds", elapsed)
     return np.hstack(qfib)
 
 
@@ -181,6 +198,11 @@ def discretefiber_init(params):
     global paramMP
     paramMP = params
 
+    
+def discretefiber_cleanup():
+    global paramMP
+    del paramMP
+    
 
 def discretefiber_reduced(params_in):
     """
@@ -587,6 +609,7 @@ def find_orientations(cfg,
         # handle search space
         if cfg.find_orientations.use_quaternion_grid is None:
             # doing seeded search
+            logger.info("Will perform seeded search")
             logger.info(
                 "\tgenerating search quaternion list using %d processes",
                 ncpus
@@ -653,7 +676,7 @@ def find_orientations(cfg,
         # do map-based indexing
         start = timeit.default_timer()
 
-        logger.info(" will test %d quaternions using %d processes",
+        logger.info("will test %d quaternions using %d processes",
                     qfib.shape[1], ncpus)
 
         completeness = indexer.paintGrid(
@@ -740,8 +763,6 @@ def find_orientations(cfg,
 
     logger.info("\tmean reflections per grain: %d", mean_rpg)
     logger.info("\tneighborhood size: %d", min_samples)
-    logger.info("\tFeeding %d orientations above %.1f%% to clustering",
-                sum(completeness > compl_thresh), compl_thresh)
 
     qbar, cl = run_cluster(
         completeness, qfib, plane_data.getQSym(), cfg,
