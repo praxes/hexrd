@@ -19,6 +19,7 @@ from hexrd import config
 from hexrd import constants as cnst
 from hexrd import instrument
 from hexrd.xrd import transforms_CAPI as xfcapi
+from hexrd.xrd.fitting import fitGrain, objFuncFitGrain, gFlag_ref
 
 logger = logging.getLogger(__name__)
 

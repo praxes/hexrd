@@ -8,7 +8,7 @@ import timeit
 import numpy as np
 # np.seterr(over='ignore', invalid='ignore')
 
-import tqdm
+# import tqdm
 
 import scipy.cluster as cluster
 from scipy import ndimage
