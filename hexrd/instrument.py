@@ -116,6 +116,15 @@ distortion_key = 'distortion'
 # =============================================================================
 
 
+def _fix_indices(idx, lo, hi):
+    nidx = np.array(idx)
+    off_lo = nidx < lo
+    off_hi = nidx > hi
+    nidx[off_lo] = lo
+    nidx[off_hi] = hi
+    return nidx
+
+
 def calc_beam_vec(azim, pola):
     """
     Calculate unit beam propagation vector from
@@ -1817,6 +1826,10 @@ class PlanarDetector(object):
 
     def interpolate_bilinear(self, xy, img, pad_with_nans=True):
         """
+        Interpolates an image array at the specified cartesian points.
+
+        !!! the `xy` input is in *unwarped* detector coords!
+
         TODO: revisit normalization in here?
         """
         is_2d = img.ndim == 2
@@ -1838,18 +1851,28 @@ class PlanarDetector(object):
         ij_frac = self.cartToPixel(xy_clip)
 
         # get floors/ceils from array of pixel _centers_
+        # and fix indices running off the pixel centers
+        # !!! notice we already clipped points to the panel!
         i_floor = cellIndices(self.row_pixel_vec, xy_clip[:, 1])
+        i_floor_img = _fix_indices(i_floor, 0, self.rows - 1)
+
         j_floor = cellIndices(self.col_pixel_vec, xy_clip[:, 0])
+        j_floor_img = _fix_indices(j_floor, 0, self.cols - 1)
+
+        # ceilings from floors
         i_ceil = i_floor + 1
+        i_ceil_img = _fix_indices(i_ceil, 0, self.rows - 1)
+
         j_ceil = j_floor + 1
+        j_ceil_img = _fix_indices(j_ceil, 0, self.cols - 1)
 
         # first interpolate at top/bottom rows
         row_floor_int = \
-            (j_ceil - ij_frac[:, 1])*img[i_floor, j_floor] \
-            + (ij_frac[:, 1] - j_floor)*img[i_floor, j_ceil]
+            (j_ceil - ij_frac[:, 1])*img[i_floor_img, j_floor_img] \
+            + (ij_frac[:, 1] - j_floor)*img[i_floor_img, j_ceil_img]
         row_ceil_int = \
-            (j_ceil - ij_frac[:, 1])*img[i_ceil, j_floor] \
-            + (ij_frac[:, 1] - j_floor)*img[i_ceil, j_ceil]
+            (j_ceil - ij_frac[:, 1])*img[i_ceil_img, j_floor_img] \
+            + (ij_frac[:, 1] - j_floor)*img[i_ceil_img, j_ceil_img]
 
         # next interpolate across cols
         int_vals = \
@@ -2093,13 +2116,13 @@ class PlanarDetector(object):
             valid_xys.append(xys_p)
 
             # filter angs and hkls that are on the detector plane
-            # !!! check this -- seems unnecessary but the results of 
+            # !!! check this -- seems unnecessary but the results of
             #     _project_on_detector_plane() can have len < the input.
             #     the output of _project_on_detector_plane has been modified to
             #     hand back the index array to remedy this JVB 2020-05-27
             filtered_angs = np.atleast_2d(allAngs[on_plane, :])
             filtered_hkls = np.atleast_2d(allHKLs[on_plane, :])
-            
+
             # grab hkls and gvec ids for this panel
             valid_hkls.append(filtered_hkls[on_panel, 1:])
             valid_ids.append(filtered_hkls[on_panel, 0])

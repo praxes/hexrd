@@ -5,7 +5,7 @@ from numpy        import array, c_, r_, hstack, vstack, tile, \
 from numpy        import sum as asum
 from numpy.linalg import det
 import numpy as np
-from hexrd import USE_NUMBA
+from hexrd.constants import USE_NUMBA, sqrt_epsf
 if USE_NUMBA:
     import numba
 
@@ -38,15 +38,12 @@ def cellIndices(edges, points_1d):
       must be mapped to the same branch cut, and
       abs(edges[0] - edges[-1]) = 2*pi
     """
-    ztol = 1e-12
+    ztol = sqrt_epsf
 
     assert len(edges) >= 2, "must have at least 2 edges"
 
-    points_1d = r_[points_1d].flatten()
-    delta     = float(edges[1] - edges[0])
-
-    on_last_rhs = points_1d >= edges[-1] - ztol
-    points_1d[on_last_rhs] = points_1d[on_last_rhs] - ztol
+    points_1d = np.r_[points_1d].flatten()
+    delta = float(edges[1] - edges[0])
 
     if delta > 0:
         on_last_rhs = points_1d >= edges[-1] - ztol
