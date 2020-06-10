@@ -745,7 +745,7 @@ class HEDMInstrument(object):
             # =================================================================
             ring_data = []
             for i_ring, these_data in enumerate(zip(pow_angs, pow_xys)):
-                print("working on 2theta bin (ring) %d..." % i_ring)
+                print("interpolating 2theta bin %d..." % i_ring)
 
                 # points are already checked to fall on detector
                 angs = these_data[0]
@@ -765,13 +765,15 @@ class HEDMInstrument(object):
                     patch_data = []
                 for i_p, patch in enumerate(patches):
                     # strip relevant objects out of current patch
-                    vtx_angs, vtx_xy, conn, areas, xy_eval, ijs = patch
+                    vtx_angs, vtx_xys, conn, areas, xys_eval, ijs = patch
 
-                    _, on_panel = panel.clip_to_panel(
-                        np.vstack(
-                            [xy_eval[0].flatten(), xy_eval[1].flatten()]
-                        ).T
-                    )
+                    # need to reshape eval pts for interpolation
+                    xy_eval = np.vstack([
+                        xys_eval[0].flatten(),
+                        xys_eval[1].flatten()]).T
+
+                    _, on_panel = panel.clip_to_panel(xy_eval)
+
                     if np.any(~on_panel):
                         continue
 
@@ -781,12 +783,9 @@ class HEDMInstrument(object):
                     else:
                         ang_data = (vtx_angs[0][0, :],
                                     angs[i_p][-1])
+
                     prows, pcols = areas.shape
                     area_fac = areas/float(native_area)
-                    # need to reshape eval pts for interpolation
-                    xy_eval = np.vstack([
-                        xy_eval[0].flatten(),
-                        xy_eval[1].flatten()]).T
 
                     # interpolate
                     if not collapse_tth:
@@ -826,7 +825,28 @@ class HEDMInstrument(object):
                               minEnergy=5., maxEnergy=35.,
                               rmat_s=None, grain_params=None):
         """
-        TODO: revisit output; dict, or concatenated list?
+        Simulates Laue diffraction for a list of grains.
+
+        Parameters
+        ----------
+        crystal_data : TYPE
+            DESCRIPTION.
+        minEnergy : TYPE, optional
+            DESCRIPTION. The default is 5..
+        maxEnergy : TYPE, optional
+            DESCRIPTION. The default is 35..
+        rmat_s : TYPE, optional
+            DESCRIPTION. The default is None.
+        grain_params : TYPE, optional
+            DESCRIPTION. The default is None.
+
+        Returns
+        -------
+        results : dict
+            results dictionary for each detector containing
+            [xy_det, hkls_in, angles, dspacing, energy] each a list over each
+            grain.
+
         """
         results = dict.fromkeys(self.detectors)
         for det_key, panel in self.detectors.items():
