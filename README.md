@@ -1,12 +1,14 @@
 HEXRD
 =====
 
-HEXRD provides a collection of resources for analysis of x-ray diffraction
-data, including powder diffraction, Laue diffraction, and monochromatic rotation series (i.e. 3DXRD/HEDM).
+HEXRD provides a collection of resources for analysis of X-ray diffraction
+data, including powder diffraction, Laue diffraction, and monochromatic rotation series (_i.e._, 3DXRD/HEDM).
 HEXRD is comprised of a library and API for writing scripts, a command line interface, and an
 interactive graphical user interface (though this is not up to date in python2.7).
 
 Note that this is a _legacy_ repo with minimal maintenance; the canonical HEXRD repos can now be found at https://github.com/HEXRD/hexrd.
+
+It is recomended that you use the conda package manager for your python environment (available from either [here](https://docs.conda.io/en/latest/miniconda.html) or [here](https://www.anaconda.com/products/individual), with the former being a smaller, more barebones install).
 
 Building
 --------
