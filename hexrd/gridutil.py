@@ -5,7 +5,8 @@ from numpy        import array, c_, r_, hstack, vstack, tile, \
 from numpy        import sum as asum
 from numpy.linalg import det
 import numpy as np
-from hexrd.constants import USE_NUMBA, sqrt_epsf
+from hexrd.constants import sqrt_epsf
+from hexrd import USE_NUMBA
 if USE_NUMBA:
     import numba
 
