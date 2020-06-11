@@ -24,7 +24,7 @@ the recommended method is via `conda-build`.  You can also skip this if you find
   - clone repo: `git clone https://github.com/joelvbernier/fabio.git`
   - `cd fabio`
   - `pip install ./`
--`conda build conda.recipe/ --python=2 -c conda-forge`
+- `conda build conda.recipe/ --python=2 -c conda-forge`
 
 Installing
 ----------
