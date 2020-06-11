@@ -12,7 +12,7 @@ It is recomended that you use the conda package manager for your python environm
 
 Building
 --------
-the recommended method is via `conda-build`.  You can also skip this if you find a build of the desired version at my [my anaconda cloud](https://anaconda.org/joelvbernier/hexrd) page, which I update periodically.  Otherwise, using conda 4.8.3 (from miniconda3 or anaconda3) the best procedure is as follows:
+You can skip this if you find a build of the desired version at my [my anaconda cloud](https://anaconda.org/joelvbernier/hexrd) page, which I update periodically.  Otherwise, the recommended method is via `conda-build`.  If you installed Miniconda, you will have to first install `conda-build` in your base env: `conda install conda-build`.  Otherwise, using conda 4.8.3 (from Miniconda3 or Anaconda3) the best procedure is as follows:
 - go to wherever you keep your git repos, _e.g._, `cd ~/Documents/GitHub`
 - clone the hexrd repo: `git clone https://github.com/joelvbernier/hexrd.git`
 - `cd hexrd`
@@ -33,3 +33,7 @@ You can check [my anaconda cloud](https://anaconda.org/joelvbernier/hexrd) for p
 
 Otherwise, you can install from a local build as follows:
 - `conda install hexrd=0.6 --use-local`
+
+Running
+-------
+The function libraries lend themselves to scripts for your vaired purposes, but there is a CLI for the ff-HEDM workflow, namely indexing, `hexrd find-orientations`, and grain parameter refinement, `hexrd fit-grains`.  More documentation to come.
