@@ -33,8 +33,7 @@ import numpy as num
 import csv
 import os
 
-from scipy import constants as C
-
+from hexrd import constants
 from hexrd.matrixutil import sqrt, unitVector, columnNorm, sum
 from hexrd.xrd.rotations import rotMatOfExpMap, mapAngle
 from hexrd.xrd import symmetry
@@ -88,21 +87,17 @@ def processWavelength(arg):
         if arg.isLength():
             retval = arg.getVal(dUnit)
         elif arg.isEnergy():
-            try:
-                speed  = C.c
-                planck = C.h
-            except:
-                raise NotImplementedError, 'scipy does not have constants'
-                # speed  = ...
-                # planck = ...
-            e = arg.getVal('J')
-            retval = valunits.valWUnit('wavelength', 'length', planck*speed/e, 'm').getVal(dUnit)
+            e = arg.getVal('keV')
+            retval = valunits.valWUnit(
+                'wavelength', 'length', constants.keVToAngstrom(e), 'angstrom'
+            ).getVal(dUnit)
         else:
-            raise RuntimeError, 'do not know what to do with '+str(arg)
+            raise RuntimeError('do not know what to do with '+str(arg))
     else:
-        keV2J = 1.e3*C.e
-        e = keV2J * arg
-        retval = valunits.valWUnit('wavelength', 'length', C.h*C.c/e, 'm').getVal(dUnit)
+        # !!! assuming arg is in keV
+        retval = valunits.valWUnit(
+            'wavelength', 'length', constants.keVToAngstrom(arg), 'angstrom'
+        ).getVal(dUnit)
 
     return retval
 
