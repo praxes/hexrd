@@ -674,14 +674,13 @@ class HEDMInstrument(object):
                         pass
                     pass
 
-                # handle threshold if specified
-                this_det_image = np.array(imgser_dict[det_key])
-                if threshold is not None:
-                    # !!! NaNs get preserved
-                    this_det_image[this_det_image < threshold] = 0.
-
                 # histogram intensities over eta ranges
-                for i_row, image in enumerate(this_det_image):
+                for i_row, image in enumerate(imgser_dict[det_key]):
+                    # handle threshold if specified
+                    if threshold is not None:
+                        # !!! NaNs get preserved
+                        image = np.array(image)
+                        image[image < threshold] = 0.
                     if fast_histogram:
                         this_map[i_row, reta_idx] = histogram1d(
                             retas,
